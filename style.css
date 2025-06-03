@@ -46,7 +46,7 @@ body.menu-open {
     margin-right: 10px; /* Adds 10px space from right side (if needed) */
 }
 .logo img {
-    width: 60px; /* Reduced from 80px */
+    width: 70px; /* Reduced from 80px */
     height: auto; /* Maintain aspect ratio */
     transition: all 0.3s ease; /* Smooth resizing on hover if needed */
 }
