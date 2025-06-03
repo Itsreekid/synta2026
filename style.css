@@ -794,6 +794,11 @@ footer {
         height: 60px;
         padding: 0 1rem;
     }
+    .logo img {
+        width: 50px; /* Reduced from 80px */
+        height: auto; /* Maintain aspect ratio */
+        transition: all 0.3s ease; /* Smooth resizing on hover if needed */
+    }
 
     .logo h1 {
         font-size: 1.2rem;
