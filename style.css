@@ -625,7 +625,7 @@ footer {
 }
 
 /* ====== Mobile Responsiveness ====== */
-@media (max-width: 992px) {
+@media (max-width: 1020px) {
     .container {
         padding: 0 1.5rem;
         width: 100%;
@@ -717,6 +717,14 @@ footer {
         width: 50%;
     }
 
+
+    .course-card {
+        width: 100%;
+        max-width: 320px; /* Set a max-width for better appearance */
+        margin-bottom: 2rem;
+    }
+
+    
     /* Auth Buttons */
     .auth-buttons {
         position: fixed;
@@ -845,5 +853,8 @@ footer {
 
     .footer-bottom p {
         font-size: 1.2rem;
+    }
+    .course-card {
+        max-width: 100%; /* Allow cards to use full width on very small screens */
     }
 }
