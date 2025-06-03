@@ -42,6 +42,7 @@ body.menu-open {
 
 .logo {
     font-size: medium;
+    margin-top: 10px;
     margin-left: 5px; /* Adds 10px space from left screen border */
     margin-right: 30px; /* Adds 10px space from right side (if needed) */
 }
@@ -653,7 +654,11 @@ footer {
         padding: 0;
         z-index: 1001;
     }
-
+    .logo {
+        font-size: medium;
+        margin-top: 10px;
+        margin-left: 5px; /* Adds 10px space from left screen border */
+    }
     .menu-icon {
         display: block;
         width: 100%;
