@@ -38,6 +38,19 @@ body.menu-open {
     margin: 0 auto;
     padding: 0 3rem;
 }
+/*logo synta */
+
+.logo {
+    font-size: medium;
+    margin-left: 10px; /* Adds 10px space from left screen border */
+    margin-right: 10px; /* Adds 10px space from right side (if needed) */
+}
+.logo img {
+    width: 60px; /* Reduced from 80px */
+    height: auto; /* Maintain aspect ratio */
+    transition: all 0.3s ease; /* Smooth resizing on hover if needed */
+}
+
 
 /* ====== Typography ====== */
 h1, h2, h3, h4, h5, h6 {
