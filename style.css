@@ -484,9 +484,8 @@ main {
     width: 50px;
     height: 50px;
     border-radius: 50%;
-    background: url('source/users/baraa.jpg');
+    background-color: #219EBC;
     margin-left: 15px;
-    overflow: hidden;
 }
 
 .author-info h4 {
