@@ -42,8 +42,8 @@ body.menu-open {
 
 .logo {
     font-size: medium;
-    margin-left: 10px; /* Adds 10px space from left screen border */
-    margin-right: 10px; /* Adds 10px space from right side (if needed) */
+    margin-left: 5px; /* Adds 10px space from left screen border */
+    margin-right: 30px; /* Adds 10px space from right side (if needed) */
 }
 .logo img {
     width: 70px; /* Reduced from 80px */
@@ -174,7 +174,7 @@ nav ul li a {
     color: var(--primary-color);
     font-weight: 500;
     font-size: 1.2rem;
-    padding: 0.75rem 1.25rem;
+    padding: 0.75rem 0.8rem;
     transition: all 0.3s ease;
     position: relative;
 }
