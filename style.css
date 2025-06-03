@@ -279,7 +279,7 @@ main {
     box-shadow: 0 15px 40px rgba(0,0,0,0.1);
     transition: transform 0.3s, box-shadow 0.3s;
     position: relative;
-    max-width: 400px;
+    max-width: 350px;
 }
 
 .course-card:hover {
@@ -779,21 +779,7 @@ footer {
         transform: translateY(-8px) rotate(-45deg);
     }
 
-    /* Adjust main content padding */
-    main {
-        padding-top: 70px;
-    }
-    .courses-grid {
-        display: flex;
-        flex-direction: column;
-        align-items: center; /* This centers the cards horizontally */
-        padding: 0 1rem;
-    }
-    .course-card {
-        width: 100%;
-        max-width: 320px; /* Set a max-width for better appearance */
-        margin-bottom: 2rem;
-    }
+
 }
 @media (max-width: 730px) {
     .courses-grid {
@@ -862,7 +848,7 @@ footer {
         font-size: 1.2rem;
     }
     .course-card {
-        max-width: 100%; /* Allow cards to use full width on very small screens */
+        min-width: 100px; /* Allow cards to use full width on very small screens */
     }
     .features-grid {
         display: flex;
