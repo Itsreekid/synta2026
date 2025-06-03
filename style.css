@@ -267,7 +267,7 @@ main {
 .courses-grid {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
-    gap: 30px;
+    gap: 50px;
     align-items: center;
 }
 
@@ -846,9 +846,6 @@ footer {
 
     .footer-bottom p {
         font-size: 1.2rem;
-    }
-    .course-card {
-        min-width: 100px; /* Allow cards to use full width on very small screens */
     }
     .features-grid {
         display: flex;
