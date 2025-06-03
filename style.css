@@ -486,6 +486,7 @@ main {
     border-radius: 50%;
     background: url('source/users/baraa.jpg');
     margin-left: 15px;
+    overflow: hidden;
 }
 
 .author-info h4 {
