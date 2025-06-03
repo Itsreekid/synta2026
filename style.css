@@ -631,7 +631,11 @@ footer {
         width: 100%;
         overflow-x: hidden;
     }
-
+    .logo {
+        font-size: medium;
+        margin-top: 10px;
+        margin-left: 5px; /* Adds 10px space from left screen border */
+    }
     header .container {
         padding: 0 1.5rem;
         height: 70px;
