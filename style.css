@@ -192,9 +192,9 @@ nav ul li a.active::after {
 }
 
 .auth-buttons .btn {
-    font-size: 1.3rem;
-    padding: 0.7rem 1.5rem;
-    border-radius: 6px;
+    margin-left: 10px;
+    margin-right: 10px;
+    padding: 8px 15px;
 }
 
 /* ====== Main Content ====== */
