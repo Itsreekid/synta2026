@@ -129,5 +129,34 @@
     </footer>
 
     <script src="main.js"></script>
+        <script>
+        function resizeIframe() {
+            const iframe = document.querySelector('iframe[name="Principal"]');
+            if (iframe && iframe.contentWindow) {
+                try {
+                    // Get the height of the content inside the iframe
+                    const height = iframe.contentWindow.document.body.scrollHeight;
+                    iframe.style.height = height + 'px'; // Apply new height
+                } catch (e) {
+                    console.error("Cannot access iframe content (cross-origin restriction)");
+                }
+            }
+        }
+    
+        // Resize on initial load
+        window.addEventListener('load', resizeIframe);
+    
+        // Resize when navigation occurs (for links targeting the iframe)
+        const links = document.querySelectorAll('a[target="Principal"]');
+        links.forEach(link => {
+            link.addEventListener('click', () => setTimeout(resizeIframe, 500));
+        });
+    
+        // Optional: Resize on iframe content changes (if same domain)
+        const iframe = document.querySelector('iframe[name="Principal"]');
+        if (iframe) {
+            iframe.addEventListener('load', resizeIframe);
+        }
+    </script>
 </body>
 </html>
