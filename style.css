@@ -18,7 +18,20 @@
 html {
     scroll-behavior: smooth;
 }
+section {
+    display: block; /* Makes the section a block element (default for <section>) */
+    overflow: hidden; /* Hides any overflow (removes scrollbars) */
+    width: 100%; /* Ensures full width */
+}
 
+iframe {
+    width: 100%; /* Full width of its container */
+    height: 100vh; /* Full viewport height (adjust as needed) */
+    border: none; /* Removes default iframe border */
+    display: block; /* Ensures iframe is a block element */
+    overflow: hidden; /* Hides scrollbars inside iframe */
+    margin-top: 30px;
+}
 body {
     font-family: 'Tajawal', sans-serif;
     color: var(--text-color);
