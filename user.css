@@ -6,7 +6,7 @@
 
 body {
     font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-    background: linear-gradient(135deg, #ff7b1a 0%, #ffa500 100%);
+    background: #ffffff;
     min-height: 100vh;
     display: flex;
     overflow: hidden;
@@ -41,6 +41,7 @@ body {
 }
 
 .logo-icon {
+    background-color: #e0e0e0;
     font-size: medium;
     width: 40px;
     height: 40px;
