@@ -137,7 +137,7 @@ function initializeAuth() {
                         user_class: userData.userClass,
                         user_branch: userData.userBranch
                     },
-                    emailRedirectTo: window.location.origin + '/index.html'
+                    emailRedirectTo: window.location.origin + '/login.html'
                 }
             });
 
@@ -479,7 +479,7 @@ function initializeAuth() {
             const protectedPages = ['user.html', 'profile.html'];
             const currentPage = window.location.pathname.split('/').pop();
             if (protectedPages.includes(currentPage)) {
-                window.location.href = 'login.html';
+                window.location.href = '../index.html';
             }
         }
     });
