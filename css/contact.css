@@ -1,0 +1,117 @@
+body {
+    font-family: 'Tajawal', sans-serif;
+    background: linear-gradient(135deg, #ff7b1a 0%, #ffa500 100%);
+    min-height: 100vh;
+    padding: 2rem;
+    overflow: hidden;
+}
+
+.contact-container {
+    max-width: 600px;
+    margin: 0 auto;
+    background: rgba(255,255,255,0.97);
+    border-radius: 20px;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+    padding: 2rem;
+}
+
+.contact-header {
+    text-align: center;
+    margin-bottom: 1.5rem;
+}
+
+.contact-header h1 {
+    font-size: 2rem;
+    color: #ff7b1a;
+    font-weight: 700;
+}
+
+.contact-header p {
+    color: #666;
+    font-size: 1.1rem;
+}
+
+.contact-form {
+    display: flex;
+    flex-direction: column;
+    gap: 1.2rem;
+    margin-bottom: 2rem;
+}
+
+.form-group label {
+    color: #ff7b1a;
+    font-weight: 500;
+    margin-bottom: 0.3rem;
+    display: block;
+}
+
+.form-group input,
+.form-group textarea {
+    width: 100%;
+    padding: 0.7rem 1rem;
+    border: 1px solid #e0e0e0;
+    border-radius: 8px;
+    font-family: 'Tajawal', sans-serif;
+    font-size: 1rem;
+    background: #fff;
+    color: #333;
+    transition: border 0.2s;
+}
+
+.form-group input:focus,
+.form-group textarea:focus {
+    border-color: #ff7b1a;
+    outline: none;
+}
+
+.contact-btn {
+    background: linear-gradient(45deg, #ff7b1a, #ffa500);
+    color: #fff;
+    border: none;
+    padding: 0.7rem 2rem;
+    border-radius: 25px;
+    font-family: 'Tajawal', sans-serif;
+    font-weight: 700;
+    font-size: 1.1rem;
+    cursor: pointer;
+    transition: background 0.3s;
+}
+
+.contact-btn:hover {
+    background: linear-gradient(45deg, #ffa500, #ff7b1a);
+}
+
+.contact-info {
+    margin-top: 2rem;
+    color: #333;
+    font-size: 1rem;
+    text-align: center;
+}
+
+.social-links {
+    margin-top: 1rem;
+    display: flex;
+    gap: 1.5rem;
+    justify-content: center;
+}
+
+.social-links a {
+    color: #ff7b1a;
+    font-weight: 700;
+    text-decoration: none;
+    font-size: 1.1rem;
+    transition: color 0.2s;
+}
+
+.social-links a:hover {
+    color: #ffa500;
+}
+
+@media (max-width: 768px) {
+    body {
+        padding: 1rem;
+    }
+    .contact-container {
+        padding: 1rem;
+    }
+} 

@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>الملف الشخصي - أكاديمية سينتا</title>
+    <!-- Supabase Client Library -->
+    <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700&display=swap" rel="stylesheet">
+    <!-- CSS -->
+    <link rel="stylesheet" href="../../css/profile.css">
+</head>
+<body>
+    <div class="profile-container">
+        <div class="profile-header">
+            <h1>👤 الملف الشخصي</h1>
+            <p>إدارة معلوماتك الشخصية وتقدمك التعليمي</p>
+        </div>
+
+        <div class="profile-content">
+            <div class="profile-main">
+                <!-- Personal Information -->
+                <div class="profile-section">
+                    <h2>📋 المعلومات الشخصية</h2>
+                    <div class="profile-form">
+                        <div class="form-group">
+                            <label for="full-name">الاسم الكامل</label>
+                            <input type="text" id="full-name" placeholder="أدخل اسمك الكامل">
+                        </div>
+                        <div class="form-group">
+                            <label for="email">البريد الإلكتروني</label>
+                            <input type="email" id="email" placeholder="أدخل بريدك الإلكتروني" readonly>
+                        </div>
+                        <div class="form-group">
+                            <label for="phone">رقم الهاتف</label>
+                            <input type="tel" id="phone" placeholder="أدخل رقم هاتفك">
+                        </div>
+                        <div class="form-group">
+                            <label for="user-class">المستوى الدراسي</label>
+                            <select id="user-class">
+                                <option value="">اختر المستوى</option>
+                                <option value="2eme">2ème année</option>
+                                <option value="3eme">3ème année</option>
+                                <option value="bac">Bac informatique</option>
+                                <option value="other">أخرى</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="user-branch">الفرع</label>
+                            <select id="user-branch">
+                                <option value="">اختر الفرع</option>
+                                <option value="informatique">إعلامية</option>
+                                <option value="sciences">علوم</option>
+                                <option value="technique">تقني</option>
+                                <option value="other">أخرى</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="birth-date">تاريخ الميلاد</label>
+                            <input type="date" id="birth-date">
+                        </div>
+                        <div class="form-group">
+                            <label for="country">البلد</label>
+                            <select id="country">
+                                <option value="">اختر بلدك</option>
+                                <option value="tunisia">تونس</option>
+                                <option value="algeria">الجزائر</option>
+                                <option value="morocco">المغرب</option>
+                                <option value="libya">ليبيا</option>
+                                <option value="egypt">مصر</option>
+                                <option value="other">أخرى</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="bio">نبذة عنك</label>
+                            <textarea id="bio" placeholder="اكتب نبذة قصيرة عن نفسك" rows="4"></textarea>
+                        </div>
+                        <button class="save-btn" onclick="saveProfile()">💾 حفظ التغييرات</button>
+                    </div>
+                </div>
+
+                <!-- Learning Progress -->
+                <div class="profile-section">
+                    <h2>📈 تقدم التعلم</h2>
+                    <div class="progress-overview">
+                        <div class="progress-card">
+                            <div class="progress-icon">🎯</div>
+                            <div class="progress-info">
+                                <h3>الدورات المكتملة</h3>
+                                <span class="progress-number" id="completed-courses">0</span>
+                            </div>
+                        </div>
+                        <div class="progress-card">
+                            <div class="progress-icon">📚</div>
+                            <div class="progress-info">
+                                <h3>الدورات الجارية</h3>
+                                <span class="progress-number" id="active-courses">0</span>
+                            </div>
+                        </div>
+                        <div class="progress-card">
+                            <div class="progress-icon">⏱️</div>
+                            <div class="progress-info">
+                                <h3>ساعات التعلم</h3>
+                                <span class="progress-number" id="learning-hours">0</span>
+                            </div>
+                        </div>
+                        <div class="progress-card">
+                            <div class="progress-icon">🏆</div>
+                            <div class="progress-info">
+                                <h3>الإنجازات</h3>
+                                <span class="progress-number" id="achievements">0</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Course History -->
+                <div class="profile-section">
+                    <h2>📖 سجل الدورات</h2>
+                    <div class="course-history" id="course-history">
+                        <div class="no-courses-message">
+                            <p>لا توجد دورات مسجلة بعد</p>
+                            <p>ابدأ رحلتك التعليمية مع أكاديمية سينتا!</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="profile-sidebar">
+                <!-- Profile Picture -->
+                <div class="profile-picture-section">
+                    <div class="profile-picture" id="profile-picture">
+                        <span id="profile-initial">س</span>
+                    </div>
+                </div>
+
+                <!-- Quick Stats -->
+                <div class="quick-stats">
+                    <h3>📊 إحصائيات سريعة</h3>
+                    <div class="stat-item">
+                        <span class="stat-label">المستوى الحالي</span>
+                        <span class="stat-value" id="current-level">مبتدئ</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-label">النقاط المكتسبة</span>
+                        <span class="stat-value" id="earned-points">0</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-label">أيام النشاط</span>
+                        <span class="stat-value" id="active-days">0</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-label">المسابقات المشاركة</span>
+                        <span class="stat-value" id="contests-participated">0</span>
+                    </div>
+                </div>
+
+                <!-- Achievements -->
+                <div class="achievements-section">
+                    <h3>🏆 الإنجازات الأخيرة</h3>
+                    <div class="achievement-item unlocked">
+                        <span class="achievement-icon">🎯</span>
+                        <div class="achievement-info">
+                            <h4>المبتدئ</h4>
+                            <p>أكمل أول دورة</p>
+                        </div>
+                    </div>
+                    <div class="achievement-item locked">
+                        <span class="achievement-icon">🚀</span>
+                        <div class="achievement-info">
+                            <h4>المثابر</h4>
+                            <p>تعلم لمدة 7 أيام متتالية</p>
+                        </div>
+                    </div>
+                    <div class="achievement-item locked">
+                        <span class="achievement-icon">👑</span>
+                        <div class="achievement-info">
+                            <h4>الخبير</h4>
+                            <p>أكمل 5 دورات</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Settings -->
+                <div class="settings-section">
+                    <h3>⚙️ الإعدادات</h3>
+                    <div class="setting-item">
+                        <input type="checkbox" id="email-notifications" checked title="تفعيل إشعارات البريد الإلكتروني">
+                        <label for="email-notifications" class="switch">
+                            <span class="slider"></span>
+                        </label>
+                        <span>إشعارات البريد الإلكتروني</span>
+                    </div>
+                    <div class="setting-item">
+                        <input type="checkbox" id="push-notifications" title="تفعيل الإشعارات الفورية">
+                        <label for="push-notifications" class="switch">
+                            <span class="slider"></span>
+                        </label>
+                        <span>الإشعارات الفورية</span>
+                    </div>
+                    <div class="setting-item">
+                        <input type="checkbox" id="dark-mode" title="تفعيل الوضع المظلم">
+                        <label for="dark-mode" class="switch">
+                            <span class="slider"></span>
+                        </label>
+                        <span>الوضع المظلم</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script src="../../authentication.js"></script>
+    <script src="../../js/profile.js"></script>
+</body>
+</html> 

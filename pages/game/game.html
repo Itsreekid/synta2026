@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>لعبة التعلم - أكاديمية سينتا</title>
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700&display=swap" rel="stylesheet">
+    <!-- CSS -->
+    <link rel="stylesheet" href="../../css/game.css">
+</head>
+<body>
+    <div class="game-container">
+        <div class="game-header">
+            <h1>🎮 لعبة تعلم البايثون</h1>
+            <div class="game-stats">
+                <div class="stat">
+                    <span class="stat-label">المستوى:</span>
+                    <span class="stat-value" id="level">1</span>
+                </div>
+                <div class="stat">
+                    <span class="stat-label">النقاط:</span>
+                    <span class="stat-value" id="score">0</span>
+                </div>
+                <div class="stat">
+                    <span class="stat-label">الحياة:</span>
+                    <span class="stat-value" id="lives">3</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="game-content">
+            <div class="game-area">
+                <div class="code-editor">
+                    <div class="editor-header">
+                        <h3>📝 محرر الكود</h3>
+                        <button class="run-btn" onclick="runCode()">▶️ تشغيل</button>
+                    </div>
+                    <textarea id="code-input" placeholder="اكتب كود البايثون هنا...">print("مرحبا بالعالم!")</textarea>
+                </div>
+
+                <div class="output-area">
+                    <div class="output-header">
+                        <h3>📤 النتيجة</h3>
+                        <button class="clear-btn" onclick="clearOutput()">🗑️ مسح</button>
+                    </div>
+                    <div id="output" class="output-content">
+                        <div class="welcome-message">
+                            <h4>مرحبا بك في لعبة تعلم البايثون! 🐍</h4>
+                            <p>اكتب الكود في المحرر واضغط "تشغيل" لترى النتيجة</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="game-sidebar">
+                <div class="challenge-section">
+                    <h3>🎯 التحدي الحالي</h3>
+                    <div class="challenge-content">
+                        <h4 id="challenge-title">التحدي الأول: طباعة النص</h4>
+                        <p id="challenge-description">اكتب كود لطباعة "مرحبا بالعالم!"</p>
+                        <div class="hint">
+                            <strong>💡 تلميح:</strong>
+                            <span id="challenge-hint">استخدم دالة print()</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="lessons-section">
+                    <h3>📚 الدروس</h3>
+                    <div class="lessons-list">
+                        <div class="lesson-item active" data-lesson="1">
+                            <span class="lesson-number">1</span>
+                            <span class="lesson-title">طباعة النص</span>
+                            <span class="lesson-status">✅</span>
+                        </div>
+                        <div class="lesson-item" data-lesson="2">
+                            <span class="lesson-number">2</span>
+                            <span class="lesson-title">المتغيرات</span>
+                            <span class="lesson-status">🔒</span>
+                        </div>
+                        <div class="lesson-item" data-lesson="3">
+                            <span class="lesson-number">3</span>
+                            <span class="lesson-title">الحلقات التكرارية</span>
+                            <span class="lesson-status">🔒</span>
+                        </div>
+                        <div class="lesson-item" data-lesson="4">
+                            <span class="lesson-number">4</span>
+                            <span class="lesson-title">الشروط</span>
+                            <span class="lesson-status">🔒</span>
+                        </div>
+                        <div class="lesson-item" data-lesson="5">
+                            <span class="lesson-number">5</span>
+                            <span class="lesson-title">الدوال</span>
+                            <span class="lesson-status">🔒</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="achievements-section">
+                    <h3>🏆 الإنجازات</h3>
+                    <div class="achievements-list">
+                        <div class="achievement-item unlocked">
+                            <span class="achievement-icon">🎯</span>
+                            <span class="achievement-title">المبتدئ</span>
+                        </div>
+                        <div class="achievement-item locked">
+                            <span class="achievement-icon">🚀</span>
+                            <span class="achievement-title">المبرمج</span>
+                        </div>
+                        <div class="achievement-item locked">
+                            <span class="achievement-icon">👑</span>
+                            <span class="achievement-title">الخبير</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script src="../../js/game.js"></script>
+</body>
+</html> 

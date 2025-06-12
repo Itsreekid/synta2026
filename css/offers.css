@@ -1,0 +1,117 @@
+body {
+    font-family: 'Tajawal', sans-serif;
+    background: linear-gradient(135deg, #ff7b1a 0%, #ffa500 100%);
+    min-height: 100vh;
+    padding: 2rem;
+    overflow: hidden;
+}
+
+.offers-container {
+    max-width: 900px;
+    margin: 0 auto;
+    background: rgba(255,255,255,0.97);
+    border-radius: 20px;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+    padding: 2rem;
+}
+
+.offers-header {
+    text-align: center;
+    margin-bottom: 2rem;
+}
+
+.offers-header h1 {
+    font-size: 2rem;
+    color: #ff7b1a;
+    font-weight: 700;
+}
+
+.offers-header p {
+    color: #666;
+    font-size: 1.1rem;
+}
+
+.offers-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 2rem;
+    justify-content: center;
+}
+
+.offer-card {
+    background: #fff;
+    border-radius: 15px;
+    box-shadow: 0 2px 8px rgba(255,123,26,0.07);
+    padding: 2rem 1.5rem;
+    min-width: 260px;
+    max-width: 320px;
+    flex: 1 1 260px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    border-left: 5px solid #ff7b1a;
+    transition: box-shadow 0.2s;
+}
+
+.offer-card:hover {
+    box-shadow: 0 8px 24px rgba(255,123,26,0.15);
+}
+
+.offer-title {
+    font-size: 1.2rem;
+    color: #ff7b1a;
+    font-weight: 700;
+    margin-bottom: 0.5rem;
+}
+
+.offer-description {
+    color: #333;
+    font-size: 1rem;
+    margin-bottom: 1rem;
+    text-align: center;
+}
+
+.offer-discount {
+    background: linear-gradient(45deg, #ff7b1a, #ffa500);
+    color: #fff;
+    padding: 0.5rem 1.2rem;
+    border-radius: 20px;
+    font-size: 1.1rem;
+    font-weight: 700;
+    margin-bottom: 1rem;
+}
+
+.offer-expiry {
+    color: #dc3545;
+    font-size: 0.95rem;
+    margin-bottom: 0.5rem;
+}
+
+.offer-btn {
+    background: #ff7b1a;
+    color: #fff;
+    border: none;
+    border-radius: 20px;
+    padding: 0.6rem 1.5rem;
+    font-family: 'Tajawal', sans-serif;
+    font-weight: 500;
+    font-size: 1rem;
+    cursor: pointer;
+    transition: background 0.2s;
+}
+
+.offer-btn:hover {
+    background: #ffa500;
+}
+
+@media (max-width: 768px) {
+    body {
+        padding: 1rem;
+    }
+    .offers-container {
+        padding: 1rem;
+    }
+    .offers-list {
+        gap: 1rem;
+    }
+} 

@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>لوحة التحكم - أكاديمية سينتا</title>
+    <!-- Supabase Client Library -->
+    <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700&display=swap" rel="stylesheet">
+    <!-- CSS -->
+    <link rel="stylesheet" href="../../css/dashboard.css">
+</head>
+<body>
+    <div class="dashboard-container">
+        <!-- Header -->
+        <div class="dashboard-header">
+            <div class="welcome-section">
+                <div class="user-info">
+                    <div class="user-avatar" id="user-avatar">س</div>
+                    <div class="user-details">
+                        <h2>مرحبا، <span id="user-name">جاري التحميل...</span>! 👋</h2>
+                        <p id="user-email">جاري تحميل البيانات...</p>
+                    </div>
+                </div>
+                <div class="date-info">
+                    <div id="current-date">جاري التحميل...</div>
+                    <div id="current-time">--:--</div>
+                </div>
+            </div>
+            
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <span class="stat-number" id="completed-courses">--</span>
+                    <span class="stat-label">دورات مكتملة</span>
+                </div>
+                <div class="stat-card">
+                    <span class="stat-number" id="overall-progress">--%</span>
+                    <span class="stat-label">التقدم العام</span>
+                </div>
+                <div class="stat-card">
+                    <span class="stat-number" id="achievements">--</span>
+                    <span class="stat-label">إنجازات</span>
+                </div>
+                <div class="stat-card">
+                    <span class="stat-number" id="active-days">--</span>
+                    <span class="stat-label">أيام نشطة</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Content -->
+        <div class="dashboard-content">
+            <div class="content-grid">
+                <div class="main-content">
+                    <!-- Quick Actions -->
+                    <div class="quick-actions">
+                        <h3 class="section-title">🚀 الإجراءات السريعة</h3>
+                        <div class="actions-grid">
+                            <div class="action-card" onclick="navigateTo('game')">
+                                <div class="action-icon">🎮</div>
+                                <div class="action-title">لعبة التعلم</div>
+                                <div class="action-description">تعلم البايثون بطريقة تفاعلية</div>
+                            </div>
+                            <div class="action-card" onclick="navigateTo('courses')">
+                                <div class="action-icon">📚</div>
+                                <div class="action-title">الدورات</div>
+                                <div class="action-description">استكشف جميع الدورات المتاحة</div>
+                            </div>
+                            <div class="action-card" onclick="navigateTo('offers')">
+                                <div class="action-icon">💰</div>
+                                <div class="action-title">العروض</div>
+                                <div class="action-description">خصومات حصرية على الدورات</div>
+                            </div>
+                            <div class="action-card" onclick="navigateTo('chatbot')">
+                                <div class="action-icon">🤖</div>
+                                <div class="action-title">المساعد الذكي</div>
+                                <div class="action-description">اسأل أي شيء عن البرمجة</div>
+                            </div>
+                            <div class="action-card" onclick="navigateTo('profile')">
+                                <div class="action-icon">👤</div>
+                                <div class="action-title">الملف الشخصي</div>
+                                <div class="action-description">إدارة معلوماتك وتقدمك</div>
+                            </div>
+                            <div class="action-card" onclick="showContact()">
+                                <div class="action-icon">📞</div>
+                                <div class="action-title">تواصل معنا</div>
+                                <div class="action-description">احصل على المساعدة والدعم</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Recent Activity -->
+                    <div class="recent-activity">
+                        <h3 class="section-title">📊 النشاط الأخير</h3>
+                        <div id="activity-list">
+                            <div class="loading">جاري تحميل النشاط...</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="sidebar">
+                    <!-- Learning Progress -->
+                    <div class="progress-section">
+                        <h3 class="section-title">📈 تقدم التعلم</h3>
+                        <div id="progress-list">
+                            <div class="loading">جاري تحميل التقدم...</div>
+                        </div>
+                    </div>
+
+                    <!-- Upcoming Events -->
+                    <div class="upcoming-events">
+                        <h3 class="section-title">📅 الأحداث القادمة</h3>
+                        <div id="events-list">
+                            <div class="loading">جاري تحميل الأحداث...</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script src="../../authentication.js"></script>
+    <script src="../../js/dashboard.js"></script>
+</body>
+</html> 
