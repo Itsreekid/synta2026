@@ -1,0 +1,207 @@
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    background: linear-gradient(135deg, #ff7b1a 0%, #ffa500 100%);
+    min-height: 100vh;
+    display: flex;
+    overflow: hidden;
+}
+
+.sidebar {
+    width: 280px;
+    background: rgba(255, 255, 255, 0.95);
+    -webkit-backdrop-filter: blur(10px);
+    backdrop-filter: blur(10px);
+    padding: 2rem 0;
+    box-shadow: -4px 0 20px rgba(0, 0, 0, 0.1);
+    position: fixed;
+    right: 0;
+    top: 0;
+    height: 100vh;
+    z-index: 1000;
+    overflow-y: auto;
+}
+
+.logo {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 1.5rem;
+    font-weight: bold;
+    color: #ff7b1a;
+    padding: 0 1rem;
+    margin-bottom: 3rem;
+    white-space: nowrap;
+    justify-content: flex-end;
+}
+
+.logo-icon {
+    font-size: medium;
+    width: 40px;
+    height: 40px;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: bold;
+}
+
+.nav-links {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    list-style: none;
+    padding: 0 0.5rem;
+}
+
+.nav-links a {
+    text-decoration: none;
+    color: #666;
+    font-weight: 500;
+    padding: 1rem;
+    border-radius: 12px;
+    transition: all 0.3s ease;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    white-space: nowrap;
+    position: relative;
+    justify-content: flex-end;
+}
+
+.nav-links a:hover, .nav-links a.active {
+    background: #ff7b1a;
+    color: white;
+    transform: translateX(-5px);
+}
+
+.nav-icon {
+    width: 24px;
+    height: 24px;
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 18px;
+}
+
+.nav-text {
+    font-size: 14px;
+    font-weight: 500;
+}
+
+/* Main content area with iframe */
+section {
+    flex: 1;
+    margin-right: 280px;
+    height: 100vh;
+    overflow: hidden;
+}
+
+iframe[name="Principal"] {
+    width: 100%;
+    height: 100%;
+    border: none;
+    background: white;
+    border-radius: 20px 0 0 20px;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+}
+
+/* Logout button styling */
+.nav-links a[onclick="logout()"] {
+    margin-top: 2rem;
+    border-top: 1px solid #eee;
+    padding-top: 1rem;
+    background: rgba(255, 123, 26, 0.1);
+    color: #ff7b1a;
+}
+
+.nav-links a[onclick="logout()"]:hover {
+    background: #ff7b1a;
+    color: white;
+}
+
+/* Responsive design */
+@media (max-width: 768px) {
+    .sidebar {
+        width: 100%;
+        height: auto;
+        position: relative;
+        right: auto;
+    }
+    
+    section {
+        margin-right: 0;
+        height: calc(100vh - 200px);
+    }
+    
+    iframe[name="Principal"] {
+        border-radius: 0;
+    }
+    
+    .nav-links {
+        flex-direction: row;
+        gap: 0.5rem;
+        padding: 0 1rem;
+        overflow-x: auto;
+    }
+    
+    .nav-links a {
+        white-space: nowrap;
+        min-width: -webkit-fill-available;
+        min-width: fit-content;
+        justify-content: center;
+    }
+    
+    .nav-text {
+        display: none;
+    }
+    
+    .nav-icon {
+        font-size: 20px;
+    }
+}
+
+/* Loading animation for iframe */
+iframe[name="Principal"]:not([src]) {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: linear-gradient(45deg, #f0f0f0, #e0e0e0);
+    animation: loading 1.5s infinite;
+}
+
+@keyframes loading {
+    0% { opacity: 0.6; }
+    50% { opacity: 1; }
+    100% { opacity: 0.6; }
+}
+
+/* Smooth transitions */
+* {
+    transition: all 0.3s ease;
+}
+
+/* Custom scrollbar for sidebar */
+.sidebar::-webkit-scrollbar {
+    width: 6px;
+}
+
+.sidebar::-webkit-scrollbar-track {
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 3px;
+}
+
+.sidebar::-webkit-scrollbar-thumb {
+    background: rgba(255, 123, 26, 0.3);
+    border-radius: 3px;
+}
+
+.sidebar::-webkit-scrollbar-thumb:hover {
+    background: rgba(255, 123, 26, 0.5);
+}

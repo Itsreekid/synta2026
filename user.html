@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>أكاديمية سينتا - منصة التعلم</title>
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700&display=swap" rel="stylesheet">
+    <!-- CSS -->
+    <link rel="stylesheet" href="css/user.css">
+    <!-- Supabase Client Library -->
+    <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
+</head>
+<body>
+    <!-- Sidebar Navigation -->
+    <div class="sidebar">
+        <div class="logo">
+            <div class="logo-icon">
+                <img href="index.html" src="source/logosynta.png" alt="synta academy" width="55">
+            </div>
+            <span class="logo-text">أكاديمية سينتا</span>
+        </div>
+        <ul class="nav-links">
+            <li><a href="#" onclick="loadPage('dashboard')" class="active">
+                <div class="nav-icon">🏠</div>
+                <span class="nav-text">لوحة التحكم</span>
+            </a></li>
+            <li><a href="#" onclick="loadPage('profile')">
+                <div class="nav-icon">👤</div>
+                <span class="nav-text">الملف الشخصي</span>
+            </a></li>
+            <li><a href="#" onclick="loadPage('courses')">
+                <div class="nav-icon">📚</div>
+                <span class="nav-text">الدورات</span>
+            </a></li>
+            <li><a href="#" onclick="loadPage('offers')">
+                <div class="nav-icon">💰</div>
+                <span class="nav-text">العروض</span>
+            </a></li>
+            <li><a href="#" onclick="loadPage('game')">
+                <div class="nav-icon">🎮</div>
+                <span class="nav-text">لعبة التعلم</span>
+            </a></li>
+            <li><a href="#" onclick="loadPage('chatbot')">
+                <div class="nav-icon">🤖</div>
+                <span class="nav-text">المساعد الذكي</span>
+            </a></li>
+            <li><a href="#" onclick="logout()" style="margin-top: 2rem; border-top: 1px solid #eee; padding-top: 1rem;">
+                <div class="nav-icon">🚪</div>
+                <span class="nav-text">تسجيل الخروج</span>
+            </a></li>
+        </ul>
+    </div>
+    
+    <!-- Main Content Area -->
+    <section>
+        <iframe src="pages/dashboard/dashboard.html" name="Principal" title="zone principale"></iframe>
+    </section>
+
+    <!-- Scripts -->
+    <script src="authentication.js"></script>
+    <script src="js/user.js"></script>
+</body>
+</html>
