@@ -129,7 +129,7 @@ async function logout() {
 
 // Redirect to login page
 function redirectToLogin() {
-    window.location.href = 'pages/auth/login.html';
+    window.location.href = '../index.html';
 }
 
 // Show authentication message
