@@ -28,6 +28,17 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 });
 
+async function waitForAuth(maxWaitTime = 10000) { // Increased to 10 seconds
+    const startTime = Date.now();
+    while (!window.auth && Date.now() - startTime < maxWaitTime) {
+        await new Promise(resolve => setTimeout(resolve, 100));
+    }
+    if (!window.auth) {
+        throw new Error(`Authentication system not available after ${maxWaitTime}ms`);
+    }
+    return window.auth;
+}
+
 async function handleLogin(e) {
     e.preventDefault();
     
@@ -46,24 +57,12 @@ async function handleLogin(e) {
     
     try {
         // Wait for auth to be available with longer timeout
-        let attempts = 0;
-        const maxAttempts = 30; // Increased from 10 to 30 (3 seconds)
-        
-        while (!window.auth && attempts < maxAttempts) {
-            await new Promise(resolve => setTimeout(resolve, 100));
-            attempts++;
-        }
-        
-        if (!window.auth) {
-            console.error('Authentication system not available after', maxAttempts * 100, 'ms');
-            showMessage('خطأ في تحميل نظام المصادقة. يرجى تحديث الصفحة والمحاولة مرة أخرى.', 'error');
-            return;
-        }
+        await waitForAuth();
         
         // Additional check to ensure auth is fully initialized
         if (!window.auth.isInitialized || !window.auth.isInitialized()) {
             console.log('Auth not fully initialized, waiting a bit more...');
-            await new Promise(resolve => setTimeout(resolve, 500));
+            await new Promise(resolve => setTimeout(resolve, 1000));
         }
         
         const result = await window.auth.signIn(email, password);
@@ -77,8 +76,8 @@ async function handleLogin(e) {
             showMessage(result.message, 'error');
         }
     } catch (error) {
-        showMessage('حدث خطأ أثناء تسجيل الدخول', 'error');
         console.error('Login error:', error);
+        showMessage('خطأ في تحميل نظام المصادقة. يرجى تحديث الصفحة والمحاولة مرة أخرى.', 'error');
     } finally {
         submitBtn.classList.remove('loading');
         submitBtn.disabled = false;
@@ -124,24 +123,12 @@ async function handleRegister(e) {
     
     try {
         // Wait for auth to be available with longer timeout
-        let attempts = 0;
-        const maxAttempts = 30; // Increased from 10 to 30 (3 seconds)
-        
-        while (!window.auth && attempts < maxAttempts) {
-            await new Promise(resolve => setTimeout(resolve, 100));
-            attempts++;
-        }
-        
-        if (!window.auth) {
-            console.error('Authentication system not available after', maxAttempts * 100, 'ms');
-            showMessage('خطأ في تحميل نظام المصادقة. يرجى تحديث الصفحة والمحاولة مرة أخرى.', 'error');
-            return;
-        }
+        await waitForAuth();
         
         // Additional check to ensure auth is fully initialized
         if (!window.auth.isInitialized || !window.auth.isInitialized()) {
             console.log('Auth not fully initialized, waiting a bit more...');
-            await new Promise(resolve => setTimeout(resolve, 500));
+            await new Promise(resolve => setTimeout(resolve, 1000));
         }
         
         // Prepare user data for Supabase
@@ -192,24 +179,12 @@ async function handlePasswordReset(e) {
     
     try {
         // Wait for auth to be available with longer timeout
-        let attempts = 0;
-        const maxAttempts = 30; // Increased from 10 to 30 (3 seconds)
-        
-        while (!window.auth && attempts < maxAttempts) {
-            await new Promise(resolve => setTimeout(resolve, 100));
-            attempts++;
-        }
-        
-        if (!window.auth) {
-            console.error('Authentication system not available after', maxAttempts * 100, 'ms');
-            showMessage('خطأ في تحميل نظام المصادقة. يرجى تحديث الصفحة والمحاولة مرة أخرى.', 'error');
-            return;
-        }
+        await waitForAuth();
         
         // Additional check to ensure auth is fully initialized
         if (!window.auth.isInitialized || !window.auth.isInitialized()) {
             console.log('Auth not fully initialized, waiting a bit more...');
-            await new Promise(resolve => setTimeout(resolve, 500));
+            await new Promise(resolve => setTimeout(resolve, 1000));
         }
         
         const result = await window.auth.resetPassword(email);
