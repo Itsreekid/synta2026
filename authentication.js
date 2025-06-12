@@ -137,7 +137,7 @@ function initializeAuth() {
                         user_class: userData.userClass,
                         user_branch: userData.userBranch
                     },
-                    emailRedirectTo: window.location.origin + '/login.html'
+                    emailRedirectTo: window.location.origin + '/index.html'
                 }
             });
 
