@@ -17,6 +17,7 @@ body {
 .sidebar {
     width: 280px;
     background: rgba(255, 255, 255, 0.95);
+    -webkit-backdrop-filter: blur(10px);
     backdrop-filter: blur(10px);
     border-left: 1px solid rgba(255, 255, 255, 0.2);
     padding: 2rem 0;
@@ -46,11 +47,14 @@ body {
 
 .logo-icon img {
     border-radius: 8px;
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
 }
 
 .logo-text {
     font-size: 1.3rem;
-    font-weight: 700;
+    font-weight: 1000;
     color: #333;
     font-family: 'Tajawal', sans-serif;
 }
@@ -71,7 +75,7 @@ body {
     gap: 1rem;
     padding: 1rem 1.5rem;
     text-decoration: none;
-    color: #666;
+    color: #1E3448;
     border-radius: 12px;
     transition: all 0.3s ease;
     font-family: 'Tajawal', sans-serif;
@@ -90,6 +94,7 @@ body {
     color: white;
     box-shadow: 0 4px 15px rgba(255, 123, 26, 0.3);
 }
+
 
 .nav-icon {
     font-size: 1.3rem;
@@ -148,24 +153,30 @@ iframe {
         padding: 1rem;
         border-left: none;
         border-bottom: 1px solid #f0f0f0;
+        position: fixed;
+        bottom: 0;
+        top: auto;
+        z-index: 1000;
+        background: rgba(255, 255, 255, 0.95);
+        -webkit-backdrop-filter: blur(10px);
+        backdrop-filter: blur(10px);
     }
     
     .logo {
-        padding: 0 0 1rem 0;
-        margin-bottom: 1rem;
+        display: none;
     }
     
     .nav-links {
         display: flex;
-        flex-wrap: wrap;
-        gap: 0.5rem;
+        flex-direction: row;
+        justify-content: space-around;
         padding: 0;
+        margin: 0;
     }
     
     .nav-links li {
-        margin-bottom: 0;
+        margin: 0;
         flex: 1;
-        min-width: 120px;
     }
     
     .nav-links a {
@@ -174,14 +185,25 @@ iframe {
         padding: 0.8rem 0.5rem;
         font-size: 0.8rem;
         gap: 0.5rem;
+        justify-content: center;
     }
     
     .nav-text {
-        font-size: 0.75rem;
+        display: none;
+    }
+    
+    .nav-icon {
+        font-size: 1.5rem;
+        margin: 0;
     }
     
     section {
-        height: calc(100vh - 120px);
+        height: calc(100vh - 80px);
+        margin-bottom: 80px;
+    }
+    
+    iframe[name="Principal"] {
+        border-radius: 0;
     }
 }
 
