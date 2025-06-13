@@ -38,12 +38,10 @@ body {
 .logo-icon {
     width: 55px;
     height: 55px;
-    border-radius: 12px;
     background: #ffffff;
     display: flex;
     align-items: center;
     justify-content: center;
-    box-shadow: 0 4px 15px rgba(255, 123, 26, 0.3);
 }
 
 .logo-icon img {
