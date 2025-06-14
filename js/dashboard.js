@@ -92,10 +92,10 @@ async function loadStats() {
     try {
         // Simulate loading stats from database
         const stats = {
-            completedCourses: 3,
-            overallProgress: 65,
-            achievements: 8,
-            activeDays: 12
+            completedCourses: 0,
+            overallProgress: 0,
+            achievements: 0,
+            activeDays: 0
         };
         
         document.getElementById('completed-courses').textContent = stats.completedCourses;
@@ -164,10 +164,10 @@ async function loadProgress() {
         
         // Simulate progress data
         const progressData = [
-            { title: 'دورة البايثون الأساسية', percentage: 75 },
-            { title: 'دورة Excel المتقدمة', percentage: 45 },
-            { title: 'دورة الخوارزميات', percentage: 30 },
-            { title: 'دورة قواعد البيانات', percentage: 15 }
+            { title: 'دورة البايثون الأساسية', percentage: 0 },
+            { title: 'دورة Excel المتقدمة', percentage: 0 },
+            { title: 'دورة الخوارزميات', percentage: 0 },
+            { title: 'دورة قواعد البيانات', percentage: 0 }
         ];
         
         progressList.innerHTML = progressData.map(progress => `
