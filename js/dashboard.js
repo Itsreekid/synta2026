@@ -90,21 +90,50 @@ async function loadDashboardData() {
 
 async function loadStats() {
     try {
-        // Simulate loading stats from database
-        const stats = {
-            completedCourses: 3,
-            overallProgress: 65,
-            achievements: 8,
-            activeDays: 12
-        };
+        // Get current user ID
+        const user = await window.auth.getCurrentUser();
+        if (!user.success || !user.user) throw new Error('User not authenticated');
+        const userId = user.user.id;
+
+        // First try to get stats from database
+        const { data: dbStats, error } = await window.auth.supabase
+            .from('stats')
+            .select('*')
+            .eq('id', userId)
+            .single();
+
+        let stats;
         
-        document.getElementById('completed-courses').textContent = stats.completedCourses;
-        document.getElementById('overall-progress').textContent = stats.overallProgress + '%';
+        if (error || !dbStats) {
+            console.warn('Could not fetch stats from database, using local:', error);
+            // Fallback to localStorage
+            const storedStats = localStorage.getItem(`user_stats_${userId}`);
+            stats = storedStats ? JSON.parse(storedStats) : getDefaultStats(userId);
+        } else {
+            // Map database stats to expected format
+            stats = {
+                user_id: dbStats.id,
+                completed_courses: dbStats.complete_stages || 0,
+                overall_progress: calculateProgress(dbStats), // You'll need to implement this
+                achievements: dbStats.achievement || 0,
+                active_days: dbStats.active_days || 0
+            };
+            // Store in localStorage for offline use
+            localStorage.setItem(`user_stats_${userId}`, JSON.stringify(stats));
+        }
+
+        // Update UI with stats
+        document.getElementById('completed-courses').textContent = stats.completed_courses;
+        document.getElementById('overall-progress').textContent = `${stats.overall_progress}%`;
         document.getElementById('achievements').textContent = stats.achievements;
-        document.getElementById('active-days').textContent = stats.activeDays;
-        
+        document.getElementById('active-days').textContent = stats.active_days;
+
     } catch (error) {
         console.error('Error loading stats:', error);
+        document.getElementById('completed-courses').textContent = '--';
+        document.getElementById('overall-progress').textContent = '--%';
+        document.getElementById('achievements').textContent = '--';
+        document.getElementById('active-days').textContent = '--';
     }
 }
 
