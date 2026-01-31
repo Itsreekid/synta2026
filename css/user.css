@@ -19,11 +19,11 @@ body {
     background: rgba(255, 255, 255, 0.95);
     -webkit-backdrop-filter: blur(10px);
     backdrop-filter: blur(10px);
-    border-left: 1px solid rgba(255, 255, 255, 0.2);
+    border-right: 1px solid rgba(255, 255, 255, 0.2);
     padding: 2rem 0;
     display: flex;
     flex-direction: column;
-    box-shadow: 2px 0 20px rgba(0, 0, 0, 0.1);
+    box-shadow: -2px 0 20px rgba(0, 0, 0, 0.1);
     flex-shrink: 0;
 }
 
@@ -86,7 +86,7 @@ body {
 .nav-links a:hover {
     background: rgba(255, 123, 26, 0.1);
     color: #ff7b1a;
-    transform: translateX(-5px);
+    transform: translateX(5px);
 }
 
 .nav-links a.active {
@@ -151,7 +151,7 @@ iframe {
         width: 100%;
         height: auto;
         padding: 1rem;
-        border-left: none;
+        border-right: none;
         border-bottom: 1px solid #f0f0f0;
         position: fixed;
         bottom: 0;
