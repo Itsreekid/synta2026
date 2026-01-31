@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="fr" dir="ltr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Calendrier des Sessions - Synta Academy</title>
+    <!-- Supabase Client Library -->
+    <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700&display=swap" rel="stylesheet">
+    <!-- CSS -->
+    <link rel="stylesheet" href="../../css/calendar.css">
+</head>
+<body>
+    <div class="calendar-container">
+        <!-- Header -->
+        <div class="calendar-header">
+            <button class="back-btn" onclick="goBack()">← Retour au tableau de bord</button>
+            <h1>📅 Calendrier des Sessions</h1>
+            <div class="header-controls">
+                <button class="nav-btn" onclick="previousWeek()">◀ Semaine précédente</button>
+                <button class="today-btn" onclick="goToToday()">Aujourd'hui</button>
+                <button class="nav-btn" onclick="nextWeek()">Semaine suivante ▶</button>
+            </div>
+        </div>
+
+        <!-- Calendar Info -->
+        <div class="calendar-info">
+            <h2 id="current-week-range">Chargement...</h2>
+            <p id="event-count-text">Aucun événement cette semaine</p>
+        </div>
+
+        <!-- Week Calendar -->
+        <div class="week-calendar">
+            <div id="calendar-grid" class="calendar-grid">
+                <!-- Days will be generated dynamically -->
+            </div>
+        </div>
+
+        <!-- Event Details Modal -->
+        <div id="event-modal" class="modal">
+            <div class="modal-content">
+                <span class="close" onclick="closeModal()">&times;</span>
+                <div id="modal-body">
+                    <!-- Event details will be inserted here -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script src="../../data/events.js"></script>
+    <script src="../../authentication.js"></script>
+    <script src="../../js/calendar.js"></script>
+</body>
+</html>

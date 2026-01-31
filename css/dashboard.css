@@ -298,6 +298,15 @@ body {
 .event-item {
     padding: 1rem 0;
     border-bottom: 1px solid #e0e0e0;
+    transition: all 0.3s ease;
+}
+
+.event-item:hover {
+    background: #f8f9fa;
+    padding-left: 0.5rem;
+    padding-right: 0.5rem;
+    border-radius: 8px;
+    transform: translateX(5px);
 }
 
 .event-item:last-child {

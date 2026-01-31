@@ -220,7 +220,7 @@ async function loadEvents() {
             const dateString = `${eventDate.getDate()} ${monthNames[eventDate.getMonth()]}`;
             
             return `
-                <div class="event-item" style="border-right: 3px solid ${event.color}">
+                <div class="event-item" style="border-right: 3px solid ${event.color}; cursor: pointer;" onclick="navigateToCalendar('${event.date}')">
                     <div class="event-date">${event.icon} ${dateString} - ${event.time}</div>
                     <div class="event-title">${event.title}</div>
                     <div class="event-description">${event.description}</div>
@@ -256,6 +256,17 @@ function navigateTo(page) {
     } else {
         // Fallback for direct navigation
         window.location.href = `../${page}/${page}.html`;
+    }
+}
+
+function navigateToCalendar(eventDate) {
+    // Navigate to calendar page with the event date
+    if (window.parent && window.parent.loadPage) {
+        // If in iframe, navigate through parent
+        window.parent.location.href = `../calendar/calendar.html?date=${eventDate}`;
+    } else {
+        // Direct navigation
+        window.location.href = `../calendar/calendar.html?date=${eventDate}`;
     }
 }
 
