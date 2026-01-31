@@ -7,7 +7,7 @@
 
 body {
     font-family: 'Tajawal', sans-serif;
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    background: linear-gradient(135deg, #ffead0 0%, #ffead0 100%);
     min-height: 100vh;
     padding: 20px;
 }
@@ -32,13 +32,13 @@ body {
 }
 
 .calendar-header h1 {
-    color: #667eea;
+    color: #ff7b1a;
     font-size: 28px;
     flex: 1;
 }
 
 .back-btn {
-    background: #667eea;
+    background: #ff7b1a ;
     color: white;
     border: none;
     padding: 10px 20px;
@@ -50,9 +50,9 @@ body {
 }
 
 .back-btn:hover {
-    background: #5568d3;
+    background: #cc6b00;
     transform: translateY(-2px);
-    box-shadow: 0 4px 10px rgba(102, 126, 234, 0.3);
+    box-shadow: 0 4px 10px rgba(204, 107, 0, 0.3);
 }
 
 .header-controls {
@@ -63,8 +63,8 @@ body {
 
 .nav-btn, .today-btn {
     background: white;
-    border: 2px solid #667eea;
-    color: #667eea;
+    border: 2px solid #ff7b1a   ;
+    color: #ff7b1a;
     padding: 10px 20px;
     border-radius: 8px;
     font-size: 14px;
@@ -74,18 +74,18 @@ body {
 }
 
 .nav-btn:hover, .today-btn:hover {
-    background: #667eea;
+    background: #cc6b00;
     color: white;
     transform: translateY(-2px);
 }
 
 .today-btn {
-    background: #667eea;
+    background: #ff7b1a;
     color: white;
 }
 
 .today-btn:hover {
-    background: #5568d3;
+    background: #cc6b00;
 }
 
 /* Calendar Info */
@@ -136,12 +136,12 @@ body {
 }
 
 .day-column.today {
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    background: linear-gradient(135deg, #ffead0 0%, #ffead0 100%);
     color: white;
 }
 
 .day-column.has-events {
-    border: 2px solid #667eea;
+    border: 2px solid #ff7b1a;
 }
 
 .day-header {
