@@ -95,6 +95,16 @@ body {
     box-shadow: 0 4px 15px rgba(255, 123, 26, 0.3);
 }
 
+.beta-badge {
+    color: #ff0000;
+    font-weight: 700;
+    font-size: 0.85em;
+}
+
+.nav-links a.active .beta-badge {
+    color: white;
+}
+
 
 .nav-icon {
     font-size: 1.3rem;

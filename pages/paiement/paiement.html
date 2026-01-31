@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="fr" dir="ltr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Paiement - Synta Academy</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <link rel="stylesheet" href="../../css/paiement.css">
+</head>
+<body>
+    <div class="payment-container">
+        <div class="payment-header">
+            <h1>Finaliser votre abonnement</h1>
+            <p>Complétez les informations pour accéder à votre plan</p>
+        </div>
+
+        <div class="payment-content">
+            <!-- Order Summary -->
+            <div class="order-summary">
+                <h2>Résumé de la commande</h2>
+                <div class="plan-details" id="plan-details">
+                    <div class="plan-info">
+                        <h3 id="plan-name">Plan Professionnel</h3>
+                        <p id="plan-description">Parfait pour les équipes en croissance</p>
+                    </div>
+                    <div class="plan-price">
+                        <span class="price" id="plan-price">99€</span>
+                        <span class="period" id="plan-period">/mois</span>
+                    </div>
+                </div>
+                
+                <div class="features-included">
+                    <h3>Inclus dans votre plan :</h3>
+                    <ul id="plan-features">
+                        <li><i class="fas fa-check"></i> Projets illimités</li>
+                        <li><i class="fas fa-check"></i> Sélection des candidats par IA</li>
+                        <li><i class="fas fa-check"></i> Recruteur IA</li>
+                        <li><i class="fas fa-check"></i> Garantie sans risque</li>
+                    </ul>
+                </div>
+
+                <div class="total-section">
+                    <div class="total-row">
+                        <span>Sous-total</span>
+                        <span id="subtotal">99€</span>
+                    </div>
+                    <div class="total-row">
+                        <span>TVA (20%)</span>
+                        <span id="tax">19.80€</span>
+                    </div>
+                    <div class="total-row total-final">
+                        <span>Total</span>
+                        <span id="total">118.80€</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Payment Form -->
+            <div class="payment-form">
+                <form id="payment-form">
+                    <h2>Informations de paiement</h2>
+                    
+                    <div class="form-group">
+                        <label for="card-name">Nom sur la carte</label>
+                        <input type="text" id="card-name" placeholder="John Doe" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="card-number">Numéro de carte</label>
+                        <input type="text" id="card-number" placeholder="1234 5678 9012 3456" maxlength="19" required>
+                        <div class="card-icons">
+                            <i class="fab fa-cc-visa"></i>
+                            <i class="fab fa-cc-mastercard"></i>
+                            <i class="fab fa-cc-amex"></i>
+                        </div>
+                    </div>
+
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="expiry">Date d'expiration</label>
+                            <input type="text" id="expiry" placeholder="MM/AA" maxlength="5" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="cvv">CVV</label>
+                            <input type="text" id="cvv" placeholder="123" maxlength="3" required>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="email">Email</label>
+                        <input type="email" id="email" placeholder="exemple@email.com" required>
+                    </div>
+
+                    <div class="form-group checkbox-group">
+                        <input type="checkbox" id="terms" required>
+                        <label for="terms">J'accepte les <a href="#" target="_blank">conditions d'utilisation</a> et la <a href="#" target="_blank">politique de confidentialité</a></label>
+                    </div>
+
+                    <button type="submit" class="submit-btn">
+                        <i class="fas fa-lock"></i> Payer 118.80€
+                    </button>
+
+                    <div class="secure-payment">
+                        <i class="fas fa-shield-alt"></i>
+                        <span>Paiement sécurisé SSL</span>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <script src="../../js/paiement.js"></script>
+</body>
+</html>

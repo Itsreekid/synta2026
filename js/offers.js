@@ -7,38 +7,120 @@ document.addEventListener('DOMContentLoaded', function() {
 function loadOffers() {
     const offers = [
         {
-            title: 'خصم 20% على دورة البايثون',
-            description: 'سجل الآن في دورة البايثون الأساسية واحصل على خصم 20% لفترة محدودة.',
-            discount: '20%',
-            expiry: 'تنتهي في 30 يونيو 2025'
+            badge: 'STARTER',
+            price: '0€',
+            period: '/mois',
+            subtitle: 'Parfait pour les petites équipes',
+            buttonText: 'Commencer',
+            image: '../../source/algo2.gif',
+            features: [
+                '3 Projets',
+                'Sélection des candidats par IA',
+                'Recruteur IA'
+            ],
+            featured: false
         },
         {
-            title: 'اشترِ دورة واحصل على الثانية مجاناً',
-            description: 'عند شرائك أي دورة، ستحصل على دورة أخرى مجاناً من اختيارك.',
-            discount: '1+1 مجاناً',
-            expiry: 'تنتهي في 15 يوليو 2025'
+            badge: 'PROFESSIONNEL',
+            price: '99€',
+            period: '/mois',
+            subtitle: 'Parfait pour les équipes en croissance',
+            buttonText: 'Commencer',
+            image: '../../source/soon1.jpg',
+            features: [
+                'Projets illimités',
+                'Sélection des candidats par IA',
+                'Recruteur IA',
+                'Garantie sans risque'
+            ],
+            featured: true
         },
         {
-            title: 'خصم خاص للطلاب',
-            description: 'جميع الطلاب يحصلون على خصم إضافي 10% على جميع الدورات.',
-            discount: '10% للطلاب',
-            expiry: 'دائم'
+            badge: 'ENTREPRISE',
+            price: 'Sur mesure',
+            period: '',
+            subtitle: 'Pour les grandes organisations',
+            buttonText: 'Nous contacter',
+            image: '../../source/graphique.jfif',
+            features: [
+                'Projets illimités',
+                'Sélection des candidats par IA',
+                'Évaluations de compétences personnalisées',
+                'Recruteur IA personnalisé'
+            ],
+            featured: false
         }
     ];
+    
     const offersList = document.getElementById('offers-list');
     offersList.innerHTML = offers.map(offer => `
-        <div class="offer-card">
-            <div class="offer-title">${offer.title}</div>
-            <div class="offer-description">${offer.description}</div>
-            <div class="offer-discount">${offer.discount}</div>
-            <div class="offer-expiry">${offer.expiry}</div>
-            <button class="offer-btn" onclick="showOfferMessage('${offer.title}')">سجل الآن</button>
+        <div class="offer-card ${offer.featured ? 'featured' : ''}">
+            <div class="offer-badge">${offer.badge}</div>
+            <div class="offer-image">
+                <img src="${offer.image}" alt="${offer.badge}">
+            </div>
+            <div class="offer-content">
+                <div class="offer-price">${offer.price}${offer.period ? `<span>${offer.period}</span>` : ''}</div>
+                <div class="offer-subtitle">${offer.subtitle}</div>
+                <ul class="offer-features">
+                    ${offer.features.map(feature => `<li>${feature}</li>`).join('')}
+                </ul>
+                <button class="offer-btn" onclick="showOfferMessage('${offer.badge}')">${offer.buttonText}</button>
+            </div>
         </div>
     `).join('');
 }
 
-function showOfferMessage(title) {
-    showMessage(`تم اختيار العرض: ${title}`, 'success');
+function showOfferMessage(badge) {
+    // Trigger confetti effect
+    handleConfetti();
+    // Show message and redirect to payment
+    showMessage(`Vous avez sélectionné le plan ${badge}. Redirection vers le paiement...`, 'success');
+    
+    // Redirect to payment page with plan parameter after 2 seconds
+    setTimeout(() => {
+        window.location.href = `../paiement/paiement.html?plan=${badge}`;
+    }, 2000);
+}
+
+function handleConfetti() {
+    const count = 200;
+    const defaults = {
+        origin: { y: 0.7 }
+    };
+
+    function fire(particleRatio, opts) {
+        confetti(Object.assign({}, defaults, opts, {
+            particleCount: Math.floor(count * particleRatio)
+        }));
+    }
+
+    fire(0.25, {
+        spread: 26,
+        startVelocity: 55,
+    });
+
+    fire(0.2, {
+        spread: 60,
+    });
+
+    fire(0.35, {
+        spread: 100,
+        decay: 0.91,
+        scalar: 0.8
+    });
+
+    fire(0.1, {
+        spread: 120,
+        startVelocity: 25,
+        decay: 0.92,
+        scalar: 1.2
+    });
+
+    fire(0.1, {
+        spread: 120,
+        startVelocity: 45,
+    });
 }
 
 function showMessage(message, type = 'info') {
