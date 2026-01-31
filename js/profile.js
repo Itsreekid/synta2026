@@ -148,7 +148,7 @@ function populateProfileForm(user) {
 // Update profile picture initial automatically
 function updateProfileInitial(user) {
     const profileInitial = document.getElementById('profile-initial');
-    const displayName = user.user_metadata?.full_name || user.email?.split('@')[0] || 'س';
+    const displayName = user.user_metadata?.full_name || user.email?.split('@')[0] || 'Utilisateur';
     
     // Get first character of the name
     const initial = displayName.charAt(0).toUpperCase();
