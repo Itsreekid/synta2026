@@ -16,14 +16,14 @@ async function initializeDashboard() {
         
         if (!window.auth) {
             console.error('Authentication not initialized');
-            showMessage('خطأ في تحميل نظام المصادقة. يرجى تحديث الصفحة.', 'error');
+            showMessage('Erreur de chargement du système d\'authentification. Veuillez actualiser la page.', 'error');
             return;
         }
         
         // Check authentication
         const authResult = await window.auth.getCurrentUser();
         if (!authResult.success || !authResult.user) {
-            showMessage('يرجى تسجيل الدخول للوصول إلى لوحة التحكم', 'error');
+            showMessage('Veuillez vous connecter pour accéder au tableau de bord', 'error');
             setTimeout(() => {
                 window.location.href = '../auth/login.html';
             }, 2000);
@@ -42,15 +42,15 @@ async function initializeDashboard() {
         
     } catch (error) {
         console.error('Error initializing dashboard:', error);
-        showMessage('حدث خطأ في تحميل البيانات', 'error');
+        showMessage('Une erreur est survenue lors du chargement des données', 'error');
     }
 }
 
 async function loadUserData(user) {
     try {
         // Update user info
-        const userName = user.user_metadata?.full_name || user.email?.split('@')[0] || 'المستخدم';
-        const userEmail = user.email || 'غير متوفر';
+        const userName = user.user_metadata?.full_name || user.email?.split('@')[0] || 'Utilisateur';
+        const userEmail = user.email || 'Non disponible';
         
         document.getElementById('user-name').textContent = userName;
         document.getElementById('user-email').textContent = userEmail;
@@ -116,26 +116,26 @@ async function loadRecentActivity() {
         const activities = [
             {
                 icon: '🎮',
-                title: 'أكملت درس في لعبة البايثون',
-                description: 'قبل ساعتين',
+                title: 'Leçon complétée dans le jeu Python',
+                description: 'Il y a 2 heures',
                 color: '#ff7b1a'
             },
             {
                 icon: '📚',
-                title: 'سجلت في دورة جديدة',
-                description: 'أمس',
+                title: 'Inscrit à un nouveau cours',
+                description: 'Hier',
                 color: '#28a745'
             },
             {
                 icon: '🏆',
-                title: 'حصلت على إنجاز جديد',
-                description: 'قبل يومين',
+                title: 'Nouvelle réalisation obtenue',
+                description: 'Il y a 2 jours',
                 color: '#ffc107'
             },
             {
                 icon: '📝',
-                title: 'أكملت اختبار',
-                description: 'قبل 3 أيام',
+                title: 'Test complété',
+                description: 'Il y a 3 jours',
                 color: '#007bff'
             }
         ];
@@ -154,7 +154,7 @@ async function loadRecentActivity() {
         
     } catch (error) {
         console.error('Error loading activity:', error);
-        document.getElementById('activity-list').innerHTML = '<div class="loading">خطأ في تحميل النشاط</div>';
+        document.getElementById('activity-list').innerHTML = '<div class="loading">Erreur de chargement de l\'activité</div>';
     }
 }
 
@@ -164,10 +164,10 @@ async function loadProgress() {
         
         // Simulate progress data
         const progressData = [
-            { title: 'دورة البايثون الأساسية', percentage: 0 },
-            { title: 'دورة Excel المتقدمة', percentage: 0 },
-            { title: 'دورة الخوارزميات', percentage: 0 },
-            { title: 'دورة قواعد البيانات', percentage: 0 }
+            { title: 'Cours Python de base', percentage: 0 },
+            { title: 'Cours Excel avancé', percentage: 0 },
+            { title: 'Cours Algorithmes', percentage: 0 },
+            { title: 'Cours Bases de données', percentage: 0 }
         ];
         
         progressList.innerHTML = progressData.map(progress => `
@@ -184,7 +184,7 @@ async function loadProgress() {
         
     } catch (error) {
         console.error('Error loading progress:', error);
-        document.getElementById('progress-list').innerHTML = '<div class="loading">خطأ في تحميل التقدم</div>';
+        document.getElementById('progress-list').innerHTML = '<div class="loading">Erreur de chargement du progrès</div>';
     }
 }
 
@@ -195,7 +195,7 @@ async function loadEvents() {
         // Check if events data is available from events.js
         if (typeof upcomingEvents === 'undefined' || !Array.isArray(upcomingEvents)) {
             console.error('upcomingEvents not found. Make sure events.js is loaded.');
-            eventsList.innerHTML = '<div class="loading">خطأ في تحميل الأحداث</div>';
+            eventsList.innerHTML = '<div class="loading">Erreur de chargement des événements</div>';
             return;
         }
         
@@ -209,14 +209,14 @@ async function loadEvents() {
         });
         
         if (activeEvents.length === 0) {
-            eventsList.innerHTML = '<div class="event-item">لا توجد أحداث قادمة</div>';
+            eventsList.innerHTML = '<div class="event-item">Aucun événement à venir</div>';
             return;
         }
         
         eventsList.innerHTML = activeEvents.map(event => {
-            // Format date to Arabic
+            // Format date to French
             const eventDate = new Date(event.date);
-            const monthNames = ['يناير', 'فبراير', 'مارس', 'أبريل', 'مايو', 'يونيو', 'يوليو', 'أغسطس', 'سبتمبر', 'أكتوبر', 'نوفمبر', 'ديسمبر'];
+            const monthNames = ['janvier', 'février', 'mars', 'avril', 'mai', 'juin', 'juillet', 'août', 'septembre', 'octobre', 'novembre', 'décembre'];
             const dateString = `${eventDate.getDate()} ${monthNames[eventDate.getMonth()]}`;
             
             return `
@@ -230,19 +230,22 @@ async function loadEvents() {
         
     } catch (error) {
         console.error('Error loading events:', error);
-        document.getElementById('events-list').innerHTML = '<div class="loading">خطأ في تحميل الأحداث</div>';
+        document.getElementById('events-list').innerHTML = '<div class="loading">Erreur de chargement des événements</div>';
     }
 }
 
 function updateTime() {
-    // Set specific time: 6:20 PM in Arabic format with regular numerals
-    const timeString = '6:20 م';
+    // Set current time in French format
+    const now = new Date();
+    const timeString = now.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
     document.getElementById('current-time').textContent = timeString;
 }
 
 function updateDate() {
-    // Set specific date: 16 ذو الحجة 1446 هـ (6/12/2025) in Arabic format with regular numerals
-    const dateString = '16 ذو الحجة 1446 هـ';
+    // Set current date in French format
+    const now = new Date();
+    const options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
+    const dateString = now.toLocaleDateString('fr-FR', options);
     document.getElementById('current-date').textContent = dateString;
 }
 
