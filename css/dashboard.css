@@ -63,6 +63,34 @@ body {
     font-weight: 700;
 }
 
+.inline-stats {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1.5rem;
+    margin-top: 0.5rem;
+}
+
+.inline-stat {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    font-size: 0.9rem;
+    color: #666;
+}
+
+.stat-icon {
+    font-size: 1.2rem;
+}
+
+.stat-text {
+    font-family: 'Tajawal', sans-serif;
+}
+
+.stat-text strong {
+    color: #333;
+    font-weight: 600;
+}
+
 .user-details p {
     color: #666;
     font-family: 'Tajawal', sans-serif;
@@ -72,34 +100,6 @@ body {
 .date-info {
     text-align: left;
     color: #666;
-    font-family: 'Tajawal', sans-serif;
-}
-
-.stats-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-    gap: 1rem;
-    margin-top: 1rem;
-}
-
-.stat-card {
-    background: linear-gradient(45deg, #ff7b1a, #ffa500);
-    color: white;
-    padding: 1rem;
-    border-radius: 15px;
-    text-align: center;
-}
-
-.stat-number {
-    font-size: 2rem;
-    font-weight: bold;
-    display: block;
-    font-family: 'Tajawal', sans-serif;
-}
-
-.stat-label {
-    font-size: 0.9rem;
-    opacity: 0.9;
     font-family: 'Tajawal', sans-serif;
 }
 
