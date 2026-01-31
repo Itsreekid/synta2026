@@ -187,6 +187,13 @@ function showEventDetails(event, date) {
     
     const dateString = `${dayNames[date.getDay()]}, ${date.getDate()} ${monthNames[date.getMonth()]} ${date.getFullYear()}`;
     
+    // Generate buttons based on whether zoom link exists
+    const zoomButton = event.zoomLink ? `
+        <button class="modal-btn modal-btn-primary" onclick="joinZoomSession('${event.zoomLink}')">
+            🎥 Rejoindre la session
+        </button>
+    ` : '';
+    
     modalBody.innerHTML = `
         <div class="modal-event-icon">${event.icon || '📅'}</div>
         <h2 class="modal-event-title">${event.title}</h2>
@@ -204,7 +211,8 @@ function showEventDetails(event, date) {
             ${event.description}
         </div>
         <div class="modal-actions">
-            <button class="modal-btn modal-btn-primary" onclick="addToCalendar('${event.title}', '${event.date}', '${event.time}')">
+            ${zoomButton}
+            <button class="modal-btn modal-btn-secondary" onclick="addToCalendar('${event.title}', '${event.date}', '${event.time}')">
                 Ajouter à mon calendrier
             </button>
             <button class="modal-btn modal-btn-secondary" onclick="closeModal()">
@@ -281,6 +289,12 @@ function goBack() {
         // Direct navigation fallback
         window.location.href = '../dashboard/dashboard.html';
     }
+}
+
+function joinZoomSession(zoomLink) {
+    // Open Zoom link in a new tab
+    window.open(zoomLink, '_blank');
+    closeModal();
 }
 
 // Close modal when clicking outside of it

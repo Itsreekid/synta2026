@@ -9,7 +9,8 @@ const upcomingEvents = [
         time: "20:00",
         description: "حصة مجانية في الفلسفة لتلاميذة البكالوريا",
         icon: "📚",
-        color: "#ff7b1a"
+        color: "#ff7b1a",
+        zoomLink: "https://zoom.us/j/1234567890"
     },
     {
         title:"حصة مباشرة في مادة الاعلامية",
@@ -17,7 +18,8 @@ const upcomingEvents = [
         time: "20:00",
         description: "حصة مجانية في مادة الاعلامية لتلاميذة البكالوريا",
         icon: "💻",
-        color: "#28a745"
+        color: "#28a745",
+        zoomLink: "https://us06web.zoom.us/j/85897834973?pwd=eHGWYmgsgmREPnyBA0URvraJTbt0aO.1
     }
 
     /*
@@ -47,6 +49,7 @@ const upcomingEvents = [
 // - Time format: "HH:MM" in 24-hour format (e.g., "18:00")
 // - Available icons: Any emoji (📚, 🏆, 💻, 🎮, 🎨, 📱, etc.)
 // - Colors: Any valid CSS color (#ff7b1a, #28a745, #007bff, etc.)
+// - zoomLink: The Zoom meeting URL for the session (e.g., "https://zoom.us/j/1234567890")
 
 // Example of adding a new event:
 /*
