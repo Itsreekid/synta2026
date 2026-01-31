@@ -9,6 +9,8 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700&display=swap" rel="stylesheet">
     <link rel="icon" href="../source/logoweb.png" type="image/x-icon">
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <!-- CSS -->
     <link rel="stylesheet" href="../../css/auth.css">
     <!-- Supabase Client Library -->
@@ -34,7 +36,10 @@
                         
                         <div class="form-group">
                             <label for="password">كلمة المرور</label>
-                            <input type="password" id="password" name="password" required>
+                            <div class="password-input-wrapper">
+                                <input type="password" id="password" name="password" required>
+                                <i class="fas fa-eye toggle-password" id="togglePassword"></i>
+                            </div>
                         </div>
                         
                         <div class="form-group">

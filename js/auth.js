@@ -10,6 +10,8 @@ document.addEventListener('DOMContentLoaded', function() {
 
     if (loginForm) {
         loginForm.addEventListener('submit', handleLogin);
+        // Setup password toggle
+        setupPasswordToggle();
     }
 
     if (registerForm) {
@@ -27,6 +29,23 @@ document.addEventListener('DOMContentLoaded', function() {
         console.log('Auth system not yet available, will wait when needed');
     }
 });
+
+function setupPasswordToggle() {
+    const togglePassword = document.getElementById('togglePassword');
+    const passwordInput = document.getElementById('password');
+    
+    if (togglePassword && passwordInput) {
+        togglePassword.addEventListener('click', function() {
+            // Toggle password visibility
+            const type = passwordInput.getAttribute('type') === 'password' ? 'text' : 'password';
+            passwordInput.setAttribute('type', type);
+            
+            // Toggle icon
+            this.classList.toggle('fa-eye');
+            this.classList.toggle('fa-eye-slash');
+        });
+    }
+}
 
 async function waitForAuth(maxWaitTime = 10000) { // Increased to 10 seconds
     const startTime = Date.now();

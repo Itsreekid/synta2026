@@ -123,6 +123,31 @@ body {
     color: var(--dark-text);
 }
 
+.password-input-wrapper {
+    position: relative;
+    width: 100%;
+}
+
+.password-input-wrapper input {
+    width: 100%;
+    padding-left: 45px;
+}
+
+.toggle-password {
+    position: absolute;
+    left: 15px;
+    top: 50%;
+    transform: translateY(-50%);
+    cursor: pointer;
+    color: var(--gray-text);
+    transition: color 0.3s;
+    font-size: 1.1rem;
+}
+
+.toggle-password:hover {
+    color: var(--secondary-color);
+}
+
 .form-group input:focus,
 .form-group select:focus {
     border-color: var(--secondary-color);
