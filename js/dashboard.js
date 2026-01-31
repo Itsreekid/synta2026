@@ -36,10 +36,6 @@ async function initializeDashboard() {
         // Load dashboard data
         await loadDashboardData();
         
-        // Update time
-        updateTime();
-        setInterval(updateTime, 1000);
-        
     } catch (error) {
         console.error('Error initializing dashboard:', error);
         showMessage('Une erreur est survenue lors du chargement des données', 'error');
@@ -60,9 +56,6 @@ async function loadUserData(user) {
         if (userName && userName.length > 0) {
             avatar.textContent = userName.charAt(0).toUpperCase();
         }
-        
-        // Update date
-        updateDate();
         
     } catch (error) {
         console.error('Error loading user data:', error);
@@ -232,21 +225,6 @@ async function loadEvents() {
         console.error('Error loading events:', error);
         document.getElementById('events-list').innerHTML = '<div class="loading">Erreur de chargement des événements</div>';
     }
-}
-
-function updateTime() {
-    // Set current time in French format
-    const now = new Date();
-    const timeString = now.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
-    document.getElementById('current-time').textContent = timeString;
-}
-
-function updateDate() {
-    // Set current date in French format
-    const now = new Date();
-    const options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
-    const dateString = now.toLocaleDateString('fr-FR', options);
-    document.getElementById('current-date').textContent = dateString;
 }
 
 function navigateTo(page) {
