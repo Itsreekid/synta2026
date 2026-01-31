@@ -261,11 +261,15 @@ function navigateTo(page) {
 
 function navigateToCalendar(eventDate) {
     // Navigate to calendar page with the event date
-    if (window.parent && window.parent.loadPage) {
-        // If in iframe, navigate through parent
-        window.parent.location.href = `../calendar/calendar.html?date=${eventDate}`;
+    if (window.parent && window.parent.loadPageWithDate) {
+        // If in iframe, use special function for calendar with date
+        window.parent.loadPageWithDate('calendar', eventDate);
+    } else if (window.parent && window.parent.loadPage) {
+        // If function doesn't exist yet, load calendar normally and store date
+        sessionStorage.setItem('calendarDate', eventDate);
+        window.parent.loadPage('calendar');
     } else {
-        // Direct navigation
+        // Direct navigation fallback
         window.location.href = `../calendar/calendar.html?date=${eventDate}`;
     }
 }

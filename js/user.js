@@ -29,6 +29,27 @@ function loadPage(pageName) {
     };
 }
 
+// Page navigation function with date parameter
+function loadPageWithDate(pageName, date) {
+    const iframe = document.querySelector('iframe[name="Principal"]');
+    if (!iframe) return;
+    
+    // Show loading state
+    iframe.classList.add('loading');
+    
+    // Update navigation active state
+    updateActiveNavigation(pageName);
+    
+    // Load the page in iframe with date parameter
+    const pagePath = `pages/${pageName}/${pageName}.html?date=${date}`;
+    iframe.src = pagePath;
+    
+    // Remove loading state after iframe loads
+    iframe.onload = function() {
+        iframe.classList.remove('loading');
+    };
+}
+
 // Update active navigation link
 function updateActiveNavigation(pageName) {
     // Remove active class from all links
@@ -196,6 +217,7 @@ function resizeIframe() {
 
 // Global function for iframe navigation (called from iframe content)
 window.loadPage = loadPage;
+window.loadPageWithDate = loadPageWithDate;
 
 // Global function for logout (called from iframe content)
 window.logout = logout; 

@@ -33,9 +33,17 @@ async function initializeCalendar() {
         const urlParams = new URLSearchParams(window.location.search);
         const dateParam = urlParams.get('date');
         
+        // Also check sessionStorage for date (when loaded via parent loadPage)
+        const sessionDate = sessionStorage.getItem('calendarDate');
+        
         if (dateParam) {
             selectedDate = new Date(dateParam);
             currentWeekStart = getWeekStart(selectedDate);
+        } else if (sessionDate) {
+            selectedDate = new Date(sessionDate);
+            currentWeekStart = getWeekStart(selectedDate);
+            // Clear the sessionStorage after using it
+            sessionStorage.removeItem('calendarDate');
         } else {
             selectedDate = new Date();
             currentWeekStart = getWeekStart(new Date());
@@ -265,7 +273,14 @@ function goToToday() {
 }
 
 function goBack() {
-    window.location.href = '../dashboard/dashboard.html';
+    // Check if we're in an iframe
+    if (window.parent && window.parent.loadPage && window.parent !== window) {
+        // Navigate back to dashboard within the iframe
+        window.parent.loadPage('dashboard');
+    } else {
+        // Direct navigation fallback
+        window.location.href = '../dashboard/dashboard.html';
+    }
 }
 
 // Close modal when clicking outside of it
