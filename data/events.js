@@ -19,7 +19,7 @@ const upcomingEvents = [
         description: "حصة مجانية في مادة الاعلامية لتلاميذة البكالوريا",
         icon: "💻",
         color: "#28a745",
-        zoomLink: "https://us06web.zoom.us/j/85897834973?pwd=eHGWYmgsgmREPnyBA0URvraJTbt0aO.1
+        zoomLink: "https://us06web.zoom.us/j/85897834973?pwd=eHGWYmgsgmREPnyBA0URvraJTbt0aO.1"
     }
 
     /*
