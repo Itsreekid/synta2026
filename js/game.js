@@ -121,7 +121,7 @@ function runCode() {
     const output = document.getElementById('output');
     
     if (!code) {
-        addOutputLine('يرجى كتابة كود أولاً', 'error');
+        addOutputLine('Veuillez écrire du code d\'abord', 'error');
         return;
     }
     
@@ -138,7 +138,7 @@ function runCode() {
         }
         
     } catch (error) {
-        addOutputLine('حدث خطأ في تنفيذ الكود: ' + error.message, 'error');
+        addOutputLine('Erreur lors de l\'exécution du code: ' + error.message, 'error');
         loseLife();
     }
 }
@@ -209,8 +209,8 @@ function executePythonCode(code) {
             // Handle function calls
             else if (line.includes('()')) {
                 // Simple function call handling
-                if (line.includes('تحية()')) {
-                    output += 'مرحبا!\n';
+                if (line.includes('saluer()')) {
+                    output += 'Bonjour!\n';
                 }
             }
         }
@@ -223,7 +223,7 @@ function executePythonCode(code) {
     } catch (error) {
         return {
             success: false,
-            error: 'خطأ في الكود: ' + error.message
+            error: 'Erreur dans le code: ' + error.message
         };
     }
 }
@@ -247,24 +247,24 @@ function checkChallengeCompletion(output) {
     if (!challenge) return;
     
     if (output === challenge.expectedOutput) {
-        addOutputLine('🎉 أحسنت! لقد أكملت التحدي بنجاح!', 'success');
+        addOutputLine('🎉 Bien joué! Vous avez réussi le défi!', 'success');
         score += 100;
         currentLevel++;
         
         if (currentLevel > Object.keys(challenges).length) {
-            addOutputLine('🏆 مبروك! لقد أكملت جميع التحديات!', 'success');
-            unlockAchievement('الخبير');
+            addOutputLine('🏆 Félicitations! Vous avez terminé tous les défis!', 'success');
+            unlockAchievement('Expert');
         } else {
             setTimeout(() => {
                 loadChallenge(currentLevel);
-                addOutputLine('🚀 انتقل إلى المستوى التالي!', 'info');
+                addOutputLine('🚀 Passez au niveau suivant!', 'info');
             }, 2000);
         }
         
         updateStats();
         setupLessons();
     } else {
-        addOutputLine('❌ النتيجة غير صحيحة. حاول مرة أخرى!', 'error');
+        addOutputLine('❌ Résultat incorrect. Réessayez!', 'error');
     }
 }
 
@@ -273,10 +273,10 @@ function loseLife() {
     updateStats();
     
     if (lives <= 0) {
-        addOutputLine('💀 انتهت اللعبة! انقر على "تشغيل" للبدء من جديد', 'error');
+        addOutputLine('💀 Fin de partie! Cliquez sur "Exécuter" pour recommencer', 'error');
         resetGame();
     } else {
-        addOutputLine(`💔 خسرت حياة! باقي ${lives} حياة`, 'error');
+        addOutputLine(`💔 Vous avez perdu une vie! ${lives} vie(s) restante(s)`, 'error');
     }
 }
 
@@ -299,8 +299,8 @@ function clearOutput() {
     const output = document.getElementById('output');
     output.innerHTML = `
         <div class="welcome-message">
-            <h4>مرحبا بك في لعبة تعلم البايثون! 🐍</h4>
-            <p>اكتب الكود في المحرر واضغط "تشغيل" لترى النتيجة</p>
+            <h4>Bienvenue dans le jeu d'apprentissage Python! 🐍</h4>
+            <p>Écrivez le code dans l'éditeur et cliquez sur "Exécuter" pour voir le résultat</p>
         </div>
     `;
 }
@@ -319,7 +319,7 @@ function unlockAchievement(achievementName) {
     if (achievement) {
         achievement.classList.remove('locked');
         achievement.classList.add('unlocked');
-        addOutputLine(`🏆 مبروك! لقد حصلت على إنجاز "${achievementName}"!`, 'success');
+        addOutputLine(`🏆 Félicitations! Vous avez déverrouillé la réalisation "${achievementName}"!`, 'success');
     }
 }
 

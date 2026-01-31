@@ -1,9 +1,9 @@
 <!DOCTYPE html>
-<html lang="ar" dir="rtl">
+<html lang="fr" dir="ltr">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>لعبة التعلم - أكاديمية سينتا</title>
+    <title>Jeu d'apprentissage - Synta Academy</title>
     <!-- Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -14,18 +14,18 @@
 <body>
     <div class="game-container">
         <div class="game-header">
-            <h1>🎮 لعبة تعلم البايثون</h1>
+            <h1>🎮 Jeu d'apprentissage Python</h1>
             <div class="game-stats">
                 <div class="stat">
-                    <span class="stat-label">المستوى:</span>
+                    <span class="stat-label">Niveau:</span>
                     <span class="stat-value" id="level">1</span>
                 </div>
                 <div class="stat">
-                    <span class="stat-label">النقاط:</span>
+                    <span class="stat-label">Points:</span>
                     <span class="stat-value" id="score">0</span>
                 </div>
                 <div class="stat">
-                    <span class="stat-label">الحياة:</span>
+                    <span class="stat-label">Vies:</span>
                     <span class="stat-value" id="lives">3</span>
                 </div>
             </div>
@@ -35,21 +35,21 @@
             <div class="game-area">
                 <div class="code-editor">
                     <div class="editor-header">
-                        <h3>📝 محرر الكود</h3>
-                        <button class="run-btn" onclick="runCode()">▶️ تشغيل</button>
+                        <h3>📝 Éditeur de code</h3>
+                        <button class="run-btn" onclick="runCode()">▶️ Exécuter</button>
                     </div>
-                    <textarea id="code-input" placeholder="اكتب كود البايثون هنا...">print("مرحبا بالعالم!")</textarea>
+                    <textarea id="code-input" placeholder="Écrivez votre code Python ici...">print("Bonjour le monde!")</textarea>
                 </div>
 
                 <div class="output-area">
                     <div class="output-header">
-                        <h3>📤 النتيجة</h3>
-                        <button class="clear-btn" onclick="clearOutput()">🗑️ مسح</button>
+                        <h3>📤 Résultat</h3>
+                        <button class="clear-btn" onclick="clearOutput()">🗑️ Effacer</button>
                     </div>
                     <div id="output" class="output-content">
                         <div class="welcome-message">
-                            <h4>مرحبا بك في لعبة تعلم البايثون! 🐍</h4>
-                            <p>اكتب الكود في المحرر واضغط "تشغيل" لترى النتيجة</p>
+                            <h4>Bienvenue dans le jeu d'apprentissage Python! 🐍</h4>
+                            <p>Écrivez le code dans l'éditeur et cliquez sur "Exécuter" pour voir le résultat</p>
                         </div>
                     </div>
                 </div>
@@ -57,62 +57,62 @@
 
             <div class="game-sidebar">
                 <div class="challenge-section">
-                    <h3>🎯 التحدي الحالي</h3>
+                    <h3>🎯 Défi actuel</h3>
                     <div class="challenge-content">
-                        <h4 id="challenge-title">التحدي الأول: طباعة النص</h4>
-                        <p id="challenge-description">اكتب كود لطباعة "مرحبا بالعالم!"</p>
+                        <h4 id="challenge-title">Premier défi: Affichage de texte</h4>
+                        <p id="challenge-description">Écrivez du code pour afficher "Bonjour le monde!"</p>
                         <div class="hint">
-                            <strong>💡 تلميح:</strong>
-                            <span id="challenge-hint">استخدم دالة print()</span>
+                            <strong>💡 Indice:</strong>
+                            <span id="challenge-hint">Utilisez la fonction print()</span>
                         </div>
                     </div>
                 </div>
 
                 <div class="lessons-section">
-                    <h3>📚 الدروس</h3>
+                    <h3>📚 Leçons</h3>
                     <div class="lessons-list">
                         <div class="lesson-item active" data-lesson="1">
                             <span class="lesson-number">1</span>
-                            <span class="lesson-title">طباعة النص</span>
+                            <span class="lesson-title">Affichage de texte</span>
                             <span class="lesson-status">✅</span>
                         </div>
                         <div class="lesson-item" data-lesson="2">
                             <span class="lesson-number">2</span>
-                            <span class="lesson-title">المتغيرات</span>
+                            <span class="lesson-title">Variables</span>
                             <span class="lesson-status">🔒</span>
                         </div>
                         <div class="lesson-item" data-lesson="3">
                             <span class="lesson-number">3</span>
-                            <span class="lesson-title">الحلقات التكرارية</span>
+                            <span class="lesson-title">Boucles</span>
                             <span class="lesson-status">🔒</span>
                         </div>
                         <div class="lesson-item" data-lesson="4">
                             <span class="lesson-number">4</span>
-                            <span class="lesson-title">الشروط</span>
+                            <span class="lesson-title">Conditions</span>
                             <span class="lesson-status">🔒</span>
                         </div>
                         <div class="lesson-item" data-lesson="5">
                             <span class="lesson-number">5</span>
-                            <span class="lesson-title">الدوال</span>
+                            <span class="lesson-title">Fonctions</span>
                             <span class="lesson-status">🔒</span>
                         </div>
                     </div>
                 </div>
 
                 <div class="achievements-section">
-                    <h3>🏆 الإنجازات</h3>
+                    <h3>🏆 Réalisations</h3>
                     <div class="achievements-list">
                         <div class="achievement-item unlocked">
                             <span class="achievement-icon">🎯</span>
-                            <span class="achievement-title">المبتدئ</span>
+                            <span class="achievement-title">Débutant</span>
                         </div>
                         <div class="achievement-item locked">
                             <span class="achievement-icon">🚀</span>
-                            <span class="achievement-title">المبرمج</span>
+                            <span class="achievement-title">Programmeur</span>
                         </div>
                         <div class="achievement-item locked">
                             <span class="achievement-icon">👑</span>
-                            <span class="achievement-title">الخبير</span>
+                            <span class="achievement-title">Expert</span>
                         </div>
                     </div>
                 </div>
