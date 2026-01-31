@@ -8,6 +8,11 @@ document.addEventListener('DOMContentLoaded', function() {
     const registerForm = document.getElementById('registerForm');
     const passwordResetForm = document.getElementById('passwordResetForm');
 
+    // Check if user is already logged in and redirect to dashboard
+    if (loginForm || registerForm) {
+        checkIfAlreadyLoggedIn();
+    }
+
     if (loginForm) {
         loginForm.addEventListener('submit', handleLogin);
         // Setup password toggle
@@ -29,6 +34,25 @@ document.addEventListener('DOMContentLoaded', function() {
         console.log('Auth system not yet available, will wait when needed');
     }
 });
+
+async function checkIfAlreadyLoggedIn() {
+    try {
+        // Wait for auth to be available
+        await waitForAuth(5000);
+        
+        // Check if user is already logged in
+        const result = await window.auth.getCurrentUser();
+        
+        if (result.success && result.user) {
+            console.log('User already logged in, redirecting to dashboard...');
+            // Redirect to user dashboard
+            window.location.href = '../../user.html';
+        }
+    } catch (error) {
+        // If there's an error checking auth, just continue to show login form
+        console.log('No active session found or auth check failed');
+    }
+}
 
 function setupPasswordToggle() {
     const togglePassword = document.getElementById('togglePassword');
