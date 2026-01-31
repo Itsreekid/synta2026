@@ -192,32 +192,41 @@ async function loadEvents() {
     try {
         const eventsList = document.getElementById('events-list');
         
-        // Simulate events data
-        const events = [
-            {
-                date: '15 يناير',
-                title: 'ورشة عمل البايثون',
-                description: 'ورشة تفاعلية لتعلم أساسيات البايثون'
-            },
-            {
-                date: '20 يناير',
-                title: 'مسابقة البرمجة',
-                description: 'مسابقة شهرية لحل المشاكل البرمجية'
-            },
-            {
-                date: '25 يناير',
-                title: 'محاضرة Excel',
-                description: 'محاضرة مجانية عن Excel المتقدم'
-            }
-        ];
+        // Check if events data is available from events.js
+        if (typeof upcomingEvents === 'undefined' || !Array.isArray(upcomingEvents)) {
+            console.error('upcomingEvents not found. Make sure events.js is loaded.');
+            eventsList.innerHTML = '<div class="loading">خطأ في تحميل الأحداث</div>';
+            return;
+        }
         
-        eventsList.innerHTML = events.map(event => `
-            <div class="event-item">
-                <div class="event-date">${event.date}</div>
-                <div class="event-title">${event.title}</div>
-                <div class="event-description">${event.description}</div>
-            </div>
-        `).join('');
+        // Filter events that haven't passed yet
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        
+        const activeEvents = upcomingEvents.filter(event => {
+            const eventDate = new Date(event.date);
+            return eventDate >= today;
+        });
+        
+        if (activeEvents.length === 0) {
+            eventsList.innerHTML = '<div class="event-item">لا توجد أحداث قادمة</div>';
+            return;
+        }
+        
+        eventsList.innerHTML = activeEvents.map(event => {
+            // Format date to Arabic
+            const eventDate = new Date(event.date);
+            const monthNames = ['يناير', 'فبراير', 'مارس', 'أبريل', 'مايو', 'يونيو', 'يوليو', 'أغسطس', 'سبتمبر', 'أكتوبر', 'نوفمبر', 'ديسمبر'];
+            const dateString = `${eventDate.getDate()} ${monthNames[eventDate.getMonth()]}`;
+            
+            return `
+                <div class="event-item" style="border-right: 3px solid ${event.color}">
+                    <div class="event-date">${event.icon} ${dateString} - ${event.time}</div>
+                    <div class="event-title">${event.title}</div>
+                    <div class="event-description">${event.description}</div>
+                </div>
+            `;
+        }).join('');
         
     } catch (error) {
         console.error('Error loading events:', error);
