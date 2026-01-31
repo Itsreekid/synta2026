@@ -16,8 +16,15 @@
     <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
 </head>
 <body>
+    <!-- Mobile Menu Button -->
+    <button class="mobile-menu-toggle" onclick="toggleMobileMenu()" aria-label="Toggle menu">
+        <span></span>
+        <span></span>
+        <span></span>
+    </button>
+
     <!-- Sidebar Navigation -->
-    <div class="sidebar">
+    <div class="sidebar" id="sidebar">
         <div class="logo">
             <div class="logo-icon">
                 <img src="source/logosynta.png" alt="synta academy" width="55">
@@ -25,31 +32,31 @@
             <span class="logo-text"> Synta Academy</span>
         </div>
         <ul class="nav-links">
-            <li><a href="#" onclick="loadPage('dashboard')" class="active">
+            <li><a href="#" onclick="loadPageAndCloseSidebar('dashboard')" class="active">
                 <div class="nav-icon"><i class="fas fa-home"></i></div>
                 <span class="nav-text">Tableau de bord</span>
             </a></li>
-            <li><a href="#" onclick="loadPage('profile')">
+            <li><a href="#" onclick="loadPageAndCloseSidebar('profile')">
                 <div class="nav-icon"><i class="fas fa-user"></i></div>
                 <span class="nav-text">Profil</span>
             </a></li>
-            <li><a href="#" onclick="loadPage('courses')">
+            <li><a href="#" onclick="loadPageAndCloseSidebar('courses')">
                 <div class="nav-icon"><i class="fas fa-book"></i></div>
                 <span class="nav-text">Cours</span>
             </a></li>
-            <li><a href="#" onclick="loadPage('offers')">
+            <li><a href="#" onclick="loadPageAndCloseSidebar('offers')">
                 <div class="nav-icon"><i class="fas fa-gift"></i></div>
                 <span class="nav-text">Offres</span>
             </a></li>
-            <li><a href="#" onclick="loadPage('game')">
+            <li><a href="#" onclick="loadPageAndCloseSidebar('game')">
                 <div class="nav-icon"><i class="fas fa-gamepad"></i></div>
                 <span class="nav-text">Jeu d'apprentissage</span>
             </a></li>
-            <li><a href="#" onclick="loadPage('chatbot')">
+            <li><a href="#" onclick="loadPageAndCloseSidebar('chatbot')">
                 <div class="nav-icon"><i class="fas fa-robot"></i></div>
                 <span class="nav-text">SyntaNova <span class="beta-badge">Beta</span></span>
             </a></li>
-            <li><a href="#" onclick="loadPage('calendar')">
+            <li><a href="#" onclick="loadPageAndCloseSidebar('calendar')">
                 <div class="nav-icon"><i class="fas fa-calendar"></i></div>
                 <span class="nav-text">Calendrier</span>
             </a></li>

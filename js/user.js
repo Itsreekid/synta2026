@@ -6,7 +6,47 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Set up iframe resize listener
     setupIframeResize();
+
+    // Close mobile menu when clicking outside
+    document.addEventListener('click', function(event) {
+        const sidebar = document.getElementById('sidebar');
+        const menuToggle = document.querySelector('.mobile-menu-toggle');
+        
+        if (sidebar && menuToggle && 
+            !sidebar.contains(event.target) && 
+            !menuToggle.contains(event.target) &&
+            sidebar.classList.contains('active')) {
+            closeMobileMenu();
+        }
+    });
 });
+
+// Toggle mobile menu
+function toggleMobileMenu() {
+    const sidebar = document.getElementById('sidebar');
+    const menuToggle = document.querySelector('.mobile-menu-toggle');
+    
+    sidebar.classList.toggle('active');
+    menuToggle.classList.toggle('active');
+}
+
+// Close mobile menu
+function closeMobileMenu() {
+    const sidebar = document.getElementById('sidebar');
+    const menuToggle = document.querySelector('.mobile-menu-toggle');
+    
+    if (sidebar && sidebar.classList.contains('active')) {
+        sidebar.classList.remove('active');
+        menuToggle.classList.remove('active');
+    }
+}
+
+// Load page and close sidebar on mobile
+function loadPageAndCloseSidebar(pageName) {
+    loadPage(pageName);
+    closeMobileMenu();
+}
+
 
 // Page navigation function
 function loadPage(pageName) {
@@ -57,8 +97,8 @@ function updateActiveNavigation(pageName) {
         link.classList.remove('active');
     });
     
-    // Add active class to clicked link
-    const activeLink = document.querySelector(`[onclick="loadPage('${pageName}')"]`);
+    // Add active class to clicked link - updated to match new onclick pattern
+    const activeLink = document.querySelector(`[onclick*="'${pageName}'"]`);
     if (activeLink) {
         activeLink.classList.add('active');
     }
