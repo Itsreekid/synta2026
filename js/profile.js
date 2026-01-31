@@ -28,12 +28,12 @@ async function loadUserProfile() {
             loadUserStats();
         } else {
             console.error('No user found or authentication failed');
-            showMessage('يرجى تسجيل الدخول للوصول إلى الملف الشخصي', 'error');
+            showMessage('Veuillez vous connecter pour accéder au profil', 'error');
         }
         
     } catch (error) {
         console.error('Error loading user profile:', error);
-        showMessage('حدث خطأ في تحميل البيانات', 'error');
+        showMessage('Une erreur est survenue lors du chargement des données', 'error');
     }
 }
 
@@ -164,7 +164,7 @@ function loadUserStats() {
         activeCourses: 0,
         learningHours: 0,
         achievements: 0,
-        currentLevel: 'مبتدئ',
+        currentLevel: 'Débutant',
         earnedPoints: 0,
         activeDays: 0,
         contestsParticipated: 0
@@ -195,7 +195,7 @@ async function saveProfile() {
         
         // Validate required fields
         if (!fullName) {
-            showMessage('الاسم الكامل مطلوب', 'error');
+            showMessage('Le nom complet est requis', 'error');
             return;
         }
         
@@ -213,7 +213,7 @@ async function saveProfile() {
         // Show loading state
         const saveBtn = document.querySelector('.save-btn');
         const originalText = saveBtn.textContent;
-        saveBtn.textContent = 'جاري الحفظ...';
+        saveBtn.textContent = 'Enregistrement...';
         saveBtn.disabled = true;
         
         // Update user profile
@@ -221,18 +221,18 @@ async function saveProfile() {
             const result = await window.auth.updateProfile(updates);
             
             if (result.success) {
-                showMessage('تم حفظ التغييرات بنجاح!', 'success');
+                showMessage('Modifications enregistrées avec succès!', 'success');
                 updateProfileInitial({ user_metadata: updates });
             } else {
-                showMessage('حدث خطأ أثناء حفظ التغييرات', 'error');
+                showMessage('Erreur lors de l\'enregistrement des modifications', 'error');
             }
         } else {
-            showMessage('نظام المصادقة غير متاح', 'error');
+            showMessage('Système d\'authentification non disponible', 'error');
         }
         
     } catch (error) {
         console.error('Error saving profile:', error);
-        showMessage('حدث خطأ أثناء حفظ التغييرات', 'error');
+        showMessage('Erreur lors de l\'enregistrement des modifications', 'error');
     } finally {
         // Restore button state
         const saveBtn = document.querySelector('.save-btn');

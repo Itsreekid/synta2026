@@ -1,9 +1,9 @@
 <!DOCTYPE html>
-<html lang="ar" dir="rtl">
+<html lang="fr" dir="ltr">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>الملف الشخصي - أكاديمية سينتا</title>
+    <title>Profil - Synta Academy</title>
     <!-- Supabase Client Library -->
     <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
     <!-- Fonts -->
@@ -16,81 +16,81 @@
 <body>
     <div class="profile-container">
         <div class="profile-header">
-            <h1>👤 الملف الشخصي</h1>
-            <p>إدارة معلوماتك الشخصية وتقدمك التعليمي</p>
+            <h1>👤 Profil</h1>
+            <p>Gérez vos informations personnelles et votre progrès éducatif</p>
         </div>
 
         <div class="profile-content">
             <div class="profile-main">
                 <!-- Personal Information -->
                 <div class="profile-section">
-                    <h2>📋 المعلومات الشخصية</h2>
+                    <h2>📋 Informations personnelles</h2>
                     <div class="profile-form">
                         <div class="form-group">
-                            <label for="full-name">الاسم الكامل</label>
-                            <input type="text" id="full-name" placeholder="أدخل اسمك الكامل">
+                            <label for="full-name">Nom complet</label>
+                            <input type="text" id="full-name" placeholder="Entrez votre nom complet">
                         </div>
                         <div class="form-group">
-                            <label for="email">البريد الإلكتروني</label>
-                            <input type="email" id="email" placeholder="أدخل بريدك الإلكتروني" readonly>
+                            <label for="email">Adresse e-mail</label>
+                            <input type="email" id="email" placeholder="Entrez votre e-mail" readonly>
                         </div>
                         <div class="form-group">
-                            <label for="phone">رقم الهاتف</label>
-                            <input type="tel" id="phone" placeholder="أدخل رقم هاتفك">
+                            <label for="phone">Numéro de téléphone</label>
+                            <input type="tel" id="phone" placeholder="Entrez votre numéro">
                         </div>
                         <div class="form-group">
-                            <label for="user-class">المستوى الدراسي</label>
+                            <label for="user-class">Niveau scolaire</label>
                             <select id="user-class">
-                                <option value="">اختر المستوى</option>
+                                <option value="">Choisissez le niveau</option>
                                 <option value="2eme">2ème année</option>
                                 <option value="3eme">3ème année</option>
                                 <option value="bac">Bac informatique</option>
-                                <option value="other">أخرى</option>
+                                <option value="other">Autre</option>
                             </select>
                         </div>
                         <div class="form-group">
-                            <label for="user-branch">الفرع</label>
+                            <label for="user-branch">Branche</label>
                             <select id="user-branch">
-                                <option value="">اختر الفرع</option>
-                                <option value="informatique">إعلامية</option>
-                                <option value="sciences">علوم</option>
-                                <option value="technique">تقني</option>
-                                <option value="other">أخرى</option>
+                                <option value="">Choisissez la branche</option>
+                                <option value="informatique">Informatique</option>
+                                <option value="sciences">Sciences</option>
+                                <option value="technique">Technique</option>
+                                <option value="other">Autre</option>
                             </select>
                         </div>
-                        <button class="save-btn" onclick="saveProfile()">💾 حفظ التغييرات</button>
+                        <button class="save-btn" onclick="saveProfile()">💾 Enregistrer les modifications</button>
                     </div>
                 </div>
 
                 <!-- Learning Progress -->
                 <div class="profile-section">
-                    <h2>📈 تقدم التعلم</h2>
+                    <h2>📈 Progrès d'apprentissage</h2>
                     <div class="progress-overview">
                         <div class="progress-card">
                             <div class="progress-icon">🎯</div>
                             <div class="progress-info">
-                                <h3>الدورات المكتملة</h3>
+                                <h3>Cours complétés</h3>
                                 <span class="progress-number" id="completed-courses">0</span>
                             </div>
                         </div>
                         <div class="progress-card">
                             <div class="progress-icon">📚</div>
                             <div class="progress-info">
-                                <h3>الدورات الجارية</h3>
+                                <h3>Cours en cours</h3>
                                 <span class="progress-number" id="active-courses">0</span>
                             </div>
                         </div>
                         <div class="progress-card">
                             <div class="progress-icon">⏱️</div>
                             <div class="progress-info">
-                                <h3>ساعات التعلم</h3>
+                                <h3>Heures d'apprentissage</h3>
                                 <span class="progress-number" id="learning-hours">0</span>
                             </div>
                         </div>
                         <div class="progress-card">
                             <div class="progress-icon">🏆</div>
                             <div class="progress-info">
-                                <h3>الإنجازات</h3>
+                                <h3>Réalisations</h3>
                                 <span class="progress-number" id="achievements">0</span>
                             </div>
                         </div>
@@ -99,11 +99,11 @@
 
                 <!-- Course History -->
                 <div class="profile-section">
-                    <h2>📖 سجل الدورات</h2>
+                    <h2>📖 Historique des cours</h2>
                     <div class="course-history" id="course-history">
                         <div class="no-courses-message">
-                            <p>لا توجد دورات مسجلة بعد</p>
-                            <p>ابدأ رحلتك التعليمية مع أكاديمية سينتا!</p>
+                            <p>Aucun cours enregistré pour le moment</p>
+                            <p>Commencez votre parcours éducatif avec Synta Academy!</p>
                         </div>
                     </div>
                 </div>
@@ -119,47 +119,47 @@
 
                 <!-- Quick Stats -->
                 <div class="quick-stats">
-                    <h3>📊 إحصائيات سريعة</h3>
+                    <h3>📊 Statistiques rapides</h3>
                     <div class="stat-item">
-                        <span class="stat-label">المستوى الحالي</span>
-                        <span class="stat-value" id="current-level">مبتدئ</span>
+                        <span class="stat-label">Niveau actuel</span>
+                        <span class="stat-value" id="current-level">Débutant</span>
                     </div>
                     <div class="stat-item">
-                        <span class="stat-label">النقاط المكتسبة</span>
+                        <span class="stat-label">Points gagnés</span>
                         <span class="stat-value" id="earned-points">0</span>
                     </div>
                     <div class="stat-item">
-                        <span class="stat-label">أيام النشاط</span>
+                        <span class="stat-label">Jours actifs</span>
                         <span class="stat-value" id="active-days">0</span>
                     </div>
                     <div class="stat-item">
-                        <span class="stat-label">المسابقات المشاركة</span>
+                        <span class="stat-label">Concours participés</span>
                         <span class="stat-value" id="contests-participated">0</span>
                     </div>
                 </div>
 
                 <!-- Achievements -->
                 <div class="achievements-section">
-                    <h3>🏆 الإنجازات الأخيرة</h3>
+                    <h3>🏆 Dernières réalisations</h3>
                     <div class="achievement-item unlocked">
                         <span class="achievement-icon">🎯</span>
                         <div class="achievement-info">
-                            <h4>المبتدئ</h4>
-                            <p>أكمل أول دورة</p>
+                            <h4>Débutant</h4>
+                            <p>Complétez le premier cours</p>
                         </div>
                     </div>
                     <div class="achievement-item locked">
                         <span class="achievement-icon">🚀</span>
                         <div class="achievement-info">
-                            <h4>المثابر</h4>
-                            <p>تعلم لمدة 7 أيام متتالية</p>
+                            <h4>Persévérant</h4>
+                            <p>Apprenez pendant 7 jours consécutifs</p>
                         </div>
                     </div>
                     <div class="achievement-item locked">
                         <span class="achievement-icon">👑</span>
                         <div class="achievement-info">
-                            <h4>الخبير</h4>
-                            <p>أكمل 5 دورات</p>
+                            <h4>Expert</h4>
+                            <p>Complétez 5 cours</p>
                         </div>
                     </div>
                 </div>
