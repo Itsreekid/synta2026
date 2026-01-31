@@ -10,7 +10,7 @@ const upcomingEvents = [
         description: "حصة مجانية في الفلسفة لتلاميذة البكالوريا",
         icon: "📚",
         color: "#ff7b1a",
-        zoomLink: "https://zoom.us/j/1234567890"
+        zoomLink: "https://us06web.zoom.us/j/85679107582?pwd=NRqxAbY22nt2szhVg8CSaDYacIBRqK.1 " 
     },
     {
         title:"حصة مباشرة في مادة الاعلامية",
