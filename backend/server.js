@@ -26,6 +26,7 @@ const PORT = process.env.PORT || 3000;
 // =====================================================
 // MIDDLEWARE
 // =====================================================
+// CORS Configuration - Updated to handle preflight requests
 // CORS Configuration - Allow your frontend domain
 const allowedOrigins = process.env.ALLOWED_ORIGINS?.split(",") || ["*"];
 const corsOptions = {
