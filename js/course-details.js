@@ -412,21 +412,6 @@ function showVideoInMainArea(lesson, videoUrl) {
     }
     
     courseMain.innerHTML = `
-        <button onclick="restoreCourseContent()" style="
-            display: inline-flex;
-            align-items: center;
-            gap: 0.5rem;
-            color: #667eea;
-            background: none;
-            border: none;
-            font-weight: 600;
-            margin-bottom: 1.5rem;
-            cursor: pointer;
-            font-family: 'Inter', sans-serif;
-            font-size: 1rem;
-            padding: 0;
-        ">← Retour au cours</button>
-        
         <div style="margin-bottom: 1.5rem;">
             <video id="current-lesson-video" controls autoplay controlsList="nodownload" oncontextmenu="return false;" style="
                 width: 100%;
@@ -450,6 +435,15 @@ function showVideoInMainArea(lesson, videoUrl) {
             ` : ''}
         </div>
     `;
+    
+    // Move modules section to sidebar
+    const modulesSection = document.querySelector('.modules-section');
+    const courseSidebar = document.querySelector('.course-sidebar');
+    
+    if (modulesSection && courseSidebar) {
+        courseSidebar.innerHTML = '';
+        courseSidebar.appendChild(modulesSection.cloneNode(true));
+    }
     
     // Disable right-click on video
     setTimeout(() => {
