@@ -11,15 +11,34 @@ document.addEventListener('DOMContentLoaded', function() {
     document.addEventListener('click', function(event) {
         const sidebar = document.getElementById('sidebar');
         const menuToggle = document.querySelector('.mobile-menu-toggle');
+        const profileDropdown = document.getElementById('profileDropdown');
+        const profilePicture = document.querySelector('.profile-picture');
         
+        // Close sidebar if clicking outside
         if (sidebar && menuToggle && 
             !sidebar.contains(event.target) && 
             !menuToggle.contains(event.target) &&
             sidebar.classList.contains('active')) {
             closeMobileMenu();
         }
+        
+        // Close dropdown if clicking outside
+        if (profileDropdown && profilePicture &&
+            !profileDropdown.contains(event.target) &&
+            !profilePicture.contains(event.target) &&
+            profileDropdown.classList.contains('active')) {
+            profileDropdown.classList.remove('active');
+        }
     });
 });
+
+// Toggle profile dropdown
+function toggleProfileDropdown() {
+    const dropdown = document.getElementById('profileDropdown');
+    if (dropdown) {
+        dropdown.classList.toggle('active');
+    }
+}
 
 // Toggle mobile menu
 function toggleMobileMenu() {
