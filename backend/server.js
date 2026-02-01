@@ -99,6 +99,30 @@ app.get("/health", (req, res) => {
   res.json({ status: "healthy", timestamp: new Date().toISOString() });
 });
 
+// Debug endpoint - Check CORS configuration
+app.get("/debug/cors", (req, res) => {
+  res.json({
+    message: "CORS Debug - If you see this, backend is working!",
+    timestamp: new Date().toISOString(),
+    environment: {
+      ALLOWED_ORIGINS_RAW: process.env.ALLOWED_ORIGINS || "❌ NOT SET",
+      ALLOWED_ORIGINS_PARSED: allowedOrigins,
+      NODE_ENV: process.env.NODE_ENV || "not set"
+    },
+    request: {
+      origin: req.headers.origin || "NO ORIGIN HEADER",
+      host: req.headers.host,
+      referer: req.headers.referer || "no referer"
+    },
+    cors: {
+      willAllow: !req.headers.origin || allowedOrigins.includes(req.headers.origin),
+      reason: !req.headers.origin ? "No origin header (direct access)" : 
+              allowedOrigins.includes(req.headers.origin) ? "Origin in allowed list" :
+              `Origin ${req.headers.origin} NOT in allowed list: ${allowedOrigins.join(", ")}`
+    }
+  });
+});
+
 // API routes
 app.use("/api/content", contentRoutes);
 app.use("/api/courses", coursesRoutes);
