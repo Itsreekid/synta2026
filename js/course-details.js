@@ -231,7 +231,7 @@ function renderModulesAndLessons(modules, hasAccess) {
                                     <span class="lesson-icon">🎥</span>
                                     <div class="lesson-details">
                                         <div class="lesson-title">${lesson.title}</div>
-                                        <div class="lesson-duration">${duration}</div>
+                                        ${lesson.duration && lesson.duration > 0 ? `<div class="lesson-duration">${duration}</div>` : ''}
                                     </div>
                                 </div>
                                 <div class="lesson-status">
@@ -438,12 +438,20 @@ function openVideoModal(title, videoUrl) {
                 justify-content: center;
             ">✕</button>
             <h2 style="color: white; margin-bottom: 1rem; font-family: Inter, sans-serif;">${title}</h2>
-            <video controls autoplay style="width: 100%; border-radius: 12px;">
+            <video controls autoplay controlsList="nodownload" oncontextmenu="return false;" style="width: 100%; border-radius: 12px;">
                 <source src="${videoUrl}" type="video/mp4">
                 Votre navigateur ne supporte pas la vidéo.
             </video>
         </div>
     `;
+    
+    // Disable right-click on the video element
+    setTimeout(() => {
+        const video = modal.querySelector('video');
+        if (video) {
+            video.addEventListener('contextmenu', (e) => e.preventDefault());
+        }
+    }, 100);
     
     document.body.appendChild(modal);
     
@@ -716,7 +724,7 @@ function openVideoPlayer(lessonId, videoUrl) {
     modal.innerHTML = `
         <div class="video-modal-content">
             <button class="close-modal" onclick="this.closest('.video-modal').remove()">✕</button>
-            <video id="lesson-video" controls autoplay>
+            <video id="lesson-video" controls autoplay controlsList="nodownload" oncontextmenu="return false;">
                 <source src="${videoUrl}" type="video/mp4">
                 متصفحك لا يدعم تشغيل الفيديو
             </video>
