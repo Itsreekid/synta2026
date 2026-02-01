@@ -75,6 +75,21 @@ app.get("/health", (req, res) => {
   res.json({ status: "healthy", timestamp: new Date().toISOString() });
 });
 
+// Debug endpoint - Check CORS configuration
+app.get("/debug/cors", (req, res) => {
+  res.json({
+    message: "CORS Debug Info",
+    allowedOrigins: process.env.ALLOWED_ORIGINS || "NOT SET",
+    requestOrigin: req.headers.origin || "NO ORIGIN HEADER",
+    corsHeaders: {
+      'access-control-allow-origin': res.getHeader('access-control-allow-origin') || 'NOT SET',
+      'access-control-allow-methods': res.getHeader('access-control-allow-methods') || 'NOT SET',
+      'access-control-allow-headers': res.getHeader('access-control-allow-headers') || 'NOT SET'
+    },
+    allEnvVars: Object.keys(process.env).filter(k => k.includes('ALLOW') || k.includes('CORS') || k.includes('ORIGIN'))
+  });
+});
+
 // API routes
 app.use("/api/content", contentRoutes);
 app.use("/api/courses", coursesRoutes);
