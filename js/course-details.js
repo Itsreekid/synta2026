@@ -523,14 +523,16 @@ async function showVideoInMainArea(lesson, videoUrl) {
     
     // Replace main content with video player
     courseMain.innerHTML = `
-        <div style="flex: 1; display: flex; flex-direction: column; min-height: 0;">
+        <div style="flex: 1; display: flex; flex-direction: column; min-height: 0; align-items: flex-start;">
             <video id="current-lesson-video" controls autoplay controlsList="nodownload" oncontextmenu="return false;" style="
-                width: 100%;
+                max-width: 100%;
+                width: auto;
                 height: auto;
                 max-height: calc(100vh - 320px);
                 border-radius: 12px;
-                background: #000;
+                background: transparent;
                 box-shadow: 0 4px 20px rgba(0,0,0,0.15);
+                display: block;
             ">
                 <source src="${videoUrl}" type="video/mp4">
                 Votre navigateur ne supporte pas la vidéo.
