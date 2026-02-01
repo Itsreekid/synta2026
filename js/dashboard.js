@@ -235,7 +235,8 @@ async function loadEvents() {
             const dateString = `${eventDate.getDate()} ${monthNames[eventDate.getMonth()]}`;
             
             return `
-                <div class="event-item" style="border-right: 3px solid ${event.color}; cursor: pointer;" onclick="navigateToCalendar('${event.date}')">
+                <div class="event-item" style="border-right: 3px solid ${event.color}; cursor: pointer; position: relative;" onclick="navigateToCalendar('${event.date}')">
+                    <span class="live-indicator"></span>
                     <div class="event-date">${event.icon} ${dateString} - ${event.time}</div>
                     <div class="event-title">${event.title}</div>
                     <div class="event-description">${event.description}</div>
@@ -327,6 +328,41 @@ style.textContent = `
             transform: translateX(0);
             opacity: 1;
         }
+    }
+    
+    @keyframes pulseLive {
+        0%, 100% {
+            opacity: 1;
+            transform: scale(1);
+        }
+        50% {
+            opacity: 0.6;
+            transform: scale(1.1);
+        }
+    }
+    
+    .live-indicator {
+        position: absolute;
+        top: 12px;
+        right: 12px;
+        width: 10px;
+        height: 10px;
+        background: #ff0000;
+        border-radius: 50%;
+        animation: pulseLive 1.5s ease-in-out infinite;
+        box-shadow: 0 0 8px rgba(255, 0, 0, 0.6);
+    }
+    
+    .live-indicator::before {
+        content: '';
+        position: absolute;
+        top: -4px;
+        left: -4px;
+        right: -4px;
+        bottom: -4px;
+        border: 2px solid rgba(255, 0, 0, 0.3);
+        border-radius: 50%;
+        animation: pulseLive 1.5s ease-in-out infinite;
     }
 `;
 document.head.appendChild(style); 
