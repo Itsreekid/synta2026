@@ -137,7 +137,6 @@ body {
 
 .day-column.today {
     background: linear-gradient(135deg, #ffead0 0%, #ffead0 100%);
-    color: white;
 }
 
 .day-column.has-events {
@@ -152,7 +151,7 @@ body {
 }
 
 .day-column.today .day-header {
-    border-bottom-color: rgba(255, 255, 255, 0.3);
+    /* Border bottom color removed */
 }
 
 .day-name {
@@ -236,7 +235,7 @@ body {
 }
 
 .day-column.today .no-events {
-    color: rgba(255, 255, 255, 0.8);
+    /* No events color removed */
 }
 
 /* Modal */
