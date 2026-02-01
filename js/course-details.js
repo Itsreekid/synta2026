@@ -405,12 +405,18 @@ async function updateCourseProgress(userId, courseId) {
  */
 function showVideoInMainArea(lesson, videoUrl) {
     const courseMain = document.querySelector('.course-main');
+    const courseSidebar = document.querySelector('.course-sidebar');
+    const modulesContainer = document.getElementById('modules-container');
     
     // Store original content to restore later
     if (!courseMain.dataset.originalContent) {
         courseMain.dataset.originalContent = courseMain.innerHTML;
     }
+    if (!courseSidebar.dataset.originalContent) {
+        courseSidebar.dataset.originalContent = courseSidebar.innerHTML;
+    }
     
+    // Replace main content with video player
     courseMain.innerHTML = `
         <div style="margin-bottom: 1.5rem;">
             <video id="current-lesson-video" controls autoplay controlsList="nodownload" oncontextmenu="return false;" style="
@@ -436,13 +442,12 @@ function showVideoInMainArea(lesson, videoUrl) {
         </div>
     `;
     
-    // Move modules section to sidebar
-    const modulesSection = document.querySelector('.modules-section');
-    const courseSidebar = document.querySelector('.course-sidebar');
-    
-    if (modulesSection && courseSidebar) {
+    // Replace sidebar with modules section
+    if (modulesContainer && courseSidebar) {
+        const modulesClone = modulesContainer.cloneNode(true);
+        modulesClone.style.cssText = '';
         courseSidebar.innerHTML = '';
-        courseSidebar.appendChild(modulesSection.cloneNode(true));
+        courseSidebar.appendChild(modulesClone);
     }
     
     // Disable right-click on video
@@ -462,9 +467,16 @@ function showVideoInMainArea(lesson, videoUrl) {
  */
 function restoreCourseContent() {
     const courseMain = document.querySelector('.course-main');
+    const courseSidebar = document.querySelector('.course-sidebar');
+    
     if (courseMain.dataset.originalContent) {
         courseMain.innerHTML = courseMain.dataset.originalContent;
         delete courseMain.dataset.originalContent;
+    }
+    
+    if (courseSidebar.dataset.originalContent) {
+        courseSidebar.innerHTML = courseSidebar.dataset.originalContent;
+        delete courseSidebar.dataset.originalContent;
     }
 }
 
