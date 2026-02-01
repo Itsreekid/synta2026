@@ -448,6 +448,22 @@ function showVideoInMainArea(lesson, videoUrl) {
         modulesClone.style.cssText = '';
         courseSidebar.innerHTML = '';
         courseSidebar.appendChild(modulesClone);
+        
+        // Highlight the current lesson
+        setTimeout(() => {
+            const allLessons = courseSidebar.querySelectorAll('.lesson-item');
+            allLessons.forEach(lessonItem => {
+                // Remove previous active state
+                lessonItem.style.background = '';
+                
+                // Check if this is the current lesson by comparing onclick attribute
+                const onclickAttr = lessonItem.getAttribute('onclick');
+                if (onclickAttr && onclickAttr.includes(`'${lesson.id}'`)) {
+                    lessonItem.style.background = '#fffcf8';
+                    lessonItem.style.borderLeft = '4px solid #667eea';
+                }
+            });
+        }, 100);
     }
     
     // Disable right-click on video
