@@ -23,35 +23,36 @@
         <span></span>
     </button>
 
-    <!-- Sidebar Navigation -->
-    <div class="sidebar" id="sidebar">
-        <div class="logo">
-            <div class="logo-icon">
-                <img src="source/logosynta.png" alt="synta academy" width="55">
+    <!-- Header with Profile Icon -->
+    <div class="header-top">
+        <div class="profile-dropdown">
+            <div class="profile-picture" onclick="toggleProfileDropdown()">
+                <i class="fas fa-user"></i>
             </div>
-            <span class="logo-text"> Synta Academy</span>
-        </div>
-        
-        <!-- Profile Icon in Sidebar -->
-        <div class="sidebar-profile">
-            <div class="profile-dropdown">
-                <div class="profile-picture" onclick="toggleProfileDropdown()">
+            <div class="dropdown-menu" id="profileDropdown">
+                <div class="dropdown-item" onclick="loadPageAndCloseSidebar('profile'); toggleProfileDropdown();">
                     <i class="fas fa-user"></i>
+                    <span>Mon Profil</span>
                 </div>
-                <div class="dropdown-menu" id="profileDropdown">
-                    <div class="dropdown-item" onclick="loadPageAndCloseSidebar('profile'); toggleProfileDropdown();">
-                        <i class="fas fa-user"></i>
-                        <span>Mon Profil</span>
-                    </div>
-                    <div class="dropdown-item" onclick="logout()">
-                        <i class="fas fa-sign-out-alt"></i>
-                        <span>Déconnexion</span>
-                    </div>
+                <div class="dropdown-item" onclick="logout()">
+                    <i class="fas fa-sign-out-alt"></i>
+                    <span>Déconnexion</span>
                 </div>
             </div>
         </div>
-        
-        <ul class="nav-links">
+    </div>
+
+    <!-- Content Wrapper -->
+    <div class="content-wrapper">
+        <!-- Sidebar Navigation -->
+        <div class="sidebar" id="sidebar">
+            <div class="logo">
+                <div class="logo-icon">
+                    <img src="source/logosynta.png" alt="synta academy" width="55">
+                </div>
+                <span class="logo-text"> Synta Academy</span>
+            </div>
+            <ul class="nav-links">
                 <li><a href="#" onclick="loadPageAndCloseSidebar('dashboard')" class="active">
                     <div class="nav-icon"><i class="fas fa-home"></i></div>
                     <span class="nav-text">Tableau de bord</span>
@@ -78,11 +79,12 @@
                 </a></li>
             </ul>
         </div>
-    
-    <!-- Main Content Area -->
-    <section>
-        <iframe src="pages/dashboard/dashboard.html" name="Principal" title="Zone principale"></iframe>
-    </section>
+        
+        <!-- Main Content Area -->
+        <section>
+            <iframe src="pages/dashboard/dashboard.html" name="Principal" title="Zone principale"></iframe>
+        </section>
+    </div>
 
     <!-- Scripts -->
     <script src="authentication.js"></script>
