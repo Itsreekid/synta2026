@@ -178,19 +178,44 @@ body {
 
 @media (max-width: 768px) {
     body {
-        padding: 1rem;
+        padding: 0.75rem;
+        overflow-y: auto;
+        height: auto;
+        min-height: 100vh;
+    }
+    
+    .offers-container {
+        overflow-y: visible;
     }
     
     .offers-header h1 {
-        font-size: 2rem;
+        font-size: 1.5rem;
     }
     
     .offers-list {
         grid-template-columns: 1fr;
-        gap: 1.5rem;
+        gap: 1rem;
+    }
+    
+    .offer-card {
+        padding: 1.5rem;
+    }
+    
+    .offer-header h3 {
+        font-size: 1.3rem;
     }
     
     .offer-price {
-        font-size: 1.8rem;
+        font-size: 1.5rem;
+    }
+    
+    .offer-features li {
+        font-size: 0.9rem;
+        padding: 0.5rem 0;
+    }
+    
+    .enroll-btn {
+        padding: 0.8rem 1.5rem;
+        font-size: 0.95rem;
     }
 } 

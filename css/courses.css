@@ -286,28 +286,51 @@ body {
 
 @media (max-width: 768px) {
     body {
-        padding: 1rem;
+        padding: 0.75rem;
+        overflow-y: auto;
+        height: auto;
+        min-height: 100vh;
     }
     
     .courses-container {
-        padding: 1.5rem;
+        padding: 1rem;
+        overflow-y: visible;
     }
     
     .courses-header h1 {
-        font-size: 2rem;
+        font-size: 1.5rem;
     }
     
     .filters-section {
         flex-direction: column;
+        gap: 0.75rem;
     }
     
     .filters-section select,
     .filters-section input {
         min-width: 100%;
+        padding: 0.75rem;
+        font-size: 0.9rem;
     }
     
     .courses-list {
         grid-template-columns: 1fr;
-        gap: 1.5rem;
+        gap: 1rem;
+    }
+    
+    .course-card {
+        padding: 1rem;
+    }
+    
+    .course-title {
+        font-size: 1.1rem;
+    }
+    
+    .course-description {
+        font-size: 0.85rem;
+    }
+    
+    .course-meta {
+        font-size: 0.8rem;
     }
 } 

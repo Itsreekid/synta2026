@@ -491,6 +491,24 @@ body {
 
 /* Responsive */
 @media (max-width: 968px) {
+    body {
+        height: auto;
+        min-height: 100vh;
+        overflow-y: auto;
+        padding: 1rem;
+    }
+    
+    .wallet-container {
+        height: auto;
+        min-height: calc(100vh - 2rem);
+        overflow-y: visible;
+    }
+    
+    .wallet-content {
+        grid-template-columns: 1fr;
+        overflow-y: visible;
+    }
+    
     .payment-content {
         grid-template-columns: 1fr;
     }
@@ -502,12 +520,10 @@ body {
 
 @media (max-width: 768px) {
     body {
-        padding: 1rem;
-    }
-
-    .payment-header h1 {
-        font-size: 2rem;
-    }
+        padding: 0.5rem;
+        height: auto;
+        overflow-y: auto;
+    }\n    \n    .wallet-container {\n        height: auto;\n        overflow-y: visible;\n        padding: 0;\n    }\n    \n    .wallet-header h1 {\n        font-size: 1.5rem;\n    }\n    \n    .wallet-content {\n        grid-template-columns: 1fr;\n        gap: 1rem;\n        overflow-y: visible;\n    }\n    \n    .left-column {\n        gap: 1rem;\n    }\n    \n    .account-card {\n        padding: 1.25rem;\n    }\n    \n    .account-card h3 {\n        font-size: 1rem;\n    }\n    \n    .detail-row .label,\n    .detail-row .value {\n        font-size: 0.85rem;\n    }\n    \n    .qr-text {\n        font-size: 0.85rem;\n    }\n    \n    .qr-code-image {\n        max-width: 150px;\n    }\n    \n    .payment-methods-section h2,\n    .history-section h2 {\n        font-size: 1.2rem;\n    }\n    \n    .payment-methods-grid {\n        grid-template-columns: repeat(2, 1fr);\n        gap: 0.75rem;\n    }\n    \n    .payment-method {\n        padding: 1rem;\n    }\n    \n    .payment-method img {\n        width: 60px;\n        height: 60px;\n    }\n    \n    .payment-method span {\n        font-size: 0.85rem;\n    }\n    \n    .history-table {\n        overflow-x: auto;\n    }\n    \n    .history-table table {\n        font-size: 0.8rem;\n    }\n    \n    .history-table th,\n    .history-table td {\n        padding: 0.75rem 0.5rem;\n        font-size: 0.75rem;\n    }\n}
 
     .form-row {
         grid-template-columns: 1fr;

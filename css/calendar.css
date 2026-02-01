@@ -387,43 +387,142 @@ body {
 }
 
 @media (max-width: 768px) {
+    body {
+        padding: 0.5rem;
+        overflow-y: auto;
+        height: auto;
+        min-height: 100vh;
+    }
+    
+    .calendar-container {
+        overflow-y: visible;
+    }
+    
     .calendar-grid {
         grid-template-columns: repeat(2, 1fr);
+        gap: 10px;
     }
     
     .calendar-header {
         flex-direction: column;
         align-items: stretch;
+        padding: 15px;
     }
     
     .calendar-header h1 {
         text-align: center;
+        font-size: 1.5rem;
     }
     
     .header-controls {
-        flex-direction: column;
+        flex-direction: row;
+        flex-wrap: wrap;
     }
     
     .header-controls button {
-        width: 100%;
-    }
-}
-
-@media (max-width: 480px) {
-    .calendar-grid {
-        grid-template-columns: 1fr;
+        flex: 1;
+        min-width: 100px;
+        padding: 8px 12px;
+        font-size: 0.85rem;
     }
     
-    body {
-        padding: 10px;
+    .back-btn {
+        padding: 8px 15px;
+        font-size: 0.9rem;
     }
     
     .week-calendar {
         padding: 15px;
     }
     
+    .calendar-info {
+        padding: 15px 20px;
+    }
+    
+    .calendar-info h2 {
+        font-size: 1.3rem;
+    }
+    
+    .calendar-info p {
+        font-size: 0.9rem;
+    }
+    
+    .day-column {
+        padding: 10px;
+        min-height: 300px;
+    }
+    
+    .day-header {
+        margin-bottom: 10px;
+    }
+    
+    .day-name {
+        font-size: 0.85rem;
+    }
+    
+    .day-date {
+        font-size: 1.5rem;
+    }
+    
+    .day-month {
+        font-size: 0.75rem;
+    }
+    
+    .calendar-event {
+        padding: 10px;
+    }
+    
+    .event-title {
+        font-size: 0.85rem;
+    }
+    
+    .event-description {
+        font-size: 0.75rem;
+    }
+}
+
+@media (max-width: 480px) {
+    body {
+        padding: 0.5rem;
+    }
+    
+    .calendar-grid {
+        grid-template-columns: 1fr;
+        gap: 8px;
+    }
+    
+    .week-calendar {
+        padding: 10px;
+    }
+    
     .calendar-header {
-        padding: 15px;
+        padding: 12px;
+    }
+    
+    .calendar-header h1 {
+        font-size: 1.3rem;
+    }
+    
+    .header-controls button {
+        padding: 8px 10px;
+        font-size: 0.8rem;
+    }
+    
+    .day-column {
+        padding: 12px;
+        min-height: 250px;
+    }
+    
+    .day-date {
+        font-size: 1.8rem;
+    }
+    
+    .calendar-event {
+        padding: 8px;
+    }
+    
+    .event-time {
+        font-size: 0.7rem;
     }
 }
 
