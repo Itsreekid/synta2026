@@ -52,7 +52,7 @@ async function loadCourseDetails(courseId) {
         const totalLessons = modulesWithLessons.reduce((sum, module) => sum + (module.lessons?.length || 0), 0);
         
         // Render course information
-        renderCourseInfo(course, totalLessons, hasAccess);
+        await renderCourseInfo(course, totalLessons, hasAccess);
         
         // Render modules and lessons
         renderModulesAndLessons(modulesWithLessons, hasAccess);
@@ -151,11 +151,27 @@ async function checkUserAccess(courseId) {
 /**
  * Render course information
  */
-function renderCourseInfo(course, totalLessons, hasAccess) {
+async function renderCourseInfo(course, totalLessons, hasAccess) {
     // Update thumbnail
     const thumbnail = document.getElementById('course-thumbnail');
+    
     if (course.thumbnail_url) {
-        thumbnail.innerHTML = `<img src="${course.thumbnail_url}" style="width: 100%; height: 100%; object-fit: cover; border-radius: 12px;" alt="${course.title}">`;
+        let thumbnailUrl = course.thumbnail_url;
+        
+        // If it's an R2 key (not a full URL), get signed URL
+        if (!thumbnailUrl.startsWith('http')) {
+            try {
+                const response = await fetch(`${window.SyntaAPI.BACKEND_URL}/api/content/thumbnail/${encodeURIComponent(thumbnailUrl)}`);
+                if (response.ok) {
+                    const data = await response.json();
+                    thumbnailUrl = data.url;
+                }
+            } catch (err) {
+                console.warn('Failed to get thumbnail signed URL:', err);
+            }
+        }
+        
+        thumbnail.innerHTML = `<img src="${thumbnailUrl}" style="width: 100%; height: 100%; object-fit: cover; border-radius: 12px;" alt="${course.title}">`;
     } else {
         thumbnail.textContent = course.title.charAt(0).toUpperCase();
     }

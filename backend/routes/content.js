@@ -130,4 +130,30 @@ router.post("/lesson/:lessonId/progress", authMiddleware, async (req, res) => {
   }
 });
 
+/**
+ * GET /api/content/thumbnail/:thumbnailKey
+ * Get signed URL for course thumbnail from R2
+ * PUBLIC: Anyone can view course thumbnails
+ */
+router.get("/thumbnail/:thumbnailKey", async (req, res) => {
+  try {
+    const { thumbnailKey } = req.params;
+    
+    // Decode the thumbnail key
+    const decodedKey = decodeURIComponent(thumbnailKey);
+    
+    // Generate signed URL for the thumbnail
+    const thumbnailUrl = await generateSignedUrl(decodedKey, 3600); // 1 hour expiry for thumbnails
+    
+    res.json({ 
+      url: thumbnailUrl,
+      expiresIn: 3600
+    });
+    
+  } catch (error) {
+    console.error("Error generating thumbnail URL:", error);
+    res.status(500).json({ error: "Failed to generate thumbnail URL" });
+  }
+});
+
 export default router;

@@ -71,8 +71,8 @@ body {
 
 .courses-list {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
-    gap: 2rem;
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    gap: 1.5rem;
     margin-top: 2rem;
 }
 
@@ -94,7 +94,7 @@ body {
 
 .course-thumbnail {
     width: 100%;
-    height: 200px;
+    height: 180px;
     overflow: hidden;
     background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
     position: relative;
@@ -112,7 +112,7 @@ body {
 }
 
 .course-info {
-    padding: 1.75rem;
+    padding: 1.5rem;
     flex: 1;
     display: flex;
     flex-direction: column;

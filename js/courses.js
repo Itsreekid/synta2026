@@ -42,8 +42,37 @@ async function loadCourses(filters = {}) {
             }
         }
         
+        // Fetch thumbnail signed URLs for courses that have R2 keys
+        const coursesWithThumbnails = await Promise.all(
+            courses.map(async (course) => {
+                if (course.thumbnail_url && !course.thumbnail_url.startsWith('http')) {
+                    // It's an R2 key, get signed URL from backend
+                    try {
+                        console.log('Fetching thumbnail for course:', course.title, 'Key:', course.thumbnail_url);
+                        const url = `${window.SyntaAPI.BACKEND_URL}/api/content/thumbnail/${encodeURIComponent(course.thumbnail_url)}`;
+                        console.log('Fetch URL:', url);
+                        const response = await fetch(url);
+                        console.log('Response status:', response.status);
+                        if (response.ok) {
+                            const data = await response.json();
+                            console.log('Signed URL received:', data.url);
+                            course.thumbnail_url = data.url; // Replace the R2 key with signed URL
+                        } else {
+                            const errorText = await response.text();
+                            console.error('Failed to get thumbnail for course:', course.id, 'Status:', response.status, 'Error:', errorText);
+                            course.thumbnail_url = null; // Clear invalid URL
+                        }
+                    } catch (err) {
+                        console.error('Exception fetching thumbnail for course:', course.id, err);
+                        course.thumbnail_url = null; // Clear invalid URL
+                    }
+                }
+                return course;
+            })
+        );
+        
         // Render courses
-        coursesList.innerHTML = courses.map(course => {
+        coursesList.innerHTML = coursesWithThumbnails.map(course => {
             const enrollment = enrollments.find(e => e.course_id === course.id);
             const isEnrolled = !!enrollment;
             const progress = enrollment ? enrollment.progress : 0;
