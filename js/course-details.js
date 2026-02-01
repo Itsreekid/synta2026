@@ -432,18 +432,93 @@ async function showVideoInMainArea(lesson, videoUrl) {
         courseSidebar.dataset.originalContent = courseSidebar.innerHTML;
     }
     
-    // Fetch PDF URL if pdf_key exists
-    let pdfUrl = null;
+    // Fetch PDF URLs if pdf_key exists
+    let pdfUrls = [];
     if (lesson.pdf_key) {
         try {
             const response = await fetch(`${window.SyntaAPI.BACKEND_URL}/api/content/lesson/${lesson.id}`);
             if (response.ok) {
                 const data = await response.json();
-                pdfUrl = data.pdfUrl;
+                
+                // Handle multiple PDFs - pdf_key can be:
+                // 1. A single string: "file.pdf"
+                // 2. Comma-separated: "file1.pdf,file2.pdf"
+                // 3. JSON array: ["file1.pdf", "file2.pdf"]
+                let pdfKeys = [];
+                if (typeof lesson.pdf_key === 'string') {
+                    if (lesson.pdf_key.startsWith('[')) {
+                        // JSON array
+                        try {
+                            pdfKeys = JSON.parse(lesson.pdf_key);
+                        } catch (e) {
+                            pdfKeys = [lesson.pdf_key];
+                        }
+                    } else if (lesson.pdf_key.includes(',')) {
+                        // Comma-separated
+                        pdfKeys = lesson.pdf_key.split(',').map(k => k.trim());
+                    } else {
+                        // Single file
+                        pdfKeys = [lesson.pdf_key];
+                    }
+                } else if (Array.isArray(lesson.pdf_key)) {
+                    pdfKeys = lesson.pdf_key;
+                }
+                
+                // Fetch signed URLs for all PDFs
+                for (const pdfKey of pdfKeys) {
+                    if (pdfKey) {
+                        try {
+                            const pdfResponse = await fetch(`${window.SyntaAPI.BACKEND_URL}/api/content/lesson/${lesson.id}`);
+                            if (pdfResponse.ok) {
+                                const pdfData = await pdfResponse.json();
+                                if (pdfData.pdfUrl) {
+                                    pdfUrls.push({
+                                        url: pdfData.pdfUrl,
+                                        name: pdfKey.split('/').pop().replace('.pdf', '')
+                                    });
+                                }
+                            }
+                        } catch (err) {
+                            console.warn('Failed to fetch PDF:', pdfKey, err);
+                        }
+                    }
+                }
             }
         } catch (err) {
-            console.warn('Failed to fetch PDF URL:', err);
+            console.warn('Failed to fetch PDF URLs:', err);
         }
+    }
+    
+    // Generate PDF buttons HTML
+    let pdfButtonsHtml = '';
+    if (pdfUrls.length > 0) {
+        pdfButtonsHtml = `
+            <div style="margin-top: 1.5rem;">
+                <h3 style="font-size: 1.1rem; color: #1e293b; margin-bottom: 1rem; font-weight: 600;">
+                    📄 Documents de la leçon
+                </h3>
+                <div style="display: flex; flex-wrap: wrap; gap: 0.75rem;">
+                    ${pdfUrls.map((pdf, index) => `
+                        <a href="${pdf.url}" target="_blank" style="
+                            display: inline-flex;
+                            align-items: center;
+                            gap: 0.5rem;
+                            padding: 0.75rem 1.5rem;
+                            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                            color: white;
+                            text-decoration: none;
+                            border-radius: 8px;
+                            font-weight: 600;
+                            font-size: 0.95rem;
+                            transition: transform 0.2s ease;
+                        " onmouseover="this.style.transform='translateY(-2px)'" onmouseout="this.style.transform='translateY(0)'">
+                            <i class="fas fa-file-pdf"></i>
+                            ${pdfUrls.length === 1 ? 'Voir le document' : `PDF ${index + 1}: ${pdf.name}`}
+                        </a>
+                    `).join('')}
+                </div>
+            </div>
+        `;
     }
     
     // Replace main content with video player
@@ -469,25 +544,7 @@ async function showVideoInMainArea(lesson, videoUrl) {
                     ${lesson.description}
                 </p>
             ` : ''}
-            ${pdfUrl ? `
-                <div style="margin-top: 1.5rem;">
-                    <a href="${pdfUrl}" target="_blank" style="
-                        display: inline-flex;
-                        align-items: center;
-                        gap: 0.5rem;
-                        padding: 0.75rem 1.5rem;
-                        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-                        color: white;
-                        text-decoration: none;
-                        border-radius: 8px;
-                        font-weight: 600;
-                        transition: transform 0.2s ease;
-                    " onmouseover="this.style.transform='translateY(-2px)'" onmouseout="this.style.transform='translateY(0)'">
-                        <i class="fas fa-file-pdf"></i>
-                        Télécharger le PDF de la leçon
-                    </a>
-                </div>
-            ` : ''}
+            ${pdfButtonsHtml}
         </div>
     `;
     
