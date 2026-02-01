@@ -9,7 +9,7 @@
 
 ### Updated Files:
 1. **js/courses.js** - Now fetches courses from backend API
-2. **pages/courses/courses.html** - Added API client script and filters
+2. **pages/courses/courses.html** - Added API client script and filter
 
 ## 🚀 How It Works
 
