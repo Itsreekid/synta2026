@@ -309,15 +309,24 @@ iframe {
 /* Responsive Design */
 @media (max-width: 1024px) {
     .sidebar {
-        width: 240px;
+        width: 80px;
     }
     
     section {
-        margin-left: 240px;
+        margin-left: 80px;
     }
     
     .logo {
-        padding: 0 1.5rem 1.5rem 1.5rem;
+        padding: 0 1rem 1.5rem 1rem;
+        justify-content: center;
+    }
+    
+    .logo-text {
+        display: none;
+    }
+    
+    .logo-icon {
+        margin: 0 auto;
     }
     
     .nav-links {
@@ -325,8 +334,27 @@ iframe {
     }
     
     .nav-links a {
-        padding: 0.8rem 1rem;
+        padding: 1rem 0.5rem;
         font-size: 0.9rem;
+        justify-content: center;
+        flex-direction: column;
+        gap: 0.5rem;
+    }
+    
+    .nav-text {
+        display: none;
+    }
+    
+    .nav-icon {
+        font-size: 1.5rem;
+        margin: 0;
+    }
+    
+    .lock-icon {
+        position: absolute;
+        top: 5px;
+        right: 5px;
+        font-size: 0.7rem;
     }
 }
 

@@ -526,6 +526,7 @@ async function showVideoInMainArea(lesson, videoUrl) {
         <div style="flex: 1; display: flex; flex-direction: column; min-height: 0;">
             <video id="current-lesson-video" controls autoplay controlsList="nodownload" oncontextmenu="return false;" style="
                 width: 100%;
+                height: auto;
                 max-height: calc(100vh - 320px);
                 border-radius: 12px;
                 background: #000;
