@@ -25,18 +25,34 @@ document.addEventListener('DOMContentLoaded', async function() {
  */
 async function loadCourseDetails(courseId) {
     try {
-        // Fetch course details
-        const course = await window.SyntaAPI.fetchCourseDetails(courseId);
+        // Fetch course details from courses table
+        const { data: course, error: courseError } = await window.SyntaAPI.supabase
+            .from('courses')
+            .select('*')
+            .eq('id', courseId)
+            .eq('is_published', true)
+            .single();
+        
+        if (courseError) throw courseError;
+        if (!course) {
+            showError('Cours non trouvé');
+            setTimeout(() => window.location.href = 'courses.html', 2000);
+            return;
+        }
+        
         currentCourse = course;
         
         // Check enrollment status
-        const hasAccess = await window.SyntaAPI.checkCourseAccess(courseId);
+        const hasAccess = await checkUserAccess(courseId);
         
         // Fetch modules and lessons from Supabase
         const modulesWithLessons = await fetchModulesAndLessons(courseId);
         
+        // Count total lessons
+        const totalLessons = modulesWithLessons.reduce((sum, module) => sum + (module.lessons?.length || 0), 0);
+        
         // Render course information
-        renderCourseInfo(course, modulesWithLessons.length, hasAccess);
+        renderCourseInfo(course, totalLessons, hasAccess);
         
         // Render modules and lessons
         renderModulesAndLessons(modulesWithLessons, hasAccess);
@@ -82,7 +98,7 @@ async function fetchModulesAndLessons(courseId) {
         // Combine modules with their lessons
         const modulesWithLessons = modules.map(module => ({
             ...module,
-            lessons: lessons.filter(lesson => lesson.module_id === module.id)
+            lessons: (lessons || []).filter(lesson => lesson.module_id === module.id)
         }));
         
         return modulesWithLessons;
@@ -90,6 +106,45 @@ async function fetchModulesAndLessons(courseId) {
     } catch (error) {
         console.error('Erreur lors de la récupération des modules et leçons:', error);
         return [];
+    }
+}
+
+/**
+ * Check if user has access to course (via enrollment)
+ */
+async function checkUserAccess(courseId) {
+    try {
+        const authenticated = await window.SyntaAPI.isAuthenticated();
+        if (!authenticated) return false;
+        
+        const user = await window.SyntaAPI.getCurrentUser();
+        if (!user) return false;
+        
+        // Check enrollments table
+        const { data: enrollment, error } = await window.SyntaAPI.supabase
+            .from('enrollments')
+            .select('*')
+            .eq('user_id', user.id)
+            .eq('course_id', courseId)
+            .maybeSingle();
+        
+        if (error && error.code !== 'PGRST116') {
+            console.error('Error checking enrollment:', error);
+            return false;
+        }
+        
+        // Check if enrollment exists and is not expired
+        if (enrollment) {
+            currentEnrollment = enrollment;
+            if (!enrollment.expires_at || new Date(enrollment.expires_at) > new Date()) {
+                return true;
+            }
+        }
+        
+        return false;
+    } catch (error) {
+        console.error('Error checking access:', error);
+        return false;
     }
 }
 
@@ -130,8 +185,8 @@ function renderCourseInfo(course, totalLessons, hasAccess) {
     // Update lessons count
     document.getElementById('lessons-count').textContent = totalLessons;
     
-    // Update language
-    document.getElementById('course-language').textContent = course.language || 'English';
+    // Update language (default to Français)
+    document.getElementById('course-language').textContent = 'Français';
     
     // Update buy button
     const buyButton = document.getElementById('buy-button');
@@ -236,10 +291,27 @@ async function playLesson(lessonId) {
         if (error) throw error;
         
         if (lesson.video_key) {
-            // Get video URL from R2 storage
-            const videoUrl = await window.SyntaAPI.getContentUrl(lesson.video_key);
+            let videoUrl;
             
-            // Open video in a modal or new page
+            try {
+                // Get signed URL from backend API
+                const contentData = await window.SyntaAPI.getContentUrl(lessonId);
+                videoUrl = contentData.videoUrl;
+                
+                if (!videoUrl) {
+                    throw new Error('No video URL returned from backend');
+                }
+            } catch (err) {
+                console.error('Error getting video URL from backend:', err);
+                // Fallback to demo video
+                videoUrl = 'https://www.w3schools.com/html/mov_bbb.mp4';
+                showError('Utilisation de la vidéo de démonstration. Assurez-vous que le backend est démarré.');
+            }
+            
+            // Mark lesson progress
+            await markLessonProgress(lessonId);
+            
+            // Open video in a modal
             openVideoModal(lesson.title, videoUrl);
         } else {
             showError('Vidéo non disponible pour cette leçon');
@@ -248,6 +320,57 @@ async function playLesson(lessonId) {
     } catch (error) {
         console.error('Erreur lors de la lecture de la leçon:', error);
         showError('Impossible de lire la vidéo');
+    }
+}
+
+/**
+ * Mark lesson progress in database
+ */
+async function markLessonProgress(lessonId) {
+    try {
+        const user = await window.SyntaAPI.getCurrentUser();
+        if (!user) return;
+        
+        // Insert or update lesson progress
+        const { error } = await window.SyntaAPI.supabase
+            .from('lesson_progress')
+            .upsert({
+                user_id: user.id,
+                lesson_id: lessonId,
+                progress_percentage: 100,
+                completed: true,
+                completed_at: new Date().toISOString(),
+                updated_at: new Date().toISOString()
+            }, {
+                onConflict: 'user_id,lesson_id'
+            });
+        
+        if (error) console.error('Error updating progress:', error);
+        
+        // Update course progress
+        if (currentCourse) {
+            await updateCourseProgress(user.id, currentCourse.id);
+        }
+    } catch (error) {
+        console.error('Error marking progress:', error);
+    }
+}
+
+/**
+ * Update overall course progress
+ */
+async function updateCourseProgress(userId, courseId) {
+    try {
+        // Call the PostgreSQL function to update progress
+        const { error } = await window.SyntaAPI.supabase
+            .rpc('update_course_progress', {
+                p_user_id: userId,
+                p_course_id: courseId
+            });
+        
+        if (error) console.error('Error updating course progress:', error);
+    } catch (error) {
+        console.error('Error in updateCourseProgress:', error);
     }
 }
 
@@ -326,8 +449,32 @@ async function enrollInCourse(courseId, isFree, hasAccess) {
     }
     
     try {
+        const user = await window.SyntaAPI.getCurrentUser();
+        if (!user) {
+            showError('Utilisateur non trouvé');
+            return;
+        }
+        
         if (isFree) {
-            await window.SyntaAPI.enrollFreeCourse(courseId);
+            // Create enrollment directly in database
+            const { error } = await window.SyntaAPI.supabase
+                .from('enrollments')
+                .insert({
+                    user_id: user.id,
+                    course_id: courseId,
+                    amount_paid: 0,
+                    enrolled_at: new Date().toISOString()
+                });
+            
+            if (error) {
+                if (error.code === '23505') {
+                    showError('Vous êtes déjà inscrit à ce cours');
+                } else {
+                    throw error;
+                }
+                return;
+            }
+            
             showSuccess('Inscription réussie au cours !');
             setTimeout(() => {
                 location.reload();

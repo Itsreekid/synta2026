@@ -697,9 +697,61 @@ function showSuccess(message) {
     }, 3000);
 }
 
+/**
+ * Get auth token for API requests
+ */
+async function getAuthToken() {
+    try {
+        const supabase = getSupabase();
+        const { data: { session }, error } = await supabase.auth.getSession();
+        if (error) throw error;
+        return session?.access_token || null;
+    } catch (error) {
+        console.error('Error getting auth token:', error);
+        return null;
+    }
+}
+
+/**
+ * Get content URL from backend (signed URL for R2)
+ * @param {string} lessonId - Lesson UUID
+ */
+async function getContentUrl(lessonId) {
+    try {
+        const token = await getAuthToken();
+        const headers = {
+            'Content-Type': 'application/json'
+        };
+        
+        if (token) {
+            headers['Authorization'] = `Bearer ${token}`;
+        }
+        
+        const response = await fetch(`http://localhost:3000/api/content/lesson/${lessonId}`, {
+            method: 'GET',
+            headers
+        });
+        
+        if (!response.ok) {
+            const error = await response.json();
+            throw new Error(error.error || 'Failed to get content URL');
+        }
+        
+        const data = await response.json();
+        return data;
+    } catch (error) {
+        console.error('Error getting content URL:', error);
+        throw error;
+    }
+}
+
 // Export for use in other files
 if (typeof window !== 'undefined') {
     window.SyntaAPI = {
+        // Supabase client
+        get supabase() {
+            return getSupabase();
+        },
         // Courses
         fetchCourses,
         fetchCourseDetails,
@@ -714,6 +766,8 @@ if (typeof window !== 'undefined') {
         getLessonPDF,
         markLessonComplete,
         updateVideoPosition,
+        getContentUrl,
+        getAuthToken,
         // Utils
         isAuthenticated,
         showError,
