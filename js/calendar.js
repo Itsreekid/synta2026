@@ -111,7 +111,11 @@ function renderCalendar() {
         const dayColumn = document.createElement('div');
         dayColumn.className = 'day-column';
         if (isToday) dayColumn.classList.add('today');
-        if (dayEvents.length > 0) dayColumn.classList.add('has-events');
+        if (dayEvents.length > 0) {
+            dayColumn.classList.add('has-events');
+            // Set border color to match the first event's color
+            dayColumn.style.borderLeft = `4px solid ${dayEvents[0].color || '#667eea'}`;
+        }
         if (isSelected) dayColumn.style.border = '3px solid #ffc107';
         
         // Day header
