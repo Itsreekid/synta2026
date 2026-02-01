@@ -14,11 +14,34 @@
         <div class="courses-header">
             <h1>📚 جميع الدورات</h1>
             <p>استكشف جميع الدورات المتاحة في الأكاديمية</p>
+            
+            <!-- Filters -->
+            <div class="filters-section">
+                <select id="category-filter">
+                    <option value="">جميع الفئات</option>
+                    <option value="bac-info">باك معلوماتية</option>
+                    <option value="bac-math">باك رياضيات</option>
+                    <option value="web-dev">تطوير الويب</option>
+                    <option value="general">عام</option>
+                </select>
+                
+                <select id="level-filter">
+                    <option value="">جميع المستويات</option>
+                    <option value="beginner">مبتدئ</option>
+                    <option value="intermediate">متوسط</option>
+                    <option value="advanced">متقدم</option>
+                </select>
+                
+                <input type="text" id="search-courses" placeholder="بحث في الدورات...">
+            </div>
         </div>
         <div class="courses-list" id="courses-list">
             <!-- Courses will be loaded here -->
         </div>
     </div>
+    
+    <!-- Include API client first -->
+    <script src="../../js/api-client.js"></script>
     <script src="../../js/courses.js"></script>
 </body>
 </html> 

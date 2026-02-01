@@ -248,6 +248,26 @@ body {
     box-shadow: 0 4px 15px rgba(255, 123, 26, 0.3);
 }
 
+/* Locked navigation item */
+.nav-links a.locked {
+    opacity: 0.5;
+    cursor: not-allowed;
+    pointer-events: none;
+    position: relative;
+}
+
+.nav-links a.locked .lock-icon {
+    margin-left: auto;
+    font-size: 0.9rem;
+    color: #999;
+}
+
+.nav-links a.locked:hover {
+    background: transparent;
+    color: #1E3448;
+    transform: none;
+}
+
 .beta-badge {
     color: #ff0000;
     font-weight: 700;

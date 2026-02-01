@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>تفاصيل الدورة - أكاديمية سينتا</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="../../css/courses.css">
+    <style>
+        .course-hero {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            padding: 3rem;
+            border-radius: 15px;
+            color: white;
+            margin-bottom: 2rem;
+        }
+        
+        .course-hero-image {
+            width: 100%;
+            max-width: 600px;
+            border-radius: 10px;
+            margin-bottom: 1.5rem;
+        }
+        
+        .module-card {
+            background: white;
+            border-radius: 10px;
+            padding: 1.5rem;
+            margin-bottom: 1.5rem;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+        }
+        
+        .module-header h3 {
+            color: #2d3748;
+            margin-bottom: 0.5rem;
+        }
+        
+        .lessons-list {
+            margin-top: 1rem;
+        }
+        
+        .lesson-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 1rem;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            margin-bottom: 0.5rem;
+            transition: all 0.3s;
+        }
+        
+        .lesson-item:hover {
+            background: #f7fafc;
+            border-color: #cbd5e0;
+        }
+        
+        .lesson-item.locked {
+            opacity: 0.6;
+            background: #f9fafb;
+        }
+        
+        .lesson-item.completed {
+            background: #f0fdf4;
+            border-color: #86efac;
+        }
+        
+        .lesson-info {
+            display: flex;
+            gap: 1rem;
+            align-items: center;
+        }
+        
+        .lesson-icon {
+            font-size: 1.5rem;
+        }
+        
+        .lesson-btn {
+            padding: 0.5rem 1.5rem;
+            background: #667eea;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-family: 'Tajawal', sans-serif;
+        }
+        
+        .lesson-btn:hover {
+            background: #5a67d8;
+        }
+        
+        .lesson-btn.locked {
+            background: #cbd5e0;
+            cursor: not-allowed;
+        }
+        
+        .enroll-btn {
+            padding: 1rem 2rem;
+            font-size: 1.1rem;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-family: 'Tajawal', sans-serif;
+            font-weight: 700;
+            margin-top: 1rem;
+        }
+        
+        .enroll-btn.free {
+            background: #10b981;
+            color: white;
+        }
+        
+        .enroll-btn.paid {
+            background: #f59e0b;
+            color: white;
+        }
+        
+        .video-modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.9);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+        }
+        
+        .video-modal-content {
+            position: relative;
+            width: 90%;
+            max-width: 1200px;
+        }
+        
+        .video-modal video {
+            width: 100%;
+            border-radius: 10px;
+        }
+        
+        .close-modal {
+            position: absolute;
+            top: -40px;
+            right: 0;
+            background: white;
+            border: none;
+            width: 35px;
+            height: 35px;
+            border-radius: 50%;
+            cursor: pointer;
+            font-size: 1.2rem;
+        }
+        
+        .progress-bar {
+            width: 100%;
+            height: 8px;
+            background: rgba(255,255,255,0.3);
+            border-radius: 10px;
+            overflow: hidden;
+            margin-top: 0.5rem;
+        }
+        
+        .progress-fill {
+            height: 100%;
+            background: #10b981;
+            transition: width 0.3s;
+        }
+        
+        .preview-badge, .completed-badge {
+            padding: 0.25rem 0.75rem;
+            border-radius: 5px;
+            font-size: 0.85rem;
+            margin-left: 0.5rem;
+        }
+        
+        .preview-badge {
+            background: #dbeafe;
+            color: #1e40af;
+        }
+        
+        .completed-badge {
+            background: #dcfce7;
+            color: #166534;
+        }
+    </style>
+</head>
+<body>
+    <div class="courses-container">
+        <div id="course-header">
+            <!-- Course header will be loaded here -->
+        </div>
+        
+        <div id="course-content">
+            <!-- Modules and lessons will be loaded here -->
+        </div>
+    </div>
+    
+    <!-- Include API client -->
+    <script src="../../js/api-client.js"></script>
+    <script src="../../js/course-details.js"></script>
+</body>
+</html>
