@@ -3,110 +3,137 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Paiement - Synta Academy</title>
+    <title>Mon Portefeuille - Synta Academy</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <link rel="stylesheet" href="../../css/paiement.css">
+    <!-- Supabase Client Library -->
+    <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
 </head>
 <body>
-    <div class="payment-container">
-        <div class="payment-header">
-            <h1>Finaliser votre abonnement</h1>
-            <p>Complétez les informations pour accéder à votre plan</p>
+    <div class="wallet-container">
+        <div class="wallet-header">
+            <h1>Mon portefeuille</h1>
         </div>
 
-        <div class="payment-content">
-            <!-- Order Summary -->
-            <div class="order-summary">
-                <h2>Résumé de la commande</h2>
-                <div class="plan-details" id="plan-details">
-                    <div class="plan-info">
-                        <h3 id="plan-name">Plan Professionnel</h3>
-                        <p id="plan-description">Parfait pour les équipes en croissance</p>
+        <div class="wallet-content">
+            <!-- Left Column - Account Details -->
+            <div class="left-column">
+                <!-- E-dinar Account -->
+                <div class="account-card">
+                    <h3>E-dinar Compte</h3>
+                    <div class="account-details">
+                        <div class="detail-row">
+                            <span class="label">Compte :</span>
+                            <span class="value" id="edinar-account">Ahmed Abidi</span>
+                        </div>
+                        <div class="detail-row">
+                            <span class="label">Nombre :</span>
+                            <span class="value" id="edinar-number">5359 4014 2650 9168</span>
+                        </div>
                     </div>
-                    <div class="plan-price">
-                        <span class="price" id="plan-price">99€</span>
-                        <span class="period" id="plan-period">/mois</span>
-                    </div>
-                </div>
-                
-                <div class="features-included">
-                    <h3>Inclus dans votre plan :</h3>
-                    <ul id="plan-features">
-                        <li><i class="fas fa-check"></i> Projets illimités</li>
-                        <li><i class="fas fa-check"></i> Sélection des candidats par IA</li>
-                        <li><i class="fas fa-check"></i> Recruteur IA</li>
-                        <li><i class="fas fa-check"></i> Garantie sans risque</li>
-                    </ul>
                 </div>
 
-                <div class="total-section">
-                    <div class="total-row">
-                        <span>Sous-total</span>
-                        <span id="subtotal">99€</span>
+                <!-- Bank Account -->
+                <div class="account-card">
+                    <h3>Compte bancaire</h3>
+                    <div class="account-details">
+                        <div class="detail-row">
+                            <span class="label">Nom:</span>
+                            <span class="value" id="bank-name">Ahmed Abidi</span>
+                        </div>
+                        <div class="detail-row">
+                            <span class="label">Banque:</span>
+                            <span class="value" id="bank-institution">UIB</span>
+                        </div>
+                        <div class="detail-row">
+                            <span class="label">RIB:</span>
+                            <span class="value" id="bank-rib">12121000013314243557</span>
+                        </div>
                     </div>
-                    <div class="total-row">
-                        <span>TVA (20%)</span>
-                        <span id="tax">19.80€</span>
-                    </div>
-                    <div class="total-row total-final">
-                        <span>Total</span>
-                        <span id="total">118.80€</span>
+                </div>
+
+                <!-- D17 Account -->
+                <div class="account-card">
+                    <h3>D17</h3>
+                    <div class="account-details">
+                        <div class="detail-row">
+                            <span class="label">Nombre :</span>
+                            <span class="value" id="d17-number">27 131 431</span>
+                        </div>
                     </div>
                 </div>
             </div>
 
-            <!-- Payment Form -->
-            <div class="payment-form">
-                <form id="payment-form">
-                    <h2>Informations de paiement</h2>
-                    
-                    <div class="form-group">
-                        <label for="card-name">Nom sur la carte</label>
-                        <input type="text" id="card-name" placeholder="John Doe" required>
-                    </div>
-
-                    <div class="form-group">
-                        <label for="card-number">Numéro de carte</label>
-                        <input type="text" id="card-number" placeholder="1234 5678 9012 3456" maxlength="19" required>
-                        <div class="card-icons">
-                            <i class="fab fa-cc-visa"></i>
-                            <i class="fab fa-cc-mastercard"></i>
-                            <i class="fab fa-cc-amex"></i>
+            <!-- Right Column - Payment Methods & History -->
+            <div class="right-column">
+                <!-- Payment Methods -->
+                <div class="payment-methods-section">
+                    <h2>Méthodes de paiement</h2>
+                    <div class="payment-methods-grid">
+                        <div class="payment-method">
+                            <img src="../../source/portoflio/poste.jpg" alt="E-dinar">
+                            <span>E-dinar</span>
+                        </div>
+                        <div class="payment-method">
+                            <img src="../../source/portoflio/d17.png" alt="D17">
+                            <span>D17</span>
+                        </div>
+                        <div class="payment-method">
+                            <img src="../../source/portoflio/enligne.jpg" alt="Paiement en ligne">
+                            <span>Paiement en ligne</span>
+                        </div>
+                        <div class="payment-method">
+                            <img src="../../source/portoflio/bank.jpg" alt="Virement bancaire">
+                            <span>Virement bancaire</span>
                         </div>
                     </div>
+                </div>
 
-                    <div class="form-row">
-                        <div class="form-group">
-                            <label for="expiry">Date d'expiration</label>
-                            <input type="text" id="expiry" placeholder="MM/AA" maxlength="5" required>
-                        </div>
-                        <div class="form-group">
-                            <label for="cvv">CVV</label>
-                            <input type="text" id="cvv" placeholder="123" maxlength="3" required>
-                        </div>
+                <!-- Transaction History -->
+                <div class="history-section">
+                    <div class="history-header">
+                        <h2>Historique</h2>
+                        <span class="pagination" id="pagination-info">1 / 1 de 1</span>
                     </div>
-
-                    <div class="form-group">
-                        <label for="email">Email</label>
-                        <input type="email" id="email" placeholder="exemple@email.com" required>
+                    <div class="history-table">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Code</th>
+                                    <th>Méthode de paiement</th>
+                                    <th>Montant</th>
+                                    <th>Date</th>
+                                    <th>Statut</th>
+                                    <th>Action</th>
+                                </tr>
+                            </thead>
+                            <tbody id="transaction-history">
+                                <!-- Transactions will be loaded here -->
+                                <tr class="no-transactions">
+                                    <td colspan="6" style="text-align: center; padding: 2rem; color: #94a3b8;">
+                                        Aucune transaction pour le moment
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
                     </div>
+                </div>
+            </div>
+        </div>
+    </div>
 
-                    <div class="form-group checkbox-group">
-                        <input type="checkbox" id="terms" required>
-                        <label for="terms">J'accepte les <a href="#" target="_blank">conditions d'utilisation</a> et la <a href="#" target="_blank">politique de confidentialité</a></label>
-                    </div>
+    <!-- Authentication -->
+    <script src="../../authentication.js"></script>
+    <!-- API Client -->
+    <script src="../../js/api-client.js"></script>
+    <!-- Payment JS -->
+    <script src="../../js/paiement.js"></script>
+</body>
+</html>
 
-                    <button type="submit" class="submit-btn">
-                        <i class="fas fa-lock"></i> Payer 118.80€
-                    </button>
-
-                    <div class="secure-payment">
-                        <i class="fas fa-shield-alt"></i>
-                        <span>Paiement sécurisé SSL</span>
-                    </div>
                 </form>
             </div>
         </div>

@@ -1,53 +1,128 @@
-// Payment Page JS
+// =====================================================
+// Payment/Wallet Page - Synta Academy
+// =====================================================
 
-document.addEventListener('DOMContentLoaded', function() {
-    // Get selected plan from URL parameters or sessionStorage
-    const urlParams = new URLSearchParams(window.location.search);
-    const selectedPlan = urlParams.get('plan') || 'PROFESSIONNEL';
+document.addEventListener('DOMContentLoaded', async function() {
+    // Check if API client is loaded
+    if (!window.SyntaAPI) {
+        console.error('Client API non chargé');
+        return;
+    }
     
-    loadPlanDetails(selectedPlan);
-    setupFormValidation();
+    await loadUserData();
+    await loadTransactions();
 });
 
-function loadPlanDetails(planName) {
-    const plans = {
-        'STARTER': {
-            name: 'Plan Starter',
-            description: 'Parfait pour les petites équipes',
-            price: 0,
-            period: '/mois',
-            features: [
-                '3 Projets',
-                'Sélection des candidats par IA',
-                'Recruteur IA'
-            ]
-        },
-        'PROFESSIONNEL': {
-            name: 'Plan Professionnel',
-            description: 'Parfait pour les équipes en croissance',
-            price: 99,
-            period: '/mois',
-            features: [
-                'Projets illimités',
-                'Sélection des candidats par IA',
-                'Recruteur IA',
-                'Garantie sans risque'
-            ]
-        },
-        'ENTREPRISE': {
-            name: 'Plan Entreprise',
-            description: 'Pour les grandes organisations',
-            price: 0,
-            period: '',
-            features: [
-                'Projets illimités',
-                'Sélection des candidats par IA',
-                'Évaluations de compétences personnalisées',
-                'Recruteur IA personnalisé'
-            ],
-            customPrice: 'Sur mesure'
+/**
+ * Load user wallet data
+ */
+async function loadUserData() {
+    try {
+        const user = await window.SyntaAPI.getCurrentUser();
+        if (!user) {
+            window.location.href = '../../pages/auth/login.html';
+            return;
         }
-    };
+        
+        // In a real app, you would fetch this from the database
+        // For now, we'll use placeholder data
+        console.log('User loaded:', user.email);
+        
+    } catch (error) {
+        console.error('Error loading user data:', error);
+    }
+}
+
+/**
+ * Load transaction history
+ */
+async function loadTransactions() {
+    const tbody = document.getElementById('transaction-history');
+    
+    try {
+        const user = await window.SyntaAPI.getCurrentUser();
+        if (!user) return;
+        
+        // Fetch enrollments/purchases from Supabase
+        const { data: enrollments, error } = await window.SyntaAPI.supabase
+            .from('enrollments')
+            .select(`
+                *,
+                course:courses (
+                    title,
+                    price
+                )
+            `)
+            .eq('user_id', user.id)
+            .order('enrolled_at', { ascending: false });
+        
+        if (error) throw error;
+        
+        if (!enrollments || enrollments.length === 0) {
+            tbody.innerHTML = `
+                <tr class="no-transactions">
+                    <td colspan="6" style="text-align: center; padding: 2rem; color: #94a3b8;">
+                        Aucune transaction pour le moment
+                    </td>
+                </tr>
+            `;
+            return;
+        }
+        
+        // Render transactions
+        tbody.innerHTML = enrollments.map(enrollment => {
+            const date = new Date(enrollment.enrolled_at).toLocaleDateString('fr-FR');
+            const code = enrollment.id.substring(0, 8) + '...';
+            const status = getPaymentStatus(enrollment);
+            const amount = enrollment.course?.price || 0;
+            
+            return `
+                <tr>
+                    <td>${code}</td>
+                    <td>Installment</td>
+                    <td>${amount} DT</td>
+                    <td>${date}</td>
+                    <td><span class="status-badge status-${status.class}">${status.text}</span></td>
+                    <td><button class="action-btn" onclick="openTransaction('${enrollment.id}')">Ouvrir</button></td>
+                </tr>
+            `;
+        }).join('');
+        
+        // Update pagination
+        document.getElementById('pagination-info').textContent = `1 / 1 de ${enrollments.length}`;
+        
+    } catch (error) {
+        console.error('Error loading transactions:', error);
+        tbody.innerHTML = `
+            <tr>
+                <td colspan="6" style="text-align: center; padding: 2rem; color: #ef4444;">
+                    Erreur lors du chargement de l'historique
+                </td>
+            </tr>
+        `;
+    }
+}
+
+/**
+ * Get payment status
+ */
+function getPaymentStatus(enrollment) {
+    // Check if enrollment is active
+    if (!enrollment.expires_at || new Date(enrollment.expires_at) > new Date()) {
+        return { text: 'Approuvé', class: 'approved' };
+    } else {
+        return { text: 'Expiré', class: 'rejected' };
+    }
+}
+
+/**
+ * Open transaction details
+ */
+window.openTransaction = function(enrollmentId) {
+    console.log('Opening transaction:', enrollmentId);
+    // You can implement a modal or redirect to a details page
+    alert('Détails de la transaction: ' + enrollmentId);
+};
 
     const plan = plans[planName] || plans['PROFESSIONNEL'];
     
