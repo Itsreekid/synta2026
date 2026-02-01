@@ -78,7 +78,7 @@ async function loadCourses(filters = {}) {
                         ` : ''}
                         
                         <button class="preview-btn" onclick="viewCourse('${course.id}')">
-                            👁️ Aperçu du cours
+                            Aperçu du cours
                         </button>
                         
                         <div class="course-footer">
