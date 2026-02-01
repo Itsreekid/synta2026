@@ -26,11 +26,29 @@ const PORT = process.env.PORT || 3000;
 // =====================================================
 // MIDDLEWARE
 // =====================================================
-app.use(helmet()); // Security headers
-app.use(cors({
-  origin: process.env.ALLOWED_ORIGINS?.split(",") || "*",
+// CORS Configuration - Allow your frontend domain
+const allowedOrigins = process.env.ALLOWED_ORIGINS?.split(",") || ["*"];
+const corsOptions = {
+  origin: function (origin, callback) {
+    // Allow requests with no origin (like mobile apps, curl, Postman)
+    if (!origin) return callback(null, true);
+    
+    if (allowedOrigins[0] === "*" || allowedOrigins.includes(origin)) {
+      callback(null, true);
+    } else {
+      console.warn(`CORS blocked origin: ${origin}`);
+      callback(new Error('Not allowed by CORS'));
+    }
+  },
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization'],
   credentials: true,
-}));
+  optionsSuccessStatus: 200
+};
+
+app.use(helmet()); // Security headers
+app.use(cors(corsOptions)); // Apply CORS
+app.options('*', cors(corsOptions)); // Handle preflight requests for all routes
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
