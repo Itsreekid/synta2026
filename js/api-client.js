@@ -7,11 +7,8 @@ const SUPABASE_URL = 'https://lzlqxwwhjveyfhgopdph.supabase.co';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imx6bHF4d3doanZleWZoZ29wZHBoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDk1NjY5NTYsImV4cCI6MjA2NTE0Mjk1Nn0.VFzjDx1WSS03cM97vKHZAAR8vdheRtKC9wPBEoSQBxY';
 
 // Backend API Configuration
-// Auto-detect: use localhost only if accessing from localhost, otherwise use production backend
-const isLocalhost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
-
-// Backend deployed on Railway
-const BACKEND_URL = isLocalhost ? 'http://localhost:3000' : 'https://syntaacademy-production.up.railway.app';
+// Always use Railway production backend
+const BACKEND_URL = 'https://syntaacademy-production.up.railway.app';
 
 // R2 Public URL (optional alternative - requires public bucket in Cloudflare)
 const R2_PUBLIC_URL = null;
@@ -159,8 +156,7 @@ async function fetchMyEnrollments() {
                     description,
                     thumbnail_url,
                     level,
-                    category,
-                    instructor_name
+                    category
                 )
             `)
             .eq('user_id', user.id)
@@ -785,6 +781,8 @@ function getDirectVideoUrl(videoKey) {
 // Export for use in other files
 if (typeof window !== 'undefined') {
     window.SyntaAPI = {
+        // Configuration
+        BACKEND_URL,
         // Supabase client
         get supabase() {
             return getSupabase();
