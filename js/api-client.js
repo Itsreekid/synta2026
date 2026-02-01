@@ -2,7 +2,15 @@
 // API CLIENT - Backend Communication
 // =====================================================
 
-const API_BASE_URL = 'http://localhost:3000/api';
+// Auto-detect API URL based on environment
+const isProduction = window.location.hostname === 'syntaacademy.com' || 
+                     window.location.hostname === 'www.syntaacademy.com';
+
+// Use environment-specific API URL
+// TODO: Update this with your production backend URL when deployed
+const API_BASE_URL = isProduction 
+    ? 'https://api.syntaacademy.com/api'  // Change this to your production API URL
+    : 'http://localhost:3000/api';
 
 /**
  * Get auth token from session storage
