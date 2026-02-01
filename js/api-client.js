@@ -625,12 +625,11 @@ async function updateEnrollmentProgress(courseId) {
 /**
  * Check if user is authenticated
  */
-function isAuthenticated() {
+async function isAuthenticated() {
     try {
         const supabase = getSupabase();
-        // Check if session exists in local storage
-        const session = supabase.auth.session;
-        return !!session;
+        const { data: { session }, error } = await supabase.auth.getSession();
+        return !!session && !error;
     } catch (error) {
         return false;
     }

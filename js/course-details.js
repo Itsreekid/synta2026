@@ -157,9 +157,12 @@ function renderCourseContent(course, hasAccess, progress) {
  * Enroll in course
  */
 async function enrollInCourse(courseId, isFree) {
-    if (!window.SyntaAPI.isAuthenticated()) {
+    const authenticated = await window.SyntaAPI.isAuthenticated();
+    if (!authenticated) {
         window.SyntaAPI.showError('يجب تسجيل الدخول أولاً');
-        window.location.href = '/pages/auth/login.html';
+        setTimeout(() => {
+            window.location.href = '../auth/login.html';
+        }, 1500);
         return;
     }
     
@@ -170,7 +173,7 @@ async function enrollInCourse(courseId, isFree) {
             setTimeout(() => location.reload(), 1500);
         } else {
             // Redirect to payment
-            window.location.href = `/pages/paiement/paiement.html?course=${courseId}`;
+            window.location.href = `../paiement/paiement.html?course=${courseId}`;
         }
     } catch (error) {
         console.error('Enrollment error:', error);

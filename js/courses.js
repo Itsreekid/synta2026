@@ -33,7 +33,8 @@ async function loadCourses(filters = {}) {
         
         // Check user enrollments if authenticated
         let enrollments = [];
-        if (window.SyntaAPI.isAuthenticated()) {
+        const authenticated = await window.SyntaAPI.isAuthenticated();
+        if (authenticated) {
             try {
                 enrollments = await window.SyntaAPI.fetchMyEnrollments();
             } catch (error) {
@@ -158,9 +159,12 @@ function applyFilters() {
  * Enroll in a course
  */
 async function enrollCourse(courseId, isFree) {
-    if (!window.SyntaAPI.isAuthenticated()) {
+    const authenticated = await window.SyntaAPI.isAuthenticated();
+    if (!authenticated) {
         window.SyntaAPI.showError('يجب تسجيل الدخول أولاً');
-        window.location.href = '/pages/auth/login.html';
+        setTimeout(() => {
+            window.location.href = '../auth/login.html';
+        }, 1500);
         return;
     }
     
@@ -170,7 +174,7 @@ async function enrollCourse(courseId, isFree) {
             window.SyntaAPI.showSuccess('تم التسجيل في الدورة بنجاح!');
         } else {
             // Redirect to payment page
-            window.location.href = `/pages/paiement/paiement.html?course=${courseId}`;
+            window.location.href = `../paiement/paiement.html?course=${courseId}`;
             return;
         }
         
@@ -187,7 +191,7 @@ async function enrollCourse(courseId, isFree) {
  * View course details
  */
 function viewCourse(courseId) {
-    window.location.href = `/pages/courses/course-details.html?id=${courseId}`;
+    window.location.href = `course-details.html?id=${courseId}`;
 }
 
 /**
