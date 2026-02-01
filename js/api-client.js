@@ -9,11 +9,12 @@ const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
 // Backend API Configuration
 // Auto-detect: use localhost only if accessing from localhost, otherwise use production backend
 const isLocalhost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
-const BACKEND_URL = isLocalhost ? 'http://localhost:3000' : null; // Set production backend URL here when deployed
 
-// R2 Public URL (if you have a public custom domain or R2.dev subdomain enabled)
-// Set this to enable direct video access without backend
-const R2_PUBLIC_URL = 'https://pub-xxxxx.r2.dev'; // votre URL R2 publique
+// Backend deployed on Railway
+const BACKEND_URL = isLocalhost ? 'http://localhost:3000' : 'https://syntaacademy-production.up.railway.app';
+
+// R2 Public URL (optional alternative - requires public bucket in Cloudflare)
+const R2_PUBLIC_URL = null;
 
 // Initialize Supabase client
 let supabaseClient = null;
