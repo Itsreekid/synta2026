@@ -73,10 +73,33 @@ body {
     font-weight: 500;
 }
 
-.detail-row .value {
+}.detail-row .value {
     color: #1e293b;
     font-size: 0.9rem;
     font-weight: 500;
+}
+
+/* QR Code Section */
+.qr-text {
+    color: #64748b;
+    font-size: 0.9rem;
+    text-align: center;
+    margin-top: 1.5rem;
+    margin-bottom: 1rem;
+    line-height: 1.5;
+}
+
+.qr-code-container {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+.qr-code-image {
+    width: 100%;
+    max-width: 200px;
+    height: auto;
+    border-radius: 8px;
 }
 
 /* Referral Section */
