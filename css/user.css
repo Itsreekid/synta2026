@@ -28,7 +28,9 @@ body {
     background: linear-gradient(135deg, #ffead0 0%, #ffead0 100%);
     backdrop-filter: blur(10px);
     display: flex;
+    justify-content: flex-end;
     align-items: center;
+    padding: 0 2rem;
     z-index: 150;
     position: relative;
 }
