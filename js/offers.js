@@ -71,16 +71,36 @@ function loadOffers() {
     `).join('');
 }
 
-function showOfferMessage(badge) {
-    // Trigger confetti effect
-    handleConfetti();
-    // Show message and redirect to payment
-    showMessage(`Vous avez sélectionné le plan ${badge}. Redirection vers le paiement...`, 'success');
-    
-    // Redirect to payment page with plan parameter after 2 seconds
-    setTimeout(() => {
-        window.location.href = `../paiement/paiement.html?plan=${badge}`;
-    }, 2000);
+async function showOfferMessage(badge) {
+    try {
+        // Check if user is logged in
+        if (!window.SyntaAPI) {
+            showMessage('Erreur: Système non initialisé', 'error');
+            return;
+        }
+        
+        const user = await window.SyntaAPI.getCurrentUser();
+        if (!user) {
+            showMessage('Veuillez vous connecter pour acheter un plan', 'error');
+            setTimeout(() => {
+                window.location.href = '../auth/login.html';
+            }, 2000);
+            return;
+        }
+        
+        // Trigger confetti effect
+        handleConfetti();
+        // Show message and redirect to payment
+        showMessage(`Vous avez sélectionné le plan ${badge}. Redirection vers le paiement...`, 'success');
+        
+        // Redirect to payment page with plan parameter after 2 seconds
+        setTimeout(() => {
+            window.location.href = `../paiement/paiement.html?plan=${badge}`;
+        }, 2000);
+    } catch (error) {
+        console.error('Error in showOfferMessage:', error);
+        showMessage('Une erreur est survenue', 'error');
+    }
 }
 
 function handleConfetti() {

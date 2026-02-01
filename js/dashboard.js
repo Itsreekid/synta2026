@@ -48,12 +48,19 @@ async function loadUserData(user) {
         const userName = user.user_metadata?.full_name || user.email?.split('@')[0] || 'Utilisateur';
         const userEmail = user.email || 'Non disponible';
         
-        document.getElementById('user-name').textContent = userName;
-        document.getElementById('user-email').textContent = userEmail;
+        const userNameEl = document.getElementById('user-name');
+        if (userNameEl) {
+            userNameEl.textContent = userName;
+        }
+        
+        const userEmailEl = document.getElementById('user-email');
+        if (userEmailEl) {
+            userEmailEl.textContent = userEmail;
+        }
         
         // Update avatar
         const avatar = document.getElementById('user-avatar');
-        if (userName && userName.length > 0) {
+        if (avatar && userName && userName.length > 0) {
             avatar.textContent = userName.charAt(0).toUpperCase();
         }
         
@@ -91,10 +98,25 @@ async function loadStats() {
             activeDays: 0
         };
         
-        document.getElementById('completed-courses').textContent = stats.completedCourses;
-        document.getElementById('overall-progress').textContent = stats.overallProgress + '%';
-        document.getElementById('achievements').textContent = stats.achievements;
-        document.getElementById('active-days').textContent = stats.activeDays;
+        const completedEl = document.getElementById('completed-courses');
+        if (completedEl) {
+            completedEl.textContent = stats.completedCourses;
+        }
+        
+        const progressEl = document.getElementById('overall-progress');
+        if (progressEl) {
+            progressEl.textContent = stats.overallProgress + '%';
+        }
+        
+        const achievementsEl = document.getElementById('achievements');
+        if (achievementsEl) {
+            achievementsEl.textContent = stats.achievements;
+        }
+        
+        const activeDaysEl = document.getElementById('active-days');
+        if (activeDaysEl) {
+            activeDaysEl.textContent = stats.activeDays;
+        }
         
     } catch (error) {
         console.error('Error loading stats:', error);
