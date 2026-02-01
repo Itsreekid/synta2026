@@ -1,0 +1,28 @@
+# Files and directories to ignore during Railway deployment
+
+# Environment files (use Railway dashboard for env vars)
+.env
+.env.local
+.env.*.local
+
+# Development files
+.vscode/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Testing files
+test-*.js
+diagnose-*.js
+
+# Documentation
+README.md
+SECURITY.md
+
+# Node modules (will be installed via npm ci)
+node_modules/
+
+# OS files
+.DS_Store
+Thumbs.db

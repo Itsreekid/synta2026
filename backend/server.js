@@ -24,6 +24,31 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 
 // =====================================================
+// ENVIRONMENT VALIDATION
+// =====================================================
+const requiredEnvVars = [
+  'SUPABASE_URL',
+  'SUPABASE_ANON_KEY',
+  'SUPABASE_SERVICE_KEY',
+  'CLOUDFLARE_ACCOUNT_ID',
+  'R2_ACCESS_KEY',
+  'R2_SECRET_KEY',
+  'R2_BUCKET'
+];
+
+const missingEnvVars = requiredEnvVars.filter(varName => !process.env[varName]);
+
+if (missingEnvVars.length > 0) {
+  console.error('\n❌ DEPLOYMENT ERROR: Missing required environment variables:');
+  missingEnvVars.forEach(varName => {
+    console.error(`   - ${varName}`);
+  });
+  console.error('\n📝 Please set these environment variables in Railway dashboard.');
+  console.error('   Railway Dashboard → Your Service → Variables tab\n');
+  process.exit(1);
+}
+
+// =====================================================
 // MIDDLEWARE
 // =====================================================
 // CORS Configuration - Strict enforcement
@@ -146,7 +171,7 @@ app.use((error, req, res, next) => {
 // =====================================================
 // START SERVER
 // =====================================================
-app.listen(PORT, () => {
+app.listen(PORT, '0.0.0.0', () => {
   console.log(`
 ╔═══════════════════════════════════════════╗
 ║      🎓 Synta Academy API Server         ║
@@ -154,6 +179,7 @@ app.listen(PORT, () => {
 ║      Environment: ${process.env.NODE_ENV || 'development'}      ║
 ╚═══════════════════════════════════════════╝
   `);
+  console.log(`✅ Server running on http://0.0.0.0:${PORT}`);
 });
 
 // Handle graceful shutdown
