@@ -294,7 +294,7 @@ async function playLesson(lessonId) {
             let videoUrl;
             
             try {
-                // Get signed URL from backend API
+                // Try to get signed URL from backend API
                 const contentData = await window.SyntaAPI.getContentUrl(lessonId);
                 videoUrl = contentData.videoUrl;
                 
@@ -302,10 +302,19 @@ async function playLesson(lessonId) {
                     throw new Error('No video URL returned from backend');
                 }
             } catch (err) {
-                console.error('Error getting video URL from backend:', err);
-                // Fallback to demo video
-                videoUrl = 'https://www.w3schools.com/html/mov_bbb.mp4';
-                showError('Utilisation de la vidéo de démonstration. Assurez-vous que le backend est démarré.');
+                console.error('Backend not available:', err);
+                
+                // Try direct URL if configured
+                videoUrl = window.SyntaAPI.getDirectVideoUrl(lesson.video_key);
+                
+                if (!videoUrl) {
+                    // Show helpful error message
+                    showError('Le backend n\'est pas démarré. Pour lire les vidéos:<br>1. Ouvrez un terminal dans le dossier backend<br>2. Exécutez: npm install (première fois)<br>3. Exécutez: npm start<br><br>Ou configurez R2_PUBLIC_URL dans api-client.js');
+                    
+                    // Use demo video as last resort
+                    videoUrl = 'https://www.w3schools.com/html/mov_bbb.mp4';
+                    console.log('🎬 Vidéo de démo utilisée. Clé vidéo:', lesson.video_key);
+                }
             }
             
             // Mark lesson progress
@@ -493,7 +502,29 @@ async function enrollInCourse(courseId, isFree, hasAccess) {
  * Show error message
  */
 function showError(message) {
-    showMessage(message, 'error');
+    const messageDiv = document.createElement('div');
+    messageDiv.style.cssText = `
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        padding: 1rem 2rem;
+        border-radius: 10px;
+        color: white;
+        font-family: 'Inter', sans-serif;
+        font-weight: 600;
+        z-index: 10001;
+        animation: slideIn 0.3s ease;
+        background: #dc3545;
+        max-width: 400px;
+        line-height: 1.6;
+    `;
+    
+    messageDiv.innerHTML = message;
+    document.body.appendChild(messageDiv);
+    
+    setTimeout(() => {
+        messageDiv.remove();
+    }, 8000); // Longer timeout for error messages with instructions
 }
 
 /**

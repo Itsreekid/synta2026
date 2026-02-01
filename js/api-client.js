@@ -6,6 +6,13 @@
 const SUPABASE_URL = 'https://lzlqxwwhjveyfhgopdph.supabase.co';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imx6bHF4d3doanZleWZoZ29wZHBoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDk1NjY5NTYsImV4cCI6MjA2NTE0Mjk1Nn0.VFzjDx1WSS03cM97vKHZAAR8vdheRtKC9wPBEoSQBxY';
 
+// Backend API Configuration
+const BACKEND_URL = 'http://localhost:3000'; // Change this if backend is on different port/domain
+
+// R2 Public URL (if you have a public custom domain or R2.dev subdomain enabled)
+// Set this to enable direct video access without backend
+const R2_PUBLIC_URL = 'https://pub-xxxxx.r2.dev'; // votre URL R2 publique
+
 // Initialize Supabase client
 let supabaseClient = null;
 
@@ -727,7 +734,7 @@ async function getContentUrl(lessonId) {
             headers['Authorization'] = `Bearer ${token}`;
         }
         
-        const response = await fetch(`http://localhost:3000/api/content/lesson/${lessonId}`, {
+        const response = await fetch(`${BACKEND_URL}/api/content/lesson/${lessonId}`, {
             method: 'GET',
             headers
         });
@@ -743,6 +750,20 @@ async function getContentUrl(lessonId) {
         console.error('Error getting content URL:', error);
         throw error;
     }
+}
+
+/**
+ * Get direct video URL from video_key (fallback when backend is unavailable)
+ * @param {string} videoKey - R2 video key (e.g., "synta-content/video.mp4")
+ */
+function getDirectVideoUrl(videoKey) {
+    if (R2_PUBLIC_URL) {
+        // If you have a public R2 URL configured, use it
+        return `${R2_PUBLIC_URL}/${videoKey}`;
+    }
+    
+    // Otherwise return null - backend is required for signed URLs
+    return null;
 }
 
 // Export for use in other files
@@ -768,6 +789,7 @@ if (typeof window !== 'undefined') {
         updateVideoPosition,
         getContentUrl,
         getAuthToken,
+        getDirectVideoUrl,
         // Utils
         isAuthenticated,
         showError,
