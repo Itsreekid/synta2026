@@ -237,7 +237,7 @@ async function loadEvents() {
             return `
                 <div class="event-item" style="border-right: 3px solid ${event.color}; cursor: pointer;" onclick="navigateToCalendar('${event.date}')">
                     <div class="event-date">${event.icon} ${dateString} - ${event.time}</div>
-                    <div class="event-title" style="display: flex; align-items: center; gap: 8px;">
+                    <div class="event-title" style="display: flex; align-items: center; gap: 20px;">
                         ${event.title}
                         <span class="live-indicator"></span>
                     </div>
