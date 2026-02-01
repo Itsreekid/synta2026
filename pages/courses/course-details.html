@@ -1,64 +1,146 @@
 <!DOCTYPE html>
-<html lang="ar" dir="rtl">
+<html lang="fr">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>تفاصيل الدورة - أكاديمية سينتا</title>
+    <title>Détails du Cours - Synta Academy</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="../../css/courses.css">
     
     <!-- Supabase Client Library -->
     <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
     
     <style>
-        .course-hero {
+        body {
+            background: #f8fafc;
+        }
+        
+        .course-details-container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 2rem;
+        }
+        
+        .course-layout {
+            display: grid;
+            grid-template-columns: 1fr 380px;
+            gap: 2rem;
+            align-items: start;
+        }
+        
+        .course-main {
+            background: white;
+            border-radius: 16px;
+            padding: 2.5rem;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.08);
+        }
+        
+        .course-thumbnail-header {
+            width: 100%;
+            height: 80px;
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            padding: 3rem;
-            border-radius: 15px;
+            border-radius: 12px;
+            margin-bottom: 1.5rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
             color: white;
+            font-size: 2rem;
+            font-weight: 700;
+        }
+        
+        .course-title-section h1 {
+            font-size: 2rem;
+            color: #1e293b;
+            margin-bottom: 1rem;
+            font-weight: 700;
+        }
+        
+        .course-description-section {
             margin-bottom: 2rem;
         }
         
-        .course-hero-image {
-            width: 100%;
-            max-width: 600px;
-            border-radius: 10px;
-            margin-bottom: 1.5rem;
+        .course-description-section h2 {
+            font-size: 1.25rem;
+            color: #1e293b;
+            margin-bottom: 0.75rem;
+            font-weight: 600;
+        }
+        
+        .course-description-section p {
+            color: #64748b;
+            line-height: 1.7;
+        }
+        
+        .modules-section {
+            margin-top: 2rem;
         }
         
         .module-card {
-            background: white;
-            border-radius: 10px;
-            padding: 1.5rem;
+            background: #f8fafc;
+            border-radius: 12px;
             margin-bottom: 1.5rem;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+            overflow: hidden;
+            border: 1px solid #e2e8f0;
+        }
+        
+        .module-header {
+            padding: 1.25rem 1.5rem;
+            background: white;
+            cursor: pointer;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            transition: background 0.2s;
+        }
+        
+        .module-header:hover {
+            background: #f8fafc;
         }
         
         .module-header h3 {
-            color: #2d3748;
-            margin-bottom: 0.5rem;
+            font-size: 1.1rem;
+            color: #1e293b;
+            font-weight: 600;
+            margin: 0;
+        }
+        
+        .module-toggle {
+            font-size: 1.25rem;
+            color: #64748b;
+            transition: transform 0.3s;
+        }
+        
+        .module-toggle.open {
+            transform: rotate(180deg);
         }
         
         .lessons-list {
-            margin-top: 1rem;
+            padding: 0.5rem;
+            display: none;
+        }
+        
+        .lessons-list.open {
+            display: block;
         }
         
         .lesson-item {
             display: flex;
             justify-content: space-between;
             align-items: center;
-            padding: 1rem;
-            border: 1px solid #e2e8f0;
+            padding: 1rem 1.25rem;
+            background: white;
             border-radius: 8px;
             margin-bottom: 0.5rem;
-            transition: all 0.3s;
+            transition: all 0.2s;
+            border: 1px solid #e2e8f0;
         }
         
         .lesson-item:hover {
-            background: #f7fafc;
-            border-color: #cbd5e0;
+            background: #f1f5f9;
+            transform: translateX(-4px);
         }
         
         .lesson-item.locked {
@@ -66,139 +148,220 @@
             background: #f9fafb;
         }
         
-        .lesson-item.completed {
-            background: #f0fdf4;
-            border-color: #86efac;
-        }
-        
         .lesson-info {
             display: flex;
             gap: 1rem;
             align-items: center;
+            flex: 1;
         }
         
         .lesson-icon {
-            font-size: 1.5rem;
+            font-size: 1.25rem;
+            color: #667eea;
         }
         
-        .lesson-btn {
-            padding: 0.5rem 1.5rem;
-            background: #667eea;
-            color: white;
-            border: none;
-            border-radius: 5px;
-            cursor: pointer;
-            font-family: 'Tajawal', sans-serif;
+        .lesson-details {
+            flex: 1;
         }
         
-        .lesson-btn:hover {
-            background: #5a67d8;
+        .lesson-title {
+            font-size: 0.95rem;
+            color: #334155;
+            font-weight: 500;
+            margin-bottom: 0.25rem;
         }
         
-        .lesson-btn.locked {
-            background: #cbd5e0;
-            cursor: not-allowed;
+        .lesson-duration {
+            font-size: 0.85rem;
+            color: #94a3b8;
         }
         
-        .enroll-btn {
-            padding: 1rem 2rem;
-            font-size: 1.1rem;
-            border: none;
-            border-radius: 8px;
-            cursor: pointer;
-            font-family: 'Tajawal', sans-serif;
-            font-weight: 700;
-            margin-top: 1rem;
-        }
-        
-        .enroll-btn.free {
-            background: #10b981;
-            color: white;
-        }
-        
-        .enroll-btn.paid {
-            background: #f59e0b;
-            color: white;
-        }
-        
-        .video-modal {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: rgba(0,0,0,0.9);
+        .lesson-status {
             display: flex;
             align-items: center;
-            justify-content: center;
-            z-index: 1000;
+            gap: 0.5rem;
         }
         
-        .video-modal-content {
-            position: relative;
-            width: 90%;
-            max-width: 1200px;
+        .lock-icon {
+            font-size: 1.1rem;
+            color: #94a3b8;
         }
         
-        .video-modal video {
-            width: 100%;
-            border-radius: 10px;
-        }
-        
-        .close-modal {
-            position: absolute;
-            top: -40px;
-            right: 0;
-            background: white;
-            border: none;
-            width: 35px;
-            height: 35px;
-            border-radius: 50%;
+        .play-icon {
+            font-size: 1.1rem;
+            color: #667eea;
             cursor: pointer;
-            font-size: 1.2rem;
         }
         
-        .progress-bar {
+        .course-sidebar {
+            position: sticky;
+            top: 2rem;
+            background: white;
+            border-radius: 16px;
+            padding: 2rem;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.08);
+        }
+        
+        .price-section {
+            text-align: center;
+            margin-bottom: 2rem;
+        }
+        
+        .original-price {
+            font-size: 1.1rem;
+            color: #94a3b8;
+            text-decoration: line-through;
+            margin-bottom: 0.25rem;
+        }
+        
+        .current-price {
+            font-size: 2.5rem;
+            font-weight: 700;
+            color: #1e293b;
+        }
+        
+        .course-stats {
+            margin-bottom: 2rem;
+        }
+        
+        .stat-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0.75rem 0;
+            border-bottom: 1px solid #f1f5f9;
+        }
+        
+        .stat-item:last-child {
+            border-bottom: none;
+        }
+        
+        .stat-label {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            color: #64748b;
+            font-size: 0.95rem;
+        }
+        
+        .stat-value {
+            color: #1e293b;
+            font-weight: 600;
+        }
+        
+        .buy-button {
             width: 100%;
-            height: 8px;
-            background: rgba(255,255,255,0.3);
-            border-radius: 10px;
-            overflow: hidden;
-            margin-top: 0.5rem;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 12px;
+            padding: 1rem 2rem;
+            font-family: 'Inter', sans-serif;
+            font-weight: 700;
+            font-size: 1.1rem;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 6px 20px rgba(102, 126, 234, 0.3);
+            margin-bottom: 0.75rem;
         }
         
-        .progress-fill {
-            height: 100%;
-            background: #10b981;
-            transition: width 0.3s;
+        .buy-button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 30px rgba(102, 126, 234, 0.4);
         }
         
-        .preview-badge, .completed-badge {
-            padding: 0.25rem 0.75rem;
-            border-radius: 5px;
-            font-size: 0.85rem;
-            margin-left: 0.5rem;
+        .lifetime-access {
+            text-align: center;
+            color: #64748b;
+            font-size: 0.9rem;
         }
         
-        .preview-badge {
-            background: #dbeafe;
-            color: #1e40af;
+        .back-link {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            color: #667eea;
+            text-decoration: none;
+            font-weight: 600;
+            margin-bottom: 1.5rem;
+            transition: gap 0.3s;
         }
         
-        .completed-badge {
-            background: #dcfce7;
-            color: #166534;
+        .back-link:hover {
+            gap: 0.75rem;
+        }
+        
+        @media (max-width: 1024px) {
+            .course-layout {
+                grid-template-columns: 1fr;
+            }
+            
+            .course-sidebar {
+                position: static;
+            }
+        }
+        
+        @media (max-width: 768px) {
+            .course-details-container {
+                padding: 1rem;
+            }
+            
+            .course-main {
+                padding: 1.5rem;
+            }
+            
+            .course-title-section h1 {
+                font-size: 1.5rem;
+            }
         }
     </style>
 </head>
 <body>
-    <div class="courses-container">
-        <div id="course-header">
-            <!-- Course header will be loaded here -->
-        </div>
+    <div class="course-details-container">
+        <a href="courses.html" class="back-link">← Retour aux cours</a>
         
-        <div id="course-content">
-            <!-- Modules and lessons will be loaded here -->
+        <div class="course-layout">
+            <!-- Main Content -->
+            <div class="course-main">
+                <div class="course-thumbnail-header" id="course-thumbnail">
+                    <!-- Thumbnail will be loaded here -->
+                </div>
+                
+                <div class="course-title-section">
+                    <h1 id="course-title">Chargement...</h1>
+                </div>
+                
+                <div class="course-description-section">
+                    <h2>Course Description</h2>
+                    <p id="course-description">Chargement de la description...</p>
+                </div>
+                
+                <div class="modules-section" id="modules-container">
+                    <!-- Modules and lessons will be loaded here -->
+                </div>
+            </div>
+            
+            <!-- Sidebar -->
+            <div class="course-sidebar">
+                <div class="price-section">
+                    <div class="original-price" id="original-price" style="display: none;">180 dt</div>
+                    <div class="current-price" id="current-price">150 dt</div>
+                </div>
+                
+                <div class="course-stats">
+                    <div class="stat-item">
+                        <span class="stat-label">📚 Lessons</span>
+                        <span class="stat-value" id="lessons-count">0</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-label">🌐 Language</span>
+                        <span class="stat-value" id="course-language">English</span>
+                    </div>
+                </div>
+                
+                <button class="buy-button" id="buy-button">Buy now</button>
+                <div class="lifetime-access">Lifetime access</div>
+            </div>
         </div>
     </div>
     

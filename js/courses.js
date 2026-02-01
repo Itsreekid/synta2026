@@ -1,11 +1,11 @@
 // =====================================================
-// Courses Page - Backend Integration
+// Courses Page - Backend Integration (French)
 // =====================================================
 
 document.addEventListener('DOMContentLoaded', function() {
     // Check if API client is loaded
     if (!window.SyntaAPI) {
-        console.error('API client not loaded. Please include api-client.js before courses.js');
+        console.error('Client API non chargé. Veuillez inclure api-client.js avant courses.js');
         return;
     }
     
@@ -21,13 +21,13 @@ async function loadCourses(filters = {}) {
     
     try {
         // Show loading state
-        coursesList.innerHTML = '<div class="loading">جاري تحميل الدورات...</div>';
+        coursesList.innerHTML = '<div class="loading">Chargement des cours...</div>';
         
         // Fetch courses from backend
         const courses = await window.SyntaAPI.fetchCourses(filters);
         
         if (!courses || courses.length === 0) {
-            coursesList.innerHTML = '<div class="no-courses">لا توجد دورات متاحة حالياً</div>';
+            coursesList.innerHTML = '<div class="no-courses">Aucun cours disponible pour le moment</div>';
             return;
         }
         
@@ -38,7 +38,7 @@ async function loadCourses(filters = {}) {
             try {
                 enrollments = await window.SyntaAPI.fetchMyEnrollments();
             } catch (error) {
-                console.error('Error fetching enrollments:', error);
+                console.error('Erreur lors de la récupération des inscriptions:', error);
             }
         }
         
@@ -54,10 +54,14 @@ async function loadCourses(filters = {}) {
                         <div class="course-thumbnail">
                             <img src="${course.thumbnail_url}" alt="${course.title}">
                         </div>
-                    ` : ''}
+                    ` : `
+                        <div class="course-thumbnail">
+                            <img src="https://via.placeholder.com/400x200/667eea/ffffff?text=${encodeURIComponent(course.title)}" alt="${course.title}">
+                        </div>
+                    `}
                     <div class="course-info">
                         <h3 class="course-title">${course.title}</h3>
-                        <p class="course-description">${course.description || ''}</p>
+                        <p class="course-description">${course.description || 'Description du cours'}</p>
                         
                         <div class="course-meta">
                             <span class="course-category">${formatCategory(course.category)}</span>
@@ -69,23 +73,27 @@ async function loadCourses(filters = {}) {
                                 <div class="progress-bar">
                                     <div class="progress-fill" style="width: ${progress}%"></div>
                                 </div>
-                                <span class="progress-text">${progress}%</span>
+                                <span class="progress-text">${progress}% complété</span>
                             </div>
                         ` : ''}
                         
+                        <button class="preview-btn" onclick="viewCourse('${course.id}')">
+                            👁️ Aperçu du cours
+                        </button>
+                        
                         <div class="course-footer">
                             ${course.is_free ? 
-                                '<span class="course-price free">مجاني</span>' : 
-                                `<span class="course-price">${course.price} دت</span>`
+                                '<span class="course-price free">Gratuit</span>' : 
+                                `<span class="course-price">${course.price} DT</span>`
                             }
                             
                             ${isEnrolled ? `
                                 <button class="course-btn enrolled" onclick="viewCourse('${course.id}')">
-                                    متابعة الدورة
+                                    Continuer
                                 </button>
                             ` : `
                                 <button class="course-btn" onclick="enrollCourse('${course.id}', ${course.is_free})">
-                                    ${course.is_free ? 'التسجيل المجاني' : 'شراء الدورة'}
+                                    ${course.is_free ? 'S\'inscrire' : 'Acheter'}
                                 </button>
                             `}
                         </div>
@@ -95,15 +103,16 @@ async function loadCourses(filters = {}) {
         }).join('');
         
     } catch (error) {
-        console.error('Error loading courses:', error);
+        console.error('Erreur lors du chargement des cours:', error);
         coursesList.innerHTML = `
             <div class="error-message">
-                حدث خطأ أثناء تحميل الدورات. يرجى المحاولة لاحقاً.
-                <button onclick="loadCourses()">إعادة المحاولة</button>
+                Une erreur s'est produite lors du chargement des cours. Veuillez réessayer plus tard.
+                <button onclick="loadCourses()">Réessayer</button>
             </div>
         `;
     }
 }
+
 
 /**
  * Setup filter functionality
@@ -161,7 +170,7 @@ function applyFilters() {
 async function enrollCourse(courseId, isFree) {
     const authenticated = await window.SyntaAPI.isAuthenticated();
     if (!authenticated) {
-        window.SyntaAPI.showError('يجب تسجيل الدخول أولاً');
+        window.SyntaAPI.showError('Vous devez vous connecter d\'abord');
         setTimeout(() => {
             window.location.href = '../auth/login.html';
         }, 1500);
@@ -171,7 +180,7 @@ async function enrollCourse(courseId, isFree) {
     try {
         if (isFree) {
             await window.SyntaAPI.enrollFreeCourse(courseId);
-            window.SyntaAPI.showSuccess('تم التسجيل في الدورة بنجاح!');
+            window.SyntaAPI.showSuccess('Inscription réussie au cours !');
         } else {
             // Redirect to payment page
             window.location.href = `../paiement/paiement.html?course=${courseId}`;
@@ -182,8 +191,8 @@ async function enrollCourse(courseId, isFree) {
         loadCourses();
         
     } catch (error) {
-        console.error('Enrollment error:', error);
-        window.SyntaAPI.showError('حدث خطأ أثناء التسجيل: ' + error.message);
+        console.error('Erreur d\'inscription:', error);
+        window.SyntaAPI.showError('Une erreur s\'est produite lors de l\'inscription : ' + error.message);
     }
 }
 
@@ -199,10 +208,10 @@ function viewCourse(courseId) {
  */
 function formatCategory(category) {
     const categories = {
-        'bac-info': 'باك معلوماتية',
-        'bac-math': 'باك رياضيات',
-        'web-dev': 'تطوير الويب',
-        'general': 'عام'
+        'bac-info': 'Bac Informatique',
+        'bac-math': 'Bac Mathématiques',
+        'web-dev': 'Développement Web',
+        'general': 'Général'
     };
     return categories[category] || category;
 }
@@ -212,9 +221,9 @@ function formatCategory(category) {
  */
 function formatLevel(level) {
     const levels = {
-        'beginner': 'مبتدئ',
-        'intermediate': 'متوسط',
-        'advanced': 'متقدم'
+        'beginner': 'Débutant',
+        'intermediate': 'Intermédiaire',
+        'advanced': 'Avancé'
     };
     return levels[level] || level;
 }
@@ -228,8 +237,8 @@ function showMessage(message, type = 'info') {
         padding: 1rem 2rem;
         border-radius: 10px;
         color: white;
-        font-family: 'Tajawal', sans-serif;
-        font-weight: 500;
+        font-family: 'Inter', sans-serif;
+        font-weight: 600;
         z-index: 1000;
         animation: slideIn 0.3s ease;
     `;
@@ -238,7 +247,7 @@ function showMessage(message, type = 'info') {
     } else if (type === 'success') {
         messageDiv.style.background = '#28a745';
     } else {
-        messageDiv.style.background = '#ff7b1a';
+        messageDiv.style.background = '#667eea';
     }
     messageDiv.textContent = message;
     document.body.appendChild(messageDiv);
