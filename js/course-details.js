@@ -354,7 +354,7 @@ async function playLesson(lessonId) {
             await markLessonProgress(lessonId);
             
             // Show video in main content area
-            showVideoInMainArea(lesson, videoUrl);
+            await showVideoInMainArea(lesson, videoUrl);
         } else {
             showError('Vidéo non disponible pour cette leçon');
         }
@@ -419,7 +419,7 @@ async function updateCourseProgress(userId, courseId) {
 /**
  * Show video in main content area
  */
-function showVideoInMainArea(lesson, videoUrl) {
+async function showVideoInMainArea(lesson, videoUrl) {
     const courseMain = document.querySelector('.course-main');
     const courseSidebar = document.querySelector('.course-sidebar');
     const modulesContainer = document.getElementById('modules-container');
@@ -430,6 +430,20 @@ function showVideoInMainArea(lesson, videoUrl) {
     }
     if (!courseSidebar.dataset.originalContent) {
         courseSidebar.dataset.originalContent = courseSidebar.innerHTML;
+    }
+    
+    // Fetch PDF URL if pdf_key exists
+    let pdfUrl = null;
+    if (lesson.pdf_key) {
+        try {
+            const response = await fetch(`${window.SyntaAPI.BACKEND_URL}/api/content/lesson/${lesson.id}`);
+            if (response.ok) {
+                const data = await response.json();
+                pdfUrl = data.pdfUrl;
+            }
+        } catch (err) {
+            console.warn('Failed to fetch PDF URL:', err);
+        }
     }
     
     // Replace main content with video player
@@ -451,9 +465,28 @@ function showVideoInMainArea(lesson, videoUrl) {
                 ${lesson.title}
             </h1>
             ${lesson.description ? `
-                <p style="color: #64748b; line-height: 1.7;">
+                <p style="color: #64748b; line-height: 1.7; margin-bottom: 1.5rem;">
                     ${lesson.description}
                 </p>
+            ` : ''}
+            ${pdfUrl ? `
+                <div style="margin-top: 1.5rem;">
+                    <a href="${pdfUrl}" target="_blank" style="
+                        display: inline-flex;
+                        align-items: center;
+                        gap: 0.5rem;
+                        padding: 0.75rem 1.5rem;
+                        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                        color: white;
+                        text-decoration: none;
+                        border-radius: 8px;
+                        font-weight: 600;
+                        transition: transform 0.2s ease;
+                    " onmouseover="this.style.transform='translateY(-2px)'" onmouseout="this.style.transform='translateY(0)'">
+                        <i class="fas fa-file-pdf"></i>
+                        Télécharger le PDF de la leçon
+                    </a>
+                </div>
             ` : ''}
         </div>
     `;
