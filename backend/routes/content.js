@@ -16,34 +16,41 @@ const router = express.Router();
 router.get("/lesson/:lessonId", authMiddleware, async (req, res) => {
   try {
     const { lessonId } = req.params;
-    const userId = req.user.id;
+    const userId = req.user?.id; // May be null for unauthenticated users
 
-    // 1. Check if user has access to this lesson
-    const hasAccess = await checkLessonAccess(userId, lessonId);
-    
-    if (!hasAccess) {
-      return res.status(403).json({ 
-        error: "Access denied. Please enroll in this course first." 
-      });
-    }
-
-    // 2. Get lesson details from database
-    const { data: lesson, error } = await supabaseAdmin
+    // Get lesson details from database first
+    const { data: lesson, error: lessonError } = await supabaseAdmin
       .from("lessons")
-      .select("id, title, type, video_key, pdf_key, duration")
+      .select("id, title, type, video_key, pdf_key, duration, is_preview, module_id")
       .eq("id", lessonId)
       .single();
 
-    if (error || !lesson) {
+    if (lessonError || !lesson) {
       return res.status(404).json({ error: "Lesson not found" });
     }
 
-    // 3. Generate signed URLs for available content
+    // Check access: preview lessons are public, others require enrollment
+    let hasAccess = lesson.is_preview; // Preview lessons are always accessible
+
+    if (!hasAccess && userId) {
+      // Check if user has access to this lesson via enrollment
+      hasAccess = await checkLessonAccess(userId, lessonId);
+    }
+    
+    if (!hasAccess) {
+      return res.status(403).json({ 
+        error: "Access denied. Please enroll in this course first or sign in to access this lesson.",
+        isPreview: lesson.is_preview
+      });
+    }
+
+    // Generate signed URLs for available content
     const response = {
       lessonId: lesson.id,
       title: lesson.title,
       type: lesson.type,
       duration: lesson.duration,
+      isPreview: lesson.is_preview
     };
 
     if (lesson.video_key) {
@@ -54,19 +61,24 @@ router.get("/lesson/:lessonId", authMiddleware, async (req, res) => {
       response.pdfUrl = await generateSignedUrl(lesson.pdf_key);
     }
 
-    // 4. Log access (optional - for analytics)
-    await supabaseAdmin
-      .from("lesson_progress")
-      .upsert({
-        user_id: userId,
-        lesson_id: lessonId,
-        updated_at: new Date().toISOString(),
-      });
+    // Log access (only if user is authenticated)
+    if (userId) {
+      await supabaseAdmin
+        .from("lesson_progress")
+        .upsert({
+          user_id: userId,
+          lesson_id: lessonId,
+          updated_at: new Date().toISOString(),
+        }, {
+          onConflict: 'user_id,lesson_id',
+          ignoreDuplicates: false
+        });
+    }
 
     res.json(response);
   } catch (error) {
     console.error("Error in lesson content route:", error);
-    res.status(500).json({ error: "Internal server error" });
+    res.status(500).json({ error: "Internal server error", details: error.message });
   }
 });
 

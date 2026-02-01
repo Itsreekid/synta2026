@@ -7,7 +7,9 @@ const SUPABASE_URL = 'https://lzlqxwwhjveyfhgopdph.supabase.co';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imx6bHF4d3doanZleWZoZ29wZHBoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDk1NjY5NTYsImV4cCI6MjA2NTE0Mjk1Nn0.VFzjDx1WSS03cM97vKHZAAR8vdheRtKC9wPBEoSQBxY';
 
 // Backend API Configuration
-const BACKEND_URL = 'http://localhost:3000'; // Change this if backend is on different port/domain
+// Auto-detect: use localhost only if accessing from localhost, otherwise use production backend
+const isLocalhost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+const BACKEND_URL = isLocalhost ? 'http://localhost:3000' : null; // Set production backend URL here when deployed
 
 // R2 Public URL (if you have a public custom domain or R2.dev subdomain enabled)
 // Set this to enable direct video access without backend
@@ -724,12 +726,18 @@ async function getAuthToken() {
  * @param {string} lessonId - Lesson UUID
  */
 async function getContentUrl(lessonId) {
+    // Check if backend is available
+    if (!BACKEND_URL) {
+        throw new Error('Backend URL not configured. Please set BACKEND_URL in api-client.js or configure R2_PUBLIC_URL for direct access.');
+    }
+    
     try {
         const token = await getAuthToken();
         const headers = {
             'Content-Type': 'application/json'
         };
         
+        // Only add auth header if token exists
         if (token) {
             headers['Authorization'] = `Bearer ${token}`;
         }
@@ -740,8 +748,15 @@ async function getContentUrl(lessonId) {
         });
         
         if (!response.ok) {
-            const error = await response.json();
-            throw new Error(error.error || 'Failed to get content URL');
+            let errorMessage = 'Failed to get content URL';
+            try {
+                const error = await response.json();
+                errorMessage = error.error || errorMessage;
+            } catch (e) {
+                // Response is not JSON
+                errorMessage = `Server error: ${response.status}`;
+            }
+            throw new Error(errorMessage);
         }
         
         const data = await response.json();

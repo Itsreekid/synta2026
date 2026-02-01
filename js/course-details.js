@@ -308,8 +308,25 @@ async function playLesson(lessonId) {
                 videoUrl = window.SyntaAPI.getDirectVideoUrl(lesson.video_key);
                 
                 if (!videoUrl) {
-                    // Show helpful error message
-                    showError('Le backend n\'est pas démarré. Pour lire les vidéos:<br>1. Ouvrez un terminal dans le dossier backend<br>2. Exécutez: npm install (première fois)<br>3. Exécutez: npm start<br><br>Ou configurez R2_PUBLIC_URL dans api-client.js');
+                    // Show helpful error message based on environment
+                    const isProduction = window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1';
+                    
+                    if (isProduction) {
+                        showError(`Pour lire les vidéos en production :<br><br>
+                            <strong>Option 1 :</strong> Configurez R2_PUBLIC_URL<br>
+                            Dans api-client.js, définissez votre URL publique R2<br><br>
+                            <strong>Option 2 :</strong> Déployez le backend<br>
+                            Déployez le backend sur un serveur et configurez BACKEND_URL<br><br>
+                            <strong>Vidéo de démo utilisée temporairement</strong>`);
+                    } else {
+                        showError(`Le backend n'est pas démarré.<br><br>
+                            <strong>Pour lire les vidéos :</strong><br>
+                            1. Ouvrez un terminal dans le dossier backend<br>
+                            2. Exécutez: npm install (première fois)<br>
+                            3. Exécutez: npm start<br>
+                            4. Accédez au site via http://localhost ou http://127.0.0.1<br><br>
+                            <strong>Vidéo de démo utilisée temporairement</strong>`);
+                    }
                     
                     // Use demo video as last resort
                     videoUrl = 'https://www.w3schools.com/html/mov_bbb.mp4';

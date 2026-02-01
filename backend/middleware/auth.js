@@ -5,6 +5,7 @@ import { supabaseAdmin } from "../config/supabase.js";
 
 /**
  * Verify Supabase JWT token and attach user to request
+ * Optional: if allowUnauthenticated is true, continues without user
  */
 export async function authMiddleware(req, res, next) {
   try {
@@ -12,7 +13,9 @@ export async function authMiddleware(req, res, next) {
     const authHeader = req.headers.authorization;
     
     if (!authHeader || !authHeader.startsWith("Bearer ")) {
-      return res.status(401).json({ error: "No token provided" });
+      // No token provided - set user to null and continue
+      req.user = null;
+      return next();
     }
 
     const token = authHeader.substring(7); // Remove 'Bearer ' prefix
@@ -21,7 +24,9 @@ export async function authMiddleware(req, res, next) {
     const { data, error } = await supabaseAdmin.auth.getUser(token);
 
     if (error || !data.user) {
-      return res.status(401).json({ error: "Invalid or expired token" });
+      // Invalid token - set user to null and continue
+      req.user = null;
+      return next();
     }
 
     // Attach user to request
@@ -29,7 +34,8 @@ export async function authMiddleware(req, res, next) {
     next();
   } catch (error) {
     console.error("Auth middleware error:", error);
-    res.status(500).json({ error: "Authentication failed" });
+    req.user = null;
+    next(); // Continue even on error
   }
 }
 
