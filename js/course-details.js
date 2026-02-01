@@ -493,27 +493,27 @@ async function showVideoInMainArea(lesson, videoUrl) {
     let pdfButtonsHtml = '';
     if (pdfUrls.length > 0) {
         pdfButtonsHtml = `
-            <div style="margin-top: 1.5rem;">
-                <h3 style="font-size: 1.1rem; color: #1e293b; margin-bottom: 1rem; font-weight: 600;">
+            <div style="margin-top: 0.75rem;">
+                <p style="font-size: 0.9rem; color: #64748b; margin-bottom: 0.5rem; font-weight: 500;">
                     📄 Documents de la leçon
-                </h3>
-                <div style="display: flex; flex-wrap: wrap; gap: 0.75rem;">
+                </p>
+                <div style="display: flex; flex-wrap: wrap; gap: 0.5rem;">
                     ${pdfUrls.map((pdf, index) => `
                         <a href="${pdf.url}" target="_blank" style="
                             display: inline-flex;
                             align-items: center;
                             gap: 0.5rem;
-                            padding: 0.75rem 1.5rem;
+                            padding: 0.6rem 1.2rem;
                             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
                             color: white;
                             text-decoration: none;
                             border-radius: 8px;
                             font-weight: 600;
-                            font-size: 0.95rem;
+                            font-size: 0.9rem;
                             transition: transform 0.2s ease;
                         " onmouseover="this.style.transform='translateY(-2px)'" onmouseout="this.style.transform='translateY(0)'">
                             <i class="fas fa-file-pdf"></i>
-                            ${pdfUrls.length === 1 ? 'Voir le document' : `PDF ${index + 1}: ${pdf.name}`}
+                            ${pdfUrls.length === 1 ? 'Voir le document' : `Document ${index + 1}`}
                         </a>
                     `).join('')}
                 </div>
@@ -523,9 +523,10 @@ async function showVideoInMainArea(lesson, videoUrl) {
     
     // Replace main content with video player
     courseMain.innerHTML = `
-        <div style="margin-bottom: 1.5rem;">
+        <div style="flex: 1; display: flex; flex-direction: column; min-height: 0;">
             <video id="current-lesson-video" controls autoplay controlsList="nodownload" oncontextmenu="return false;" style="
                 width: 100%;
+                max-height: calc(100vh - 320px);
                 border-radius: 12px;
                 background: #000;
                 box-shadow: 0 4px 20px rgba(0,0,0,0.15);
@@ -535,12 +536,12 @@ async function showVideoInMainArea(lesson, videoUrl) {
             </video>
         </div>
         
-        <div style="margin-bottom: 2rem;">
-            <h1 style="font-size: 1.75rem; color: #1e293b; margin-bottom: 0.75rem; font-weight: 700;">
+        <div style="margin-top: 1rem; flex-shrink: 0;">
+            <h1 style="font-size: 1.5rem; color: #1e293b; margin-bottom: 0.5rem; font-weight: 700;">
                 ${lesson.title}
             </h1>
             ${lesson.description ? `
-                <p style="color: #64748b; line-height: 1.7; margin-bottom: 1.5rem;">
+                <p style="color: #64748b; line-height: 1.6; margin-bottom: 0.5rem; font-size: 0.95rem;">
                     ${lesson.description}
                 </p>
             ` : ''}
