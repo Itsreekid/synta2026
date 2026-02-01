@@ -459,7 +459,7 @@ function showVideoInMainArea(lesson, videoUrl) {
                 // Check if this is the current lesson by comparing onclick attribute
                 const onclickAttr = lessonItem.getAttribute('onclick');
                 if (onclickAttr && onclickAttr.includes(`'${lesson.id}'`)) {
-                    lessonItem.style.background = '#fffcf8';
+                    lessonItem.style.background = '#c3f3ff';
                     lessonItem.style.borderLeft = '4px solid #667eea';
                 }
             });
