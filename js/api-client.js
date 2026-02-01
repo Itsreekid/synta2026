@@ -1,52 +1,42 @@
 // =====================================================
-// API CLIENT - Backend Communication
+// API CLIENT - Supabase Direct Integration
 // =====================================================
 
-// Auto-detect API URL based on environment
-const isProduction = window.location.hostname === 'syntaacademy.com' || 
-                     window.location.hostname === 'www.syntaacademy.com';
+// Supabase Configuration (matches authentication.js)
+const SUPABASE_URL = 'https://lzlqxwwhjveyfhgopdph.supabase.co';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imx6bHF4d3doanZleWZoZ29wZHBoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDk1NjY5NTYsImV4cCI6MjA2NTE0Mjk1Nn0.VFzjDx1WSS03cM97vKHZAAR8vdheRtKC9wPBEoSQBxY';
 
-// Use environment-specific API URL
-// TODO: Update this with your production backend URL when deployed
-const API_BASE_URL = isProduction 
-    ? 'https://api.syntaacademy.com/api'  // Change this to your production API URL
-    : 'http://localhost:3000/api';
+// Initialize Supabase client
+let supabaseClient = null;
 
 /**
- * Get auth token from session storage
+ * Get or create Supabase client
  */
-function getAuthToken() {
-    return sessionStorage.getItem('supabase.auth.token') || 
-           localStorage.getItem('supabase.auth.token');
+function getSupabase() {
+    if (!supabaseClient) {
+        if (typeof window.supabase === 'undefined') {
+            throw new Error('Supabase library not loaded. Please include the Supabase CDN script.');
+        }
+        supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+    }
+    return supabaseClient;
 }
 
 /**
- * Make authenticated API request
+ * Get current user session
  */
-async function apiRequest(endpoint, options = {}) {
-    const token = getAuthToken();
-    
-    const headers = {
-        'Content-Type': 'application/json',
-        ...options.headers
-    };
-    
-    if (token) {
-        headers['Authorization'] = `Bearer ${token}`;
+async function getCurrentUser() {
+    try {
+        const supabase = getSupabase();
+        const { data: { user }, error } = await supabase.auth.getUser();
+        if (error) throw error;
+        return user;
+    } catch (error) {
+        console.error('Error getting current user:', error);
+        return null;
     }
-    
-    const response = await fetch(`${API_BASE_URL}${endpoint}`, {
-        ...options,
-        headers
-    });
-    
-    if (!response.ok) {
-        const error = await response.json().catch(() => ({ error: 'Request failed' }));
-        throw new Error(error.error || `HTTP ${response.status}`);
-    }
-    
-    return response.json();
 }
+
 
 // =====================================================
 // COURSES API
@@ -57,13 +47,35 @@ async function apiRequest(endpoint, options = {}) {
  * @param {Object} filters - Optional filters (category, level, search)
  */
 async function fetchCourses(filters = {}) {
-    const params = new URLSearchParams();
-    if (filters.category) params.append('category', filters.category);
-    if (filters.level) params.append('level', filters.level);
-    if (filters.search) params.append('search', filters.search);
-    
-    const query = params.toString() ? `?${params}` : '';
-    return apiRequest(`/courses${query}`);
+    try {
+        const supabase = getSupabase();
+        let query = supabase
+            .from('courses')
+            .select('*')
+            .eq('is_published', true);
+        
+        if (filters.category) {
+            query = query.eq('category', filters.category);
+        }
+        
+        if (filters.level) {
+            query = query.eq('level', filters.level);
+        }
+        
+        if (filters.search) {
+            query = query.or(`title.ilike.%${filters.search}%,description.ilike.%${filters.search}%`);
+        }
+        
+        query = query.order('created_at', { ascending: false });
+        
+        const { data, error } = await query;
+        
+        if (error) throw error;
+        return data || [];
+    } catch (error) {
+        console.error('Error fetching courses:', error);
+        throw error;
+    }
 }
 
 /**
@@ -71,14 +83,85 @@ async function fetchCourses(filters = {}) {
  * @param {string} courseId - Course UUID
  */
 async function fetchCourseDetails(courseId) {
-    return apiRequest(`/courses/${courseId}`);
+    try {
+        const supabase = getSupabase();
+        const { data, error } = await supabase
+            .from('courses')
+            .select(`
+                *,
+                modules (
+                    id,
+                    title,
+                    description,
+                    order_index,
+                    lessons (
+                        id,
+                        title,
+                        description,
+                        type,
+                        duration,
+                        order_index,
+                        is_preview
+                    )
+                )
+            `)
+            .eq('id', courseId)
+            .eq('is_published', true)
+            .single();
+        
+        if (error) throw error;
+        
+        // Sort modules and lessons by order_index
+        if (data && data.modules) {
+            data.modules.sort((a, b) => a.order_index - b.order_index);
+            data.modules.forEach(module => {
+                if (module.lessons) {
+                    module.lessons.sort((a, b) => a.order_index - b.order_index);
+                }
+            });
+        }
+        
+        return data;
+    } catch (error) {
+        console.error('Error fetching course details:', error);
+        throw error;
+    }
 }
 
 /**
  * Get user's enrolled courses
  */
 async function fetchMyEnrollments() {
-    return apiRequest('/courses/my-enrollments');
+    try {
+        const user = await getCurrentUser();
+        if (!user) {
+            throw new Error('User not authenticated');
+        }
+        
+        const supabase = getSupabase();
+        const { data, error } = await supabase
+            .from('enrollments')
+            .select(`
+                *,
+                course:courses (
+                    id,
+                    title,
+                    description,
+                    thumbnail_url,
+                    level,
+                    category,
+                    instructor_name
+                )
+            `)
+            .eq('user_id', user.id)
+            .order('enrolled_at', { ascending: false });
+        
+        if (error) throw error;
+        return data || [];
+    } catch (error) {
+        console.error('Error fetching enrollments:', error);
+        throw error;
+    }
 }
 
 /**
@@ -86,8 +169,43 @@ async function fetchMyEnrollments() {
  * @param {string} courseId - Course UUID
  */
 async function fetchCourseProgress(courseId) {
-    return apiRequest(`/courses/${courseId}/progress`);
+    try {
+        const user = await getCurrentUser();
+        if (!user) {
+            throw new Error('User not authenticated');
+        }
+        
+        const supabase = getSupabase();
+        
+        // Get enrollment
+        const { data: enrollment, error: enrollError } = await supabase
+            .from('enrollments')
+            .select('*')
+            .eq('user_id', user.id)
+            .eq('course_id', courseId)
+            .single();
+        
+        if (enrollError) throw enrollError;
+        
+        // Get lesson progress
+        const { data: lessonProgress, error: progressError } = await supabase
+            .from('lesson_progress')
+            .select('*')
+            .eq('user_id', user.id)
+            .eq('course_id', courseId);
+        
+        if (progressError) throw progressError;
+        
+        return {
+            enrollment,
+            lessonProgress: lessonProgress || []
+        };
+    } catch (error) {
+        console.error('Error fetching course progress:', error);
+        throw error;
+    }
 }
+
 
 // =====================================================
 // ENROLLMENT API
@@ -99,14 +217,59 @@ async function fetchCourseProgress(courseId) {
  * @param {Object} paymentInfo - Payment details
  */
 async function purchaseCourse(courseId, paymentInfo = {}) {
-    return apiRequest('/enrollment/purchase', {
-        method: 'POST',
-        body: JSON.stringify({
-            courseId,
-            paymentMethod: paymentInfo.method || 'cash',
-            ...paymentInfo
-        })
-    });
+    try {
+        const user = await getCurrentUser();
+        if (!user) {
+            throw new Error('يجب تسجيل الدخول أولاً');
+        }
+        
+        const supabase = getSupabase();
+        
+        // Get course details
+        const { data: course, error: courseError } = await supabase
+            .from('courses')
+            .select('id, title, price, is_free')
+            .eq('id', courseId)
+            .eq('is_published', true)
+            .single();
+        
+        if (courseError || !course) {
+            throw new Error('الدورة غير موجودة');
+        }
+        
+        // Check if already enrolled
+        const { data: existing } = await supabase
+            .from('enrollments')
+            .select('id')
+            .eq('user_id', user.id)
+            .eq('course_id', courseId)
+            .single();
+        
+        if (existing) {
+            throw new Error('أنت مسجل بالفعل في هذه الدورة');
+        }
+        
+        // Create enrollment
+        const { data: enrollment, error: enrollError } = await supabase
+            .from('enrollments')
+            .insert({
+                user_id: user.id,
+                course_id: courseId,
+                payment_id: paymentInfo.paymentId || null,
+                amount_paid: paymentInfo.amount || course.price,
+                progress: 0,
+                enrolled_at: new Date().toISOString()
+            })
+            .select()
+            .single();
+        
+        if (enrollError) throw enrollError;
+        
+        return enrollment;
+    } catch (error) {
+        console.error('Error purchasing course:', error);
+        throw error;
+    }
 }
 
 /**
@@ -114,10 +277,62 @@ async function purchaseCourse(courseId, paymentInfo = {}) {
  * @param {string} courseId - Course UUID
  */
 async function enrollFreeCourse(courseId) {
-    return apiRequest('/enrollment/free', {
-        method: 'POST',
-        body: JSON.stringify({ courseId })
-    });
+    try {
+        const user = await getCurrentUser();
+        if (!user) {
+            throw new Error('يجب تسجيل الدخول أولاً');
+        }
+        
+        const supabase = getSupabase();
+        
+        // Get course details
+        const { data: course, error: courseError } = await supabase
+            .from('courses')
+            .select('id, title, is_free, price')
+            .eq('id', courseId)
+            .eq('is_published', true)
+            .single();
+        
+        if (courseError || !course) {
+            throw new Error('الدورة غير موجودة');
+        }
+        
+        if (!course.is_free && course.price > 0) {
+            throw new Error('هذه الدورة ليست مجانية');
+        }
+        
+        // Check if already enrolled
+        const { data: existing } = await supabase
+            .from('enrollments')
+            .select('id')
+            .eq('user_id', user.id)
+            .eq('course_id', courseId)
+            .single();
+        
+        if (existing) {
+            throw new Error('أنت مسجل بالفعل في هذه الدورة');
+        }
+        
+        // Create enrollment
+        const { data: enrollment, error: enrollError } = await supabase
+            .from('enrollments')
+            .insert({
+                user_id: user.id,
+                course_id: courseId,
+                amount_paid: 0,
+                progress: 0,
+                enrolled_at: new Date().toISOString()
+            })
+            .select()
+            .single();
+        
+        if (enrollError) throw enrollError;
+        
+        return enrollment;
+    } catch (error) {
+        console.error('Error enrolling in free course:', error);
+        throw error;
+    }
 }
 
 /**
@@ -126,13 +341,30 @@ async function enrollFreeCourse(courseId) {
  */
 async function checkCourseAccess(courseId) {
     try {
-        const result = await apiRequest(`/enrollment/check/${courseId}`);
-        return result.hasAccess;
+        const user = await getCurrentUser();
+        if (!user) {
+            return false;
+        }
+        
+        const supabase = getSupabase();
+        const { data, error } = await supabase
+            .from('enrollments')
+            .select('id')
+            .eq('user_id', user.id)
+            .eq('course_id', courseId)
+            .single();
+        
+        if (error) {
+            return false;
+        }
+        
+        return !!data;
     } catch (error) {
-        console.error('Error checking access:', error);
+        console.error('Error checking course access:', error);
         return false;
     }
 }
+
 
 // =====================================================
 // CONTENT API (Protected)
@@ -143,7 +375,45 @@ async function checkCourseAccess(courseId) {
  * @param {string} lessonId - Lesson UUID
  */
 async function getLessonVideo(lessonId) {
-    return apiRequest(`/content/lesson/${lessonId}/video`);
+    try {
+        const user = await getCurrentUser();
+        if (!user) {
+            throw new Error('يجب تسجيل الدخول أولاً');
+        }
+        
+        const supabase = getSupabase();
+        
+        // Get lesson details
+        const { data: lesson, error: lessonError } = await supabase
+            .from('lessons')
+            .select(`
+                id,
+                video_url,
+                is_preview,
+                module:modules (
+                    course_id
+                )
+            `)
+            .eq('id', lessonId)
+            .single();
+        
+        if (lessonError || !lesson) {
+            throw new Error('الدرس غير موجود');
+        }
+        
+        // Check access if not preview
+        if (!lesson.is_preview) {
+            const hasAccess = await checkCourseAccess(lesson.module.course_id);
+            if (!hasAccess) {
+                throw new Error('ليس لديك صلاحية للوصول إلى هذا الدرس');
+            }
+        }
+        
+        return { videoUrl: lesson.video_url };
+    } catch (error) {
+        console.error('Error getting lesson video:', error);
+        throw error;
+    }
 }
 
 /**
@@ -151,7 +421,45 @@ async function getLessonVideo(lessonId) {
  * @param {string} lessonId - Lesson UUID
  */
 async function getLessonPDF(lessonId) {
-    return apiRequest(`/content/lesson/${lessonId}/pdf`);
+    try {
+        const user = await getCurrentUser();
+        if (!user) {
+            throw new Error('يجب تسجيل الدخول أولاً');
+        }
+        
+        const supabase = getSupabase();
+        
+        // Get lesson details
+        const { data: lesson, error: lessonError } = await supabase
+            .from('lessons')
+            .select(`
+                id,
+                pdf_url,
+                is_preview,
+                module:modules (
+                    course_id
+                )
+            `)
+            .eq('id', lessonId)
+            .single();
+        
+        if (lessonError || !lesson) {
+            throw new Error('الدرس غير موجود');
+        }
+        
+        // Check access if not preview
+        if (!lesson.is_preview) {
+            const hasAccess = await checkCourseAccess(lesson.module.course_id);
+            if (!hasAccess) {
+                throw new Error('ليس لديك صلاحية للوصول إلى هذا الدرس');
+            }
+        }
+        
+        return { pdfUrl: lesson.pdf_url };
+    } catch (error) {
+        console.error('Error getting lesson PDF:', error);
+        throw error;
+    }
 }
 
 /**
@@ -160,13 +468,56 @@ async function getLessonPDF(lessonId) {
  * @param {number} progress - Progress percentage (0-100)
  */
 async function markLessonComplete(lessonId, progress = 100) {
-    return apiRequest(`/content/lesson/${lessonId}/progress`, {
-        method: 'POST',
-        body: JSON.stringify({
-            completed: progress >= 100,
-            progressPercentage: progress
-        })
-    });
+    try {
+        const user = await getCurrentUser();
+        if (!user) {
+            throw new Error('يجب تسجيل الدخول أولاً');
+        }
+        
+        const supabase = getSupabase();
+        
+        // Get lesson and course info
+        const { data: lesson, error: lessonError } = await supabase
+            .from('lessons')
+            .select(`
+                id,
+                module:modules (
+                    course_id
+                )
+            `)
+            .eq('id', lessonId)
+            .single();
+        
+        if (lessonError || !lesson) {
+            throw new Error('الدرس غير موجود');
+        }
+        
+        // Upsert lesson progress
+        const { data, error } = await supabase
+            .from('lesson_progress')
+            .upsert({
+                user_id: user.id,
+                lesson_id: lessonId,
+                course_id: lesson.module.course_id,
+                completed: progress >= 100,
+                progress_percentage: progress,
+                last_accessed_at: new Date().toISOString()
+            }, {
+                onConflict: 'user_id,lesson_id'
+            })
+            .select()
+            .single();
+        
+        if (error) throw error;
+        
+        // Update enrollment progress
+        await updateEnrollmentProgress(lesson.module.course_id);
+        
+        return data;
+    } catch (error) {
+        console.error('Error marking lesson complete:', error);
+        throw error;
+    }
 }
 
 /**
@@ -175,13 +526,97 @@ async function markLessonComplete(lessonId, progress = 100) {
  * @param {number} position - Current position in seconds
  */
 async function updateVideoPosition(lessonId, position) {
-    return apiRequest(`/content/lesson/${lessonId}/progress`, {
-        method: 'POST',
-        body: JSON.stringify({
-            lastPosition: Math.floor(position)
-        })
-    });
+    try {
+        const user = await getCurrentUser();
+        if (!user) {
+            throw new Error('يجب تسجيل الدخول أولاً');
+        }
+        
+        const supabase = getSupabase();
+        
+        // Get lesson and course info
+        const { data: lesson, error: lessonError } = await supabase
+            .from('lessons')
+            .select(`
+                id,
+                module:modules (
+                    course_id
+                )
+            `)
+            .eq('id', lessonId)
+            .single();
+        
+        if (lessonError || !lesson) {
+            throw new Error('الدرس غير موجود');
+        }
+        
+        // Upsert lesson progress with last position
+        const { data, error } = await supabase
+            .from('lesson_progress')
+            .upsert({
+                user_id: user.id,
+                lesson_id: lessonId,
+                course_id: lesson.module.course_id,
+                last_position: Math.floor(position),
+                last_accessed_at: new Date().toISOString()
+            }, {
+                onConflict: 'user_id,lesson_id'
+            })
+            .select()
+            .single();
+        
+        if (error) throw error;
+        return data;
+    } catch (error) {
+        console.error('Error updating video position:', error);
+        throw error;
+    }
 }
+
+/**
+ * Update enrollment progress based on completed lessons
+ * @param {string} courseId - Course UUID
+ */
+async function updateEnrollmentProgress(courseId) {
+    try {
+        const user = await getCurrentUser();
+        if (!user) return;
+        
+        const supabase = getSupabase();
+        
+        // Get total lessons count
+        const { count: totalLessons } = await supabase
+            .from('lessons')
+            .select('id', { count: 'exact', head: true })
+            .eq('modules.course_id', courseId);
+        
+        // Get completed lessons count
+        const { count: completedLessons } = await supabase
+            .from('lesson_progress')
+            .select('id', { count: 'exact', head: true })
+            .eq('user_id', user.id)
+            .eq('course_id', courseId)
+            .eq('completed', true);
+        
+        // Calculate progress percentage
+        const progress = totalLessons > 0 
+            ? Math.round((completedLessons / totalLessons) * 100) 
+            : 0;
+        
+        // Update enrollment
+        await supabase
+            .from('enrollments')
+            .update({ 
+                progress,
+                last_accessed_at: new Date().toISOString()
+            })
+            .eq('user_id', user.id)
+            .eq('course_id', courseId);
+    } catch (error) {
+        console.error('Error updating enrollment progress:', error);
+    }
+}
+
 
 // =====================================================
 // UTILITY FUNCTIONS
@@ -191,7 +626,14 @@ async function updateVideoPosition(lessonId, position) {
  * Check if user is authenticated
  */
 function isAuthenticated() {
-    return !!getAuthToken();
+    try {
+        const supabase = getSupabase();
+        // Check if session exists in local storage
+        const session = supabase.auth.session;
+        return !!session;
+    } catch (error) {
+        return false;
+    }
 }
 
 /**
@@ -199,8 +641,30 @@ function isAuthenticated() {
  */
 function showError(message) {
     console.error(message);
-    // You can customize this to show a toast/notification
-    alert(message);
+    // Create error toast
+    const toast = document.createElement('div');
+    toast.style.cssText = `
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        background: #f44336;
+        color: white;
+        padding: 15px 20px;
+        border-radius: 8px;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+        z-index: 10000;
+        font-family: 'Tajawal', sans-serif;
+        max-width: 300px;
+        animation: slideIn 0.3s ease-out;
+    `;
+    toast.textContent = message;
+    document.body.appendChild(toast);
+    
+    setTimeout(() => {
+        if (document.body.contains(toast)) {
+            document.body.removeChild(toast);
+        }
+    }, 5000);
 }
 
 /**
@@ -208,7 +672,30 @@ function showError(message) {
  */
 function showSuccess(message) {
     console.log(message);
-    // You can customize this to show a toast/notification
+    // Create success toast
+    const toast = document.createElement('div');
+    toast.style.cssText = `
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        background: #4CAF50;
+        color: white;
+        padding: 15px 20px;
+        border-radius: 8px;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+        z-index: 10000;
+        font-family: 'Tajawal', sans-serif;
+        max-width: 300px;
+        animation: slideIn 0.3s ease-out;
+    `;
+    toast.textContent = message;
+    document.body.appendChild(toast);
+    
+    setTimeout(() => {
+        if (document.body.contains(toast)) {
+            document.body.removeChild(toast);
+        }
+    }, 3000);
 }
 
 // Export for use in other files
@@ -231,6 +718,9 @@ if (typeof window !== 'undefined') {
         // Utils
         isAuthenticated,
         showError,
-        showSuccess
+        showSuccess,
+        getCurrentUser
     };
+    
+    console.log('✅ Synta API initialized (Supabase direct mode)');
 }
