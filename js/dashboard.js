@@ -235,10 +235,12 @@ async function loadEvents() {
             const dateString = `${eventDate.getDate()} ${monthNames[eventDate.getMonth()]}`;
             
             return `
-                <div class="event-item" style="border-right: 3px solid ${event.color}; cursor: pointer; position: relative;" onclick="navigateToCalendar('${event.date}')">
-                    <span class="live-indicator"></span>
+                <div class="event-item" style="border-right: 3px solid ${event.color}; cursor: pointer;" onclick="navigateToCalendar('${event.date}')">
                     <div class="event-date">${event.icon} ${dateString} - ${event.time}</div>
-                    <div class="event-title">${event.title}</div>
+                    <div class="event-title" style="display: flex; align-items: center; gap: 8px;">
+                        ${event.title}
+                        <span class="live-indicator"></span>
+                    </div>
                     <div class="event-description">${event.description}</div>
                 </div>
             `;
@@ -342,24 +344,23 @@ style.textContent = `
     }
     
     .live-indicator {
-        position: absolute;
-        top: 12px;
-        right: 12px;
-        width: 10px;
-        height: 10px;
+        display: inline-block;
+        width: 8px;
+        height: 8px;
         background: #ff0000;
         border-radius: 50%;
         animation: pulseLive 1.5s ease-in-out infinite;
         box-shadow: 0 0 8px rgba(255, 0, 0, 0.6);
+        flex-shrink: 0;
     }
     
     .live-indicator::before {
         content: '';
         position: absolute;
-        top: -4px;
-        left: -4px;
-        right: -4px;
-        bottom: -4px;
+        top: -3px;
+        left: -3px;
+        right: -3px;
+        bottom: -3px;
         border: 2px solid rgba(255, 0, 0, 0.3);
         border-radius: 50%;
         animation: pulseLive 1.5s ease-in-out infinite;
