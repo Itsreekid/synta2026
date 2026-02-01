@@ -337,8 +337,8 @@ async function playLesson(lessonId) {
             // Mark lesson progress
             await markLessonProgress(lessonId);
             
-            // Open video in a modal
-            openVideoModal(lesson.title, videoUrl);
+            // Show video in main content area
+            showVideoInMainArea(lesson, videoUrl);
         } else {
             showError('Vidéo non disponible pour cette leçon');
         }
@@ -401,66 +401,85 @@ async function updateCourseProgress(userId, courseId) {
 }
 
 /**
- * Open video modal
+ * Show video in main content area
  */
-function openVideoModal(title, videoUrl) {
-    // Create modal
-    const modal = document.createElement('div');
-    modal.style.cssText = `
-        position: fixed;
-        top: 0;
-        left: 0;
-        width: 100%;
-        height: 100%;
-        background: rgba(0, 0, 0, 0.95);
-        z-index: 10000;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        padding: 2rem;
-    `;
+function showVideoInMainArea(lesson, videoUrl) {
+    const courseMain = document.querySelector('.course-main');
     
-    modal.innerHTML = `
-        <div style="max-width: 1200px; width: 100%; position: relative;">
-            <button onclick="this.closest('div').parentElement.remove()" style="
-                position: absolute;
-                top: -50px;
-                right: 0;
-                background: white;
-                border: none;
-                width: 40px;
-                height: 40px;
-                border-radius: 50%;
-                font-size: 1.5rem;
-                cursor: pointer;
-                display: flex;
-                align-items: center;
-                justify-content: center;
-            ">✕</button>
-            <h2 style="color: white; margin-bottom: 1rem; font-family: Inter, sans-serif;">${title}</h2>
-            <video controls autoplay controlsList="nodownload" oncontextmenu="return false;" style="width: 100%; border-radius: 12px;">
+    // Store original content to restore later
+    if (!courseMain.dataset.originalContent) {
+        courseMain.dataset.originalContent = courseMain.innerHTML;
+    }
+    
+    courseMain.innerHTML = `
+        <button onclick="restoreCourseContent()" style="
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            color: #667eea;
+            background: none;
+            border: none;
+            font-weight: 600;
+            margin-bottom: 1.5rem;
+            cursor: pointer;
+            font-family: 'Inter', sans-serif;
+            font-size: 1rem;
+            padding: 0;
+        ">← Retour au cours</button>
+        
+        <div style="margin-bottom: 1.5rem;">
+            <video id="current-lesson-video" controls autoplay controlsList="nodownload" oncontextmenu="return false;" style="
+                width: 100%;
+                border-radius: 12px;
+                background: #000;
+                box-shadow: 0 4px 20px rgba(0,0,0,0.15);
+            ">
                 <source src="${videoUrl}" type="video/mp4">
                 Votre navigateur ne supporte pas la vidéo.
             </video>
         </div>
+        
+        <div style="margin-bottom: 2rem;">
+            <h1 style="font-size: 1.75rem; color: #1e293b; margin-bottom: 0.75rem; font-weight: 700;">
+                ${lesson.title}
+            </h1>
+            ${lesson.description ? `
+                <p style="color: #64748b; line-height: 1.7;">
+                    ${lesson.description}
+                </p>
+            ` : ''}
+        </div>
     `;
     
-    // Disable right-click on the video element
+    // Disable right-click on video
     setTimeout(() => {
-        const video = modal.querySelector('video');
+        const video = document.getElementById('current-lesson-video');
         if (video) {
             video.addEventListener('contextmenu', (e) => e.preventDefault());
         }
     }, 100);
     
-    document.body.appendChild(modal);
-    
-    // Close on background click
-    modal.addEventListener('click', (e) => {
-        if (e.target === modal) {
-            modal.remove();
-        }
-    });
+    // Scroll to top
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+/**
+ * Restore course content
+ */
+function restoreCourseContent() {
+    const courseMain = document.querySelector('.course-main');
+    if (courseMain.dataset.originalContent) {
+        courseMain.innerHTML = courseMain.dataset.originalContent;
+        delete courseMain.dataset.originalContent;
+    }
+}
+
+/**
+ * Open video modal (legacy function - now redirects to inline player)
+ */
+function openVideoModal(title, videoUrl) {
+    // This function is kept for compatibility but redirects to inline player
+    showVideoInMainArea({ title, description: '' }, videoUrl);
 }
 
 /**
