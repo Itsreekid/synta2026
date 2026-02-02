@@ -92,6 +92,7 @@ function renderCalendar() {
     today.setHours(0, 0, 0, 0);
     
     let totalEventsCount = 0;
+    let todayData = null; // Store today's data for expanded card
     
     // Generate 7 days starting from Monday
     for (let i = 0; i < 7; i++) {
@@ -111,7 +112,17 @@ function renderCalendar() {
         // Create day column
         const dayColumn = document.createElement('div');
         dayColumn.className = 'day-column';
-        if (isToday) dayColumn.classList.add('today');
+        if (isToday) {
+            dayColumn.classList.add('today');
+            // Store today's data for later
+            todayData = {
+                dayName: dayNames[i],
+                dayAbbr: dayAbbreviations[i],
+                date: currentDay.getDate(),
+                month: monthNames[currentDay.getMonth()],
+                events: dayEvents
+            };
+        }
         if (dayEvents.length > 0) {
             dayColumn.classList.add('has-events');
             // Set entire border color to match the first event's color
@@ -129,7 +140,7 @@ function renderCalendar() {
         `;
         dayColumn.appendChild(dayHeader);
         
-        // Events container
+        // Events container (hidden on mobile for compact view)
         const dayEventsContainer = document.createElement('div');
         dayEventsContainer.className = 'day-events';
         
@@ -144,6 +155,41 @@ function renderCalendar() {
         
         dayColumn.appendChild(dayEventsContainer);
         calendarGrid.appendChild(dayColumn);
+    }
+    
+    // Create expanded card for today (mobile only) - appears below the week row
+    if (todayData) {
+        const expandedCard = document.createElement('div');
+        expandedCard.className = 'day-column today expanded-card';
+        
+        const cardHeader = document.createElement('div');
+        cardHeader.className = 'day-header';
+        cardHeader.innerHTML = `
+            <div class="day-name">${todayData.dayName}</div>
+            <div class="day-date">${todayData.date}</div>
+            <div class="day-month">${todayData.month}</div>
+        `;
+        expandedCard.appendChild(cardHeader);
+        
+        const cardEventsContainer = document.createElement('div');
+        cardEventsContainer.className = 'day-events';
+        
+        if (todayData.events.length > 0) {
+            // Re-create events for the expanded card
+            const todayDate = new Date(currentWeekStart);
+            const todayIndex = dayNames.indexOf(todayData.dayName);
+            todayDate.setDate(todayDate.getDate() + todayIndex);
+            
+            todayData.events.forEach(event => {
+                const eventElement = createEventElement(event, todayDate);
+                cardEventsContainer.appendChild(eventElement);
+            });
+        } else {
+            cardEventsContainer.innerHTML = '<div class="no-events">Aucun événement</div>';
+        }
+        
+        expandedCard.appendChild(cardEventsContainer);
+        calendarGrid.appendChild(expandedCard);
     }
     
     // Update event count
