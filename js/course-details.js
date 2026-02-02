@@ -814,15 +814,19 @@ async function completePurchaseDetails(courseId, price) {
         const user = await window.SyntaAPI.getCurrentUser();
         
         // Deduct balance and create enrollment
-        const { error: balanceError } = await window.SyntaAPI.supabase
+        const { data: balanceData, error: balanceError } = await window.SyntaAPI.supabase
             .rpc('deduct_user_balance', {
                 p_user_id: user.id,
-                p_amount: price
+                p_amount: parseFloat(price),
+                p_description: 'Course purchase'
             });
         
         if (balanceError) {
-            throw balanceError;
+            console.error('Balance deduction error:', balanceError);
+            throw new Error(balanceError.message || 'Erreur lors de la déduction du solde');
         }
+        
+        console.log('Balance deducted successfully:', balanceData);
         
         // Create enrollment
         const { error: enrollError } = await window.SyntaAPI.supabase
@@ -830,12 +834,13 @@ async function completePurchaseDetails(courseId, price) {
             .insert({
                 user_id: user.id,
                 course_id: courseId,
-                amount_paid: price,
+                amount_paid: parseFloat(price),
                 enrolled_at: new Date().toISOString()
             });
         
         if (enrollError) {
-            throw enrollError;
+            console.error('Enrollment error:', enrollError);
+            throw new Error(enrollError.message || 'Erreur lors de l\'inscription');
         }
         
         showSuccess('Cours acheté avec succès!');
@@ -845,7 +850,7 @@ async function completePurchaseDetails(courseId, price) {
         
     } catch (error) {
         console.error('Error completing purchase:', error);
-        showError('Erreur lors de l\'achat du cours');
+        showError(error.message || 'Erreur lors de l\'achat du cours');
     }
 }
 
