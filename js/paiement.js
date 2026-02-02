@@ -4,11 +4,17 @@
 
 console.log('Paiement.js loaded');
 
+// Check if we're in an iframe and use parent's API client
+const isInIframe = window.self !== window.top;
+const SyntaAPI = isInIframe && window.parent.SyntaAPI ? window.parent.SyntaAPI : window.SyntaAPI;
+
 document.addEventListener('DOMContentLoaded', async function() {
     console.log('DOM loaded - starting initialization');
+    console.log('Is in iframe:', isInIframe);
+    console.log('SyntaAPI available:', !!SyntaAPI);
     
     // Check if API client is loaded
-    if (!window.SyntaAPI) {
+    if (!SyntaAPI) {
         console.error('Client API non chargé');
         // Show error in the table
         const tbody = document.getElementById('transaction-history');
@@ -23,6 +29,9 @@ document.addEventListener('DOMContentLoaded', async function() {
         }
         return;
     }
+    
+    // Store globally for use in other functions
+    window.SyntaAPI = SyntaAPI;
     
     console.log('SyntaAPI loaded, loading user data and transactions');
     await loadUserData();
