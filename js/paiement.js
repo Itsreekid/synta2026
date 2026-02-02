@@ -44,10 +44,26 @@ async function loadTransactions() {
         return;
     }
     
+    // Set a loading state first
+    tbody.innerHTML = `
+        <tr>
+            <td colspan="6" style="text-align: center; padding: 2rem; color: #94a3b8;">
+                Chargement...
+            </td>
+        </tr>
+    `;
+    
     try {
         const user = await window.SyntaAPI.getCurrentUser();
         if (!user) {
             console.log('No user found');
+            tbody.innerHTML = `
+                <tr>
+                    <td colspan="6" style="text-align: center; padding: 2rem; color: #ef4444;">
+                        Utilisateur non connecté
+                    </td>
+                </tr>
+            `;
             return;
         }
         
