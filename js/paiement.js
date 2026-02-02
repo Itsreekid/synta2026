@@ -467,8 +467,6 @@ function showMessage(message, type = 'info') {
         messageDiv.remove();
     }, 3000);
 }
-    
-    if (plan.customPrice) {
         document.getElementById('plan-price').textContent = plan.customPrice;
         document.getElementById('plan-period').textContent = '';
         document.getElementById('subtotal').textContent = 'Sur mesure';
