@@ -92,7 +92,8 @@ function renderCalendar() {
     today.setHours(0, 0, 0, 0);
     
     let totalEventsCount = 0;
-    let todayData = null; // Store today's data for expanded card
+    let selectedDayData = null; // Store selected day's data for expanded card
+    let allDaysData = []; // Store all days data for click interactions
     
     // Generate 7 days starting from Monday
     for (let i = 0; i < 7; i++) {
@@ -109,19 +110,30 @@ function renderCalendar() {
         // Check if this is the selected date
         const isSelected = selectedDate && currentDay.getTime() === selectedDate.getTime();
         
+        // Store day data
+        const dayData = {
+            dayName: dayNames[i],
+            dayAbbr: dayAbbreviations[i],
+            date: currentDay.getDate(),
+            month: monthNames[currentDay.getMonth()],
+            events: dayEvents,
+            dateObj: new Date(currentDay),
+            index: i
+        };
+        allDaysData.push(dayData);
+        
+        // Set initially selected day (today or first day)
+        if (isToday || (!selectedDayData && i === 0)) {
+            selectedDayData = dayData;
+        }
+        
         // Create day column
         const dayColumn = document.createElement('div');
         dayColumn.className = 'day-column';
+        dayColumn.dataset.dayIndex = i; // Store index for click handling
+        
         if (isToday) {
             dayColumn.classList.add('today');
-            // Store today's data for later
-            todayData = {
-                dayName: dayNames[i],
-                dayAbbr: dayAbbreviations[i],
-                date: currentDay.getDate(),
-                month: monthNames[currentDay.getMonth()],
-                events: dayEvents
-            };
         }
         if (dayEvents.length > 0) {
             dayColumn.classList.add('has-events');
@@ -129,6 +141,16 @@ function renderCalendar() {
             dayColumn.style.border = `3px solid ${dayEvents[0].color || '#667eea'}`;
         }
         if (isSelected) dayColumn.style.border = '3px solid #ffc107';
+        
+        // Add click handler for mobile interaction
+        dayColumn.style.cursor = 'pointer';
+        dayColumn.addEventListener('click', function(e) {
+            // Prevent event bubbling
+            if (e.target.closest('.calendar-event')) return;
+            
+            // Update selected day
+            updateExpandedCard(i);
+        });
         
         // Day header with full name and abbreviated version
         const dayHeader = document.createElement('div');
@@ -157,31 +179,33 @@ function renderCalendar() {
         calendarGrid.appendChild(dayColumn);
     }
     
-    // Create expanded card for today (mobile only) - appears below the week row
-    if (todayData) {
+    // Create expanded card (mobile only) - appears below the week row
+    if (selectedDayData) {
         const expandedCard = document.createElement('div');
-        expandedCard.className = 'day-column today expanded-card';
+        expandedCard.className = 'day-column expanded-card';
+        expandedCard.id = 'expanded-card';
+        
+        // Add 'today' class if the selected day is today
+        if (selectedDayData.dateObj.getTime() === today.getTime()) {
+            expandedCard.classList.add('today');
+        }
         
         const cardHeader = document.createElement('div');
         cardHeader.className = 'day-header';
         cardHeader.innerHTML = `
-            <div class="day-name">${todayData.dayName}</div>
-            <div class="day-date">${todayData.date}</div>
-            <div class="day-month">${todayData.month}</div>
+            <div class="day-name">${selectedDayData.dayName}</div>
+            <div class="day-date">${selectedDayData.date}</div>
+            <div class="day-month">${selectedDayData.month}</div>
         `;
         expandedCard.appendChild(cardHeader);
         
         const cardEventsContainer = document.createElement('div');
         cardEventsContainer.className = 'day-events';
+        cardEventsContainer.id = 'expanded-card-events';
         
-        if (todayData.events.length > 0) {
-            // Re-create events for the expanded card
-            const todayDate = new Date(currentWeekStart);
-            const todayIndex = dayNames.indexOf(todayData.dayName);
-            todayDate.setDate(todayDate.getDate() + todayIndex);
-            
-            todayData.events.forEach(event => {
-                const eventElement = createEventElement(event, todayDate);
+        if (selectedDayData.events.length > 0) {
+            selectedDayData.events.forEach(event => {
+                const eventElement = createEventElement(event, selectedDayData.dateObj);
                 cardEventsContainer.appendChild(eventElement);
             });
         } else {
@@ -199,6 +223,59 @@ function renderCalendar() {
         eventCountElement.textContent = '1 événement cette semaine';
     } else {
         eventCountElement.textContent = `${totalEventsCount} événements cette semaine`;
+    }
+    
+    // Store allDaysData globally for updateExpandedCard function
+    window.calendarDaysData = allDaysData;
+}
+
+// Function to update the expanded card when a day is clicked
+function updateExpandedCard(dayIndex) {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    
+    const selectedDay = window.calendarDaysData[dayIndex];
+    if (!selectedDay) return;
+    
+    // Update compact row - remove 'today' class from all, add to selected
+    const allDayColumns = document.querySelectorAll('.calendar-grid > .day-column:not(.expanded-card)');
+    allDayColumns.forEach((col, index) => {
+        col.classList.remove('today');
+        if (index === dayIndex) {
+            col.classList.add('today');
+        }
+    });
+    
+    // Update expanded card
+    const expandedCard = document.getElementById('expanded-card');
+    if (!expandedCard) return;
+    
+    // Update today class on expanded card (only if it's actually today)
+    if (selectedDay.dateObj.getTime() === today.getTime()) {
+        expandedCard.classList.add('today');
+    } else {
+        expandedCard.classList.remove('today');
+    }
+    
+    // Update header
+    const cardHeader = expandedCard.querySelector('.day-header');
+    cardHeader.innerHTML = `
+        <div class="day-name">${selectedDay.dayName}</div>
+        <div class="day-date">${selectedDay.date}</div>
+        <div class="day-month">${selectedDay.month}</div>
+    `;
+    
+    // Update events
+    const cardEventsContainer = document.getElementById('expanded-card-events');
+    cardEventsContainer.innerHTML = '';
+    
+    if (selectedDay.events.length > 0) {
+        selectedDay.events.forEach(event => {
+            const eventElement = createEventElement(event, selectedDay.dateObj);
+            cardEventsContainer.appendChild(eventElement);
+        });
+    } else {
+        cardEventsContainer.innerHTML = '<div class="no-events">Aucun événement</div>';
     }
 }
 
