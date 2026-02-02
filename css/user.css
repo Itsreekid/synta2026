@@ -294,7 +294,7 @@ section {
     flex: 1;
     display: flex;
     flex-direction: column;
-    overflow: hidden;
+    overflow: auto;
     margin-left: 280px;
 }
 
@@ -304,6 +304,7 @@ iframe {
     background: transparent;
     width: 100%;
     height: 100%;
+    min-height: 100%;
 }
 
 /* Responsive Design */
@@ -426,14 +427,18 @@ iframe {
     }
     
     section {
-        height: 100vh;
+        height: calc(100vh - 70px);
         width: 100%;
         margin-left: 0;
         margin-bottom: 0;
+        overflow-y: auto;
+        overflow-x: hidden;
     }
     
     iframe[name="Principal"] {
         border-radius: 0;
+        min-height: 100%;
+        height: auto;
     }
 }
 
