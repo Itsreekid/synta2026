@@ -2,7 +2,7 @@
 // API CLIENT - Supabase Direct Integration
 // =====================================================
 
-// Note: SUPABASE_URL and SUPABASE_ANON_KEY are defined in authentication.js
+// Note: SUPABASE_URL, SUPABASE_ANON_KEY, and supabaseClient are defined in authentication.js
 // No need to redeclare them here
 
 // Backend API Configuration
@@ -12,21 +12,14 @@ const BACKEND_URL = 'https://syntaacademy-production.up.railway.app';
 // R2 Public URL (optional alternative - requires public bucket in Cloudflare)
 const R2_PUBLIC_URL = null;
 
-// Initialize Supabase client
-let supabaseClient = null;
-
 /**
  * Get or create Supabase client
  */
 function getSupabase() {
-    if (!supabaseClient) {
-        if (typeof window.supabase === 'undefined') {
-            throw new Error('Supabase library not loaded. Please include the Supabase CDN script.');
-        }
-        // Use SUPABASE_URL and SUPABASE_ANON_KEY from authentication.js
-        supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+    if (!window.supabaseClient) {
+        throw new Error('Supabase client not initialized. Make sure authentication.js is loaded first.');
     }
-    return supabaseClient;
+    return window.supabaseClient;
 }
 
 /**

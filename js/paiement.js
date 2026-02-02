@@ -467,9 +467,6 @@ function showMessage(message, type = 'info') {
         messageDiv.remove();
     }, 3000);
 }
-    
-    // Update plan details
-    document.getElementById('plan-name').textContent = plan.name;
     document.getElementById('plan-description').textContent = plan.description;
     
     if (plan.customPrice) {
