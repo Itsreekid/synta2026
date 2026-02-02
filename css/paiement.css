@@ -80,7 +80,7 @@ body {
     font-weight: 500;
 }
 
-}.detail-row .value {
+.detail-row .value {
     color: #1e293b;
     font-size: 0.9rem;
     font-weight: 500;
@@ -354,15 +354,20 @@ body {
         padding: 0.5rem;
         min-height: 100vh;
         height: auto;
+        width: 100%;
+        overflow-x: hidden;
     }
     
     .wallet-container {
         padding: 0;
+        width: 100%;
+        max-width: 100%;
     }
     
     .wallet-header {
         margin-bottom: 1rem;
         padding: 0 0.5rem;
+        width: 100%;
     }
     
     .wallet-header h1 {
@@ -372,19 +377,24 @@ body {
     .wallet-content {
         grid-template-columns: 1fr;
         gap: 1rem;
+        width: 100%;
     }
     
     .left-column {
         gap: 1rem;
         order: 2;
+        width: 100%;
     }
     
     .right-column {
         order: 1;
+        width: 100%;
     }
     
     .account-card {
         padding: 1rem;
+        width: 100%;
+        box-sizing: border-box;
     }
     
     .account-card h3 {
@@ -397,6 +407,7 @@ body {
         align-items: flex-start;
         gap: 0.25rem;
         padding: 0.5rem 0;
+        width: 100%;
     }
     
     .detail-row .label {
@@ -409,6 +420,7 @@ body {
         font-weight: 600;
         word-break: break-word;
         width: 100%;
+        overflow-wrap: break-word;
     }
     
     .qr-text {
@@ -423,6 +435,8 @@ body {
     .payment-methods-section,
     .history-section {
         padding: 1rem;
+        width: 100%;
+        box-sizing: border-box;
     }
     
     .payment-methods-section h2,
@@ -434,10 +448,12 @@ body {
     .payment-methods-grid {
         grid-template-columns: repeat(2, 1fr);
         gap: 0.75rem;
+        width: 100%;
     }
     
     .payment-method {
         padding: 0.75rem 0.5rem;
+        box-sizing: border-box;
     }
     
     .payment-method img {
@@ -452,6 +468,7 @@ body {
     
     .history-section {
         overflow: visible;
+        width: 100%;
     }
     
     .history-table {
@@ -459,6 +476,7 @@ body {
         -webkit-overflow-scrolling: touch;
         margin: 0 -1rem;
         padding: 0 1rem;
+        width: calc(100% + 2rem);
     }
     
     .history-table table {
@@ -481,6 +499,89 @@ body {
     .action-btn {
         padding: 0.4rem 0.75rem;
         font-size: 0.75rem;
+    }
+}
+
+@media (max-width: 520px) {
+    body {
+        padding: 0.375rem;
+        width: 100vw;
+        overflow-x: hidden;
+    }
+    
+    .wallet-container {
+        width: 100%;
+        max-width: 100vw;
+        padding: 0;
+    }
+    
+    .wallet-header {
+        padding: 0.25rem;
+    }
+    
+    .wallet-header h1 {
+        font-size: 1.15rem;
+    }
+    
+    .wallet-content {
+        width: 100%;
+        gap: 0.75rem;
+    }
+    
+    .left-column,
+    .right-column {
+        width: 100%;
+    }
+    
+    .account-card {
+        padding: 0.875rem;
+        width: 100%;
+    }
+    
+    .payment-methods-section {
+        padding: 0.875rem;
+        width: 100%;
+        overflow: visible;
+    }
+    
+    .payment-methods-section h2 {
+        font-size: 1rem;
+    }
+    
+    .payment-methods-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 0.5rem;
+        width: 100%;
+    }
+    
+    .payment-method {
+        padding: 0.625rem 0.375rem;
+        width: 100%;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+    }
+    
+    .payment-method img {
+        width: 60px;
+        height: 60px;
+    }
+    
+    .payment-method span {
+        font-size: 0.7rem;
+        margin-top: 0.25rem;
+    }
+    
+    .history-section {
+        padding: 0.875rem;
+        width: 100%;
+    }
+    
+    .history-table {
+        margin: 0 -0.875rem;
+        padding: 0 0.875rem;
     }
 }
 
@@ -558,6 +659,7 @@ body {
         border-radius: 8px;
         width: 100%;
         box-sizing: border-box;
+        overflow: visible;
     }
     
     .payment-methods-section h2,
@@ -567,23 +669,34 @@ body {
     }
     
     .payment-methods-grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
         gap: 0.5rem;
-        grid-template-columns: repeat(2, 1fr);
         width: 100%;
     }
     
     .payment-method {
         padding: 0.5rem 0.25rem;
         box-sizing: border-box;
+        width: 100%;
+        min-width: 0;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
     }
     
     .payment-method img {
         width: 50px;
         height: 50px;
+        flex-shrink: 0;
     }
     
     .payment-method span {
         font-size: 0.65rem;
+        margin-top: 0.25rem;
+        text-align: center;
+        word-wrap: break-word;
     }
     
     .history-header {
@@ -623,125 +736,6 @@ body {
         font-size: 0.7rem;
     }
 }
-    margin-bottom: 1.5rem;
-}
-
-.form-group {
-    margin-bottom: 1.5rem;
-}
-
-.form-group label {
-    display: block;
-    margin-bottom: 0.5rem;
-    color: #333;
-    font-weight: 500;
-    font-size: 0.95rem;
-}
-
-.form-group input {
-    width: 100%;
-    padding: 0.8rem;
-    border: 2px solid #e9ecef;
-    border-radius: 8px;
-    font-size: 1rem;
-    font-family: 'Tajawal', sans-serif;
-    transition: border-color 0.3s;
-}
-
-.form-group input:focus {
-    outline: none;
-    border-color: #ff7b1a;
-}
-
-.card-icons {
-    display: flex;
-    gap: 0.5rem;
-    margin-top: 0.5rem;
-    font-size: 1.5rem;
-    color: #6c757d;
-}
-
-.form-row {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 1rem;
-}
-
-.checkbox-group {
-    display: flex;
-    align-items: flex-start;
-    gap: 0.5rem;
-}
-
-.checkbox-group input[type="checkbox"] {
-    width: auto;
-    margin-top: 0.3rem;
-}
-
-.checkbox-group label {
-    margin: 0;
-    font-weight: 400;
-    font-size: 0.9rem;
-    color: #6c757d;
-}
-
-.checkbox-group a {
-    color: #ff7b1a;
-    text-decoration: none;
-}
-
-.checkbox-group a:hover {
-    text-decoration: underline;
-}
-
-.submit-btn {
-    width: 100%;
-    background: linear-gradient(45deg, #ff7b1a, #ffa500);
-    color: #fff;
-    border: none;
-    border-radius: 8px;
-    padding: 1rem;
-    font-size: 1.1rem;
-    font-weight: 600;
-    font-family: 'Tajawal', sans-serif;
-    cursor: pointer;
-    transition: all 0.3s ease;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 0.5rem;
-    box-shadow: 0 4px 15px rgba(255, 123, 26, 0.3);
-}
-
-.submit-btn:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 6px 20px rgba(255, 123, 26, 0.4);
-}
-
-.submit-btn:active {
-    transform: translateY(0);
-}
-
-.secure-payment {
-    text-align: center;
-    margin-top: 1rem;
-    color: #6c757d;
-    font-size: 0.9rem;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 0.5rem;
-}
-
-.secure-payment i {
-    color: #28a745;
-}
-
-@media (max-width: 768px) {
-    body {
-        padding: 0.5rem;
-        height: auto;
-        overflow-y: auto;
     }\n    \n    .wallet-container {\n        height: auto;\n        overflow-y: visible;\n        padding: 0;\n    }\n    \n    .wallet-header h1 {\n        font-size: 1.5rem;\n    }\n    \n    .wallet-content {\n        grid-template-columns: 1fr;\n        gap: 1rem;\n        overflow-y: visible;\n    }\n    \n    .left-column {\n        gap: 1rem;\n    }\n    \n    .account-card {\n        padding: 1.25rem;\n    }\n    \n    .account-card h3 {\n        font-size: 1rem;\n    }\n    \n    .detail-row .label,\n    .detail-row .value {\n        font-size: 0.85rem;\n    }\n    \n    .qr-text {\n        font-size: 0.85rem;\n    }\n    \n    .qr-code-image {\n        max-width: 150px;\n    }\n    \n    .payment-methods-section h2,\n    .history-section h2 {\n        font-size: 1.2rem;\n    }\n    \n    .payment-methods-grid {\n        grid-template-columns: repeat(2, 1fr);\n        gap: 0.75rem;\n    }\n    \n    .payment-method {\n        padding: 1rem;\n    }\n    \n    .payment-method img {\n        width: 60px;\n        height: 60px;\n    }\n    \n    .payment-method span {\n        font-size: 0.85rem;\n    }\n    \n    .history-table {\n        overflow-x: auto;\n    }\n    \n    .history-table table {\n        font-size: 0.8rem;\n    }\n    \n    .history-table th,\n    .history-table td {\n        padding: 0.75rem 0.5rem;\n        font-size: 0.75rem;\n    }\n}
 
     .form-row {
