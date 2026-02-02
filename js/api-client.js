@@ -2,9 +2,8 @@
 // API CLIENT - Supabase Direct Integration
 // =====================================================
 
-// Supabase Configuration (matches authentication.js)
-const SUPABASE_URL = 'https://lzlqxwwhjveyfhgopdph.supabase.co';
-const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imx6bHF4d3doanZleWZoZ29wZHBoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDk1NjY5NTYsImV4cCI6MjA2NTE0Mjk1Nn0.VFzjDx1WSS03cM97vKHZAAR8vdheRtKC9wPBEoSQBxY';
+// Note: SUPABASE_URL and SUPABASE_ANON_KEY are defined in authentication.js
+// No need to redeclare them here
 
 // Backend API Configuration
 // Always use Railway production backend
@@ -24,6 +23,7 @@ function getSupabase() {
         if (typeof window.supabase === 'undefined') {
             throw new Error('Supabase library not loaded. Please include the Supabase CDN script.');
         }
+        // Use SUPABASE_URL and SUPABASE_ANON_KEY from authentication.js
         supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
     }
     return supabaseClient;

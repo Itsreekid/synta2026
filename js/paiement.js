@@ -467,8 +467,6 @@ function showMessage(message, type = 'info') {
         messageDiv.remove();
     }, 3000);
 }
-
-    const plan = plans[planName] || plans['PROFESSIONNEL'];
     
     // Update plan details
     document.getElementById('plan-name').textContent = plan.name;
