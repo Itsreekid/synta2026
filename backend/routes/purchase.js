@@ -123,6 +123,25 @@ router.post('/course', async (req, res) => {
             throw enrollError;
         }
 
+        // Create transaction record for purchase history
+        const transactionCode = 'PURCHASE-' + Date.now();
+        const { error: txError } = await supabase
+            .from('transactions')
+            .insert({
+                user_id: userId,
+                amount: price,
+                type: 'purchase',
+                status: 'completed',
+                payment_method: 'Achat de cours',
+                transaction_code: transactionCode,
+                description: `Achat du cours: ${course.title}`
+            });
+
+        if (txError) {
+            console.error('Transaction record error:', txError);
+            // Don't throw - enrollment already succeeded
+        }
+
         res.json({ 
             success: true, 
             message: 'Course purchased successfully',
