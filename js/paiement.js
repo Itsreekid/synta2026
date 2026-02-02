@@ -62,7 +62,22 @@ async function loadTransactions() {
             tbody.innerHTML = `
                 <tr class="no-transactions">
                     <td colspan="6" style="text-align: center; padding: 2rem; color: #94a3b8;">
-                        Aucune transaction pour le moment
+                        <div style="margin-bottom: 1rem;">Aucune transaction pour le moment</div>
+                        <button onclick="showAddTransactionPopup()" style="
+                            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                            color: white;
+                            border: none;
+                            border-radius: 10px;
+                            padding: 0.75rem 1.5rem;
+                            font-family: 'Inter', sans-serif;
+                            font-weight: 600;
+                            font-size: 0.95rem;
+                            cursor: pointer;
+                            transition: all 0.3s ease;
+                            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+                        " onmouseover="this.style.transform='translateY(-2px)'; this.style.boxShadow='0 6px 20px rgba(102, 126, 234, 0.4)'" onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='0 4px 12px rgba(102, 126, 234, 0.3)'">
+                            Ajouter une nouvelle transaction
+                        </button>
                     </td>
                 </tr>
             `;
@@ -123,6 +138,210 @@ window.openTransaction = function(enrollmentId) {
     // You can implement a modal or redirect to a details page
     alert('Détails de la transaction: ' + enrollmentId);
 };
+
+/**
+ * Show add transaction popup
+ */
+window.showAddTransactionPopup = function() {
+    const popup = document.createElement('div');
+    popup.style.cssText = `
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0, 0, 0, 0.6);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 10000;
+        animation: fadeIn 0.3s ease;
+        padding: 1rem;
+        overflow-y: auto;
+    `;
+    
+    popup.innerHTML = `
+        <div style="
+            background: white;
+            border-radius: 16px;
+            padding: 2rem;
+            max-width: 450px;
+            width: 100%;
+            margin: auto;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            animation: slideUp 0.3s ease;
+        ">
+            <h2 style="
+                color: #1e293b;
+                font-size: 1.5rem;
+                margin-bottom: 1rem;
+                font-weight: 700;
+            ">Nouvelle Transaction</h2>
+            
+            <p style="
+                color: #64748b;
+                margin-bottom: 1.5rem;
+                line-height: 1.6;
+            ">Entrez le montant que vous souhaitez ajouter à votre solde</p>
+            
+            <div style="margin-bottom: 1.5rem;">
+                <label style="
+                    display: block;
+                    color: #475569;
+                    font-weight: 600;
+                    margin-bottom: 0.5rem;
+                    font-size: 0.9rem;
+                ">Montant (DT)</label>
+                <div style="position: relative; display: flex; align-items: center;">
+                    <img src="../../source/dt.png" alt="DT" style="
+                        position: absolute;
+                        left: 1rem;
+                        width: 16px;
+                        height: 16px;
+                        pointer-events: none;
+                    ">
+                    <input type="number" id="transaction-amount" min="1" step="0.01" placeholder="0.00" style="
+                        width: 100%;
+                        padding: 0.875rem 1rem 0.875rem 2.5rem;
+                        border: 2px solid #e2e8f0;
+                        border-radius: 10px;
+                        font-size: 1rem;
+                        font-family: 'Inter', sans-serif;
+                        transition: border-color 0.2s;
+                    " onfocus="this.style.borderColor='#667eea'" onblur="this.style.borderColor='#e2e8f0'">
+                </div>
+            </div>
+            
+            <div style="display: flex; gap: 1rem; flex-wrap: wrap;">
+                <button id="confirmTransactionBtn" style="
+                    flex: 1;
+                    min-width: 120px;
+                    background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+                    color: white;
+                    border: none;
+                    border-radius: 10px;
+                    padding: 0.875rem;
+                    font-family: 'Inter', sans-serif;
+                    font-weight: 600;
+                    font-size: 1rem;
+                    cursor: pointer;
+                    transition: transform 0.2s;
+                " onmouseover="this.style.transform='translateY(-2px)'" onmouseout="this.style.transform='translateY(0)'">Confirmer</button>
+                
+                <button id="cancelTransactionBtn" style="
+                    flex: 1;
+                    min-width: 120px;
+                    background: #e5e7eb;
+                    color: #1e293b;
+                    border: none;
+                    border-radius: 10px;
+                    padding: 0.875rem;
+                    font-family: 'Inter', sans-serif;
+                    font-weight: 600;
+                    font-size: 1rem;
+                    cursor: pointer;
+                    transition: transform 0.2s;
+                " onmouseover="this.style.transform='translateY(-2px)'" onmouseout="this.style.transform='translateY(0)'">Annuler</button>
+            </div>
+        </div>
+    `;
+    
+    document.body.appendChild(popup);
+    
+    // Focus on input
+    setTimeout(() => {
+        document.getElementById('transaction-amount').focus();
+    }, 100);
+    
+    // Add event listeners
+    document.getElementById('confirmTransactionBtn').onclick = async () => {
+        const amount = parseFloat(document.getElementById('transaction-amount').value);
+        if (!amount || amount <= 0) {
+            alert('Veuillez entrer un montant valide');
+            return;
+        }
+        popup.remove();
+        await createPendingTransaction(amount);
+    };
+    
+    document.getElementById('cancelTransactionBtn').onclick = () => {
+        popup.remove();
+    };
+    
+    // Close on background click
+    popup.onclick = (e) => {
+        if (e.target === popup) {
+            popup.remove();
+        }
+    };
+};
+
+/**
+ * Create a pending transaction
+ */
+async function createPendingTransaction(amount) {
+    try {
+        const tbody = document.getElementById('transaction-tbody');
+        const date = new Date().toLocaleDateString('fr-FR');
+        const code = 'PENDING-' + Date.now().toString().substring(-8);
+        
+        // Add pending transaction to the table
+        const pendingRow = `
+            <tr class="pending-transaction">
+                <td>${code}</td>
+                <td>Dépôt</td>
+                <td>${amount.toFixed(2)} <img src="../../source/dt.png" alt="DT" class="dt-currency-icon-table"></td>
+                <td>${date}</td>
+                <td><span class="status-badge status-pending">En attente</span></td>
+                <td><button class="action-btn" disabled style="opacity: 0.5;">En cours</button></td>
+            </tr>
+        `;
+        
+        tbody.innerHTML = pendingRow + tbody.innerHTML;
+        
+        // Show success message
+        showMessage('Transaction créée avec succès! Elle sera traitée prochainement.', 'success');
+        
+    } catch (error) {
+        console.error('Error creating pending transaction:', error);
+        showMessage('Erreur lors de la création de la transaction', 'error');
+    }
+}
+
+/**
+ * Show message notification
+ */
+function showMessage(message, type = 'info') {
+    const messageDiv = document.createElement('div');
+    messageDiv.style.cssText = `
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        padding: 1rem 2rem;
+        border-radius: 10px;
+        color: white;
+        font-family: 'Inter', sans-serif;
+        font-weight: 600;
+        z-index: 10001;
+        animation: slideIn 0.3s ease;
+        max-width: 400px;
+    `;
+    
+    if (type === 'error') {
+        messageDiv.style.background = '#dc3545';
+    } else if (type === 'success') {
+        messageDiv.style.background = '#10b981';
+    } else {
+        messageDiv.style.background = '#667eea';
+    }
+    
+    messageDiv.textContent = message;
+    document.body.appendChild(messageDiv);
+    
+    setTimeout(() => {
+        messageDiv.remove();
+    }, 3000);
+}
 
     const plan = plans[planName] || plans['PROFESSIONNEL'];
     
