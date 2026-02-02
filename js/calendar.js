@@ -122,9 +122,14 @@ function renderCalendar() {
         };
         allDaysData.push(dayData);
         
-        // Set initially selected day (today or first day)
-        if (isToday || (!selectedDayData && i === 0)) {
+        // Set initially selected day (today if in this week, otherwise first day)
+        if (isToday) {
             selectedDayData = dayData;
+        } else if (!selectedDayData) {
+            // If we haven't found today yet and this is the first day, use it
+            if (i === 0) {
+                selectedDayData = dayData;
+            }
         }
         
         // Create day column

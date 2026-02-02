@@ -646,8 +646,8 @@ body {
         font-weight: 900;
     }
     
-    /* EXPANDED TODAY CARD - appears below the week row */
-    .day-column.today.expanded-card {
+    /* EXPANDED CARD - appears below the week row */
+    .day-column.expanded-card {
         display: block !important;
         width: 100% !important;
         margin: 20px 0 0 0 !important;
@@ -658,18 +658,18 @@ body {
         min-height: 300px !important;
     }
     
-    .day-column.today.expanded-card .day-header {
+    .day-column.expanded-card .day-header {
         border-bottom: 2px solid rgba(0, 0, 0, 0.1);
         padding-bottom: 15px;
         margin-bottom: 20px;
     }
     
-    .day-column.today.expanded-card .day-header::before,
-    .day-column.today.expanded-card .day-header::after {
-        display: none;
+    .day-column.expanded-card .day-header::before,
+    .day-column.expanded-card .day-header::after {
+        display: none !important;
     }
     
-    .day-column.today.expanded-card .day-name {
+    .day-column.expanded-card .day-name {
         font-size: 18px !important;
         color: #333 !important;
         text-transform: uppercase;
@@ -677,18 +677,18 @@ body {
         margin-bottom: 10px;
     }
     
-    .day-column.today.expanded-card .day-name::before {
-        content: none;
+    .day-column.expanded-card .day-name::before {
+        content: none !important;
     }
     
-    .day-column.today.expanded-card .day-date {
+    .day-column.expanded-card .day-date {
         font-size: 48px !important;
         color: #333 !important;
         font-weight: 700;
         margin: 10px 0;
     }
     
-    .day-column.today.expanded-card .day-month {
+    .day-column.expanded-card .day-month {
         display: block !important;
         text-align: center;
         font-size: 16px !important;
@@ -696,19 +696,19 @@ body {
         margin-top: 0 !important;
     }
     
-    .day-column.today.expanded-card .day-events {
+    .day-column.expanded-card .day-events {
         display: block !important;
         margin-top: 20px !important;
     }
     
-    .day-column.today.expanded-card .calendar-event {
+    .day-column.expanded-card .calendar-event {
         padding: 12px;
         margin-bottom: 10px;
         background: white;
         border-radius: 8px;
     }
     
-    .day-column.today.expanded-card .no-events {
+    .day-column.expanded-card .no-events {
         text-align: center;
         color: #999;
         font-size: 16px;
