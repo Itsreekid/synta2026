@@ -60,6 +60,8 @@ async function loadUserBalance() {
             return;
         }
         
+        console.log('Fetching balance for user:', user.id);
+        
         // Fetch user balance from Users table (note: capital U)
         const { data, error } = await window.supabaseClient
             .from('Users')
@@ -69,16 +71,31 @@ async function loadUserBalance() {
         
         if (error) {
             console.error('Error fetching balance:', error);
-            console.error('Error details:', error.message, error.code);
+            console.error('Error details:', error.message, error.code, error.hint);
+            console.error('Full error:', JSON.stringify(error, null, 2));
+            
+            // Show helpful message if it's a permission error
+            if (error.code === 'PGRST116' || error.message?.includes('policy')) {
+                console.error('⚠️ PERMISSION ERROR: RLS policy may be blocking access to Users table.');
+                console.error('Please run the fix-users-rls.sql file in your Supabase SQL Editor.');
+            }
             return;
         }
         
+        console.log('Balance data received:', data);
+        
         // Update the balance display
         const balanceElement = document.getElementById('userBalance');
-        if (balanceElement && data) {
-            const balance = data.balance || 0;
-            balanceElement.textContent = balance.toFixed(2);
-            console.log('Balance loaded successfully:', balance);
+        if (balanceElement) {
+            if (data && typeof data.balance !== 'undefined') {
+                const balance = data.balance || 0;
+                balanceElement.textContent = balance.toFixed(2);
+                console.log('✅ Balance loaded successfully:', balance);
+            } else {
+                console.warn('No balance data found, keeping default 0.00');
+            }
+        } else {
+            console.error('Balance element not found in DOM');
         }
         
     } catch (error) {
