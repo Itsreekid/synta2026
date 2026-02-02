@@ -366,3 +366,20 @@ BEGIN
   RAISE NOTICE '2. Update backend/config/supabase.js if needed';
   RAISE NOTICE '3. Start your backend: npm start';
 END $$;
+
+-- =====================================================
+-- ADD BALANCE COLUMN TO USERS TABLE
+-- =====================================================
+-- Add balance column to existing Users table if it doesn't exist
+ALTER TABLE public."Users" 
+ADD COLUMN IF NOT EXISTS balance DECIMAL(10, 2) DEFAULT 0.00;
+
+-- Create index for balance queries
+CREATE INDEX IF NOT EXISTS idx_users_balance ON public."Users"(balance);
+
+-- Success notice for balance column
+DO $$
+BEGIN
+  RAISE NOTICE '✅ Balance column added to Users table!';
+  RAISE NOTICE 'Users can now have DT (Tunisian Dinar) balance tracking.';
+END $$;

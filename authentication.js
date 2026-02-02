@@ -10,6 +10,9 @@ let authInitialized = false;
 let initializationAttempts = 0;
 const MAX_INIT_ATTEMPTS = 5;
 
+// Make supabaseClient globally accessible
+window.supabaseClient = null;
+
 // Global loading state management
 window.authLoading = {
     isRegistering: false,
@@ -30,6 +33,7 @@ function initializeSupabase() {
         console.log('Supabase is available, creating client...');
         try {
             supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+            window.supabaseClient = supabaseClient; // Make globally accessible
             initializeAuth();
         } catch (error) {
             console.error('Error creating Supabase client:', error);
@@ -50,6 +54,7 @@ function retryInitialization() {
                 console.log('Supabase now available, creating client...');
                 try {
                     supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+                    window.supabaseClient = supabaseClient;
                     initializeAuth();
                 } catch (error) {
                     console.error('Error creating Supabase client:', error);

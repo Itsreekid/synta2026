@@ -4,6 +4,9 @@ document.addEventListener('DOMContentLoaded', function() {
     // Check authentication on page load
     checkAuthentication();
     
+    // Load user balance from database
+    loadUserBalance();
+    
     // Set up iframe resize listener
     setupIframeResize();
 
@@ -32,12 +35,61 @@ document.addEventListener('DOMContentLoaded', function() {
     });
 });
 
+// Load user balance from Supabase
+async function loadUserBalance() {
+    try {
+        // Get the Supabase client from authentication.js
+        if (!window.supabaseClient) {
+            console.error('Supabase client not initialized');
+            return;
+        }
+        
+        // Get current user
+        const { data: { user }, error: userError } = await window.supabaseClient.auth.getUser();
+        
+        if (userError || !user) {
+            console.error('Error getting user:', userError);
+            return;
+        }
+        
+        // Fetch user balance from Users table (note: capital U)
+        const { data, error } = await window.supabaseClient
+            .from('Users')
+            .select('balance')
+            .eq('id', user.id)
+            .single();
+        
+        if (error) {
+            console.error('Error fetching balance:', error);
+            return;
+        }
+        
+        // Update the balance display
+        const balanceElement = document.getElementById('userBalance');
+        if (balanceElement && data) {
+            const balance = data.balance || 0;
+            balanceElement.textContent = balance.toFixed(2);
+        }
+        
+    } catch (error) {
+        console.error('Error loading user balance:', error);
+    }
+}
+
 // Toggle profile dropdown
 function toggleProfileDropdown() {
     const dropdown = document.getElementById('profileDropdown');
     if (dropdown) {
         dropdown.classList.toggle('active');
     }
+}
+
+// Toggle notifications
+function toggleNotifications() {
+    // Placeholder for notifications functionality
+    console.log('Notifications clicked');
+    // You can add notification dropdown similar to profile dropdown
+    alert('Vous avez 3 nouvelles notifications');
 }
 
 // Toggle mobile menu
