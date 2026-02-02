@@ -43,6 +43,15 @@ async function loadTransactions() {
         const user = await window.SyntaAPI.getCurrentUser();
         if (!user) return;
         
+        // Fetch transactions from database
+        const { data: transactions, error: txError } = await window.SyntaAPI.supabase
+            .from('transactions')
+            .select('*')
+            .eq('user_id', user.id)
+            .order('created_at', { ascending: false });
+        
+        if (txError) throw txError;
+        
         // Fetch enrollments/purchases from Supabase
         const { data: enrollments, error } = await window.SyntaAPI.supabase
             .from('enrollments')
@@ -58,7 +67,30 @@ async function loadTransactions() {
         
         if (error) throw error;
         
-        if (!enrollments || enrollments.length === 0) {
+        // Combine transactions and enrollments
+        const allTransactions = [
+            ...(transactions || []).map(tx => ({
+                id: tx.transaction_code || tx.id,
+                type: tx.type,
+                amount: tx.amount,
+                date: tx.created_at,
+                status: tx.status,
+                payment_method: tx.payment_method || 'N/A',
+                isTransaction: true
+            })),
+            ...(enrollments || []).map(enrollment => ({
+                id: enrollment.id,
+                type: 'purchase',
+                amount: enrollment.course?.price || 0,
+                date: enrollment.enrolled_at,
+                status: 'approved',
+                payment_method: 'Achat de cours',
+                isTransaction: false,
+                enrollment: enrollment
+            }))
+        ].sort((a, b) => new Date(b.date) - new Date(a.date));
+        
+        if (allTransactions.length === 0) {
             tbody.innerHTML = `
                 <tr class="no-transactions">
                     <td colspan="6" style="text-align: center; padding: 2rem; color: #94a3b8;">
@@ -84,27 +116,28 @@ async function loadTransactions() {
             return;
         }
         
-        // Render transactions
-        tbody.innerHTML = enrollments.map(enrollment => {
-            const date = new Date(enrollment.enrolled_at).toLocaleDateString('fr-FR');
-            const code = enrollment.id.substring(0, 8) + '...';
-            const status = getPaymentStatus(enrollment);
-            const amount = enrollment.course?.price || 0;
+        // Render all transactions
+        tbody.innerHTML = allTransactions.map(tx => {
+            const date = new Date(tx.date).toLocaleDateString('fr-FR');
+            const code = tx.id.toString().substring(0, 12) + (tx.id.length > 12 ? '...' : '');
+            const statusInfo = getTransactionStatus(tx.status);
             
             return `
-                <tr>
+                <tr class="${tx.status === 'pending' ? 'pending-transaction' : ''}">
                     <td>${code}</td>
-                    <td>Installment</td>
-                    <td>${amount} <img src="../../source/dt.png" alt="DT" class="dt-currency-icon-table"></td>
+                    <td>${tx.payment_method}</td>
+                    <td>${parseFloat(tx.amount).toFixed(2)} <img src="../../source/dt.png" alt="DT" class="dt-currency-icon-table"></td>
                     <td>${date}</td>
-                    <td><span class="status-badge status-${status.class}">${status.text}</span></td>
-                    <td><button class="action-btn" onclick="openTransaction('${enrollment.id}')">Ouvrir</button></td>
+                    <td><span class="status-badge status-${statusInfo.class}">${statusInfo.text}</span></td>
+                    <td><button class="action-btn" ${tx.status === 'pending' ? 'disabled style="opacity: 0.5;"' : ''} onclick="openTransaction('${tx.id}')">
+                        ${tx.status === 'pending' ? 'En cours' : 'Ouvrir'}
+                    </button></td>
                 </tr>
             `;
         }).join('');
         
         // Update pagination
-        document.getElementById('pagination-info').textContent = `1 / 1 de ${enrollments.length}`;
+        document.getElementById('pagination-info').textContent = `1 / 1 de ${allTransactions.length}`;
         
     } catch (error) {
         console.error('Error loading transactions:', error);
@@ -119,7 +152,7 @@ async function loadTransactions() {
 }
 
 /**
- * Get payment status
+ * Get payment status for enrollments
  */
 function getPaymentStatus(enrollment) {
     // Check if enrollment is active
@@ -128,6 +161,20 @@ function getPaymentStatus(enrollment) {
     } else {
         return { text: 'Expiré', class: 'rejected' };
     }
+}
+
+/**
+ * Get transaction status
+ */
+function getTransactionStatus(status) {
+    const statusMap = {
+        'pending': { text: 'En attente', class: 'pending' },
+        'approved': { text: 'Approuvé', class: 'approved' },
+        'completed': { text: 'Complété', class: 'approved' },
+        'rejected': { text: 'Rejeté', class: 'rejected' },
+        'cancelled': { text: 'Annulé', class: 'rejected' }
+    };
+    return statusMap[status] || { text: status, class: 'pending' };
 }
 
 /**
@@ -281,30 +328,45 @@ window.showAddTransactionPopup = function() {
  */
 async function createPendingTransaction(amount) {
     try {
-        const tbody = document.getElementById('transaction-tbody');
-        const date = new Date().toLocaleDateString('fr-FR');
-        const code = 'PENDING-' + Date.now().toString().substring(-8);
+        const user = await window.SyntaAPI.getCurrentUser();
+        if (!user) {
+            showMessage('Utilisateur non connecté', 'error');
+            return;
+        }
         
-        // Add pending transaction to the table
-        const pendingRow = `
-            <tr class="pending-transaction">
-                <td>${code}</td>
-                <td>Dépôt</td>
-                <td>${amount.toFixed(2)} <img src="../../source/dt.png" alt="DT" class="dt-currency-icon-table"></td>
-                <td>${date}</td>
-                <td><span class="status-badge status-pending">En attente</span></td>
-                <td><button class="action-btn" disabled style="opacity: 0.5;">En cours</button></td>
-            </tr>
-        `;
+        const transactionCode = 'TXN-' + Date.now();
         
-        tbody.innerHTML = pendingRow + tbody.innerHTML;
+        // Insert transaction into database
+        const { data, error } = await window.SyntaAPI.supabase
+            .from('transactions')
+            .insert({
+                user_id: user.id,
+                amount: parseFloat(amount),
+                type: 'deposit',
+                status: 'pending',
+                payment_method: 'En attente de confirmation',
+                transaction_code: transactionCode,
+                description: 'Demande de dépôt'
+            })
+            .select()
+            .single();
+        
+        if (error) {
+            console.error('Database error:', error);
+            throw error;
+        }
+        
+        console.log('Transaction created:', data);
+        
+        // Reload transactions to show the new one
+        await loadTransactions();
         
         // Show success message
         showMessage('Transaction créée avec succès! Elle sera traitée prochainement.', 'success');
         
     } catch (error) {
         console.error('Error creating pending transaction:', error);
-        showMessage('Erreur lors de la création de la transaction', 'error');
+        showMessage('Erreur lors de la création de la transaction: ' + (error.message || 'Erreur inconnue'), 'error');
     }
 }
 
