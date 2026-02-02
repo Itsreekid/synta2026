@@ -51,6 +51,7 @@ body {
     width: 20px;
     height: 20px;
     object-fit: contain;
+    filter: brightness(0) saturate(100%) invert(50%) sepia(95%) saturate(2578%) hue-rotate(1deg) brightness(102%) contrast(103%);
 }
 
 .balance-amount {
