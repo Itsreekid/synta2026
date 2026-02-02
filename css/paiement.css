@@ -27,6 +27,7 @@ body:not(.standalone) {
     margin: 0 auto;
     display: flex;
     flex-direction: column;
+    overflow-x: hidden;
 }
 
 .wallet-header {
@@ -211,7 +212,7 @@ body:not(.standalone) {
 
 .payment-methods-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+    grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
     gap: 1.5rem;
 }
 
@@ -465,7 +466,7 @@ body:not(.standalone) {
     
     .payment-methods-grid {
         display: grid;
-        grid-template-columns: repeat(2, minmax(140px, 1fr));
+        grid-template-columns: repeat(2, minmax(0, 1fr));
         gap: 0.75rem;
         width: 100%;
     }
