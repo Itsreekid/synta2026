@@ -204,18 +204,211 @@ async function enrollCourse(courseId, isFree) {
         if (isFree) {
             await window.SyntaAPI.enrollFreeCourse(courseId);
             window.SyntaAPI.showSuccess('Inscription réussie au cours !');
+            loadCourses();
         } else {
-            // Redirect to payment page
-            window.location.href = `../paiement/paiement.html?course=${courseId}`;
-            return;
+            // Get user and course details
+            const user = await window.SyntaAPI.getCurrentUser();
+            if (!user) {
+                window.SyntaAPI.showError('Utilisateur non trouvé');
+                return;
+            }
+            
+            // Get user balance
+            const { data: userData, error: balanceError } = await window.SyntaAPI.supabase
+                .from('Users')
+                .select('balance')
+                .eq('id', user.id)
+                .single();
+            
+            if (balanceError) {
+                console.error('Error fetching balance:', balanceError);
+                window.SyntaAPI.showError('Erreur lors de la vérification du solde');
+                return;
+            }
+            
+            const balance = userData?.balance || 0;
+            
+            // Get course price
+            const { data: course, error: courseError } = await window.SyntaAPI.supabase
+                .from('courses')
+                .select('price, title')
+                .eq('id', courseId)
+                .single();
+            
+            if (courseError) {
+                console.error('Error fetching course:', courseError);
+                window.SyntaAPI.showError('Erreur lors de la récupération du cours');
+                return;
+            }
+            
+            const price = course?.price || 0;
+            
+            // Check if balance is sufficient
+            if (balance < price) {
+                // Insufficient balance, redirect to payment page
+                window.SyntaAPI.showError('Solde insuffisant. Redirection vers la page de paiement...');
+                setTimeout(() => {
+                    window.location.href = '../paiement/paiement.html';
+                }, 1500);
+                return;
+            }
+            
+            // Show confirmation popup
+            showPurchaseConfirmation(courseId, course.title, price, balance);
         }
-        
-        // Reload courses to show enrollment
-        loadCourses();
         
     } catch (error) {
         console.error('Erreur d\'inscription:', error);
         window.SyntaAPI.showError('Une erreur s\'est produite lors de l\'inscription : ' + error.message);
+    }
+}
+
+/**
+ * Show purchase confirmation popup
+ */
+function showPurchaseConfirmation(courseId, courseTitle, price, currentBalance) {
+    const popup = document.createElement('div');
+    popup.style.cssText = `
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0, 0, 0, 0.6);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 10000;
+        animation: fadeIn 0.3s ease;
+    `;
+    
+    popup.innerHTML = `
+        <div style="
+            background: white;
+            border-radius: 16px;
+            padding: 2rem;
+            max-width: 450px;
+            width: 90%;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            animation: slideUp 0.3s ease;
+        ">
+            <h2 style="
+                color: #1e293b;
+                font-size: 1.5rem;
+                margin-bottom: 1rem;
+                font-weight: 700;
+            ">Confirmer l'achat</h2>
+            
+            <p style="
+                color: #64748b;
+                margin-bottom: 1.5rem;
+                line-height: 1.6;
+            ">Voulez-vous acheter ce cours?</p>
+            
+            <div style="
+                background: #f8fafc;
+                border-radius: 12px;
+                padding: 1rem;
+                margin-bottom: 1.5rem;
+            ">
+                <div style="margin-bottom: 0.5rem;"><strong>Cours:</strong> ${courseTitle}</div>
+                <div style="margin-bottom: 0.5rem;"><strong>Prix:</strong> <img src="../../source/dt.png" alt="DT" style="width: 14px; height: 14px; display: inline; margin-right: 4px;"> ${price}</div>
+                <div style="margin-bottom: 0.5rem;"><strong>Solde actuel:</strong> <img src="../../source/dt.png" alt="DT" style="width: 14px; height: 14px; display: inline; margin-right: 4px;"> ${currentBalance.toFixed(2)}</div>
+                <div><strong>Nouveau solde:</strong> <img src="../../source/dt.png" alt="DT" style="width: 14px; height: 14px; display: inline; margin-right: 4px;"> ${(currentBalance - price).toFixed(2)}</div>
+            </div>
+            
+            <div style="display: flex; gap: 1rem;">
+                <button id="confirmBuyBtn" style="
+                    flex: 1;
+                    background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+                    color: white;
+                    border: none;
+                    border-radius: 10px;
+                    padding: 0.875rem;
+                    font-family: 'Inter', sans-serif;
+                    font-weight: 600;
+                    font-size: 1rem;
+                    cursor: pointer;
+                    transition: transform 0.2s;
+                ">Confirmer</button>
+                
+                <button id="cancelBuyBtn" style="
+                    flex: 1;
+                    background: #e5e7eb;
+                    color: #1e293b;
+                    border: none;
+                    border-radius: 10px;
+                    padding: 0.875rem;
+                    font-family: 'Inter', sans-serif;
+                    font-weight: 600;
+                    font-size: 1rem;
+                    cursor: pointer;
+                    transition: transform 0.2s;
+                ">Annuler</button>
+            </div>
+        </div>
+    `;
+    
+    document.body.appendChild(popup);
+    
+    // Add event listeners
+    document.getElementById('confirmBuyBtn').onclick = async () => {
+        popup.remove();
+        await completePurchase(courseId, price);
+    };
+    
+    document.getElementById('cancelBuyBtn').onclick = () => {
+        popup.remove();
+    };
+    
+    // Close on background click
+    popup.onclick = (e) => {
+        if (e.target === popup) {
+            popup.remove();
+        }
+    };
+}
+
+/**
+ * Complete the purchase after confirmation
+ */
+async function completePurchase(courseId, price) {
+    try {
+        const user = await window.SyntaAPI.getCurrentUser();
+        
+        // Deduct balance and create enrollment
+        const { error: balanceError } = await window.SyntaAPI.supabase
+            .rpc('deduct_balance', {
+                p_user_id: user.id,
+                p_amount: price
+            });
+        
+        if (balanceError) {
+            throw balanceError;
+        }
+        
+        // Create enrollment
+        const { error: enrollError } = await window.SyntaAPI.supabase
+            .from('enrollments')
+            .insert({
+                user_id: user.id,
+                course_id: courseId,
+                amount_paid: price,
+                enrolled_at: new Date().toISOString()
+            });
+        
+        if (enrollError) {
+            throw enrollError;
+        }
+        
+        window.SyntaAPI.showSuccess('Cours acheté avec succès!');
+        setTimeout(() => {
+            location.reload();
+        }, 1500);
+        
+    } catch (error) {
+        console.error('Error completing purchase:', error);
+        window.SyntaAPI.showError('Erreur lors de l\'achat du cours');
     }
 }
 
@@ -288,6 +481,26 @@ style.textContent = `
         }
         to {
             transform: translateX(0);
+            opacity: 1;
+        }
+    }
+    
+    @keyframes fadeIn {
+        from {
+            opacity: 0;
+        }
+        to {
+            opacity: 1;
+        }
+    }
+    
+    @keyframes slideUp {
+        from {
+            transform: translateY(20px);
+            opacity: 0;
+        }
+        to {
+            transform: translateY(0);
             opacity: 1;
         }
     }

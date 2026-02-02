@@ -38,6 +38,14 @@
             <span class="notification-badge" id="notificationCount">3</span>
         </div>
         
+        <!-- Notification Dropdown -->
+        <div class="dropdown-menu" id="notificationDropdown">
+            <div class="dropdown-header">Événements à venir</div>
+            <div id="notificationEventsList">
+                <!-- Events will be loaded here -->
+            </div>
+        </div>
+        
         <div class="profile-dropdown">
             <div class="profile-picture" onclick="toggleProfileDropdown()">
                 <i class="fas fa-user"></i>
@@ -103,6 +111,7 @@
     </div>
 
     <!-- Scripts -->
+    <script src="data/events.js"></script>
     <script src="authentication.js"></script>
     <script src="js/user.js"></script>
 </body>

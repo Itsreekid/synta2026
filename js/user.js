@@ -16,6 +16,8 @@ document.addEventListener('DOMContentLoaded', function() {
         const menuToggle = document.querySelector('.mobile-menu-toggle');
         const profileDropdown = document.getElementById('profileDropdown');
         const profilePicture = document.querySelector('.profile-picture');
+        const notificationDropdown = document.getElementById('notificationDropdown');
+        const notificationIcon = document.querySelector('.notification-icon');
         
         // Close sidebar if clicking outside
         if (sidebar && menuToggle && 
@@ -25,12 +27,20 @@ document.addEventListener('DOMContentLoaded', function() {
             closeMobileMenu();
         }
         
-        // Close dropdown if clicking outside
+        // Close profile dropdown if clicking outside
         if (profileDropdown && profilePicture &&
             !profileDropdown.contains(event.target) &&
             !profilePicture.contains(event.target) &&
             profileDropdown.classList.contains('active')) {
             profileDropdown.classList.remove('active');
+        }
+        
+        // Close notification dropdown if clicking outside
+        if (notificationDropdown && notificationIcon &&
+            !notificationDropdown.contains(event.target) &&
+            !notificationIcon.contains(event.target) &&
+            notificationDropdown.classList.contains('active')) {
+            notificationDropdown.classList.remove('active');
         }
     });
 });
@@ -113,10 +123,40 @@ function toggleProfileDropdown() {
 
 // Toggle notifications
 function toggleNotifications() {
-    // Placeholder for notifications functionality
-    console.log('Notifications clicked');
-    // You can add notification dropdown similar to profile dropdown
-    alert('Vous avez 3 nouvelles notifications');
+    const dropdown = document.getElementById('notificationDropdown');
+    if (dropdown) {
+        dropdown.classList.toggle('active');
+        
+        // Load events if dropdown is being opened
+        if (dropdown.classList.contains('active')) {
+            loadNotificationEvents();
+        }
+    }
+}
+
+// Load events into notification dropdown
+function loadNotificationEvents() {
+    const eventsList = document.getElementById('notificationEventsList');
+    if (!eventsList) return;
+    
+    // Check if events are available
+    if (typeof upcomingEvents === 'undefined' || upcomingEvents.length === 0) {
+        eventsList.innerHTML = '<div class="no-events">Aucun événement à venir</div>';
+        return;
+    }
+    
+    // Generate event items
+    eventsList.innerHTML = upcomingEvents.map(event => {
+        return `
+            <div class="notification-event-item">
+                <div class="event-icon">${event.icon || '📅'}</div>
+                <div class="event-info">
+                    <div class="event-title">${event.title}</div>
+                    <div class="event-time">${event.time}</div>
+                </div>
+            </div>
+        `;
+    }).join('');
 }
 
 // Toggle mobile menu
