@@ -487,7 +487,9 @@ body {
     }
     
     .calendar-grid {
-        grid-template-columns: 1fr;
+        display: flex;
+        justify-content: space-between;
+        padding: 0px 15px;
         gap: 8px;
     }
     
@@ -508,13 +510,139 @@ body {
         font-size: 0.8rem;
     }
     
+    /* Compact day column for all days except today */
     .day-column {
-        padding: 12px;
-        min-height: 250px;
+        flex: 1;
+        padding: 0;
+        min-height: auto;
+        background: transparent;
+        border: none !important;
     }
     
-    .day-date {
-        font-size: 1.8rem;
+    .day-header {
+        position: relative;
+        border-bottom: none;
+        margin-bottom: 0;
+        padding-bottom: 0;
+    }
+    
+    /* Hide month and events for non-today days */
+    .day-column .day-month,
+    .day-column .day-events {
+        display: none;
+    }
+    
+    /* Regular day styling - abbreviated day name above date */
+    .day-column .day-name {
+        z-index: 1;
+        position: relative;
+        text-align: center;
+        color: rgb(151, 151, 151);
+        font-weight: bold;
+        font-size: 0; /* Hide full text */
+        text-transform: lowercase;
+    }
+    
+    /* Show abbreviated day names on mobile */
+    .day-column .day-name::before {
+        content: attr(data-short);
+        font-size: 14px;
+    }
+    
+    .day-column .day-date {
+        z-index: 1;
+        position: relative;
+        text-align: center;
+        margin-top: 5px;
+        color: black;
+        font-weight: bold;
+        font-size: 16px;
+    }
+    
+    /* TODAY - Full display with orange background */
+    .day-column.today {
+        flex: 1;
+        background: transparent;
+        padding: 0;
+    }
+    
+    .day-column.today .day-header {
+        position: relative;
+    }
+    
+    /* Orange circle background for today */
+    .day-column.today .day-header::before {
+        content: '';
+        position: absolute;
+        top: 0px;
+        left: -70%;
+        width: 240%;
+        height: 100%;
+        background-color: rgb(247, 158, 0);
+        border-radius: 11px;
+        z-index: 0;
+    }
+    
+    /* Orange line below today */
+    .day-column.today .day-header::after {
+        content: '';
+        position: absolute;
+        top: 110%;
+        left: -70%;
+        width: 240%;
+        height: 3px;
+        background-color: rgb(247, 158, 0);
+        z-index: 0;
+    }
+    
+    .day-column.today .day-name {
+        color: white;
+        font-weight: bold;
+        font-size: 0; /* Hide full text, show abbreviated */
+    }
+    
+    .day-column.today .day-name::before {
+        font-size: 14px;
+        color: white;
+    }
+    
+    .day-column.today .day-date {
+        color: white;
+        font-weight: bold;
+        font-size: 16px;
+    }
+    
+    /* Show events and month only for today */
+    .day-column.today .day-month,
+    .day-column.today .day-events {
+        display: block;
+        margin-top: 25px;
+    }
+    
+    .day-column.today .day-month {
+        text-align: center;
+        font-size: 0.7rem;
+        color: #666;
+    }
+    
+    /* EVENT DAYS - Add visual indicator */
+    .day-column.has-events:not(.today) .day-header::before {
+        content: '';
+        position: absolute;
+        bottom: -8px;
+        left: 50%;
+        transform: translateX(-50%);
+        width: 6px;
+        height: 6px;
+        background-color: rgb(247, 158, 0);
+        border-radius: 50%;
+        z-index: 2;
+    }
+    
+    /* Make event day numbers more prominent */
+    .day-column.has-events:not(.today) .day-date {
+        color: rgb(247, 158, 0);
+        font-weight: 900;
     }
     
     .calendar-event {

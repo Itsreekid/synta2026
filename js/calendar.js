@@ -83,8 +83,9 @@ function renderCalendar() {
     const weekRangeText = `${currentWeekStart.getDate()} ${monthNames[currentWeekStart.getMonth()]} - ${weekEnd.getDate()} ${monthNames[weekEnd.getMonth()]} ${weekEnd.getFullYear()}`;
     weekRangeElement.textContent = weekRangeText;
     
-    // Day names in French
+    // Day names in French (full and abbreviated)
     const dayNames = ['Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi', 'Dimanche'];
+    const dayAbbreviations = ['l', 'm', 'm', 'j', 'v', 's', 'd']; // First letter for each day starting Monday
     
     // Today's date for comparison
     const today = new Date();
@@ -118,11 +119,11 @@ function renderCalendar() {
         }
         if (isSelected) dayColumn.style.border = '3px solid #ffc107';
         
-        // Day header
+        // Day header with full name and abbreviated version
         const dayHeader = document.createElement('div');
         dayHeader.className = 'day-header';
         dayHeader.innerHTML = `
-            <div class="day-name">${dayNames[i]}</div>
+            <div class="day-name" data-short="${dayAbbreviations[i]}">${dayNames[i]}</div>
             <div class="day-date">${currentDay.getDate()}</div>
             <div class="day-month">${monthNames[currentDay.getMonth()]}</div>
         `;
