@@ -345,14 +345,20 @@ body:not(.standalone) {
 @media (max-width: 1024px) {
     .wallet-content {
         grid-template-columns: 1fr;
+        gap: 1.5rem;
     }
     
     .left-column {
-        order: 2;
+        order: 3;
     }
     
     .right-column {
         order: 1;
+    }
+    
+    .payment-methods-grid {
+        grid-template-columns: repeat(4, 1fr);
+        gap: 1rem;
     }
 }
 
@@ -394,13 +400,13 @@ body:not(.standalone) {
     
     .left-column {
         gap: 1rem;
-        order: 2;
         width: 100%;
+        order: 3;
     }
     
     .right-column {
-        order: 1;
         width: 100%;
+        order: 1;
     }
     
     .account-card {
@@ -458,7 +464,8 @@ body:not(.standalone) {
     }
     
     .payment-methods-grid {
-        grid-template-columns: repeat(2, 1fr);
+        display: grid;
+        grid-template-columns: repeat(2, minmax(140px, 1fr));
         gap: 0.75rem;
         width: 100%;
     }
@@ -550,6 +557,22 @@ body:not(.standalone) {
     .left-column,
     .right-column {
         width: 100%;
+    }
+    
+    .left-column {
+        order: 3;
+    }
+    
+    .right-column {
+        order: 1;
+    }
+    
+    .payment-methods-section {
+        order: 1;
+    }
+    
+    .history-section {
+        order: 2;
     }
     
     .account-card {
@@ -670,16 +693,5 @@ body:not(.standalone) {
     .action-btn {
         padding: 0.375rem 0.625rem;
         font-size: 0.7rem;
-    }
-}
-    }\n    \n    .wallet-container {\n        height: auto;\n        overflow-y: visible;\n        padding: 0;\n    }\n    \n    .wallet-header h1 {\n        font-size: 1.5rem;\n    }\n    \n    .wallet-content {\n        grid-template-columns: 1fr;\n        gap: 1rem;\n        overflow-y: visible;\n    }\n    \n    .left-column {\n        gap: 1rem;\n    }\n    \n    .account-card {\n        padding: 1.25rem;\n    }\n    \n    .account-card h3 {\n        font-size: 1rem;\n    }\n    \n    .detail-row .label,\n    .detail-row .value {\n        font-size: 0.85rem;\n    }\n    \n    .qr-text {\n        font-size: 0.85rem;\n    }\n    \n    .qr-code-image {\n        max-width: 150px;\n    }\n    \n    .payment-methods-section h2,\n    .history-section h2 {\n        font-size: 1.2rem;\n    }\n    \n    .payment-methods-grid {\n        grid-template-columns: repeat(2, 1fr);\n        gap: 0.75rem;\n    }\n    \n    .payment-method {\n        padding: 1rem;\n    }\n    \n    .payment-method img {\n        width: 60px;\n        height: 60px;\n    }\n    \n    .payment-method span {\n        font-size: 0.85rem;\n    }\n    \n    .history-table {\n        overflow-x: auto;\n    }\n    \n    .history-table table {\n        font-size: 0.8rem;\n    }\n    \n    .history-table th,\n    .history-table td {\n        padding: 0.75rem 0.5rem;\n        font-size: 0.75rem;\n    }\n}
-
-    .form-row {
-        grid-template-columns: 1fr;
-    }
-
-    .payment-form,
-    .order-summary {
-        padding: 1.5rem;
     }
 }
