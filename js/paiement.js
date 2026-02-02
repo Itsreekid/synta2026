@@ -39,9 +39,19 @@ async function loadUserData() {
 async function loadTransactions() {
     const tbody = document.getElementById('transaction-history');
     
+    if (!tbody) {
+        console.error('Transaction history tbody not found');
+        return;
+    }
+    
     try {
         const user = await window.SyntaAPI.getCurrentUser();
-        if (!user) return;
+        if (!user) {
+            console.log('No user found');
+            return;
+        }
+        
+        console.log('Loading transactions for user:', user.id);
         
         // Fetch transactions from database
         const { data: transactions, error: txError } = await window.SyntaAPI.supabase
@@ -50,7 +60,12 @@ async function loadTransactions() {
             .eq('user_id', user.id)
             .order('created_at', { ascending: false });
         
-        if (txError) throw txError;
+        if (txError) {
+            console.error('Transaction fetch error:', txError);
+            // Don't throw, continue with empty transactions
+        }
+        
+        console.log('Transactions fetched:', transactions);
         
         // Fetch enrollments/purchases from Supabase
         const { data: enrollments, error } = await window.SyntaAPI.supabase
@@ -65,7 +80,12 @@ async function loadTransactions() {
             .eq('user_id', user.id)
             .order('enrolled_at', { ascending: false });
         
-        if (error) throw error;
+        if (error) {
+            console.error('Enrollments fetch error:', error);
+            // Don't throw, continue with empty enrollments
+        }
+        
+        console.log('Enrollments fetched:', enrollments);
         
         // Combine transactions and enrollments
         const allTransactions = [
@@ -141,13 +161,15 @@ async function loadTransactions() {
         
     } catch (error) {
         console.error('Error loading transactions:', error);
-        tbody.innerHTML = `
-            <tr>
-                <td colspan="6" style="text-align: center; padding: 2rem; color: #ef4444;">
-                    Erreur lors du chargement de l'historique
-                </td>
-            </tr>
-        `;
+        if (tbody) {
+            tbody.innerHTML = `
+                <tr>
+                    <td colspan="6" style="text-align: center; padding: 2rem; color: #ef4444;">
+                        Erreur lors du chargement de l'historique: ${error.message || 'Erreur inconnue'}
+                    </td>
+                </tr>
+            `;
+        }
     }
 }
 
