@@ -1,11 +1,12 @@
-const express = require('express');
+import express from 'express';
+import { createClient } from '@supabase/supabase-js';
+
 const router = express.Router();
-const { createClient } = require('@supabase/supabase-js');
 
 // Initialize Supabase client with service role key for backend operations
 const supabase = createClient(
     process.env.SUPABASE_URL,
-    process.env.SUPABASE_SERVICE_ROLE_KEY // Service role key for admin operations
+    process.env.SUPABASE_SERVICE_KEY // Service role key for admin operations
 );
 
 /**
@@ -136,4 +137,4 @@ router.post('/course', async (req, res) => {
     }
 });
 
-module.exports = router;
+export default router;
