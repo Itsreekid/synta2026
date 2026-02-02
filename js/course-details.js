@@ -190,10 +190,10 @@ async function renderCourseInfo(course, totalLessons, hasAccess) {
         currentPrice.textContent = 'Gratuit';
         originalPrice.style.display = 'none';
     } else {
-        currentPrice.innerHTML = `${course.price} <img src="../../source/dt.png" alt="DT" class="dt-currency-icon-large">`;
+        currentPrice.innerHTML = `<img src="../../source/dt.png" alt="DT" class="dt-currency-icon-large"> ${course.price}`;
         // Show original price if there's a discount (example)
         if (course.original_price && course.original_price > course.price) {
-            originalPrice.innerHTML = `${course.original_price} <img src="../../source/dt.png" alt="DT" class="dt-currency-icon-small">`;
+            originalPrice.innerHTML = `<img src="../../source/dt.png" alt="DT" class="dt-currency-icon-small"> ${course.original_price}`;
             originalPrice.style.display = 'block';
         }
     }
@@ -201,8 +201,8 @@ async function renderCourseInfo(course, totalLessons, hasAccess) {
     // Update lessons count
     document.getElementById('lessons-count').textContent = totalLessons;
     
-    // Update language (default to Français)
-    document.getElementById('course-language').textContent = 'Français';
+    // Update language (default to Arabe)
+    document.getElementById('course-language').textContent = 'Arabe';
     
     // Update buy button
     const buyButton = document.getElementById('buy-button');

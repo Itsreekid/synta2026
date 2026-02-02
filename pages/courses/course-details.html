@@ -52,9 +52,9 @@
             flex-direction: column;
         }
         
-        .course-thumbnail-header {
+        .course-thumbnail-sidebar {
             width: 100%;
-            height: 80px;
+            height: 200px;
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             border-radius: 12px;
             margin-bottom: 1.5rem;
@@ -64,6 +64,7 @@
             color: white;
             font-size: 2rem;
             font-weight: 700;
+            overflow: hidden;
         }
         
         .course-title-section h1 {
@@ -240,15 +241,15 @@
         }
         
         .current-price .dt-currency-icon-large {
-            width: 30px;
-            height: 30px;
+            width: 20px;
+            height: 20px;
             object-fit: contain;
             filter: brightness(0) saturate(100%) invert(11%) sepia(15%) saturate(1291%) hue-rotate(178deg) brightness(95%) contrast(95%);
         }
         
         .original-price .dt-currency-icon-small {
-            width: 14px;
-            height: 14px;
+            width: 12px;
+            height: 12px;
             object-fit: contain;
             filter: brightness(0) saturate(100%) invert(65%) sepia(6%) saturate(839%) hue-rotate(178deg) brightness(92%) contrast(87%);
         }
@@ -376,10 +377,6 @@
         <div class="course-layout">
             <!-- Main Content -->
             <div class="course-main">
-                <div class="course-thumbnail-header" id="course-thumbnail">
-                    <!-- Thumbnail will be loaded here -->
-                </div>
-                
                 <div class="course-title-section">
                     <h1 id="course-title">Chargement...</h1>
                 </div>
@@ -396,6 +393,10 @@
             
             <!-- Sidebar -->
             <div class="course-sidebar">
+                <div class="course-thumbnail-sidebar" id="course-thumbnail">
+                    <!-- Thumbnail will be loaded here -->
+                </div>
+                
                 <div class="price-section">
                     <div class="original-price" id="original-price" style="display: none;"></div>
                     <div class="current-price" id="current-price">Chargement...</div>
