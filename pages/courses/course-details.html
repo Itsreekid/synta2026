@@ -233,6 +233,24 @@
             font-size: 2.5rem;
             font-weight: 700;
             color: #1e293b;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.5rem;
+        }
+        
+        .current-price .dt-currency-icon-large {
+            width: 40px;
+            height: 40px;
+            object-fit: contain;
+            filter: brightness(0) saturate(100%) invert(11%) sepia(15%) saturate(1291%) hue-rotate(178deg) brightness(95%) contrast(95%);
+        }
+        
+        .original-price .dt-currency-icon-small {
+            width: 18px;
+            height: 18px;
+            object-fit: contain;
+            filter: brightness(0) saturate(100%) invert(65%) sepia(6%) saturate(839%) hue-rotate(178deg) brightness(92%) contrast(87%);
         }
         
         .course-stats {
@@ -379,8 +397,8 @@
             <!-- Sidebar -->
             <div class="course-sidebar">
                 <div class="price-section">
-                    <div class="original-price" id="original-price" style="display: none;">180 dt</div>
-                    <div class="current-price" id="current-price">Chargement dt</div>
+                    <div class="original-price" id="original-price" style="display: none;"></div>
+                    <div class="current-price" id="current-price">Chargement...</div>
                 </div>
                 
                 <div class="course-stats">

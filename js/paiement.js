@@ -80,7 +80,7 @@ async function loadTransactions() {
                 <tr>
                     <td>${code}</td>
                     <td>Installment</td>
-                    <td>${amount} DT</td>
+                    <td>${amount} <img src="../../source/dt.png" alt="DT" class="dt-currency-icon-table"></td>
                     <td>${date}</td>
                     <td><span class="status-badge status-${status.class}">${status.text}</span></td>
                     <td><button class="action-btn" onclick="openTransaction('${enrollment.id}')">Ouvrir</button></td>

@@ -107,7 +107,7 @@ async function loadCourses(filters = {}) {
                         <div class="course-footer">
                             ${course.is_free ? 
                                 '<span class="course-price free">Gratuit</span>' : 
-                                `<span class="course-price">${course.price} DT</span>`
+                                `<span class="course-price">${course.price} <img src="source/dt.png" alt="DT" class="dt-currency-icon"></span>`
                             }
                             
                             ${isEnrolled ? `

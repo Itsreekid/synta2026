@@ -190,10 +190,10 @@ async function renderCourseInfo(course, totalLessons, hasAccess) {
         currentPrice.textContent = 'Gratuit';
         originalPrice.style.display = 'none';
     } else {
-        currentPrice.textContent = `${course.price} dt`;
+        currentPrice.innerHTML = `${course.price} <img src="../../source/dt.png" alt="DT" class="dt-currency-icon-large">`;
         // Show original price if there's a discount (example)
         if (course.original_price && course.original_price > course.price) {
-            originalPrice.textContent = `${course.original_price} dt`;
+            originalPrice.innerHTML = `${course.original_price} <img src="../../source/dt.png" alt="DT" class="dt-currency-icon-small">`;
             originalPrice.style.display = 'block';
         }
     }

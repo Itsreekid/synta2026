@@ -38,9 +38,17 @@ document.addEventListener('DOMContentLoaded', function() {
 // Load user balance from Supabase
 async function loadUserBalance() {
     try {
-        // Get the Supabase client from authentication.js
+        // Wait for Supabase client to be initialized
+        let attempts = 0;
+        const maxAttempts = 20;
+        
+        while (!window.supabaseClient && attempts < maxAttempts) {
+            await new Promise(resolve => setTimeout(resolve, 100));
+            attempts++;
+        }
+        
         if (!window.supabaseClient) {
-            console.error('Supabase client not initialized');
+            console.error('Supabase client not initialized after waiting');
             return;
         }
         
@@ -61,6 +69,7 @@ async function loadUserBalance() {
         
         if (error) {
             console.error('Error fetching balance:', error);
+            console.error('Error details:', error.message, error.code);
             return;
         }
         
@@ -69,6 +78,7 @@ async function loadUserBalance() {
         if (balanceElement && data) {
             const balance = data.balance || 0;
             balanceElement.textContent = balance.toFixed(2);
+            console.log('Balance loaded successfully:', balance);
         }
         
     } catch (error) {

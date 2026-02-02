@@ -60,12 +60,6 @@ body {
     color: #1E3448;
 }
 
-.currency-label {
-    font-size: 0.9rem;
-    font-weight: 600;
-    color: #ff7b1a;
-}
-
 /* Notification Icon */
 .notification-icon {
     position: relative;

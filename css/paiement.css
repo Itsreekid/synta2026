@@ -4,6 +4,16 @@
     box-sizing: border-box;
 }
 
+/* DT Currency Icon in Tables */
+.dt-currency-icon-table {
+    width: 18px;
+    height: 18px;
+    object-fit: contain;
+    vertical-align: middle;
+    margin-left: 4px;
+    filter: brightness(0) saturate(100%) invert(11%) sepia(15%) saturate(1291%) hue-rotate(178deg) brightness(95%) contrast(95%);
+}
+
 body {
     font-family: 'Inter', sans-serif;
     background: #f4f8ff;

@@ -203,6 +203,16 @@ body {
     font-size: 1.5rem;
     font-weight: 700;
     color: #1e293b;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.course-price .dt-currency-icon {
+    width: 24px;
+    height: 24px;
+    object-fit: contain;
+    filter: brightness(0) saturate(100%) invert(11%) sepia(15%) saturate(1291%) hue-rotate(178deg) brightness(95%) contrast(95%);
 }
 
 .course-price.free {
