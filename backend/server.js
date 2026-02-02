@@ -26,6 +26,7 @@ import helmet from "helmet";
 import contentRoutes from "./routes/content.js";
 import coursesRoutes from "./routes/courses.js";
 import enrollmentRoutes from "./routes/enrollment.js";
+import purchaseRoutes from "./routes/purchase.js";
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -159,6 +160,7 @@ app.get("/debug/cors", (req, res) => {
 app.use("/api/content", contentRoutes);
 app.use("/api/courses", coursesRoutes);
 app.use("/api/enrollment", enrollmentRoutes);
+app.use("/api/purchase", purchaseRoutes);
 
 // =====================================================
 // ERROR HANDLING

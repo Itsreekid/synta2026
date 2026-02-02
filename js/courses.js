@@ -280,6 +280,8 @@ function showPurchaseConfirmation(courseId, courseTitle, price, currentBalance) 
         justify-content: center;
         z-index: 10000;
         animation: fadeIn 0.3s ease;
+        padding: 1rem;
+        overflow-y: auto;
     `;
     
     popup.innerHTML = `
@@ -288,7 +290,8 @@ function showPurchaseConfirmation(courseId, courseTitle, price, currentBalance) 
             border-radius: 16px;
             padding: 2rem;
             max-width: 450px;
-            width: 90%;
+            width: 100%;
+            margin: auto;
             box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
             animation: slideUp 0.3s ease;
         ">
@@ -311,15 +314,16 @@ function showPurchaseConfirmation(courseId, courseTitle, price, currentBalance) 
                 padding: 1rem;
                 margin-bottom: 1.5rem;
             ">
-                <div style="margin-bottom: 0.5rem;"><strong>Cours:</strong> ${courseTitle}</div>
+                <div style="margin-bottom: 0.5rem; word-wrap: break-word;"><strong>Cours:</strong> ${courseTitle}</div>
                 <div style="margin-bottom: 0.5rem;"><strong>Prix:</strong> <img src="../../source/dt.png" alt="DT" style="width: 14px; height: 14px; display: inline; margin-right: 4px;"> ${price}</div>
                 <div style="margin-bottom: 0.5rem;"><strong>Solde actuel:</strong> <img src="../../source/dt.png" alt="DT" style="width: 14px; height: 14px; display: inline; margin-right: 4px;"> ${currentBalance.toFixed(2)}</div>
                 <div><strong>Nouveau solde:</strong> <img src="../../source/dt.png" alt="DT" style="width: 14px; height: 14px; display: inline; margin-right: 4px;"> ${(currentBalance - price).toFixed(2)}</div>
             </div>
             
-            <div style="display: flex; gap: 1rem;">
+            <div style="display: flex; gap: 1rem; flex-wrap: wrap;">
                 <button id="confirmBuyBtn" style="
                     flex: 1;
+                    min-width: 120px;
                     background: linear-gradient(135deg, #10b981 0%, #059669 100%);
                     color: white;
                     border: none;
@@ -334,6 +338,7 @@ function showPurchaseConfirmation(courseId, courseTitle, price, currentBalance) 
                 
                 <button id="cancelBuyBtn" style="
                     flex: 1;
+                    min-width: 120px;
                     background: #e5e7eb;
                     color: #1e293b;
                     border: none;
@@ -376,36 +381,25 @@ async function completePurchase(courseId, price) {
     try {
         const user = await window.SyntaAPI.getCurrentUser();
         
-        // Deduct balance and create enrollment
-        const { data: balanceData, error: balanceError } = await window.SyntaAPI.supabase
-            .rpc('deduct_user_balance', {
-                p_user_id: user.id,
-                p_amount: parseFloat(price),
-                p_description: 'Course purchase'
-            });
+        // Call backend API to purchase course
+        const response = await fetch(`${window.SyntaAPI.BACKEND_URL}/api/purchase/course`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                courseId: courseId,
+                userId: user.id
+            })
+        });
         
-        if (balanceError) {
-            console.error('Balance deduction error:', balanceError);
-            throw new Error(balanceError.message || 'Erreur lors de la déduction du solde');
+        const result = await response.json();
+        
+        if (!response.ok) {
+            throw new Error(result.error || 'Erreur lors de l\'achat du cours');
         }
         
-        console.log('Balance deducted successfully:', balanceData);
-        
-        // Create enrollment
-        const { error: enrollError } = await window.SyntaAPI.supabase
-            .from('enrollments')
-            .insert({
-                user_id: user.id,
-                course_id: courseId,
-                amount_paid: parseFloat(price),
-                enrolled_at: new Date().toISOString()
-            });
-        
-        if (enrollError) {
-            console.error('Enrollment error:', enrollError);
-            throw new Error(enrollError.message || 'Erreur lors de l\'inscription');
-        }
-        
+        console.log('Purchase successful:', result);
         window.SyntaAPI.showSuccess('Cours acheté avec succès!');
         setTimeout(() => {
             location.reload();

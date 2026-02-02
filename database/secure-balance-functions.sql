@@ -25,8 +25,7 @@ BEGIN
   -- Update user balance
   UPDATE public."Users"
   SET 
-    balance = COALESCE(balance, 0) + p_amount,
-    updated_at = NOW()
+    balance = COALESCE(balance, 0) + p_amount
   WHERE id = p_user_id;
   
   -- Log the transaction (you could add a transactions table here)
@@ -70,8 +69,7 @@ BEGIN
   -- Deduct from user balance
   UPDATE public."Users"
   SET 
-    balance = balance - p_amount,
-    updated_at = NOW()
+    balance = balance - p_amount
   WHERE id = p_user_id;
   
   -- Log the transaction
@@ -104,8 +102,7 @@ BEGIN
   -- Update balance
   UPDATE public."Users"
   SET 
-    balance = p_new_balance,
-    updated_at = NOW()
+    balance = p_new_balance
   WHERE id = p_user_id;
   
   -- Log the change

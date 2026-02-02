@@ -7,6 +7,9 @@ document.addEventListener('DOMContentLoaded', function() {
     // Load user balance from database
     loadUserBalance();
     
+    // Update notification badge with event count
+    updateNotificationBadge();
+    
     // Set up iframe resize listener
     setupIframeResize();
 
@@ -131,6 +134,16 @@ function toggleNotifications() {
         if (dropdown.classList.contains('active')) {
             loadNotificationEvents();
         }
+    }
+}
+
+// Update notification badge with event count
+function updateNotificationBadge() {
+    const badge = document.getElementById('notificationCount');
+    if (badge && typeof upcomingEvents !== 'undefined') {
+        const eventCount = upcomingEvents.length;
+        badge.textContent = eventCount;
+        badge.style.display = eventCount > 0 ? 'flex' : 'none';
     }
 }
 
