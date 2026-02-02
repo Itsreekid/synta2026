@@ -2,13 +2,29 @@
 // Payment/Wallet Page - Synta Academy
 // =====================================================
 
+console.log('Paiement.js loaded');
+
 document.addEventListener('DOMContentLoaded', async function() {
+    console.log('DOM loaded - starting initialization');
+    
     // Check if API client is loaded
     if (!window.SyntaAPI) {
         console.error('Client API non chargé');
+        // Show error in the table
+        const tbody = document.getElementById('transaction-history');
+        if (tbody) {
+            tbody.innerHTML = `
+                <tr>
+                    <td colspan="6" style="text-align: center; padding: 2rem; color: #ef4444;">
+                        Erreur: API client non chargé
+                    </td>
+                </tr>
+            `;
+        }
         return;
     }
     
+    console.log('SyntaAPI loaded, loading user data and transactions');
     await loadUserData();
     await loadTransactions();
 });
