@@ -140,29 +140,29 @@ body {
     top: 20px;
     left: 20px;
     z-index: 1001;
-    background: linear-gradient(45deg, #ff7b1a, #ffa500);
+    background: transparent;
     border: none;
     width: 50px;
     height: 50px;
-    border-radius: 10px;
+    border-radius: 0;
     flex-direction: column;
     justify-content: center;
     align-items: center;
     gap: 6px;
     cursor: pointer;
-    box-shadow: 0 4px 15px rgba(255, 123, 26, 0.3);
+    box-shadow: none;
     transition: all 0.3s ease;
 }
 
 .mobile-menu-toggle:hover {
-    transform: scale(1.05);
-    box-shadow: 0 6px 20px rgba(255, 123, 26, 0.4);
+    transform: none;
+    box-shadow: none;
 }
 
 .mobile-menu-toggle span {
     width: 25px;
     height: 3px;
-    background: white;
+    background: rgb(247, 158, 0);
     border-radius: 3px;
     transition: all 0.3s ease;
 }
