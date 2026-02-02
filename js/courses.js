@@ -378,7 +378,7 @@ async function completePurchase(courseId, price) {
         
         // Deduct balance and create enrollment
         const { error: balanceError } = await window.SyntaAPI.supabase
-            .rpc('deduct_balance', {
+            .rpc('deduct_user_balance', {
                 p_user_id: user.id,
                 p_amount: price
             });
