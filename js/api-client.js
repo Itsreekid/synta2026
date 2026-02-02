@@ -14,12 +14,22 @@ const R2_PUBLIC_URL = null;
 
 /**
  * Get or create Supabase client
+ * Supports both direct access and iframe context
  */
 function getSupabase() {
-    if (!window.supabaseClient) {
+    // Check if we're in an iframe
+    const isInIframe = window.self !== window.top;
+    
+    // Try to get supabaseClient from current window or parent window
+    const client = isInIframe && window.parent.supabaseClient 
+        ? window.parent.supabaseClient 
+        : window.supabaseClient;
+    
+    if (!client) {
         throw new Error('Supabase client not initialized. Make sure authentication.js is loaded first.');
     }
-    return window.supabaseClient;
+    
+    return client;
 }
 
 /**
