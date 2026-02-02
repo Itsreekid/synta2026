@@ -646,7 +646,7 @@ body {
         font-weight: 900;
     }
     
-    /* EXPANDED CARD - appears below the week row */
+    /* EXPANDED CARD - appears below the week row (mobile only) */
     .day-column.expanded-card {
         display: block !important;
         width: 100% !important;
@@ -713,6 +713,13 @@ body {
         color: #999;
         font-size: 16px;
         padding: 30px 20px;
+    }
+}
+
+/* Hide expanded card on desktop screens */
+@media (min-width: 769px) {
+    .day-column.expanded-card {
+        display: none !important;
     }
 }
 
