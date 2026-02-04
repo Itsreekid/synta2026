@@ -192,6 +192,16 @@ async function handleRegister(e) {
         const result = await window.auth.signUp(email, password, userData);
         
         if (result.success) {
+            // Track Facebook Pixel - CompleteRegistration event
+            if (typeof fbq !== 'undefined') {
+                fbq('track', 'CompleteRegistration', {
+                    content_name: 'Synta Student Signup',
+                    status: 'success',
+                    value: 0,
+                    currency: 'TND'
+                });
+            }
+            
             // Show success popup
             const popup = document.createElement('div');
             popup.className = 'success-popup';
