@@ -332,6 +332,10 @@ body {
         margin: 0;
     }
     
+    .auth-image {
+        display: none;
+    }
+    
     .auth-form {
         padding: 1.5rem;
     }
