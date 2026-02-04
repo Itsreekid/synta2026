@@ -39,7 +39,8 @@
                         
                         <div class="form-group">
                             <label for="phone">رقم الهاتف</label>
-                            <input type="tel" id="phone" name="phone" required>
+                            <input type="tel" id="phone" name="phone" required minlength="8" pattern="^(?!0+$)[0-9+\-\s()]+$" title="يرجى إدخال رقم هاتف صحيح (8 أرقام على الأقل)">
+                            <span class="password-hint">يجب أن يحتوي على 8 أرقام على الأقل</span>
                         </div>
                         
                         <div class="form-group">

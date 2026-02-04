@@ -144,6 +144,19 @@ async function handleRegister(e) {
         return;
     }
     
+    // Validate phone number - must not be empty, null, or just zeros
+    if (!phone || phone === '0' || /^0+$/.test(phone)) {
+        showMessage('يرجى إدخال رقم هاتف صحيح', 'error');
+        return;
+    }
+    
+    // Validate phone number has at least 8 digits
+    const phoneDigits = phone.replace(/[^0-9]/g, '');
+    if (phoneDigits.length < 8) {
+        showMessage('رقم الهاتف يجب أن يحتوي على 8 أرقام على الأقل', 'error');
+        return;
+    }
+    
     if (!validateEmail(email)) {
         showMessage('يرجى إدخال بريد إلكتروني صحيح', 'error');
         return;
