@@ -144,8 +144,14 @@ async function handleRegister(e) {
         return;
     }
     
-    // Validate phone number - must not be empty, null, or just zeros
-    if (!phone || phone === '0' || /^0+$/.test(phone)) {
+    // Validate phone number - must not be empty or whitespace only
+    if (!phone || phone.trim() === '' || phone.trim().length === 0) {
+        showMessage('يرجى إدخال رقم هاتف', 'error');
+        return;
+    }
+    
+    // Validate phone number - must not be single zero or just zeros
+    if (phone.trim() === '0' || /^0+$/.test(phone.trim())) {
         showMessage('يرجى إدخال رقم هاتف صحيح', 'error');
         return;
     }
@@ -154,6 +160,12 @@ async function handleRegister(e) {
     const phoneDigits = phone.replace(/[^0-9]/g, '');
     if (phoneDigits.length < 8) {
         showMessage('رقم الهاتف يجب أن يحتوي على 8 أرقام على الأقل', 'error');
+        return;
+    }
+    
+    // Additional check: phone must contain at least one non-zero digit (not all zeros)
+    if (/^0+$/.test(phoneDigits) || !/[1-9]/.test(phoneDigits)) {
+        showMessage('رقم الهاتف يجب أن يحتوي على رقم واحد على الأقل غير صفر', 'error');
         return;
     }
     
