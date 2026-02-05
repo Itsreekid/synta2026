@@ -234,6 +234,17 @@ async function loadEvents() {
             const monthNames = ['janvier', 'février', 'mars', 'avril', 'mai', 'juin', 'juillet', 'août', 'septembre', 'octobre', 'novembre', 'décembre'];
             const dateString = `${eventDate.getDate()} ${monthNames[eventDate.getMonth()]}`;
             
+            // Handle both object and string description formats
+            let descriptionHTML = '';
+            if (typeof event.description === 'object' && event.description.line1) {
+                descriptionHTML = `
+                    <div>${event.description.line1}</div>
+                    ${event.description.line2 ? `<div style="margin-top: 4px; font-size: 0.9em; opacity: 0.9;">${event.description.line2}</div>` : ''}
+                `;
+            } else {
+                descriptionHTML = event.description;
+            }
+            
             return `
                 <div class="event-item" style="border-right: 3px solid ${event.color}; cursor: pointer;" onclick="navigateToCalendar('${event.date}')">
                     <div class="event-date">${event.icon} ${dateString} - ${event.time}</div>
@@ -241,7 +252,7 @@ async function loadEvents() {
                         ${event.title}
                         <span class="live-indicator"></span>
                     </div>
-                    <div class="event-description">${event.description}</div>
+                    <div class="event-description">${descriptionHTML}</div>
                 </div>
             `;
         }).join('');

@@ -303,11 +303,24 @@ function createEventElement(event, date) {
     eventElement.className = 'calendar-event';
     eventElement.style.borderLeftColor = event.color || '#667eea';
     
+    // Handle both object and string description formats
+    let descriptionHTML = '';
+    if (typeof event.description === 'object' && event.description.line1) {
+        descriptionHTML = `
+            <div class="event-description">
+                <div>${event.description.line1}</div>
+                <div>${event.description.line2 || ''}</div>
+            </div>
+        `;
+    } else {
+        descriptionHTML = `<div class="event-description">${event.description}</div>`;
+    }
+    
     eventElement.innerHTML = `
         <div class="event-icon">${event.icon || '📅'}</div>
         <div class="event-time">🕐 ${event.time}</div>
         <div class="event-title">${event.title}</div>
-        <div class="event-description">${event.description}</div>
+        ${descriptionHTML}
     `;
     
     eventElement.onclick = () => showEventDetails(event, date);
@@ -328,6 +341,17 @@ function showEventDetails(event, date) {
     const eventDateTime = new Date(`${event.date}T${event.time}:00`);
     const now = new Date();
     const isEventLive = now >= eventDateTime;
+    
+    // Handle both object and string description formats
+    let descriptionHTML = '';
+    if (typeof event.description === 'object' && event.description.line1) {
+        descriptionHTML = `
+            <div>${event.description.line1}</div>
+            ${event.description.line2 ? `<div style="margin-top: 8px;">${event.description.line2}</div>` : ''}
+        `;
+    } else {
+        descriptionHTML = event.description;
+    }
     
     // Generate buttons based on whether zoom link exists and if event is live
     const zoomButton = event.zoomLink ? `
@@ -359,7 +383,7 @@ function showEventDetails(event, date) {
             </div>
         </div>
         <div class="modal-event-description">
-            ${event.description}
+            ${descriptionHTML}
         </div>
         <div class="modal-actions">
             ${zoomButton}
