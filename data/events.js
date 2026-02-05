@@ -4,19 +4,19 @@
 
 const upcomingEvents = [
     {
-        title: "حصة مباشرة في مادة الفلسفة",
+        title: "حصة مجانية في مادة الفلسفة ",
         date: "2026-02-06",
         time: "20:00",
-        description: "حصة مجانية في الفلسفة لتلاميذة البكالوريا",
+        description: "حصة مباشرة في مادة الفلسفة لتلاميذة البكالورياشعب علمية ",    
         icon: "📚",
         color: "#ff7b1a",
         zoomLink: "https://us06web.zoom.us/j/85679107582?pwd=NRqxAbY22nt2szhVg8CSaDYacIBRqK.1 " 
     },
     {
-        title:"حصة مباشرة في مادة الاعلامية",
+        title:"حصة مجانية في مادة الاعلامية ",
         date: "2026-02-07",
         time: "20:00",
-        description: "حصة مجانية في مادة الاعلامية لتلاميذة البكالوريا",
+        description: "حصة مباشرة في مادة الاعلامية لتلاميذة شعب علمية (Chapitre : Les sous programmes )",
         icon: "💻",
         color: "#28a745",
         zoomLink: "https://us06web.zoom.us/j/85897834973?pwd=eHGWYmgsgmREPnyBA0URvraJTbt0aO.1"
