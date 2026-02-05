@@ -7,7 +7,7 @@ const upcomingEvents = [
         title: "حصة مجانية في مادة الفلسفة ",
         date: "2026-02-06",
         time: "20:00",
-        description: "حصة مباشرة في مادة الفلسفة لتلاميذة البكالورياشعب علمية ",    
+        description: "حصة مباشرة في مادة الفلسفة لتلاميذة البكالوريا شعب علمية ",    
         icon: "📚",
         color: "#ff7b1a",
         zoomLink: "https://us06web.zoom.us/j/85679107582?pwd=NRqxAbY22nt2szhVg8CSaDYacIBRqK.1 " 
