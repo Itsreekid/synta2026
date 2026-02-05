@@ -412,29 +412,29 @@ body {
 .countdown-display {
     display: flex;
     justify-content: center;
-    gap: 15px;
+    gap: 10px;
     flex-wrap: wrap;
 }
 
 .countdown-unit {
     background: rgba(255, 255, 255, 0.15);
     backdrop-filter: blur(10px);
-    border-radius: 10px;
-    padding: 15px 20px;
-    min-width: 80px;
+    border-radius: 8px;
+    padding: 10px 15px;
+    min-width: 60px;
 }
 
 .countdown-value {
     display: block;
-    font-size: 32px;
+    font-size: 24px;
     font-weight: 700;
     line-height: 1;
-    margin-bottom: 5px;
+    margin-bottom: 4px;
 }
 
 .countdown-label {
     display: block;
-    font-size: 12px;
+    font-size: 10px;
     opacity: 0.8;
     text-transform: uppercase;
 }
@@ -560,6 +560,49 @@ body {
     .event-description {
         font-size: 0.75rem;
     }
+    
+    .modal-content {
+        width: 95%;
+        padding: 20px;
+        margin: 10% auto;
+    }
+    
+    .modal-actions {
+        flex-direction: column;
+        gap: 8px;
+    }
+    
+    .modal-btn {
+        width: 100%;
+        padding: 10px 20px;
+        font-size: 14px;
+    }
+    
+    .countdown-timer {
+        padding: 15px;
+    }
+    
+    .countdown-title {
+        font-size: 14px;
+        margin-bottom: 10px;
+    }
+    
+    .countdown-display {
+        gap: 8px;
+    }
+    
+    .countdown-unit {
+        padding: 8px 12px;
+        min-width: 50px;
+    }
+    
+    .countdown-value {
+        font-size: 20px;
+    }
+    
+    .countdown-label {
+        font-size: 9px;
+    }
 }
 
 @media (max-width: 480px) {
@@ -582,6 +625,44 @@ body {
     .header-controls button {
         padding: 8px 10px;
         font-size: 0.8rem;
+    }
+    
+    .modal-content {
+        width: 98%;
+        padding: 15px;
+        margin: 5% auto;
+    }
+    
+    .modal-event-title {
+        font-size: 18px;
+    }
+    
+    .modal-event-description {
+        font-size: 14px;
+    }
+    
+    .modal-btn {
+        padding: 10px 15px;
+        font-size: 13px;
+    }
+    
+    .close {
+        right: 10px;
+        top: 10px;
+        font-size: 28px;
+    }
+    
+    .countdown-unit {
+        padding: 6px 10px;
+        min-width: 45px;
+    }
+    
+    .countdown-value {
+        font-size: 18px;
+    }
+    
+    .countdown-label {
+        font-size: 8px;
     }
     
     /* Week row - horizontal compact layout */
