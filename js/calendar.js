@@ -324,16 +324,30 @@ function showEventDetails(event, date) {
     
     const dateString = `${dayNames[date.getDay()]}, ${date.getDate()} ${monthNames[date.getMonth()]} ${date.getFullYear()}`;
     
-    // Generate buttons based on whether zoom link exists
+    // Parse event date and time
+    const eventDateTime = new Date(`${event.date}T${event.time}:00`);
+    const now = new Date();
+    const isEventLive = now >= eventDateTime;
+    
+    // Generate buttons based on whether zoom link exists and if event is live
     const zoomButton = event.zoomLink ? `
-        <button class="modal-btn modal-btn-primary" onclick="joinZoomSession('${event.zoomLink}')">
-            🎥 Rejoindre la session
+        <button class="modal-btn modal-btn-primary" id="join-btn" onclick="joinZoomSession('${event.zoomLink}')" ${!isEventLive ? 'disabled' : ''}>
+            🎥 Rejoindre
         </button>
     ` : '';
+    
+    // Generate countdown or live badge
+    let countdownOrBadge = '';
+    if (isEventLive) {
+        countdownOrBadge = '<div class="event-live-badge">🔴 البث مباشر الآن</div>';
+    } else {
+        countdownOrBadge = '<div class="countdown-timer" id="countdown-timer"></div>';
+    }
     
     modalBody.innerHTML = `
         <div class="modal-event-icon">${event.icon || '📅'}</div>
         <h2 class="modal-event-title">${event.title}</h2>
+        ${countdownOrBadge}
         <div class="modal-event-details">
             <div class="modal-event-detail">
                 <strong>📅 Date:</strong>
@@ -350,7 +364,7 @@ function showEventDetails(event, date) {
         <div class="modal-actions">
             ${zoomButton}
             <button class="modal-btn modal-btn-secondary" onclick="addToCalendar('${event.title}', '${event.date}', '${event.time}')">
-                Ajouter à mon calendrier
+                Ajouter à calendrier
             </button>
             <button class="modal-btn modal-btn-secondary" onclick="closeModal()">
                 Fermer
@@ -359,11 +373,86 @@ function showEventDetails(event, date) {
     `;
     
     modal.style.display = 'block';
+    
+    // Start countdown if event is not live yet
+    if (!isEventLive) {
+        startCountdown(eventDateTime, event.zoomLink);
+    }
 }
+
+let countdownInterval = null;
 
 function closeModal() {
     const modal = document.getElementById('event-modal');
     modal.style.display = 'none';
+    
+    // Clear countdown interval when closing modal
+    if (countdownInterval) {
+        clearInterval(countdownInterval);
+        countdownInterval = null;
+    }
+}
+
+function startCountdown(eventDateTime, zoomLink) {
+    const countdownTimer = document.getElementById('countdown-timer');
+    const joinBtn = document.getElementById('join-btn');
+    
+    if (!countdownTimer) return;
+    
+    // Clear any existing interval
+    if (countdownInterval) {
+        clearInterval(countdownInterval);
+    }
+    
+    function updateCountdown() {
+        const now = new Date();
+        const distance = eventDateTime - now;
+        
+        // If countdown is finished
+        if (distance < 0) {
+            clearInterval(countdownInterval);
+            countdownTimer.innerHTML = '<div class="event-live-badge">🔴 البث مباشر الآن</div>';
+            if (joinBtn) {
+                joinBtn.disabled = false;
+            }
+            return;
+        }
+        
+        // Calculate time units
+        const days = Math.floor(distance / (1000 * 60 * 60 * 24));
+        const hours = Math.floor((distance % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+        const minutes = Math.floor((distance % (1000 * 60 * 60)) / (1000 * 60));
+        const seconds = Math.floor((distance % (1000 * 60)) / 1000);
+        
+        // Display countdown in Arabic
+        countdownTimer.innerHTML = `
+            <div class="countdown-title">⏰ الوقت المتبقي للبث المباشر</div>
+            <div class="countdown-display">
+                ${days > 0 ? `
+                <div class="countdown-unit">
+                    <span class="countdown-value">${days}</span>
+                    <span class="countdown-label">يوم</span>
+                </div>
+                ` : ''}
+                <div class="countdown-unit">
+                    <span class="countdown-value">${String(hours).padStart(2, '0')}</span>
+                    <span class="countdown-label">ساعة</span>
+                </div>
+                <div class="countdown-unit">
+                    <span class="countdown-value">${String(minutes).padStart(2, '0')}</span>
+                    <span class="countdown-label">دقيقة</span>
+                </div>
+                <div class="countdown-unit">
+                    <span class="countdown-value">${String(seconds).padStart(2, '0')}</span>
+                    <span class="countdown-label">ثانية</span>
+                </div>
+            </div>
+        `;
+    }
+    
+    // Update immediately and then every second
+    updateCountdown();
+    countdownInterval = setInterval(updateCountdown, 1000);
 }
 
 function addToCalendar(title, date, time) {

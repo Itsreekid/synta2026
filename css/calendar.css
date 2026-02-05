@@ -340,6 +340,7 @@ body {
     color: #666;
     line-height: 1.6;
     margin-bottom: 20px;
+    text-align: center;
 }
 
 .modal-actions {
@@ -377,6 +378,86 @@ body {
 
 .modal-btn-secondary:hover {
     background: #f8f9fa;
+}
+
+.modal-btn-primary:disabled {
+    background: #ccc;
+    cursor: not-allowed;
+    opacity: 0.6;
+}
+
+.modal-btn-primary:disabled:hover {
+    background: #ccc;
+    transform: none;
+    box-shadow: none;
+}
+
+.countdown-timer {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    padding: 20px;
+    border-radius: 12px;
+    margin-bottom: 20px;
+    text-align: center;
+    direction: rtl;
+}
+
+.countdown-title {
+    font-size: 16px;
+    font-weight: 600;
+    margin-bottom: 15px;
+    opacity: 0.9;
+}
+
+.countdown-display {
+    display: flex;
+    justify-content: center;
+    gap: 15px;
+    flex-wrap: wrap;
+}
+
+.countdown-unit {
+    background: rgba(255, 255, 255, 0.15);
+    backdrop-filter: blur(10px);
+    border-radius: 10px;
+    padding: 15px 20px;
+    min-width: 80px;
+}
+
+.countdown-value {
+    display: block;
+    font-size: 32px;
+    font-weight: 700;
+    line-height: 1;
+    margin-bottom: 5px;
+}
+
+.countdown-label {
+    display: block;
+    font-size: 12px;
+    opacity: 0.8;
+    text-transform: uppercase;
+}
+
+.event-live-badge {
+    background: linear-gradient(135deg, #ff4757 0%, #ff6348 100%);
+    color: white;
+    padding: 8px 20px;
+    border-radius: 25px;
+    font-weight: 600;
+    font-size: 14px;
+    display: inline-block;
+    margin-bottom: 15px;
+    animation: pulseBadge 2s ease-in-out infinite;
+}
+
+@keyframes pulseBadge {
+    0%, 100% {
+        box-shadow: 0 0 0 0 rgba(255, 71, 87, 0.7);
+    }
+    50% {
+        box-shadow: 0 0 0 10px rgba(255, 71, 87, 0);
+    }
 }
 
 /* Responsive Design */
