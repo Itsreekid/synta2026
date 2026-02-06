@@ -368,7 +368,7 @@ function showEventDetails(event, date) {
     // Generate countdown or live badge
     let countdownOrBadge = '';
     if (isSessionEnded) {
-        countdownOrBadge = '<div class="event-live-badge">انتهت الحصة</div>';
+        countdownOrBadge = '<div class="event-live-badge ended">انتهت الحصة</div>';
     } else if (isEventLive) {
         countdownOrBadge = '<div class="event-live-badge">🔴 البث مباشر الآن</div>';
     } else {
