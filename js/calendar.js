@@ -401,16 +401,16 @@ function showEventDetails(event, date) {
                 Fermer
             </button>
         </div>
-    ` else if (!isSessionEnded) {
-        // If event is live but not ended, start monitoring for session end
-        startSessionEndMonitor(sessionEndTime);
-    };
+    `;
     
     modal.style.display = 'block';
     
     // Start countdown if event is not live yet
     if (!isEventLive) {
         startCountdown(eventDateTime, event.zoomLink);
+    } else if (!isSessionEnded) {
+        // If event is live but not ended, start monitoring for session end
+        startSessionEndMonitor(sessionEndTime);
     }
 }
 
@@ -493,7 +493,14 @@ function startCountdown(eventDateTime, zoomLink) {
                 </div>
             </div>
         `;
-    }startSessionEndMonitor(sessionEndTime) {
+    }
+    
+    // Update immediately and then every second
+    updateCountdown();
+    countdownInterval = setInterval(updateCountdown, 1000);
+}
+
+function startSessionEndMonitor(sessionEndTime) {
     // Clear any existing session end interval
     if (sessionEndInterval) {
         clearInterval(sessionEndInterval);
@@ -528,13 +535,6 @@ function startCountdown(eventDateTime, zoomLink) {
     // Check immediately and then every minute
     checkSessionEnd();
     sessionEndInterval = setInterval(checkSessionEnd, 60000); // Check every minute
-}
-
-function 
-    
-    // Update immediately and then every second
-    updateCountdown();
-    countdownInterval = setInterval(updateCountdown, 1000);
 }
 
 function addToCalendar(title, date, time) {
