@@ -451,6 +451,12 @@ body {
     animation: pulseBadge 2s ease-in-out infinite;
 }
 
+.event-live-badge.ended {
+    background: linear-gradient(135deg, #95a5a6 0%, #7f8c8d 100%);
+    animation: none;
+    box-shadow: none;
+}
+
 @keyframes pulseBadge {
     0%, 100% {
         box-shadow: 0 0 0 0 rgba(255, 71, 87, 0.7);

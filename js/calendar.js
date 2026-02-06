@@ -342,6 +342,11 @@ function showEventDetails(event, date) {
     const now = new Date();
     const isEventLive = now >= eventDateTime;
     
+    // Check if session has ended (1.5 hours = 90 minutes after start)
+    const sessionDuration = 90 * 60 * 1000; // 90 minutes in milliseconds
+    const sessionEndTime = new Date(eventDateTime.getTime() + sessionDuration);
+    const isSessionEnded = now >= sessionEndTime;
+    
     // Handle both object and string description formats
     let descriptionHTML = '';
     if (typeof event.description === 'object' && event.description.line1) {
@@ -355,14 +360,16 @@ function showEventDetails(event, date) {
     
     // Generate buttons based on whether zoom link exists and if event is live
     const zoomButton = event.zoomLink ? `
-        <button class="modal-btn modal-btn-primary" id="join-btn" onclick="joinZoomSession('${event.zoomLink}')" ${!isEventLive ? 'disabled' : ''}>
+        <button class="modal-btn modal-btn-primary" id="join-btn" onclick="joinZoomSession('${event.zoomLink}')" ${!isEventLive || isSessionEnded ? 'disabled' : ''}>
             🎥 Rejoindre
         </button>
     ` : '';
     
     // Generate countdown or live badge
     let countdownOrBadge = '';
-    if (isEventLive) {
+    if (isSessionEnded) {
+        countdownOrBadge = '<div class="event-live-badge">انتهت الحصة</div>';
+    } else if (isEventLive) {
         countdownOrBadge = '<div class="event-live-badge">🔴 البث مباشر الآن</div>';
     } else {
         countdownOrBadge = '<div class="countdown-timer" id="countdown-timer"></div>';
@@ -394,7 +401,10 @@ function showEventDetails(event, date) {
                 Fermer
             </button>
         </div>
-    `;
+    ` else if (!isSessionEnded) {
+        // If event is live but not ended, start monitoring for session end
+        startSessionEndMonitor(sessionEndTime);
+    };
     
     modal.style.display = 'block';
     
@@ -405,6 +415,7 @@ function showEventDetails(event, date) {
 }
 
 let countdownInterval = null;
+let sessionEndInterval = null;
 
 function closeModal() {
     const modal = document.getElementById('event-modal');
@@ -414,6 +425,12 @@ function closeModal() {
     if (countdownInterval) {
         clearInterval(countdownInterval);
         countdownInterval = null;
+    }
+    
+    // Clear session end interval when closing modal
+    if (sessionEndInterval) {
+        clearInterval(sessionEndInterval);
+        sessionEndInterval = null;
     }
 }
 
@@ -436,6 +453,10 @@ function startCountdown(eventDateTime, zoomLink) {
         if (distance < 0) {
             clearInterval(countdownInterval);
             countdownTimer.innerHTML = '<div class="event-live-badge">🔴 البث مباشر الآن</div>';
+            
+            // Start monitoring for session end (90 minutes after event start)
+            const sessionEndTime = new Date(eventDateTime.getTime() + (90 * 60 * 1000));
+            startSessionEndMonitor(sessionEndTime);
             if (joinBtn) {
                 joinBtn.disabled = false;
             }
@@ -472,7 +493,44 @@ function startCountdown(eventDateTime, zoomLink) {
                 </div>
             </div>
         `;
+    }startSessionEndMonitor(sessionEndTime) {
+    // Clear any existing session end interval
+    if (sessionEndInterval) {
+        clearInterval(sessionEndInterval);
     }
+    
+    function checkSessionEnd() {
+        const now = new Date();
+        const timeRemaining = sessionEndTime - now;
+        
+        // If session has ended (1.5 hours passed)
+        if (timeRemaining <= 0) {
+            clearInterval(sessionEndInterval);
+            
+            // Update the live badge
+            const liveBadge = document.querySelector('.event-live-badge');
+            if (liveBadge) {
+                liveBadge.innerHTML = 'انتهت الحصة';
+                liveBadge.classList.remove('live');
+                liveBadge.classList.add('ended');
+            }
+            
+            // Disable the join button
+            const joinBtn = document.getElementById('join-btn');
+            if (joinBtn) {
+                joinBtn.disabled = true;
+            }
+            
+            return;
+        }
+    }
+    
+    // Check immediately and then every minute
+    checkSessionEnd();
+    sessionEndInterval = setInterval(checkSessionEnd, 60000); // Check every minute
+}
+
+function 
     
     // Update immediately and then every second
     updateCountdown();
