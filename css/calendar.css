@@ -446,13 +446,15 @@ body {
     border-radius: 25px;
     font-weight: 600;
     font-size: 14px;
-    display: inline-block;
-    margin-bottom: 15px;
+    display: block;
+    margin: 0 auto 15px auto;
+    text-align: center;
+    width: fit-content;
     animation: pulseBadge 2s ease-in-out infinite;
 }
 
 .event-live-badge.ended {
-    background: linear-gradient(135deg, #95a5a6 0%, #7f8c8d 100%);
+    background: linear-gradient(135deg, #1e3448 0%, #64748b 100%);
     animation: none;
     box-shadow: none;
 }
