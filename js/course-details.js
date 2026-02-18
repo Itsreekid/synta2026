@@ -5,10 +5,10 @@
 let currentCourse = null;
 let currentEnrollment = null;
 
-document.addEventListener('DOMContentLoaded', async function() {
+document.addEventListener('DOMContentLoaded', async function () {
     const urlParams = new URLSearchParams(window.location.search);
     const courseId = urlParams.get('id');
-    
+
     if (!courseId) {
         showError('ID du cours manquant');
         setTimeout(() => {
@@ -16,7 +16,7 @@ document.addEventListener('DOMContentLoaded', async function() {
         }, 2000);
         return;
     }
-    
+
     await loadCourseDetails(courseId);
 });
 
@@ -32,31 +32,31 @@ async function loadCourseDetails(courseId) {
             .eq('id', courseId)
             .eq('is_published', true)
             .single();
-        
+
         if (courseError) throw courseError;
         if (!course) {
             showError('Cours non trouvé');
             setTimeout(() => window.location.href = 'courses.html', 2000);
             return;
         }
-        
+
         currentCourse = course;
-        
+
         // Check enrollment status
         const hasAccess = await checkUserAccess(courseId);
-        
+
         // Fetch modules and lessons from Supabase
         const modulesWithLessons = await fetchModulesAndLessons(courseId);
-        
+
         // Count total lessons
         const totalLessons = modulesWithLessons.reduce((sum, module) => sum + (module.lessons?.length || 0), 0);
-        
+
         // Render course information
         await renderCourseInfo(course, totalLessons, hasAccess);
-        
+
         // Render modules and lessons
         renderModulesAndLessons(modulesWithLessons, hasAccess);
-        
+
     } catch (error) {
         console.error('Erreur lors du chargement du cours:', error);
         showError('Une erreur s\'est produite lors du chargement des détails du cours');
@@ -71,20 +71,20 @@ async function fetchModulesAndLessons(courseId) {
         if (!window.SyntaAPI.supabase) {
             throw new Error('Supabase non initialisé');
         }
-        
+
         // Fetch modules for this course
         const { data: modules, error: modulesError } = await window.SyntaAPI.supabase
             .from('modules')
             .select('*')
             .eq('course_id', courseId)
             .order('order_index', { ascending: true });
-        
+
         if (modulesError) throw modulesError;
-        
+
         if (!modules || modules.length === 0) {
             return [];
         }
-        
+
         // Fetch lessons for all modules
         const moduleIds = modules.map(m => m.id);
         const { data: lessons, error: lessonsError } = await window.SyntaAPI.supabase
@@ -92,17 +92,17 @@ async function fetchModulesAndLessons(courseId) {
             .select('*')
             .in('module_id', moduleIds)
             .order('order_index', { ascending: true });
-        
+
         if (lessonsError) throw lessonsError;
-        
+
         // Combine modules with their lessons
         const modulesWithLessons = modules.map(module => ({
             ...module,
             lessons: (lessons || []).filter(lesson => lesson.module_id === module.id)
         }));
-        
+
         return modulesWithLessons;
-        
+
     } catch (error) {
         console.error('Erreur lors de la récupération des modules et leçons:', error);
         return [];
@@ -116,10 +116,10 @@ async function checkUserAccess(courseId) {
     try {
         const authenticated = await window.SyntaAPI.isAuthenticated();
         if (!authenticated) return false;
-        
+
         const user = await window.SyntaAPI.getCurrentUser();
         if (!user) return false;
-        
+
         // Check enrollments table
         const { data: enrollment, error } = await window.SyntaAPI.supabase
             .from('enrollments')
@@ -127,12 +127,12 @@ async function checkUserAccess(courseId) {
             .eq('user_id', user.id)
             .eq('course_id', courseId)
             .maybeSingle();
-        
+
         if (error && error.code !== 'PGRST116') {
             console.error('Error checking enrollment:', error);
             return false;
         }
-        
+
         // Check if enrollment exists and is not expired
         if (enrollment) {
             currentEnrollment = enrollment;
@@ -140,7 +140,7 @@ async function checkUserAccess(courseId) {
                 return true;
             }
         }
-        
+
         return false;
     } catch (error) {
         console.error('Error checking access:', error);
@@ -154,10 +154,10 @@ async function checkUserAccess(courseId) {
 async function renderCourseInfo(course, totalLessons, hasAccess) {
     // Update thumbnail
     const thumbnail = document.getElementById('course-thumbnail');
-    
+
     if (course.thumbnail_url) {
         let thumbnailUrl = course.thumbnail_url;
-        
+
         // If it's an R2 key (not a full URL), get signed URL
         if (!thumbnailUrl.startsWith('http')) {
             try {
@@ -170,22 +170,22 @@ async function renderCourseInfo(course, totalLessons, hasAccess) {
                 console.warn('Failed to get thumbnail signed URL:', err);
             }
         }
-        
+
         thumbnail.innerHTML = `<img src="${thumbnailUrl}" style="width: 100%; height: 100%; object-fit: cover; border-radius: 12px;" alt="${course.title}">`;
     } else {
         thumbnail.textContent = course.title.charAt(0).toUpperCase();
     }
-    
+
     // Update title
     document.getElementById('course-title').textContent = course.title;
-    
+
     // Update description
     document.getElementById('course-description').textContent = course.description || 'Aucune description disponible';
-    
+
     // Update price
     const currentPrice = document.getElementById('current-price');
     const originalPrice = document.getElementById('original-price');
-    
+
     if (course.is_free) {
         currentPrice.textContent = 'Gratuit';
         originalPrice.style.display = 'none';
@@ -197,13 +197,13 @@ async function renderCourseInfo(course, totalLessons, hasAccess) {
             originalPrice.style.display = 'block';
         }
     }
-    
+
     // Update lessons count
     document.getElementById('lessons-count').textContent = totalLessons;
-    
+
     // Update language (default to Arabe)
     document.getElementById('course-language').textContent = 'Arabe';
-    
+
     // Update buy button
     const buyButton = document.getElementById('buy-button');
     if (hasAccess) {
@@ -212,7 +212,7 @@ async function renderCourseInfo(course, totalLessons, hasAccess) {
     } else {
         buyButton.textContent = course.is_free ? 'S\'inscrire gratuitement' : 'Acheter maintenant';
     }
-    
+
     buyButton.onclick = () => enrollInCourse(course.id, course.is_free, hasAccess);
 }
 
@@ -221,15 +221,15 @@ async function renderCourseInfo(course, totalLessons, hasAccess) {
  */
 function renderModulesAndLessons(modules, hasAccess) {
     const container = document.getElementById('modules-container');
-    
+
     if (!modules || modules.length === 0) {
         container.innerHTML = '<p style="color: #64748b; text-align: center; padding: 2rem;">Aucun module disponible pour ce cours.</p>';
         return;
     }
-    
+
     container.innerHTML = modules.map((module, moduleIndex) => {
         const lessons = module.lessons || [];
-        
+
         return `
             <div class="module-card">
                 <div class="module-header" onclick="toggleModule(${moduleIndex})">
@@ -238,10 +238,10 @@ function renderModulesAndLessons(modules, hasAccess) {
                 </div>
                 <div class="lessons-list" id="lessons-${moduleIndex}">
                     ${lessons.length > 0 ? lessons.map(lesson => {
-                        const isLocked = !hasAccess && !lesson.is_preview;
-                        const duration = formatDuration(lesson.duration);
-                        
-                        return `
+            const isLocked = !hasAccess && !lesson.is_preview;
+            const duration = formatDuration(lesson.duration);
+
+            return `
                             <div class="lesson-item ${isLocked ? 'locked' : ''}" ${!isLocked ? `onclick="playLesson('${lesson.id}')"` : ''} style="${!isLocked ? 'cursor: pointer;' : ''}">
                                 <div class="lesson-info">
                                     <span class="lesson-icon">🎥</span>
@@ -251,14 +251,14 @@ function renderModulesAndLessons(modules, hasAccess) {
                                     </div>
                                 </div>
                                 <div class="lesson-status">
-                                    ${isLocked ? 
-                                        '<span class="lock-icon">🔒</span>' : 
-                                        '<span class="play-icon">▶</span>'
-                                    }
+                                    ${isLocked ?
+                    '<span class="lock-icon">🔒</span>' :
+                    '<span class="play-icon">▶</span>'
+                }
                                 </div>
                             </div>
                         `;
-                    }).join('') : '<p style="padding: 1rem; color: #94a3b8; text-align: center;">Aucune leçon dans ce module</p>'}
+        }).join('') : '<p style="padding: 1rem; color: #94a3b8; text-align: center;">Aucune leçon dans ce module</p>'}
                 </div>
             </div>
         `;
@@ -271,7 +271,7 @@ function renderModulesAndLessons(modules, hasAccess) {
 function toggleModule(index) {
     const lessonsList = document.getElementById(`lessons-${index}`);
     const toggle = document.getElementById(`toggle-${index}`);
-    
+
     if (lessonsList.classList.contains('open')) {
         lessonsList.classList.remove('open');
         toggle.classList.remove('open');
@@ -286,7 +286,7 @@ function toggleModule(index) {
  */
 function formatDuration(seconds) {
     if (!seconds) return '00:00';
-    
+
     const mins = Math.floor(seconds / 60);
     const secs = seconds % 60;
     return `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
@@ -303,30 +303,30 @@ async function playLesson(lessonId) {
             .select('*')
             .eq('id', lessonId)
             .single();
-        
+
         if (error) throw error;
-        
+
         if (lesson.video_key) {
             let videoUrl;
-            
+
             try {
                 // Try to get signed URL from backend API
                 const contentData = await window.SyntaAPI.getContentUrl(lessonId);
                 videoUrl = contentData.videoUrl;
-                
+
                 if (!videoUrl) {
                     throw new Error('No video URL returned from backend');
                 }
             } catch (err) {
                 console.error('Backend not available:', err);
-                
+
                 // Try direct URL if configured
                 videoUrl = window.SyntaAPI.getDirectVideoUrl(lesson.video_key);
-                
+
                 if (!videoUrl) {
                     // Show helpful error message based on environment
                     const isProduction = window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1';
-                    
+
                     if (isProduction) {
                         showError(`Pour lire les vidéos en production :<br><br>
                             <strong>Option 1 :</strong> Configurez R2_PUBLIC_URL<br>
@@ -343,22 +343,22 @@ async function playLesson(lessonId) {
                             4. Accédez au site via http://localhost ou http://127.0.0.1<br><br>
                             <strong>Vidéo de démo utilisée temporairement</strong>`);
                     }
-                    
+
                     // Use demo video as last resort
                     videoUrl = 'https://www.w3schools.com/html/mov_bbb.mp4';
                     console.log('🎬 Vidéo de démo utilisée. Clé vidéo:', lesson.video_key);
                 }
             }
-            
+
             // Mark lesson progress
             await markLessonProgress(lessonId);
-            
+
             // Show video in main content area
             await showVideoInMainArea(lesson, videoUrl);
         } else {
             showError('Vidéo non disponible pour cette leçon');
         }
-        
+
     } catch (error) {
         console.error('Erreur lors de la lecture de la leçon:', error);
         showError('Impossible de lire la vidéo');
@@ -372,7 +372,7 @@ async function markLessonProgress(lessonId) {
     try {
         const user = await window.SyntaAPI.getCurrentUser();
         if (!user) return;
-        
+
         // Insert or update lesson progress
         const { error } = await window.SyntaAPI.supabase
             .from('lesson_progress')
@@ -386,9 +386,9 @@ async function markLessonProgress(lessonId) {
             }, {
                 onConflict: 'user_id,lesson_id'
             });
-        
+
         if (error) console.error('Error updating progress:', error);
-        
+
         // Update course progress
         if (currentCourse) {
             await updateCourseProgress(user.id, currentCourse.id);
@@ -409,7 +409,7 @@ async function updateCourseProgress(userId, courseId) {
                 p_user_id: userId,
                 p_course_id: courseId
             });
-        
+
         if (error) console.error('Error updating course progress:', error);
     } catch (error) {
         console.error('Error in updateCourseProgress:', error);
@@ -423,7 +423,7 @@ async function showVideoInMainArea(lesson, videoUrl) {
     const courseMain = document.querySelector('.course-main');
     const courseSidebar = document.querySelector('.course-sidebar');
     const modulesContainer = document.getElementById('modules-container');
-    
+
     // Store original content to restore later
     if (!courseMain.dataset.originalContent) {
         courseMain.dataset.originalContent = courseMain.innerHTML;
@@ -431,7 +431,7 @@ async function showVideoInMainArea(lesson, videoUrl) {
     if (!courseSidebar.dataset.originalContent) {
         courseSidebar.dataset.originalContent = courseSidebar.innerHTML;
     }
-    
+
     // Fetch PDF URLs if pdf_key exists
     let pdfUrls = [];
     if (lesson.pdf_key) {
@@ -439,7 +439,7 @@ async function showVideoInMainArea(lesson, videoUrl) {
             const response = await fetch(`${window.SyntaAPI.BACKEND_URL}/api/content/lesson/${lesson.id}`);
             if (response.ok) {
                 const data = await response.json();
-                
+
                 // Handle multiple PDFs - pdf_key can be:
                 // 1. A single string: "file.pdf"
                 // 2. Comma-separated: "file1.pdf,file2.pdf"
@@ -463,7 +463,7 @@ async function showVideoInMainArea(lesson, videoUrl) {
                 } else if (Array.isArray(lesson.pdf_key)) {
                     pdfKeys = lesson.pdf_key;
                 }
-                
+
                 // Fetch signed URLs for all PDFs
                 for (const pdfKey of pdfKeys) {
                     if (pdfKey) {
@@ -488,7 +488,7 @@ async function showVideoInMainArea(lesson, videoUrl) {
             console.warn('Failed to fetch PDF URLs:', err);
         }
     }
-    
+
     // Generate PDF buttons HTML
     let pdfButtonsHtml = '';
     if (pdfUrls.length > 0) {
@@ -520,7 +520,7 @@ async function showVideoInMainArea(lesson, videoUrl) {
             </div>
         `;
     }
-    
+
     // Replace main content with video player
     courseMain.innerHTML = `
         <div style="flex: 1; display: flex; flex-direction: column; min-height: 0; align-items: flex-start;">
@@ -551,21 +551,21 @@ async function showVideoInMainArea(lesson, videoUrl) {
             ${pdfButtonsHtml}
         </div>
     `;
-    
+
     // Replace sidebar with modules section
     if (modulesContainer && courseSidebar) {
         const modulesClone = modulesContainer.cloneNode(true);
         modulesClone.style.cssText = '';
         courseSidebar.innerHTML = '';
         courseSidebar.appendChild(modulesClone);
-        
+
         // Highlight the current lesson
         setTimeout(() => {
             const allLessons = courseSidebar.querySelectorAll('.lesson-item');
             allLessons.forEach(lessonItem => {
                 // Remove previous active state
                 lessonItem.style.background = '';
-                
+
                 // Check if this is the current lesson by comparing onclick attribute
                 const onclickAttr = lessonItem.getAttribute('onclick');
                 if (onclickAttr && onclickAttr.includes(`'${lesson.id}'`)) {
@@ -575,7 +575,7 @@ async function showVideoInMainArea(lesson, videoUrl) {
             });
         }, 100);
     }
-    
+
     // Disable right-click on video
     setTimeout(() => {
         const video = document.getElementById('current-lesson-video');
@@ -583,7 +583,7 @@ async function showVideoInMainArea(lesson, videoUrl) {
             video.addEventListener('contextmenu', (e) => e.preventDefault());
         }
     }, 100);
-    
+
     // Scroll to top
     window.scrollTo({ top: 0, behavior: 'smooth' });
 }
@@ -594,12 +594,12 @@ async function showVideoInMainArea(lesson, videoUrl) {
 function restoreCourseContent() {
     const courseMain = document.querySelector('.course-main');
     const courseSidebar = document.querySelector('.course-sidebar');
-    
+
     if (courseMain.dataset.originalContent) {
         courseMain.innerHTML = courseMain.dataset.originalContent;
         delete courseMain.dataset.originalContent;
     }
-    
+
     if (courseSidebar.dataset.originalContent) {
         courseSidebar.innerHTML = courseSidebar.dataset.originalContent;
         delete courseSidebar.dataset.originalContent;
@@ -623,7 +623,7 @@ async function enrollInCourse(courseId, isFree, hasAccess) {
         document.getElementById('modules-container').scrollIntoView({ behavior: 'smooth' });
         return;
     }
-    
+
     const authenticated = await window.SyntaAPI.isAuthenticated();
     if (!authenticated) {
         showError('Vous devez vous connecter d\'abord');
@@ -632,14 +632,14 @@ async function enrollInCourse(courseId, isFree, hasAccess) {
         }, 1500);
         return;
     }
-    
+
     try {
         const user = await window.SyntaAPI.getCurrentUser();
         if (!user) {
             showError('Utilisateur non trouvé');
             return;
         }
-        
+
         if (isFree) {
             // Create enrollment directly in database
             const { error } = await window.SyntaAPI.supabase
@@ -650,7 +650,7 @@ async function enrollInCourse(courseId, isFree, hasAccess) {
                     amount_paid: 0,
                     enrolled_at: new Date().toISOString()
                 });
-            
+
             if (error) {
                 if (error.code === '23505') {
                     showError('Vous êtes déjà inscrit à ce cours');
@@ -659,7 +659,7 @@ async function enrollInCourse(courseId, isFree, hasAccess) {
                 }
                 return;
             }
-            
+
             showSuccess('Inscription réussie au cours !');
             setTimeout(() => {
                 location.reload();
@@ -671,16 +671,16 @@ async function enrollInCourse(courseId, isFree, hasAccess) {
                 .select('balance')
                 .eq('id', user.id)
                 .single();
-            
+
             if (balanceError) {
                 console.error('Error fetching balance:', balanceError);
                 showError('Erreur lors de la vérification du solde');
                 return;
             }
-            
+
             const balance = userData?.balance || 0;
             const price = currentCourse?.price || 0;
-            
+
             // Check if balance is sufficient
             if (balance < price) {
                 // Insufficient balance, redirect to payment page
@@ -690,7 +690,7 @@ async function enrollInCourse(courseId, isFree, hasAccess) {
                 }, 1500);
                 return;
             }
-            
+
             // Show confirmation popup
             showPurchaseConfirmationDetails(courseId, currentCourse.title, price, balance);
         }
@@ -720,7 +720,7 @@ function showPurchaseConfirmationDetails(courseId, courseTitle, price, currentBa
         padding: 1rem;
         overflow-y: auto;
     `;
-    
+
     popup.innerHTML = `
         <div style="
             background: white;
@@ -790,19 +790,19 @@ function showPurchaseConfirmationDetails(courseId, courseTitle, price, currentBa
             </div>
         </div>
     `;
-    
+
     document.body.appendChild(popup);
-    
+
     // Add event listeners
     document.getElementById('confirmBuyBtn').onclick = async () => {
         popup.remove();
         await completePurchaseDetails(courseId, price);
     };
-    
+
     document.getElementById('cancelBuyBtn').onclick = () => {
         popup.remove();
     };
-    
+
     // Close on background click
     popup.onclick = (e) => {
         if (e.target === popup) {
@@ -817,7 +817,7 @@ function showPurchaseConfirmationDetails(courseId, courseTitle, price, currentBa
 async function completePurchaseDetails(courseId, price) {
     try {
         const user = await window.SyntaAPI.getCurrentUser();
-        
+
         // Call backend API to purchase course
         const response = await fetch(`${window.SyntaAPI.BACKEND_URL}/api/purchase/course`, {
             method: 'POST',
@@ -829,19 +829,19 @@ async function completePurchaseDetails(courseId, price) {
                 userId: user.id
             })
         });
-        
+
         const result = await response.json();
-        
+
         if (!response.ok) {
             throw new Error(result.error || 'Erreur lors de l\'achat du cours');
         }
-        
+
         console.log('Purchase successful:', result);
         showSuccess('Cours acheté avec succès!');
         setTimeout(() => {
             location.reload();
         }, 1500);
-        
+
     } catch (error) {
         console.error('Error completing purchase:', error);
         showError(error.message || 'Erreur lors de l\'achat du cours');
@@ -868,10 +868,10 @@ function showError(message) {
         max-width: 400px;
         line-height: 1.6;
     `;
-    
+
     messageDiv.innerHTML = message;
     document.body.appendChild(messageDiv);
-    
+
     setTimeout(() => {
         messageDiv.remove();
     }, 8000); // Longer timeout for error messages with instructions
@@ -901,7 +901,7 @@ function showMessage(message, type = 'info') {
         z-index: 10001;
         animation: slideIn 0.3s ease;
     `;
-    
+
     if (type === 'error') {
         messageDiv.style.background = '#dc3545';
     } else if (type === 'success') {
@@ -909,10 +909,10 @@ function showMessage(message, type = 'info') {
     } else {
         messageDiv.style.background = '#667eea';
     }
-    
+
     messageDiv.textContent = message;
     document.body.appendChild(messageDiv);
-    
+
     setTimeout(() => {
         messageDiv.remove();
     }, 3000);
@@ -963,9 +963,9 @@ if (!document.getElementById('message-animations')) {
 function renderCourseContent(course, hasAccess, progress) {
     const contentContainer = document.getElementById('course-content');
     if (!contentContainer) return;
-    
+
     const completedLessons = progress?.completed_lessons || [];
-    
+
     contentContainer.innerHTML = course.modules.map(module => `
         <div class="module-card">
             <div class="module-header">
@@ -975,10 +975,10 @@ function renderCourseContent(course, hasAccess, progress) {
             
             <div class="lessons-list">
                 ${module.lessons.map(lesson => {
-                    const isCompleted = completedLessons.includes(lesson.id);
-                    const canAccess = hasAccess || lesson.is_preview;
-                    
-                    return `
+        const isCompleted = completedLessons.includes(lesson.id);
+        const canAccess = hasAccess || lesson.is_preview;
+
+        return `
                         <div class="lesson-item ${canAccess ? 'accessible' : 'locked'} ${isCompleted ? 'completed' : ''}">
                             <div class="lesson-info">
                                 <span class="lesson-icon">
@@ -1006,7 +1006,7 @@ function renderCourseContent(course, hasAccess, progress) {
                             </div>
                         </div>
                     `;
-                }).join('')}
+    }).join('')}
             </div>
         </div>
     `).join('');
@@ -1024,7 +1024,7 @@ async function enrollInCourse(courseId, isFree) {
         }, 1500);
         return;
     }
-    
+
     try {
         if (isFree) {
             await window.SyntaAPI.enrollFreeCourse(courseId);
@@ -1053,6 +1053,8 @@ async function openLesson(lessonId, lessonType) {
             window.open(pdfUrl, '_blank');
             // Mark as viewed
             await window.SyntaAPI.markLessonComplete(lessonId, 50);
+        } else if (lessonType === 'quiz') {
+            await openQuizLesson(lessonId);
         }
     } catch (error) {
         console.error('Error opening lesson:', error);
@@ -1075,11 +1077,11 @@ function openVideoPlayer(lessonId, videoUrl) {
             </video>
         </div>
     `;
-    
+
     document.body.appendChild(modal);
-    
+
     const video = document.getElementById('lesson-video');
-    
+
     // Track progress
     let progressInterval;
     video.addEventListener('play', () => {
@@ -1087,11 +1089,11 @@ function openVideoPlayer(lessonId, videoUrl) {
             await window.SyntaAPI.updateVideoPosition(lessonId, video.currentTime);
         }, 10000); // Update every 10 seconds
     });
-    
+
     video.addEventListener('pause', () => {
         clearInterval(progressInterval);
     });
-    
+
     video.addEventListener('ended', async () => {
         clearInterval(progressInterval);
         await window.SyntaAPI.markLessonComplete(lessonId, 100);
@@ -1106,7 +1108,7 @@ function openVideoPlayer(lessonId, videoUrl) {
 function formatDuration(seconds) {
     const hours = Math.floor(seconds / 3600);
     const minutes = Math.floor((seconds % 3600) / 60);
-    
+
     if (hours > 0) {
         return `${hours}س ${minutes}د`;
     }
@@ -1114,8 +1116,164 @@ function formatDuration(seconds) {
 }
 
 /**
+ * Open quiz lesson
+ */
+async function openQuizLesson(lessonId) {
+    try {
+        const { data: lesson, error } = await window.SyntaAPI.supabase
+            .from('lessons')
+            .select('*')
+            .eq('id', lessonId)
+            .single();
+
+        if (error || !lesson.content || !lesson.content.questions) {
+            window.SyntaAPI.showError('Quiz non disponible ou mal configuré');
+            return;
+        }
+
+        const questions = lesson.content.questions;
+        let currentQuestionIndex = 0;
+        let score = 0;
+
+        const modal = document.createElement('div');
+        modal.className = 'video-modal'; // Reuse modal styles
+        modal.innerHTML = `
+            <div class="video-modal-content" style="background: white; padding: 30px; border-radius: 12px; max-width: 600px; color: #1e293b;">
+                <button class="close-modal" onclick="this.closest('.video-modal').remove()">✕</button>
+                <div id="quiz-content">
+                    <div class="quiz-header">
+                        <span id="question-number">Question 1/${questions.length}</span>
+                    </div>
+                    <h3 id="question-text" style="margin: 20px 0;"></h3>
+                    <div id="options-container" style="display: flex; flex-direction: column; gap: 10px;"></div>
+                    <button id="next-question" style="margin-top: 20px; display: none;" class="lesson-btn">Suivant</button>
+                </div>
+            </div>
+        `;
+        document.body.appendChild(modal);
+
+        renderQuestion();
+
+        function renderQuestion() {
+            const question = questions[currentQuestionIndex];
+            document.getElementById('question-number').textContent = `Question ${currentQuestionIndex + 1}/${questions.length}`;
+            document.getElementById('question-text').textContent = question.text;
+
+            const optionsContainer = document.getElementById('options-container');
+            const nextButton = document.getElementById('next-question');
+            nextButton.style.display = 'none';
+            optionsContainer.innerHTML = '';
+
+            question.options.forEach(option => {
+                const btn = document.createElement('button');
+                btn.className = 'quiz-option-btn';
+                btn.style.cssText = 'padding: 12px; border: 1px solid #e2e8f0; border-radius: 8px; text-align: left; background: white; cursor: pointer; transition: all 0.2s;';
+                btn.textContent = option;
+                btn.onclick = () => handleAnswer(option, btn);
+                optionsContainer.appendChild(btn);
+            });
+        }
+
+        async function handleAnswer(selectedOption, btn) {
+            const question = questions[currentQuestionIndex];
+            const isCorrect = selectedOption === question.answer;
+            if (isCorrect) score++;
+
+            // Visual feedback
+            const options = document.querySelectorAll('.quiz-option-btn');
+            options.forEach(opt => opt.onclick = null); // Disable further clicks
+
+            if (isCorrect) {
+                btn.style.background = '#dcfce7';
+                btn.style.borderColor = '#22c55e';
+            } else {
+                btn.style.background = '#fee2e2';
+                btn.style.borderColor = '#ef4444';
+                // Highlight correct answer
+                options.forEach(opt => {
+                    if (opt.textContent === question.answer) {
+                        opt.style.background = '#dcfce7';
+                    }
+                });
+            }
+
+            // Record response in tracking API
+            try {
+                const token = await getToken();
+                await fetch(`${window.SyntaAPI.BACKEND_URL}/api/tracking/response`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`
+                    },
+                    body: JSON.stringify({
+                        lessonId,
+                        questionId: question.id || `q${currentQuestionIndex}`,
+                        category: question.category || 'General',
+                        selectedOption,
+                        isCorrect
+                    })
+                });
+            } catch (err) {
+                console.error('Failed to track response:', err);
+            }
+
+            document.getElementById('next-question').style.display = 'block';
+        }
+
+        document.getElementById('next-question').onclick = () => {
+            currentQuestionIndex++;
+            if (currentQuestionIndex < questions.length) {
+                renderQuestion();
+            } else {
+                showResults();
+            }
+        };
+
+        async function showResults() {
+            const quizContent = document.getElementById('quiz-content');
+            const finalPercentage = Math.round((score / questions.length) * 100);
+
+            quizContent.innerHTML = `
+                <div style="text-align: center;">
+                    <div style="font-size: 3rem; margin-bottom: 20px;">${finalPercentage >= 70 ? '🎉' : '📚'}</div>
+                    <h2>Quiz Terminé !</h2>
+                    <p style="font-size: 1.5rem; margin: 20px 0;">Votre score: ${score}/${questions.length} (${finalPercentage}%)</p>
+                    <button class="lesson-btn" onclick="this.closest('.video-modal').remove()">Fermer</button>
+                </div>
+            `;
+
+            if (finalPercentage >= 70) {
+                await window.SyntaAPI.markLessonComplete(lessonId, 100);
+            }
+        }
+
+    } catch (error) {
+        console.error('Error opening quiz:', error);
+    }
+}
+
+async function getToken() {
+    const { data } = await window.supabaseClient.auth.getSession();
+    return data.session?.access_token;
+}
+
+/**
  * Show error message
  */
 function showError(message) {
-    alert(message); // Replace with better UI notification
+    const messageDiv = document.createElement('div');
+    messageDiv.style.cssText = `
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        padding: 1rem 2rem;
+        border-radius: 10px;
+        color: white;
+        background: #dc3545;
+        z-index: 10001;
+    `;
+    messageDiv.textContent = message;
+    document.body.appendChild(messageDiv);
+    setTimeout(() => messageDiv.remove(), 3000);
 }

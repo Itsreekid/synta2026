@@ -27,6 +27,9 @@ import contentRoutes from "./routes/content.js";
 import coursesRoutes from "./routes/courses.js";
 import enrollmentRoutes from "./routes/enrollment.js";
 import purchaseRoutes from "./routes/purchase.js";
+import offersRoutes from "./routes/offers.js";
+import liveRoutes from "./routes/live.js";
+import trackingRoutes from "./routes/tracking.js";
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -69,13 +72,13 @@ console.log("  Environment ALLOWED_ORIGINS:", process.env.ALLOWED_ORIGINS || "NO
 const corsOptions = {
   origin: function (origin, callback) {
     console.log(`📨 CORS Request from origin: ${origin || 'NO ORIGIN'}`);
-    
+
     // Allow requests with no origin (like mobile apps, curl, Postman, server-to-server)
     if (!origin) {
       console.log(`✅ CORS allowed for request with no origin (Postman/Server)`);
       return callback(null, true);
     }
-    
+
     // Check if origin is in allowed list
     if (allowedOrigins.length > 0 && allowedOrigins.includes(origin)) {
       console.log(`✅ CORS allowed for: ${origin}`);
@@ -149,9 +152,9 @@ app.get("/debug/cors", (req, res) => {
     },
     cors: {
       willAllow: !req.headers.origin || allowedOrigins.includes(req.headers.origin),
-      reason: !req.headers.origin ? "No origin header (direct access)" : 
-              allowedOrigins.includes(req.headers.origin) ? "Origin in allowed list" :
-              `Origin ${req.headers.origin} NOT in allowed list: ${allowedOrigins.join(", ")}`
+      reason: !req.headers.origin ? "No origin header (direct access)" :
+        allowedOrigins.includes(req.headers.origin) ? "Origin in allowed list" :
+          `Origin ${req.headers.origin} NOT in allowed list: ${allowedOrigins.join(", ")}`
     }
   });
 });
@@ -161,6 +164,9 @@ app.use("/api/content", contentRoutes);
 app.use("/api/courses", coursesRoutes);
 app.use("/api/enrollment", enrollmentRoutes);
 app.use("/api/purchase", purchaseRoutes);
+app.use("/api/offers", offersRoutes);
+app.use("/api/live", liveRoutes);
+app.use("/api/tracking", trackingRoutes);
 
 // =====================================================
 // ERROR HANDLING

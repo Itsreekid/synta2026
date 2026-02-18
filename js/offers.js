@@ -1,84 +1,84 @@
 // Offers Page JS
 
-document.addEventListener('DOMContentLoaded', function() {
-    loadOffers();
+document.addEventListener('DOMContentLoaded', function () {
+    initOffers();
 });
 
-function loadOffers() {
-    const offers = [
-        {
-            badge: 'STARTER',
-            price: '0€',
-            period: '/mois',
-            subtitle: 'Parfait pour les petites équipes',
-            buttonText: 'Commencer',
-            image: '../../source/algo2.gif',
-            features: [
-                '3 Projets',
-                'Sélection des candidats par IA',
-                'Recruteur IA'
-            ],
-            featured: false
-        },
-        {
-            badge: 'PROFESSIONNEL',
-            price: '99€',
-            period: '/mois',
-            subtitle: 'Parfait pour les équipes en croissance',
-            buttonText: 'Commencer',
-            image: '../../source/soon1.jpg',
-            features: [
-                'Projets illimités',
-                'Sélection des candidats par IA',
-                'Recruteur IA',
-                'Garantie sans risque'
-            ],
-            featured: true
-        },
-        {
-            badge: 'ENTREPRISE',
-            price: 'Sur mesure',
-            period: '',
-            subtitle: 'Pour les grandes organisations',
-            buttonText: 'Nous contacter',
-            image: '../../source/graphique.jfif',
-            features: [
-                'Projets illimités',
-                'Sélection des candidats par IA',
-                'Évaluations de compétences personnalisées',
-                'Recruteur IA personnalisé'
-            ],
-            featured: false
-        }
-    ];
-    
+async function initOffers() {
     const offersList = document.getElementById('offers-list');
-    offersList.innerHTML = offers.map(offer => `
-        <div class="offer-card ${offer.featured ? 'featured' : ''}">
-            <div class="offer-badge">${offer.badge}</div>
-            <div class="offer-image">
-                <img src="${offer.image}" alt="${offer.badge}">
+
+    try {
+        // Show loading state
+        offersList.innerHTML = '<div class="loading">Chargement des offres...</div>';
+
+        // Fetch offers from backend
+        const response = await fetch(`${window.SyntaAPI.BACKEND_URL}/api/offers`);
+        if (!response.ok) throw new Error('Failed to fetch offers');
+
+        const offers = await response.json();
+
+        if (!offers || offers.length === 0) {
+            offersList.innerHTML = '<div class="no-courses">Aucune offre disponible pour le moment</div>';
+            return;
+        }
+
+        // Render dynamic offers
+        offersList.innerHTML = offers.map(offer => {
+            // Determine featured status (could be based on title or a flag if we add it)
+            const isFeatured = offer.title.toLowerCase().includes('pro') || offer.title.toLowerCase().includes('integral');
+
+            // Map features from JSONB
+            const featureList = [];
+            if (offer.features) {
+                if (offer.features.live_access) featureList.push('Accès aux classes en direct');
+                if (offer.features.exams) featureList.push('Simulations d\'examens');
+                if (offer.features.community) featureList.push('Accès à la communauté');
+                if (offer.features.tracking) featureList.push('Suivi de progression avancé');
+            }
+
+            return `
+                <div class="offer-card ${isFeatured ? 'featured' : ''}">
+                    <div class="offer-badge">${offer.title}</div>
+                    <div class="offer-image">
+                        <img src="${offer.image_url || '../../source/algo2.gif'}" alt="${offer.title}">
+                    </div>
+                    <div class="offer-content">
+                        <div class="offer-price">
+                             <img src="../../source/dt.png" alt="DT" class="dt-currency-icon" style="width: 20px; height: 20px;"> 
+                             ${offer.fixed_price || offer.price || 'Gratuit'}
+                             ${offer.period ? `<span>/${offer.period}</span>` : ''}
+                        </div>
+                        <div class="offer-subtitle">${offer.description || ''}</div>
+                        <ul class="offer-features">
+                            ${featureList.map(feature => `<li>${feature}</li>`).join('')}
+                            ${offer.courses ? `<li>Inclut ${offer.courses.length} cours</li>` : ''}
+                        </ul>
+                        <button class="offer-btn" onclick="subscribeToOffer('${offer.id}', '${offer.title}')">
+                            S'abonner
+                        </button>
+                    </div>
+                </div>
+            `;
+        }).join('');
+
+    } catch (error) {
+        console.error('Error loading offers:', error);
+        offersList.innerHTML = `
+            <div class="error-message">
+                Erreur lors du chargement des offres.
+                <button onclick="initOffers()">Réessayer</button>
             </div>
-            <div class="offer-content">
-                <div class="offer-price">${offer.price}${offer.period ? `<span>${offer.period}</span>` : ''}</div>
-                <div class="offer-subtitle">${offer.subtitle}</div>
-                <ul class="offer-features">
-                    ${offer.features.map(feature => `<li>${feature}</li>`).join('')}
-                </ul>
-                <button class="offer-btn" onclick="showOfferMessage('${offer.badge}')">${offer.buttonText}</button>
-            </div>
-        </div>
-    `).join('');
+        `;
+    }
 }
 
-async function showOfferMessage(badge) {
+async function subscribeToOffer(offerId, title) {
     try {
-        // Check if user is logged in
         if (!window.SyntaAPI) {
             showMessage('Erreur: Système non initialisé', 'error');
             return;
         }
-        
+
         const user = await window.SyntaAPI.getCurrentUser();
         if (!user) {
             showMessage('Veuillez vous connecter pour acheter un plan', 'error');
@@ -87,23 +87,26 @@ async function showOfferMessage(badge) {
             }, 2000);
             return;
         }
-        
+
         // Trigger confetti effect
         handleConfetti();
         // Show message and redirect to payment
-        showMessage(`Vous avez sélectionné le plan ${badge}. Redirection vers le paiement...`, 'success');
-        
-        // Redirect to payment page with plan parameter after 2 seconds
+        showMessage(`Vous avez sélectionné l'offre ${title}. Redirection vers le paiement...`, 'success');
+
+        // Redirect to payment page with offer parameter
         setTimeout(() => {
-            window.location.href = `../paiement/paiement.html?plan=${badge}`;
+            window.location.href = `../paiement/paiement.html?offer=${offerId}`;
         }, 2000);
     } catch (error) {
-        console.error('Error in showOfferMessage:', error);
+        console.error('Error in subscribeToOffer:', error);
         showMessage('Une erreur est survenue', 'error');
     }
 }
 
 function handleConfetti() {
+    // Check if confetti function exists (from library)
+    if (typeof confetti !== 'function') return;
+
     const count = 200;
     const defaults = {
         origin: { y: 0.7 }
@@ -115,32 +118,11 @@ function handleConfetti() {
         }));
     }
 
-    fire(0.25, {
-        spread: 26,
-        startVelocity: 55,
-    });
-
-    fire(0.2, {
-        spread: 60,
-    });
-
-    fire(0.35, {
-        spread: 100,
-        decay: 0.91,
-        scalar: 0.8
-    });
-
-    fire(0.1, {
-        spread: 120,
-        startVelocity: 25,
-        decay: 0.92,
-        scalar: 1.2
-    });
-
-    fire(0.1, {
-        spread: 120,
-        startVelocity: 45,
-    });
+    fire(0.25, { spread: 26, startVelocity: 55 });
+    fire(0.2, { spread: 60 });
+    fire(0.35, { spread: 100, decay: 0.91, scalar: 0.8 });
+    fire(0.1, { spread: 120, startVelocity: 25, decay: 0.92, scalar: 1.2 });
+    fire(0.1, { spread: 120, startVelocity: 45 });
 }
 
 function showMessage(message, type = 'info') {
@@ -174,14 +156,15 @@ function showMessage(message, type = 'info') {
 const style = document.createElement('style');
 style.textContent = `
     @keyframes slideIn {
-        from {
-            transform: translateX(100%);
-            opacity: 0;
-        }
-        to {
-            transform: translateX(0);
-            opacity: 1;
-        }
+        from { transform: translateX(100%); opacity: 0; }
+        to { transform: translateX(0); opacity: 1; }
+    }
+    .loading, .no-courses {
+        text-align: center;
+        padding: 3rem;
+        font-size: 1.2rem;
+        color: #64748b;
+        grid-column: 1 / -1;
     }
 `;
-document.head.appendChild(style); 
+document.head.appendChild(style);
