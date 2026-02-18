@@ -15,7 +15,7 @@ window.OFFERS_FEATURES_CONFIG = {
     // Specific features and images for each offer
     "offers": {
         "ac44c4af-3bc6-4d38-a3aa-a6c7b3b1eeea": {
-            "image": "../../source/offres/slogan1.png",
+            "image": "../../source/offres/slogan2.png",
             "features": [
                 { text: " (Live 🟢) حصص تفاعلية مباشرة في الاعلامية ", active: true },
                 { text: "تمارين مرفقة بإصلاح PDFs", active: true },
