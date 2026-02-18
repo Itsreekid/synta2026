@@ -108,8 +108,8 @@ async function initOffers() {
                         ${featureItems.map(item => `
                             <div class="feature-item">
                                 <span class="feature-text">${item.text}</span>
-                                <div class="check-icon ${item.active ? '' : 'inactive'}">
-                                    <i class="fas ${item.active ? 'fa-check' : 'fa-times'}"></i>
+                                <div class="check-icon">
+                                    <img src="../../source/icons/${item.active ? 'true' : 'false'}.png" alt="icon" style="width: 100%; height: 100%; object-fit: contain;">
                                 </div>
                             </div>
                         `).join('')}
