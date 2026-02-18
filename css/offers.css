@@ -184,6 +184,11 @@ body {
     font-size: 0.8rem;
 }
 
+.check-icon.inactive {
+    background: #f44336;
+    /* Material Red */
+}
+
 /* --- Action Button --- */
 
 .purchase-section {

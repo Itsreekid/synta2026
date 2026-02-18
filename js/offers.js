@@ -60,17 +60,25 @@ async function initOffers() {
                 ? `De ${formatDate(offer.valid_from)} Jusqu'à ${formatDate(offer.valid_until)}`
                 : 'Offre à durée limitée';
 
-            // Features mapping
-            const features = offer.features || {};
-            const featureItems = [
-                { text: 'حصص تفاعلية مباشرة (Live 🟢) في جميع المواد', active: features.live_access },
-                { text: 'تسجيلات الحصص المباشرة (REC 🔴) لجميع المواد', active: features.recordings || true },
-                { text: 'تمارين مرفقة بإصلاح PDFs', active: features.exams || true },
-                { text: 'تسجيلات عرض zero to hero 2025 مجانا 🎁 |', active: features.bonus || true },
-                { text: 'حصص نصائح حول التغذية السليمة و النصائح النفسية', active: features.tracking || true },
-                { text: 'امتحانات تقييمية في جميع المواد', active: features.exams || true },
-                { text: 'منتدى - Forum للتفاعل مع الأساتذة وطرح الأسئلة في أي وقت', active: features.community || true }
-            ].filter(f => f.active);
+            // NEW: Use the separate config file for features
+            let featureItems = [];
+            if (window.OFFERS_FEATURES_CONFIG) {
+                featureItems = window.OFFERS_FEATURES_CONFIG.getFeatures(offer);
+            } else {
+                // Fallback if config is not loaded
+                const featuresData = offer.features || {};
+                if (Array.isArray(featuresData)) {
+                    featureItems = featuresData.map(text => ({ text, active: true }));
+                } else if (typeof featuresData === 'object') {
+                    featureItems = Object.entries(featuresData)
+                        .filter(([_, active]) => active)
+                        .map(([text, _]) => ({ text, active: true }));
+                }
+            }
+
+            if (featureItems.length === 0) {
+                featureItems = [{ text: 'Accès complet au contenu', active: true }];
+            }
 
             return `
                 <div class="offer-card ${isFeatured ? 'featured' : ''}">
@@ -100,8 +108,8 @@ async function initOffers() {
                         ${featureItems.map(item => `
                             <div class="feature-item">
                                 <span class="feature-text">${item.text}</span>
-                                <div class="check-icon">
-                                    <i class="fas fa-check"></i>
+                                <div class="check-icon ${item.active ? '' : 'inactive'}">
+                                    <i class="fas ${item.active ? 'fa-check' : 'fa-times'}"></i>
                                 </div>
                             </div>
                         `).join('')}
