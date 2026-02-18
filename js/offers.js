@@ -21,7 +21,10 @@ async function initOffers() {
         });
         if (!response.ok) throw new Error('Failed to fetch offers');
 
-        const offers = await response.json();
+        const { offers, userBalance } = await response.json();
+
+        // Update balance display
+        updateBalanceInUI(userBalance);
 
         if (!offers || offers.length === 0) {
             offersList.innerHTML = '<div class="no-courses">Aucune offre disponible pour le moment</div>';
@@ -30,8 +33,10 @@ async function initOffers() {
 
         // Render dynamic offers
         offersList.innerHTML = offers.map(offer => {
-            // Determine featured status (could be based on title or a flag if we add it)
+            // Determine featured status
             const isFeatured = offer.title.toLowerCase().includes('pro') || offer.title.toLowerCase().includes('integral');
+
+            const price = parseFloat(offer.fixed_price || offer.price || 0);
 
             // Map features from JSONB
             const featureList = [];
@@ -43,7 +48,7 @@ async function initOffers() {
             }
 
             return `
-                <div class="offer-card ${isFeatured ? 'featured' : ''}">
+                <div class="offer-card ${isFeatured ? 'featured' : ''} ${!offer.can_purchase ? 'insufficient-balance' : ''}">
                     <div class="offer-badge">${offer.title}</div>
                     <div class="offer-image">
                         <img src="${offer.image_url || '../../source/algo2.gif'}" alt="${offer.title}">
@@ -51,7 +56,7 @@ async function initOffers() {
                     <div class="offer-content">
                         <div class="offer-price">
                              <img src="../../source/dt.png" alt="DT" class="dt-currency-icon" style="width: 20px; height: 20px;"> 
-                             ${offer.fixed_price || offer.price || 'Gratuit'}
+                             <span class="offer-price">${price}</span>
                              ${offer.period ? `<span>/${offer.period}</span>` : ''}
                         </div>
                         <div class="offer-subtitle">${offer.description || ''}</div>
@@ -59,8 +64,8 @@ async function initOffers() {
                             ${featureList.map(feature => `<li>${feature}</li>`).join('')}
                             ${offer.courses ? `<li>Inclut ${offer.courses.length} cours</li>` : ''}
                         </ul>
-                        <button class="offer-btn" onclick="subscribeToOffer('${offer.id}', '${offer.title}')">
-                            S'abonner
+                        <button class="offer-btn" ${!offer.can_purchase ? 'disabled' : ''} onclick="subscribeToOffer('${offer.id}', '${offer.title}')">
+                            ${offer.can_purchase ? 'S\'abonner' : 'Solde insuffisant'}
                         </button>
                     </div>
                 </div>
@@ -76,6 +81,26 @@ async function initOffers() {
             </div>
         `;
     }
+}
+
+function updateBalanceInUI(balance) {
+    // Look for an existing balance display or create one
+    let balanceDisplay = document.querySelector('.user-balance-summary');
+    if (!balanceDisplay) {
+        balanceDisplay = document.createElement('div');
+        balanceDisplay.className = 'user-balance-summary';
+        const container = document.querySelector('.offers-container');
+        if (container) {
+            container.insertBefore(balanceDisplay, container.firstChild);
+        }
+    }
+
+    balanceDisplay.innerHTML = `
+        <div class="balance-card">
+            <span class="balance-label">Votre Solde:</span>
+            <span class="balance-amount">${balance.toFixed(2)} DT</span>
+        </div>
+    `;
 }
 
 async function subscribeToOffer(offerId, title) {
@@ -171,6 +196,38 @@ style.textContent = `
         font-size: 1.2rem;
         color: #64748b;
         grid-column: 1 / -1;
+    }
+    .user-balance-summary {
+        margin-bottom: 2rem;
+        display: flex;
+        justify-content: flex-end;
+    }
+    .balance-card {
+        background: rgba(255, 255, 255, 0.1);
+        backdrop-filter: blur(10px);
+        padding: 0.75rem 1.5rem;
+        border-radius: 12px;
+        border: 1px solid rgba(255, 255, 255, 0.2);
+        display: flex;
+        align-items: center;
+        gap: 10px;
+    }
+    .balance-label {
+        font-size: 0.9rem;
+        color: #94a3b8;
+    }
+    .balance-amount {
+        font-size: 1.1rem;
+        font-weight: 700;
+        color: #10b981;
+    }
+    .offer-card.insufficient-balance {
+        opacity: 0.8;
+    }
+    .offer-btn:disabled {
+        background: #94a3b8;
+        cursor: not-allowed;
+        transform: none !important;
     }
 `;
 document.head.appendChild(style);

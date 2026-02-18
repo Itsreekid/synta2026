@@ -15,11 +15,11 @@ router.get("/", authMiddleware, async (req, res) => {
     try {
         let userProfile = null;
 
-        // If user is logged in, fetch their class/branch
+        // If user is logged in, fetch their profile (class, branch, balance)
         if (req.user) {
             const { data: profile } = await supabaseAdmin
                 .from("Users")
-                .select("class, branch")
+                .select("class, branch, balance")
                 .eq("id", req.user.id)
                 .single();
             userProfile = profile;
@@ -61,13 +61,22 @@ router.get("/", authMiddleware, async (req, res) => {
             });
         }
 
-        // Format the response to be cleaner
-        const formattedOffers = filteredOffers.map(offer => ({
-            ...offer,
-            courses: offer.courses.map(oc => oc.course)
-        }));
+        const userBalance = userProfile?.balance || 0;
 
-        res.json(formattedOffers);
+        // Format the response to be cleaner
+        const formattedOffers = filteredOffers.map(offer => {
+            const price = parseFloat(offer.fixed_price || offer.price || 0);
+            return {
+                ...offer,
+                courses: offer.courses.map(oc => oc.course),
+                can_purchase: userBalance >= price
+            };
+        });
+
+        res.json({
+            offers: formattedOffers,
+            userBalance: userBalance
+        });
     } catch (error) {
         console.error("Error fetching offers:", error);
         res.status(500).json({ error: "Internal server error" });
