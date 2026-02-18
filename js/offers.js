@@ -11,8 +11,14 @@ async function initOffers() {
         // Show loading state
         offersList.innerHTML = '<div class="loading">Chargement des offres...</div>';
 
+        // Get session for auth token
+        const { data: { session } } = await window.supabaseClient.auth.getSession();
+        const token = session?.access_token;
+
         // Fetch offers from backend
-        const response = await fetch(`${window.SyntaAPI.BACKEND_URL}/api/offers`);
+        const response = await fetch(`${window.SyntaAPI.BACKEND_URL}/api/offers`, {
+            headers: token ? { 'Authorization': `Bearer ${token}` } : {}
+        });
         if (!response.ok) throw new Error('Failed to fetch offers');
 
         const offers = await response.json();
