@@ -21,7 +21,17 @@ async function initOffers() {
         });
         if (!response.ok) throw new Error('Failed to fetch offers');
 
-        const { offers, userBalance } = await response.json();
+        const data = await response.json();
+        let offers = [];
+        let userBalance = 0;
+
+        if (Array.isArray(data)) {
+            offers = data;
+            userBalance = 0; // Default for old API format
+        } else if (data && typeof data === 'object') {
+            offers = data.offers || [];
+            userBalance = data.userBalance || 0;
+        }
 
         // Update balance display
         updateBalanceInUI(userBalance);
@@ -84,6 +94,7 @@ async function initOffers() {
 }
 
 function updateBalanceInUI(balance) {
+    const numericBalance = parseFloat(balance) || 0;
     // Look for an existing balance display or create one
     let balanceDisplay = document.querySelector('.user-balance-summary');
     if (!balanceDisplay) {
@@ -98,7 +109,7 @@ function updateBalanceInUI(balance) {
     balanceDisplay.innerHTML = `
         <div class="balance-card">
             <span class="balance-label">Votre Solde:</span>
-            <span class="balance-amount">${balance.toFixed(2)} DT</span>
+            <span class="balance-amount">${numericBalance.toFixed(2)} DT</span>
         </div>
     `;
 }
