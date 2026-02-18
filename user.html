@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="fr" dir="ltr">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -16,6 +17,7 @@
     <!-- Supabase Client Library -->
     <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
 </head>
+
 <body>
     <!-- Header with Profile Icon -->
     <div class="header-top">
@@ -25,19 +27,19 @@
             <span></span>
             <span></span>
         </button>
-        
+
         <!-- Currency Balance -->
         <div class="currency-balance">
             <img src="source/dt.png" alt="DT" class="currency-icon">
             <span class="balance-amount" id="userBalance">0.00</span>
         </div>
-        
+
         <!-- Notification Icon -->
         <div class="notification-icon" onclick="toggleNotifications()">
             <i class="fas fa-bell"></i>
             <span class="notification-badge" id="notificationCount">3</span>
         </div>
-        
+
         <!-- Notification Dropdown -->
         <div class="dropdown-menu" id="notificationDropdown">
             <div class="dropdown-header">Événements à venir</div>
@@ -45,7 +47,7 @@
                 <!-- Events will be loaded here -->
             </div>
         </div>
-        
+
         <div class="profile-dropdown">
             <div class="profile-picture" onclick="toggleProfileDropdown()">
                 <i class="fas fa-user"></i>
@@ -75,30 +77,34 @@
             </div>
             <ul class="nav-links">
                 <li><a href="#" onclick="loadPageAndCloseSidebar('dashboard')" class="active">
-                    <div class="nav-icon"><i class="fas fa-home"></i></div>
-                    <span class="nav-text">Tableau de bord</span>
-                </a></li>
+                        <div class="nav-icon"><i class="fas fa-home"></i></div>
+                        <span class="nav-text">Tableau de bord</span>
+                    </a></li>
                 <li><a href="#" onclick="loadPageAndCloseSidebar('calendar')">
-                    <div class="nav-icon"><i class="fas fa-calendar"></i></div>
-                    <span class="nav-text">Calendrier</span>
-                </a></li>
+                        <div class="nav-icon"><i class="fas fa-calendar"></i></div>
+                        <span class="nav-text">Calendrier</span>
+                    </a></li>
                 <li><a href="#" onclick="loadPageAndCloseSidebar('courses')">
-                    <div class="nav-icon"><i class="fas fa-book"></i></div>
-                    <span class="nav-text">Cours</span>
-                </a></li>
+                        <div class="nav-icon"><i class="fas fa-book"></i></div>
+                        <span class="nav-text">Cours</span>
+                    </a></li>
                 <li><a href="#" onclick="loadPageAndCloseSidebar('live')">
-                    <div class="nav-icon"><i class="fas fa-video"></i></div>
-                    <span class="nav-text">Classes en Direct</span>
-                </a></li>
+                        <div class="nav-icon"><i class="fas fa-video"></i></div>
+                        <span class="nav-text">Classes en Direct</span>
+                    </a></li>
                 <li><a href="#" onclick="loadPageAndCloseSidebar('paiement')">
-                    <div class="nav-icon"><i class="fas fa-wallet"></i></div>
-                    <span class="nav-text">Mon Portefeuille</span>
-                </a></li>
+                        <div class="nav-icon"><i class="fas fa-wallet"></i></div>
+                        <span class="nav-text">Mon Portefeuille</span>
+                    </a></li>
+                <li><a href="#" onclick="loadPageAndCloseSidebar('offers')">
+                        <div class="nav-icon"><i class="fas fa-tags"></i></div>
+                        <span class="nav-text">Offres</span>
+                    </a></li>
                 <li><a href="#" class="locked">
-                    <div class="nav-icon"><i class="fas fa-gamepad"></i></div>
-                    <span class="nav-text">Jeu d'apprentissage</span>
-                    <i class="fas fa-lock lock-icon"></i>
-                </a></li>
+                        <div class="nav-icon"><i class="fas fa-gamepad"></i></div>
+                        <span class="nav-text">Jeu d'apprentissage</span>
+                        <i class="fas fa-lock lock-icon"></i>
+                    </a></li>
                 <!-- Temporarily hidden until completed
                 <li><a href="#" onclick="loadPageAndCloseSidebar('chatbot')">
                     <div class="nav-icon"><i class="fas fa-robot"></i></div>
@@ -107,7 +113,7 @@
                 -->
             </ul>
         </div>
-        
+
         <!-- Main Content Area -->
         <section>
             <iframe src="pages/dashboard/dashboard.html" name="Principal" title="Zone principale"></iframe>
@@ -119,4 +125,5 @@
     <script src="authentication.js"></script>
     <script src="js/user.js"></script>
 </body>
+
 </html>
