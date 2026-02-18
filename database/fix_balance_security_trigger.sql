@@ -59,6 +59,11 @@ BEGIN
     -- AUTHORIZE BALANCE UPDATE for this session locally
     PERFORM set_config('app.authorized_balance_update', 'true', true);
 
+    -- 0. Check if user already purchased this offer
+    IF EXISTS (SELECT 1 FROM public.payments WHERE user_id = p_user_id AND offer_id = p_offer_id) THEN
+        RETURN jsonb_build_object('success', false, 'message', 'Vous avez déjà acheté cette offre');
+    END IF;
+
     -- 1. Get offer details
     SELECT fixed_price, title INTO v_offer_price, v_offer_title
     FROM public.offers

@@ -41,6 +41,19 @@ router.get("/", authMiddleware, async (req, res) => {
             return res.status(500).json({ error: "Failed to fetch offers" });
         }
 
+        // Fetch user's existing offer purchases if logged in
+        let purchasedOfferIds = [];
+        if (req.user) {
+            const { data: payments } = await supabaseAdmin
+                .from("payments")
+                .select("offer_id")
+                .eq("user_id", req.user.id);
+
+            if (payments) {
+                purchasedOfferIds = payments.map(p => p.offer_id);
+            }
+        }
+
         // Filter offers based on targeting
         let filteredOffers = offers;
 
@@ -66,10 +79,12 @@ router.get("/", authMiddleware, async (req, res) => {
         // Format the response to be cleaner
         const formattedOffers = filteredOffers.map(offer => {
             const price = parseFloat(offer.fixed_price || offer.price || 0);
+            const isPurchased = purchasedOfferIds.includes(offer.id);
             return {
                 ...offer,
                 courses: offer.courses.map(oc => oc.course),
-                can_purchase: userBalance >= price
+                is_purchased: isPurchased,
+                can_purchase: !isPurchased && userBalance >= price
             };
         });
 
