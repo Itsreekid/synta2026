@@ -46,8 +46,19 @@ async function initOffers() {
             const isFeatured = offer.title.toLowerCase().includes('pro') || offer.title.toLowerCase().includes('integral') || offer.is_best_seller;
 
             const price = parseFloat(offer.fixed_price || offer.price || 0);
-            const originalPrice = (price * 1.4).toFixed(1); // Mocking original price if not in DB
-            const discount = (originalPrice - price).toFixed(1);
+            const discountAmount = parseFloat(offer.discount_percentage || 0);
+            const originalPrice = (price + discountAmount).toFixed(1);
+
+            // Format dates
+            const formatDate = (dateStr) => {
+                if (!dateStr) return '';
+                const date = new Date(dateStr);
+                return date.toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' });
+            };
+
+            const dateRange = (offer.valid_from && offer.valid_until)
+                ? `De ${formatDate(offer.valid_from)} Jusqu'à ${formatDate(offer.valid_until)}`
+                : 'Offre à durée limitée';
 
             // Features mapping
             const features = offer.features || {};
@@ -70,7 +81,7 @@ async function initOffers() {
                     </div>
 
                     <div class="offer-price-section">
-                        <div class="discount-badge">-${discount}</div>
+                        ${discountAmount > 0 ? `<div class="discount-badge">-${discountAmount}</div>` : ''}
                         <div class="price-comparison">
                             <span class="original-price">${originalPrice} DT</span>
                             <div class="current-price-container">
@@ -82,7 +93,7 @@ async function initOffers() {
 
                     <div class="validity-box">
                         <i class="far fa-clock"></i>
-                        <span>De 1 juillet 2025 Jusqu'à 31 juillet 2026</span>
+                        <span>${dateRange}</span>
                     </div>
 
                     <div class="features-section">
