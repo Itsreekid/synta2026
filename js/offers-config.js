@@ -6,20 +6,17 @@
 window.OFFERS_FEATURES_CONFIG = {
     // Default features used if an offer has no features in the database
     "default": [
-        { text: "حصص تفاعلية مباشرة (Live 🟢) في جميع المواد", active: true },
-        { text: "تسجيلات الحصص المباشرة (REC 🔴) لجميع المواد", active: true },
+        { text: " (Live 🟢) حصص تفاعلية مباشرة في الاعلامية ", active: true },
         { text: "تمارين مرفقة بإصلاح PDFs", active: true },
-        { text: "امتحانات تقييمية في جميع المواد", active: true },
+        { text: "امتحانات تقييمية في جميع الاعلامية", active: true },
         { text: "منتدى - Forum للتفاعل مع الأساتذة", active: true }
     ],
 
     // Specific features for each offer
     "offers": {
         "ac44c4af-3bc6-4d38-a3aa-a6c7b3b1eeea": [
-            { text: "حصص تفاعلية مباشرة (Live 🟢) في جميع المواد", active: true },
-            { text: "تسجيلات الحصص المباشرة (REC 🔴) لجميع المواد", active: true },
+            { text: " (Live 🟢) حصص تفاعلية مباشرة في الاعلامية ", active: true },
             { text: "تمارين مرفقة بإصلاح PDFs", active: true },
-            { text: "إختيار المادة أو المواد بالشهر أو أكتر على كيفك", active: true },
             { text: "تسجيلات عرض zero to hero 2025 مجانا 🎁 |", active: false },
             { text: "حصص نصائح حول التغذية السليمة و النصائح النفسية", active: false }
         ],
