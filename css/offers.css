@@ -1,221 +1,233 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+
+:root {
+    --primary-blue: #0a2e6b;
+    --accent-orange: #ff7b1a;
+    --success-green: #4caf50;
+    --discount-red: #ff0000;
+    --border-purple: #6c40a7;
+    --bg-light: #f4f8ff;
+    --text-dark: #333;
+}
+
 body {
-    font-family: 'Tajawal', sans-serif;
-    background: #f4f8ff;
-    height: 100vh;
+    font-family: 'Inter', 'Tajawal', sans-serif;
+    background: var(--bg-light);
+    min-height: 100vh;
     padding: 2rem;
-    overflow: hidden;
+    margin: 0;
 }
 
 .offers-container {
     max-width: 1200px;
     margin: 0 auto;
-    height: 100%;
-    display: flex;
-    flex-direction: column;
-}
-
-.offers-header {
-    text-align: center;
-    margin-bottom: 2rem;
-    flex-shrink: 0;
-}
-
-.offers-header h1 {
-    font-size: 2.5rem;
-    color: #333;
-    font-weight: 700;
-    margin-bottom: 0.5rem;
-}
-
-.offers-header p {
-    color: #666;
-    font-size: 1.1rem;
 }
 
 .offers-list {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-    gap: 2rem;
-    max-width: 1100px;
-    margin: 0 auto;
-    align-items: start;
+    grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+    gap: 3rem;
+    justify-content: center;
+    padding: 2rem 0;
 }
 
+/* --- Premium Offer Card --- */
+
 .offer-card {
-    background-color: #fff;
-    border-radius: 10px;
+    background: white;
+    border: 2px solid var(--border-purple);
+    border-radius: 12px;
     overflow: hidden;
-    box-shadow: 0 15px 40px rgba(0,0,0,0.1);
-    transition: transform 0.3s, box-shadow 0.3s;
-    position: relative;
+    box-shadow: 0 10px 30px rgba(108, 64, 167, 0.1);
     display: flex;
     flex-direction: column;
+    position: relative;
+    transition: transform 0.3s ease;
+    max-width: 450px;
+    margin: 0 auto;
 }
 
 .offer-card:hover {
-    transform: translateY(-10px);
-    box-shadow: 0 15px 30px rgba(0, 0, 0, 0.15);
+    transform: translateY(-5px);
 }
 
-.offer-card.featured {
-    border: 2px solid #ff7b1a;
+.best-seller-banner {
+    background: var(--border-purple);
+    color: white;
+    text-align: center;
+    padding: 0.5rem;
+    font-weight: 700;
+    font-size: 1rem;
+    font-family: 'Tajawal', sans-serif;
 }
 
-.offer-badge {
-    position: absolute;
-    top: 15px;
-    right: 15px;
-    background-color: #333;
-    color: #fff;
-    padding: 5px 15px;
-    border-radius: 5px;
-    font-size: 0.75rem;
-    font-weight: 600;
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
-    z-index: 1;
+.offer-image-section {
+    padding: 1rem;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    border-bottom: 1px solid #eee;
 }
 
-.offer-card.featured .offer-badge {
-    background-color: #ff7b1a;
+.offer-image-section img {
+    max-width: 100%;
+    height: auto;
+    max-height: 180px;
 }
 
-.offer-image {
-    height: 180px;
-    overflow: hidden;
-    background: linear-gradient(135deg, #f5f5f5 0%, #e0e0e0 100%);
-}
-
-.offer-image img {
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-    transition: transform 0.5s;
-}
-
-.offer-card:hover .offer-image img {
-    transform: scale(1.1);
-}
-
-.offer-content {
-    padding: 20px;
-    flex: 1;
+.offer-price-section {
+    padding: 1.5rem;
+    text-align: center;
     display: flex;
     flex-direction: column;
+    align-items: center;
+    gap: 0.5rem;
 }
 
-.offer-price {
-    font-size: 2rem;
-    font-weight: 700;
-    color: #013047;
+.discount-badge {
+    background: var(--discount-red);
+    color: white;
+    padding: 4px 12px;
+    border-radius: 8px;
+    font-weight: 800;
+    font-size: 1.1rem;
     margin-bottom: 0.5rem;
 }
 
-.offer-price span {
-    font-size: 1rem;
-    font-weight: 400;
-    color: #666;
+.price-comparison {
+    display: flex;
+    align-items: baseline;
+    gap: 1rem;
 }
 
-.offer-subtitle {
-    color: #6c757d;
-    font-size: 0.9rem;
-    margin-bottom: 1.5rem;
+.original-price {
+    color: #666;
+    text-decoration: line-through;
+    font-size: 1.5rem;
     font-weight: 500;
 }
 
-.offer-btn {
-    background: #ff7b1a;
-    color: #fff;
-    border: none;
-    border-radius: 5px;
-    padding: 0.8rem 1.5rem;
-    font-family: 'Tajawal', sans-serif;
+.current-price-container {
+    display: flex;
+    align-items: center;
+}
+
+.current-price {
+    font-size: 3.5rem;
+    font-weight: 800;
+    color: #013047;
+    line-height: 1;
+}
+
+.currency-label {
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: #013047;
+    margin-left: 5px;
+}
+
+/* --- Period / Date Box --- */
+
+.validity-box {
+    margin: 1rem 1.5rem;
+    border: 2px solid var(--border-purple);
+    border-radius: 8px;
+    padding: 0.75rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    color: #333;
     font-weight: 600;
-    font-size: 0.9rem;
-    cursor: pointer;
-    transition: all 0.3s ease;
-    margin-top: 1.5rem;
-    width: 100%;
+    font-size: 0.95rem;
 }
 
-.offer-btn:hover {
-    background: #e6740e;
-    transform: translateY(-2px);
+.validity-box i {
+    font-size: 1.25rem;
+    color: #666;
 }
 
-.offer-btn:active {
-    transform: translateY(0);
-}
+/* --- Feature List --- */
 
-.offer-features {
-    list-style: none;
-    padding: 0;
-    margin: 0;
+.features-section {
+    padding: 1rem 2rem;
     flex: 1;
 }
 
-.offer-features li {
-    padding: 0.6rem 0;
-    color: #6c757d;
-    font-size: 0.9rem;
+.feature-item {
     display: flex;
-    align-items: flex-start;
-    gap: 0.5rem;
-    border-bottom: 1px solid #f0f0f0;
+    align-items: center;
+    justify-content: flex-end;
+    /* RTL feel like the image */
+    gap: 12px;
+    margin-bottom: 0.8rem;
+    font-family: 'Tajawal', sans-serif;
+    color: #444;
+    font-weight: 500;
+    text-align: right;
+    font-size: 1rem;
 }
 
-.offer-features li:last-child {
-    border-bottom: none;
+.feature-text {
+    flex: 1;
 }
 
-.offer-features li:before {
-    content: '✓';
-    color: #ff7b1a;
+.check-icon {
+    width: 24px;
+    height: 24px;
+    background: var(--success-green);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-size: 0.8rem;
+}
+
+/* --- Action Button --- */
+
+.purchase-section {
+    padding: 1.5rem 2rem;
+}
+
+.acheter-btn {
+    width: 100%;
+    padding: 1rem;
+    background: var(--primary-blue);
+    color: white;
+    border: none;
+    border-radius: 30px;
+    font-size: 1.25rem;
     font-weight: 700;
-    flex-shrink: 0;
+    cursor: pointer;
+    box-shadow: 0 4px 10px rgba(10, 46, 107, 0.3);
+    transition: all 0.2s ease;
 }
 
-@media (max-width: 768px) {
-    body {
-        padding: 0.75rem;
-        overflow-y: auto;
-        height: auto;
-        min-height: 100vh;
-    }
-    
-    .offers-container {
-        overflow-y: visible;
-    }
-    
-    .offers-header h1 {
-        font-size: 1.5rem;
-    }
-    
+.acheter-btn:hover {
+    background: #082455;
+    transform: scale(1.02);
+    box-shadow: 0 6px 15px rgba(10, 46, 107, 0.4);
+}
+
+.acheter-btn:disabled {
+    background: #ccc;
+    cursor: not-allowed;
+    box-shadow: none;
+}
+
+/* Hide balance summary as requested */
+.user-balance-summary {
+    display: none !important;
+}
+
+@media (max-width: 480px) {
     .offers-list {
         grid-template-columns: 1fr;
-        gap: 1rem;
+        padding: 1rem;
     }
-    
-    .offer-card {
-        padding: 1.5rem;
+
+    .current-price {
+        font-size: 2.5rem;
     }
-    
-    .offer-header h3 {
-        font-size: 1.3rem;
-    }
-    
-    .offer-price {
-        font-size: 1.5rem;
-    }
-    
-    .offer-features li {
-        font-size: 0.9rem;
-        padding: 0.5rem 0;
-    }
-    
-    .enroll-btn {
-        padding: 0.8rem 1.5rem;
-        font-size: 0.95rem;
-    }
-} 
+}

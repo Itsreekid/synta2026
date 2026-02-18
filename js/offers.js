@@ -43,39 +43,64 @@ async function initOffers() {
 
         // Render dynamic offers
         offersList.innerHTML = offers.map(offer => {
-            // Determine featured status
-            const isFeatured = offer.title.toLowerCase().includes('pro') || offer.title.toLowerCase().includes('integral');
+            const isFeatured = offer.title.toLowerCase().includes('pro') || offer.title.toLowerCase().includes('integral') || offer.is_best_seller;
 
             const price = parseFloat(offer.fixed_price || offer.price || 0);
+            const originalPrice = (price * 1.4).toFixed(1); // Mocking original price if not in DB
+            const discount = (originalPrice - price).toFixed(1);
 
-            // Map features from JSONB
-            const featureList = [];
-            if (offer.features) {
-                if (offer.features.live_access) featureList.push('Accès aux classes en direct');
-                if (offer.features.exams) featureList.push('Simulations d\'examens');
-                if (offer.features.community) featureList.push('Accès à la communauté');
-                if (offer.features.tracking) featureList.push('Suivi de progression avancé');
-            }
+            // Features mapping
+            const features = offer.features || {};
+            const featureItems = [
+                { text: 'حصص تفاعلية مباشرة (Live 🟢) في جميع المواد', active: features.live_access },
+                { text: 'تسجيلات الحصص المباشرة (REC 🔴) لجميع المواد', active: features.recordings || true },
+                { text: 'تمارين مرفقة بإصلاح PDFs', active: features.exams || true },
+                { text: 'تسجيلات عرض zero to hero 2025 مجانا 🎁 |', active: features.bonus || true },
+                { text: 'حصص نصائح حول التغذية السليمة و النصائح النفسية', active: features.tracking || true },
+                { text: 'امتحانات تقييمية في جميع المواد', active: features.exams || true },
+                { text: 'منتدى - Forum للتفاعل مع الأساتذة وطرح الأسئلة في أي وقت', active: features.community || true }
+            ].filter(f => f.active);
 
             return `
-                <div class="offer-card ${isFeatured ? 'featured' : ''} ${!offer.can_purchase ? 'insufficient-balance' : ''}">
-                    <div class="offer-badge">${offer.title}</div>
-                    <div class="offer-image">
+                <div class="offer-card ${isFeatured ? 'featured' : ''}">
+                    ${isFeatured ? '<div class="best-seller-banner">عرضنا الأكثر مبيعا</div>' : ''}
+                    
+                    <div class="offer-image-section">
                         <img src="${offer.image_url || '../../source/algo2.gif'}" alt="${offer.title}">
                     </div>
-                    <div class="offer-content">
-                        <div class="offer-price">
-                             <img src="../../source/dt.png" alt="DT" class="dt-currency-icon" style="width: 20px; height: 20px;"> 
-                             <span class="offer-price">${price}</span>
-                             ${offer.period ? `<span>/${offer.period}</span>` : ''}
+
+                    <div class="offer-price-section">
+                        <div class="discount-badge">-${discount}</div>
+                        <div class="price-comparison">
+                            <span class="original-price">${originalPrice} DT</span>
+                            <div class="current-price-container">
+                                <span class="current-price">${price}</span>
+                                <span class="currency-label">DT</span>
+                            </div>
                         </div>
-                        <div class="offer-subtitle">${offer.description || ''}</div>
-                        <ul class="offer-features">
-                            ${featureList.map(feature => `<li>${feature}</li>`).join('')}
-                            ${offer.courses ? `<li>Inclut ${offer.courses.length} cours</li>` : ''}
-                        </ul>
-                        <button class="offer-btn" ${!offer.can_purchase ? 'disabled' : ''} onclick="subscribeToOffer('${offer.id}', '${offer.title}')">
-                            ${offer.can_purchase ? 'S\'abonner' : 'Solde insuffisant'}
+                    </div>
+
+                    <div class="validity-box">
+                        <i class="far fa-clock"></i>
+                        <span>De 1 juillet 2025 Jusqu'à 31 juillet 2026</span>
+                    </div>
+
+                    <div class="features-section">
+                        ${featureItems.map(item => `
+                            <div class="feature-item">
+                                <span class="feature-text">${item.text}</span>
+                                <div class="check-icon">
+                                    <i class="fas fa-check"></i>
+                                </div>
+                            </div>
+                        `).join('')}
+                    </div>
+
+                    <div class="purchase-section">
+                        <button class="acheter-btn" 
+                            ${!offer.can_purchase || offer.is_purchased ? 'disabled' : ''} 
+                            onclick="subscribeToOffer('${offer.id}', '${offer.title}')">
+                            ${offer.is_purchased ? 'Déjà possédé' : (offer.can_purchase ? 'Acheter' : 'Solde insuffisant')}
                         </button>
                     </div>
                 </div>
@@ -94,24 +119,8 @@ async function initOffers() {
 }
 
 function updateBalanceInUI(balance) {
-    const numericBalance = parseFloat(balance) || 0;
-    // Look for an existing balance display or create one
-    let balanceDisplay = document.querySelector('.user-balance-summary');
-    if (!balanceDisplay) {
-        balanceDisplay = document.createElement('div');
-        balanceDisplay.className = 'user-balance-summary';
-        const container = document.querySelector('.offers-container');
-        if (container) {
-            container.insertBefore(balanceDisplay, container.firstChild);
-        }
-    }
-
-    balanceDisplay.innerHTML = `
-        <div class="balance-card">
-            <span class="balance-label">Votre Solde:</span>
-            <span class="balance-amount">${numericBalance.toFixed(2)} DT</span>
-        </div>
-    `;
+    // Hidden as requested: remove the class="user-balance-summary" from page offres
+    console.log('Balance update received:', balance);
 }
 
 async function subscribeToOffer(offerId, title) {
