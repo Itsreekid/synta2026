@@ -199,22 +199,10 @@ async function loadTransactions() {
 
         const addButtonHtml = `
             <tr class="add-transaction-row">
-                <td colspan="6" style="text-align: center; padding: 2rem;">
-                    ${allTransactions.length === 0 ? '<div style="margin-bottom: 1rem; color: #94a3b8;">Aucune transaction pour le moment</div>' : ''}
-                    <button onclick="showAddTransactionPopup()" style="
-                        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-                        color: white;
-                        border: none;
-                        border-radius: 10px;
-                        padding: 0.75rem 1.5rem;
-                        font-family: 'Inter', sans-serif;
-                        font-weight: 600;
-                        font-size: 0.95rem;
-                        cursor: pointer;
-                        transition: all 0.3s ease;
-                        box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
-                    " onmouseover="this.style.transform='translateY(-2px)'; this.style.boxShadow='0 6px 20px rgba(102, 126, 234, 0.4)'" onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='0 4px 12px rgba(102, 126, 234, 0.3)'">
-                        Ajouter une nouvelle transaction
+                <td colspan="6" style="text-align: center;">
+                    ${allTransactions.length === 0 ? '<div class="no-transactions-msg">Aucune transaction pour le moment</div>' : ''}
+                    <button onclick="showAddTransactionPopup()" class="premium-add-btn">
+                        <i class="fas fa-plus"></i> Ajouter une nouvelle transaction
                     </button>
                 </td>
             </tr>
