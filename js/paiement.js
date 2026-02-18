@@ -8,11 +8,11 @@ console.log('Paiement.js loaded');
 const isInIframe = window.self !== window.top;
 const SyntaAPI = isInIframe && window.parent.SyntaAPI ? window.parent.SyntaAPI : window.SyntaAPI;
 
-document.addEventListener('DOMContentLoaded', async function() {
+document.addEventListener('DOMContentLoaded', async function () {
     console.log('DOM loaded - starting initialization');
     console.log('Is in iframe:', isInIframe);
     console.log('SyntaAPI available:', !!SyntaAPI);
-    
+
     // Check if API client is loaded
     if (!SyntaAPI) {
         console.error('Client API non chargé');
@@ -29,10 +29,10 @@ document.addEventListener('DOMContentLoaded', async function() {
         }
         return;
     }
-    
+
     // Store globally for use in other functions
     window.SyntaAPI = SyntaAPI;
-    
+
     console.log('SyntaAPI loaded, loading user data and transactions');
     await loadUserData();
     await loadTransactions();
@@ -48,11 +48,11 @@ async function loadUserData() {
             window.location.href = '../../pages/auth/login.html';
             return;
         }
-        
+
         // In a real app, you would fetch this from the database
         // For now, we'll use placeholder data
         console.log('User loaded:', user.email);
-        
+
     } catch (error) {
         console.error('Error loading user data:', error);
     }
@@ -63,12 +63,12 @@ async function loadUserData() {
  */
 async function loadTransactions() {
     const tbody = document.getElementById('transaction-history');
-    
+
     if (!tbody) {
         console.error('Transaction history tbody not found');
         return;
     }
-    
+
     // Set a loading state first
     tbody.innerHTML = `
         <tr>
@@ -77,7 +77,7 @@ async function loadTransactions() {
             </td>
         </tr>
     `;
-    
+
     try {
         const user = await window.SyntaAPI.getCurrentUser();
         if (!user) {
@@ -91,23 +91,23 @@ async function loadTransactions() {
             `;
             return;
         }
-        
+
         console.log('Loading transactions for user:', user.id);
-        
+
         // Fetch transactions from database
         const { data: transactions, error: txError } = await window.SyntaAPI.supabase
             .from('transactions')
             .select('*')
             .eq('user_id', user.id)
             .order('created_at', { ascending: false });
-        
+
         if (txError) {
             console.error('Transaction fetch error:', txError);
             // Don't throw, continue with empty transactions
         }
-        
+
         console.log('Transactions fetched:', transactions);
-        
+
         // Fetch enrollments/purchases from Supabase
         const { data: enrollments, error } = await window.SyntaAPI.supabase
             .from('enrollments')
@@ -120,14 +120,14 @@ async function loadTransactions() {
             `)
             .eq('user_id', user.id)
             .order('enrolled_at', { ascending: false });
-        
+
         if (error) {
             console.error('Enrollments fetch error:', error);
             // Don't throw, continue with empty enrollments
         }
-        
+
         console.log('Enrollments fetched:', enrollments);
-        
+
         // Combine transactions and enrollments
         const allTransactions = [
             ...(transactions || []).map(tx => ({
@@ -150,39 +150,13 @@ async function loadTransactions() {
                 enrollment: enrollment
             }))
         ].sort((a, b) => new Date(b.date) - new Date(a.date));
-        
-        if (allTransactions.length === 0) {
-            tbody.innerHTML = `
-                <tr class="no-transactions">
-                    <td colspan="6" style="text-align: center; padding: 2rem; color: #94a3b8;">
-                        <div style="margin-bottom: 1rem;">Aucune transaction pour le moment</div>
-                        <button onclick="showAddTransactionPopup()" style="
-                            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-                            color: white;
-                            border: none;
-                            border-radius: 10px;
-                            padding: 0.75rem 1.5rem;
-                            font-family: 'Inter', sans-serif;
-                            font-weight: 600;
-                            font-size: 0.95rem;
-                            cursor: pointer;
-                            transition: all 0.3s ease;
-                            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
-                        " onmouseover="this.style.transform='translateY(-2px)'; this.style.boxShadow='0 6px 20px rgba(102, 126, 234, 0.4)'" onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='0 4px 12px rgba(102, 126, 234, 0.3)'">
-                            Ajouter une nouvelle transaction
-                        </button>
-                    </td>
-                </tr>
-            `;
-            return;
-        }
-        
-        // Render all transactions
-        tbody.innerHTML = allTransactions.map(tx => {
+
+        // Always show transactions (if any) plus the "Add" button
+        const transactionsHtml = allTransactions.map(tx => {
             const date = new Date(tx.date).toLocaleDateString('fr-FR');
             const code = tx.id.toString().substring(0, 12) + (tx.id.length > 12 ? '...' : '');
             const statusInfo = getTransactionStatus(tx.status);
-            
+
             return `
                 <tr class="${tx.status === 'pending' ? 'pending-transaction' : ''}">
                     <td>${code}</td>
@@ -196,10 +170,36 @@ async function loadTransactions() {
                 </tr>
             `;
         }).join('');
-        
+
+        const addButtonHtml = `
+            <tr class="add-transaction-row">
+                <td colspan="6" style="text-align: center; padding: 2rem;">
+                    ${allTransactions.length === 0 ? '<div style="margin-bottom: 1rem; color: #94a3b8;">Aucune transaction pour le moment</div>' : ''}
+                    <button onclick="showAddTransactionPopup()" style="
+                        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                        color: white;
+                        border: none;
+                        border-radius: 10px;
+                        padding: 0.75rem 1.5rem;
+                        font-family: 'Inter', sans-serif;
+                        font-weight: 600;
+                        font-size: 0.95rem;
+                        cursor: pointer;
+                        transition: all 0.3s ease;
+                        box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+                    " onmouseover="this.style.transform='translateY(-2px)'; this.style.boxShadow='0 6px 20px rgba(102, 126, 234, 0.4)'" onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='0 4px 12px rgba(102, 126, 234, 0.3)'">
+                        Ajouter une nouvelle transaction
+                    </button>
+                </td>
+            </tr>
+        `;
+
+        tbody.innerHTML = transactionsHtml + addButtonHtml;
+
+
         // Update pagination
         document.getElementById('pagination-info').textContent = `1 / 1 de ${allTransactions.length}`;
-        
+
     } catch (error) {
         console.error('Error loading transactions:', error);
         if (tbody) {
@@ -243,7 +243,7 @@ function getTransactionStatus(status) {
 /**
  * Open transaction details
  */
-window.openTransaction = function(enrollmentId) {
+window.openTransaction = function (enrollmentId) {
     console.log('Opening transaction:', enrollmentId);
     // You can implement a modal or redirect to a details page
     alert('Détails de la transaction: ' + enrollmentId);
@@ -252,7 +252,7 @@ window.openTransaction = function(enrollmentId) {
 /**
  * Show add transaction popup
  */
-window.showAddTransactionPopup = function() {
+window.showAddTransactionPopup = function () {
     const popup = document.createElement('div');
     popup.style.cssText = `
         position: fixed;
@@ -269,7 +269,7 @@ window.showAddTransactionPopup = function() {
         padding: 1rem;
         overflow-y: auto;
     `;
-    
+
     popup.innerHTML = `
         <div style="
             background: white;
@@ -355,14 +355,14 @@ window.showAddTransactionPopup = function() {
             </div>
         </div>
     `;
-    
+
     document.body.appendChild(popup);
-    
+
     // Focus on input
     setTimeout(() => {
         document.getElementById('transaction-amount').focus();
     }, 100);
-    
+
     // Add event listeners
     document.getElementById('confirmTransactionBtn').onclick = async () => {
         const amount = parseFloat(document.getElementById('transaction-amount').value);
@@ -373,11 +373,11 @@ window.showAddTransactionPopup = function() {
         popup.remove();
         await createPendingTransaction(amount);
     };
-    
+
     document.getElementById('cancelTransactionBtn').onclick = () => {
         popup.remove();
     };
-    
+
     // Close on background click
     popup.onclick = (e) => {
         if (e.target === popup) {
@@ -396,9 +396,9 @@ async function createPendingTransaction(amount) {
             showMessage('Utilisateur non connecté', 'error');
             return;
         }
-        
+
         const transactionCode = 'TXN-' + Date.now();
-        
+
         // Insert transaction into database
         const { data, error } = await window.SyntaAPI.supabase
             .from('transactions')
@@ -413,20 +413,20 @@ async function createPendingTransaction(amount) {
             })
             .select()
             .single();
-        
+
         if (error) {
             console.error('Database error:', error);
             throw error;
         }
-        
+
         console.log('Transaction created:', data);
-        
+
         // Reload transactions to show the new one
         await loadTransactions();
-        
+
         // Show success message
         showMessage('Transaction créée avec succès! Elle sera traitée prochainement.', 'success');
-        
+
     } catch (error) {
         console.error('Error creating pending transaction:', error);
         showMessage('Erreur lors de la création de la transaction: ' + (error.message || 'Erreur inconnue'), 'error');
@@ -451,7 +451,7 @@ function showMessage(message, type = 'info') {
         animation: slideIn 0.3s ease;
         max-width: 400px;
     `;
-    
+
     if (type === 'error') {
         messageDiv.style.background = '#dc3545';
     } else if (type === 'success') {
@@ -459,10 +459,10 @@ function showMessage(message, type = 'info') {
     } else {
         messageDiv.style.background = '#667eea';
     }
-    
+
     messageDiv.textContent = message;
     document.body.appendChild(messageDiv);
-    
+
     setTimeout(() => {
         messageDiv.remove();
     }, 3000);
