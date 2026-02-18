@@ -60,10 +60,13 @@ async function initOffers() {
                 ? `De ${formatDate(offer.valid_from)} Jusqu'à ${formatDate(offer.valid_until)}`
                 : 'Offre à durée limitée';
 
-            // NEW: Use the separate config file for features
+            // NEW: Use the separate config file for features and images
             let featureItems = [];
+            let offerImage = offer.image_url || '../../source/algo2.gif';
+
             if (window.OFFERS_FEATURES_CONFIG) {
                 featureItems = window.OFFERS_FEATURES_CONFIG.getFeatures(offer);
+                offerImage = window.OFFERS_FEATURES_CONFIG.getImage(offer) || offerImage;
             } else {
                 // Fallback if config is not loaded
                 const featuresData = offer.features || {};
@@ -85,7 +88,7 @@ async function initOffers() {
                     ${isFeatured ? '<div class="best-seller-banner">عرضنا الأكثر مبيعا</div>' : ''}
                     
                     <div class="offer-image-section">
-                        <img src="${offer.image_url || '../../source/algo2.gif'}" alt="${offer.title}">
+                        <img src="${offerImage}" alt="${offer.title}">
                     </div>
 
                     <div class="offer-price-section">
