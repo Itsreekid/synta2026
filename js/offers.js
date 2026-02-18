@@ -130,18 +130,49 @@ async function subscribeToOffer(offerId, title) {
             return;
         }
 
-        // Trigger confetti effect
-        handleConfetti();
-        // Show message and redirect to payment
-        showMessage(`Vous avez sélectionné l'offre ${title}. Redirection vers le paiement...`, 'success');
+        // Show confirmation dialog
+        const confirmed = confirm(`Voulez-vous vraiment acheter l'offre "${title}" ? Le montant sera déduit de votre solde.`);
+        if (!confirmed) return;
 
-        // Redirect to payment page with offer parameter
-        setTimeout(() => {
-            window.location.href = `../paiement/paiement.html?offer=${offerId}`;
-        }, 2000);
+        // Perform purchase via Supabase RPC
+        showMessage('Traitement de votre achat...', 'info');
+
+        const { data, error } = await window.SyntaAPI.supabase.rpc('purchase_offer', {
+            p_user_id: user.id,
+            p_offer_id: offerId
+        });
+
+        if (error) {
+            console.error('Purchase error:', error);
+            showMessage('Erreur lors de l\'achat: ' + error.message, 'error');
+            return;
+        }
+
+        if (data && data.success) {
+            // Trigger confetti effect
+            handleConfetti();
+
+            // Update balance in UI if possible
+            if (data.new_balance !== undefined) {
+                updateBalanceInUI(data.new_balance);
+                // Also update global balance if available (for header)
+                const headerBalance = document.getElementById('userBalance');
+                if (headerBalance) headerBalance.textContent = parseFloat(data.new_balance).toFixed(2);
+            }
+
+            showMessage(data.message || 'Offre achetée avec succès!', 'success');
+
+            // Redirect to wallet to see the new payment in history after a short delay
+            setTimeout(() => {
+                window.location.href = `../paiement/paiement.html`;
+            }, 2500);
+        } else {
+            showMessage(data.message || 'Échec de l\'achat', 'error');
+        }
+
     } catch (error) {
         console.error('Error in subscribeToOffer:', error);
-        showMessage('Une erreur est survenue', 'error');
+        showMessage('Une erreur est survenue lors de l\'achat', 'error');
     }
 }
 

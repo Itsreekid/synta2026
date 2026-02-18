@@ -128,7 +128,18 @@ async function loadTransactions() {
 
         console.log('Enrollments fetched:', enrollments);
 
-        // Combine transactions and enrollments
+        // Fetch offer payments from Supabase
+        const { data: payments, error: paymentsError } = await window.SyntaAPI.supabase
+            .from('payments')
+            .select('*')
+            .eq('user_id', user.id)
+            .order('created_at', { ascending: false });
+
+        if (paymentsError) {
+            console.error('Payments fetch error:', paymentsError);
+        }
+
+        // Combine transactions, enrollments, and payments
         const allTransactions = [
             ...(transactions || []).map(tx => ({
                 id: tx.transaction_code || tx.id,
@@ -139,16 +150,31 @@ async function loadTransactions() {
                 payment_method: tx.payment_method || 'N/A',
                 isTransaction: true
             })),
-            ...(enrollments || []).map(enrollment => ({
-                id: enrollment.id,
-                type: 'purchase',
-                amount: enrollment.course?.price || 0,
-                date: enrollment.enrolled_at,
-                status: 'approved',
-                payment_method: 'Achat de cours',
+            ...(payments || []).map(p => ({
+                id: p.id,
+                type: 'Achat de Plan',
+                amount: p.amount,
+                date: p.created_at,
+                status: 'completed',
+                payment_method: 'Solde Portefeuille',
                 isTransaction: false,
-                enrollment: enrollment
-            }))
+                isPayment: true
+            })),
+            ...(enrollments || []).map(enrollment => {
+                // Skip enrollments that are already covered by payments (optional, but cleaner)
+                // For now, let's keep it simple and just show them both or filter appropriately
+                return {
+                    id: enrollment.id,
+                    type: 'Accès Cours',
+                    amount: enrollment.course?.price || 0,
+                    date: enrollment.enrolled_at,
+                    status: 'approved',
+                    payment_method: 'Cours',
+                    isTransaction: false,
+                    isEnrollment: true,
+                    enrollment: enrollment
+                };
+            })
         ].sort((a, b) => new Date(b.date) - new Date(a.date));
 
         // Always show transactions (if any) plus the "Add" button
