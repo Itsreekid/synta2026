@@ -17,8 +17,8 @@ window.OFFERS_FEATURES_CONFIG = {
         "ac44c4af-3bc6-4d38-a3aa-a6c7b3b1eeea": [
             { text: " (Live 🟢) حصص تفاعلية مباشرة في الاعلامية ", active: true },
             { text: "تمارين مرفقة بإصلاح PDFs", active: true },
-            { text: "تسجيلات عرض zero to hero 2025 مجانا 🎁 |", active: false },
-            { text: "حصص نصائح حول التغذية السليمة و النصائح النفسية", active: false }
+            { text: "🎁 تسجيلات عرض ملخر و علخر في الانفو ", active: true },
+            { text: "حصص نصائح حول الصحة النفسية", active: true }
         ],
         "Offre Pro": [
             { text: "حصص تفاعلية مباشرة (Live 🟢) في جميع المواد", active: true },
