@@ -335,14 +335,27 @@
         }
 
         function openPassModal(id, email) {
-            document.getElementById('passStudentId').value = id;
-            document.getElementById('studentEmailDisplay').textContent = `Étudiant: ${email}`;
-            document.getElementById('passwordForm').reset();
-            document.getElementById('passwordModal').style.display = 'flex';
+            console.log('Opening password modal for:', email);
+            try {
+                const modal = document.getElementById('passwordModal');
+                if (!modal) throw new Error('Modal element "passwordModal" not found');
+
+                document.getElementById('passStudentId').value = id;
+                document.getElementById('studentEmailDisplay').textContent = `Étudiant: ${email}`;
+                document.getElementById('passwordForm').reset();
+
+                modal.style.display = 'flex';
+                modal.style.zIndex = '9999';
+                console.log('Success opening modal');
+            } catch (err) {
+                console.error('openPassModal error:', err);
+                alert('Erreur: ' + err.message);
+            }
         }
 
         function closePassModal() {
-            document.getElementById('passwordModal').style.display = 'none';
+            const modal = document.getElementById('passwordModal');
+            if (modal) modal.style.display = 'none';
         }
 
         document.getElementById('passwordForm').addEventListener('submit', async (e) => {

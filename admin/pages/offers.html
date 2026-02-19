@@ -328,13 +328,20 @@
 
         function openModal() {
             console.log('Opening "New Offer" modal');
-            document.getElementById('modalTitle').textContent = 'Nouvelle Offre';
-            document.getElementById('offerForm').reset();
-            document.getElementById('offerId').value = '';
+            try {
+                document.getElementById('modalTitle').textContent = 'Nouvelle Offre';
+                document.getElementById('offerForm').reset();
+                document.getElementById('offerId').value = '';
 
-            const modal = document.getElementById('offerModal');
-            modal.style.display = 'flex';
-            modal.style.zIndex = '9999'; // Ensure it's on top
+                const modal = document.getElementById('offerModal');
+                if (!modal) throw new Error('Modal element "offerModal" not found');
+
+                modal.style.display = 'flex';
+                modal.style.zIndex = '9999';
+            } catch (err) {
+                console.error('openModal error:', err);
+                alert('Erreur: ' + err.message);
+            }
         }
 
         function closeModal() {
@@ -343,17 +350,15 @@
 
         function editOffer(id) {
             console.log('Attempting to edit offer ID:', id);
-            // Convert both to string for reliable comparison
-            const offer = allOffers.find(o => String(o.id) === String(id));
-
-            if (!offer) {
-                console.error('Offer not found in local array. Search ID:', id, 'Available IDs:', allOffers.map(o => o.id));
-                alert('Erreur: Offre introuvable localement. Réessayez.');
-                return;
-            }
-
-            console.log('Populating modal with offer:', offer);
             try {
+                const offer = allOffers.find(o => String(o.id) === String(id));
+
+                if (!offer) {
+                    console.error('Offer not found local array. ID:', id);
+                    alert('Offre introuvable localement. ID: ' + id);
+                    return;
+                }
+
                 document.getElementById('modalTitle').textContent = 'Modifier l\'offre';
                 document.getElementById('offerId').value = offer.id || '';
                 document.getElementById('title').value = offer.title || '';
@@ -363,11 +368,14 @@
                 document.getElementById('is_active').value = String(offer.is_active);
 
                 const modal = document.getElementById('offerModal');
+                if (!modal) throw new Error('Modal element "offerModal" not found');
+
                 modal.style.display = 'flex';
                 modal.style.zIndex = '9999';
                 console.log('Modal display set to flex');
             } catch (err) {
-                console.error('Error populating modal:', err);
+                console.error('editOffer error:', err);
+                alert('Erreur lors de l\'ouverture: ' + err.message);
             }
         }
 
