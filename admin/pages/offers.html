@@ -254,6 +254,7 @@
     <script src="../../authentication.js"></script>
     <script src="../js/admin-dashboard.js"></script>
     <script>
+        let allOffers = [];
         document.addEventListener('DOMContentLoaded', initOffers);
 
         async function initOffers() {
@@ -266,8 +267,8 @@
             }
 
             if (window.AdminDashboard) {
-                const offers = await window.AdminDashboard.loadOffers();
-                renderOffers(offers);
+                allOffers = await window.AdminDashboard.loadOffers();
+                renderOffers(allOffers);
             }
             showLoader(false);
         }
@@ -292,7 +293,7 @@
                     <div style="display: flex; align-items: center; gap: 2rem;">
                         <div class="offer-price">${offer.fixed_price} DT</div>
                         <div class="actions">
-                            <button class="btn-icon" onclick='editOffer(${JSON.stringify(offer).replace(/'/g, "&apos;")})'>
+                            <button class="btn-icon" onclick="editOffer('${offer.id}')">
                                 <i class="fas fa-edit"></i>
                             </button>
                         </div>
@@ -312,7 +313,10 @@
             document.getElementById('offerModal').style.display = 'none';
         }
 
-        function editOffer(offer) {
+        function editOffer(id) {
+            const offer = allOffers.find(o => o.id === id);
+            if (!offer) return;
+
             document.getElementById('modalTitle').textContent = 'Modifier l\'offre';
             document.getElementById('offerId').value = offer.id;
             document.getElementById('title').value = offer.title;
