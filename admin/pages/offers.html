@@ -258,19 +258,33 @@
         document.addEventListener('DOMContentLoaded', initOffers);
 
         async function initOffers() {
+            console.log('Initializing Offers page...');
             showLoader(true);
-            // Wait for auth
-            let attempts = 0;
-            while (!window.auth && attempts < 20) {
-                await new Promise(resolve => setTimeout(resolve, 100));
-                attempts++;
-            }
+            try {
+                // Wait for auth
+                let attempts = 0;
+                while (!window.auth && attempts < 30) {
+                    await new Promise(resolve => setTimeout(resolve, 100));
+                    attempts++;
+                }
 
-            if (window.AdminDashboard) {
-                allOffers = await window.AdminDashboard.loadOffers();
-                renderOffers(allOffers);
+                if (!window.auth) {
+                    console.error('Auth system not found after 3 seconds');
+                    return;
+                }
+
+                if (window.AdminDashboard) {
+                    allOffers = await window.AdminDashboard.loadOffers();
+                    console.log('Loaded offers:', allOffers);
+                    renderOffers(allOffers);
+                } else {
+                    console.error('AdminDashboard utility not found');
+                }
+            } catch (error) {
+                console.error('Error during initOffers:', error);
+            } finally {
+                showLoader(false);
             }
-            showLoader(false);
         }
 
         function renderOffers(offers) {
@@ -300,22 +314,27 @@
                     </div>
                 </div>
             `).join('');
-
-            // Add event listeners to buttons
-            document.querySelectorAll('.edit-btn').forEach(btn => {
-                btn.onclick = (e) => {
-                    const id = e.currentTarget.getAttribute('data-id');
-                    console.log('Edit clicked for ID:', id);
-                    editOffer(id);
-                };
-            });
         }
 
+        // Global click listener for event delegation
+        document.addEventListener('click', function (e) {
+            const editBtn = e.target.closest('.edit-btn');
+            if (editBtn) {
+                const id = editBtn.getAttribute('data-id');
+                console.log('Event Delegation: Edit clicked for ID:', id);
+                editOffer(id);
+            }
+        });
+
         function openModal() {
+            console.log('Opening "New Offer" modal');
             document.getElementById('modalTitle').textContent = 'Nouvelle Offre';
             document.getElementById('offerForm').reset();
             document.getElementById('offerId').value = '';
-            document.getElementById('offerModal').style.display = 'flex';
+
+            const modal = document.getElementById('offerModal');
+            modal.style.display = 'flex';
+            modal.style.zIndex = '9999'; // Ensure it's on top
         }
 
         function closeModal() {
@@ -323,50 +342,68 @@
         }
 
         function editOffer(id) {
-            console.log('Searching for offer with ID:', id);
-            const offer = allOffers.find(o => o.id === id);
+            console.log('Attempting to edit offer ID:', id);
+            // Convert both to string for reliable comparison
+            const offer = allOffers.find(o => String(o.id) === String(id));
 
             if (!offer) {
-                console.error('Offer not found in local array:', id, allOffers);
+                console.error('Offer not found in local array. Search ID:', id, 'Available IDs:', allOffers.map(o => o.id));
+                alert('Erreur: Offre introuvable localement. Réessayez.');
                 return;
             }
 
-            console.log('Found offer:', offer);
-            document.getElementById('modalTitle').textContent = 'Modifier l\'offre';
-            document.getElementById('offerId').value = offer.id;
-            document.getElementById('title').value = offer.title;
-            document.getElementById('description').value = offer.description || '';
-            document.getElementById('fixed_price').value = offer.fixed_price;
-            document.getElementById('discount_percentage').value = offer.discount_percentage || 0;
-            document.getElementById('is_active').value = offer.is_active.toString();
-            document.getElementById('offerModal').style.display = 'flex';
+            console.log('Populating modal with offer:', offer);
+            try {
+                document.getElementById('modalTitle').textContent = 'Modifier l\'offre';
+                document.getElementById('offerId').value = offer.id || '';
+                document.getElementById('title').value = offer.title || '';
+                document.getElementById('description').value = offer.description || '';
+                document.getElementById('fixed_price').value = offer.fixed_price || 0;
+                document.getElementById('discount_percentage').value = offer.discount_percentage || 0;
+                document.getElementById('is_active').value = String(offer.is_active);
+
+                const modal = document.getElementById('offerModal');
+                modal.style.display = 'flex';
+                modal.style.zIndex = '9999';
+                console.log('Modal display set to flex');
+            } catch (err) {
+                console.error('Error populating modal:', err);
+            }
         }
 
         document.getElementById('offerForm').addEventListener('submit', async (e) => {
             e.preventDefault();
+            console.log('Form submitted');
             showLoader(true);
 
-            const data = {
-                id: document.getElementById('offerId').value,
-                title: document.getElementById('title').value,
-                description: document.getElementById('description').value,
-                fixed_price: parseFloat(document.getElementById('fixed_price').value),
-                discount_percentage: parseInt(document.getElementById('discount_percentage').value),
-                is_active: document.getElementById('is_active').value === 'true'
-            };
+            try {
+                const data = {
+                    id: document.getElementById('offerId').value,
+                    title: document.getElementById('title').value,
+                    description: document.getElementById('description').value,
+                    fixed_price: parseFloat(document.getElementById('fixed_price').value),
+                    discount_percentage: parseInt(document.getElementById('discount_percentage').value),
+                    is_active: document.getElementById('is_active').value === 'true'
+                };
 
-            const result = await window.AdminDashboard.manageOffer(data);
-            if (result.success) {
-                closeModal();
-                await initOffers();
-            } else {
-                alert('Erreur: ' + result.error);
+                const result = await window.AdminDashboard.manageOffer(data);
+                if (result.success) {
+                    closeModal();
+                    await initOffers();
+                } else {
+                    alert('Erreur: ' + result.error);
+                }
+            } catch (err) {
+                console.error('Error submitting form:', err);
+                alert('Une erreur est survenue lors de l\'enregistrement.');
+            } finally {
+                showLoader(false);
             }
-            showLoader(false);
         });
 
         function showLoader(show) {
-            document.getElementById('loading').style.display = show ? 'flex' : 'none';
+            const loader = document.getElementById('loading');
+            if (loader) loader.style.display = show ? 'flex' : 'none';
         }
     </script>
 </body>
