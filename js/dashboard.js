@@ -1,5 +1,5 @@
 // Dashboard JavaScript
-document.addEventListener('DOMContentLoaded', function() {
+document.addEventListener('DOMContentLoaded', function () {
     initializeDashboard();
 });
 
@@ -8,18 +8,18 @@ async function initializeDashboard() {
         // Wait for authentication to initialize
         let attempts = 0;
         const maxAttempts = 20; // Increased attempts for slower connections
-        
+
         while (!window.auth && attempts < maxAttempts) {
             await new Promise(resolve => setTimeout(resolve, 100));
             attempts++;
         }
-        
+
         if (!window.auth) {
             console.error('Authentication not initialized');
             showMessage('Erreur de chargement du système d\'authentification. Veuillez actualiser la page.', 'error');
             return;
         }
-        
+
         // Check authentication
         const authResult = await window.auth.getCurrentUser();
         if (!authResult.success || !authResult.user) {
@@ -32,10 +32,10 @@ async function initializeDashboard() {
 
         // Load user data
         await loadUserData(authResult.user);
-        
+
         // Load dashboard data
         await loadDashboardData();
-        
+
     } catch (error) {
         console.error('Error initializing dashboard:', error);
         showMessage('Une erreur est survenue lors du chargement des données', 'error');
@@ -47,23 +47,23 @@ async function loadUserData(user) {
         // Update user info
         const userName = user.user_metadata?.full_name || user.email?.split('@')[0] || 'Utilisateur';
         const userEmail = user.email || 'Non disponible';
-        
+
         const userNameEl = document.getElementById('user-name');
         if (userNameEl) {
             userNameEl.textContent = userName;
         }
-        
+
         const userEmailEl = document.getElementById('user-email');
         if (userEmailEl) {
             userEmailEl.textContent = userEmail;
         }
-        
+
         // Update avatar
         const avatar = document.getElementById('user-avatar');
         if (avatar && userName && userName.length > 0) {
             avatar.textContent = userName.charAt(0).toUpperCase();
         }
-        
+
     } catch (error) {
         console.error('Error loading user data:', error);
     }
@@ -73,16 +73,16 @@ async function loadDashboardData() {
     try {
         // Load stats
         await loadStats();
-        
+
         // Load recent activity
         await loadRecentActivity();
-        
+
         // Load progress
         await loadProgress();
-        
+
         // Load events
         await loadEvents();
-        
+
     } catch (error) {
         console.error('Error loading dashboard data:', error);
     }
@@ -97,27 +97,27 @@ async function loadStats() {
             achievements: 0,
             activeDays: 0
         };
-        
+
         const completedEl = document.getElementById('completed-courses');
         if (completedEl) {
             completedEl.textContent = stats.completedCourses;
         }
-        
+
         const progressEl = document.getElementById('overall-progress');
         if (progressEl) {
             progressEl.textContent = stats.overallProgress + '%';
         }
-        
+
         const achievementsEl = document.getElementById('achievements');
         if (achievementsEl) {
             achievementsEl.textContent = stats.achievements;
         }
-        
+
         const activeDaysEl = document.getElementById('active-days');
         if (activeDaysEl) {
             activeDaysEl.textContent = stats.activeDays;
         }
-        
+
     } catch (error) {
         console.error('Error loading stats:', error);
     }
@@ -126,7 +126,7 @@ async function loadStats() {
 async function loadRecentActivity() {
     try {
         const activityList = document.getElementById('activity-list');
-        
+
         // Simulate activity data
         const activities = [
             {
@@ -154,7 +154,7 @@ async function loadRecentActivity() {
                 color: '#007bff'
             }
         ];
-        
+
         activityList.innerHTML = activities.map(activity => `
             <div class="activity-item">
                 <div class="activity-icon" style="background: ${activity.color}">
@@ -166,7 +166,7 @@ async function loadRecentActivity() {
                 </div>
             </div>
         `).join('');
-        
+
     } catch (error) {
         console.error('Error loading activity:', error);
         document.getElementById('activity-list').innerHTML = '<div class="loading">Erreur de chargement de l\'activité</div>';
@@ -176,7 +176,7 @@ async function loadRecentActivity() {
 async function loadProgress() {
     try {
         const progressList = document.getElementById('progress-list');
-        
+
         // Simulate progress data
         const progressData = [
             { title: 'Cours Python de base', percentage: 0 },
@@ -184,7 +184,7 @@ async function loadProgress() {
             { title: 'Cours Algorithmes', percentage: 0 },
             { title: 'Cours Bases de données', percentage: 0 }
         ];
-        
+
         progressList.innerHTML = progressData.map(progress => `
             <div class="progress-item">
                 <div class="progress-header">
@@ -196,7 +196,7 @@ async function loadProgress() {
                 </div>
             </div>
         `).join('');
-        
+
     } catch (error) {
         console.error('Error loading progress:', error);
         document.getElementById('progress-list').innerHTML = '<div class="loading">Erreur de chargement du progrès</div>';
@@ -206,34 +206,52 @@ async function loadProgress() {
 async function loadEvents() {
     try {
         const eventsList = document.getElementById('events-list');
-        
+
         // Check if events data is available from events.js
         if (typeof upcomingEvents === 'undefined' || !Array.isArray(upcomingEvents)) {
             console.error('upcomingEvents not found. Make sure events.js is loaded.');
             eventsList.innerHTML = '<div class="loading">Erreur de chargement des événements</div>';
             return;
         }
-        
+
         // Filter events that haven't passed yet
         const today = new Date();
         today.setHours(0, 0, 0, 0);
-        
+
+        // Get current user metadata for filtering
+        const { data: { user } } = await window.auth.getCurrentUser();
+        const userClass = user?.user_metadata?.user_class;
+        const userBranch = user?.user_metadata?.user_branch;
+
         const activeEvents = upcomingEvents.filter(event => {
             const eventDate = new Date(event.date);
-            return eventDate >= today;
+            if (eventDate < today) return false;
+
+            // Apply targeting filter
+            const matchesClass = !event.target_classes ||
+                event.target_classes.length === 0 ||
+                event.target_classes.includes('all') ||
+                (userClass && event.target_classes.includes(userClass));
+
+            const matchesBranch = !event.target_branches ||
+                event.target_branches.length === 0 ||
+                event.target_branches.includes('all') ||
+                (userBranch && event.target_branches.includes(userBranch));
+
+            return matchesClass && matchesBranch;
         });
-        
+
         if (activeEvents.length === 0) {
             eventsList.innerHTML = '<div class="event-item">Aucun événement à venir</div>';
             return;
         }
-        
+
         eventsList.innerHTML = activeEvents.map(event => {
             // Format date to French
             const eventDate = new Date(event.date);
             const monthNames = ['janvier', 'février', 'mars', 'avril', 'mai', 'juin', 'juillet', 'août', 'septembre', 'octobre', 'novembre', 'décembre'];
             const dateString = `${eventDate.getDate()} ${monthNames[eventDate.getMonth()]}`;
-            
+
             // Handle both object and string description formats
             let descriptionHTML = '';
             if (typeof event.description === 'object' && event.description.line1) {
@@ -244,7 +262,7 @@ async function loadEvents() {
             } else {
                 descriptionHTML = event.description;
             }
-            
+
             return `
                 <div class="event-item" style="border-right: 3px solid ${event.color}; cursor: pointer;" onclick="navigateToCalendar('${event.date}')">
                     <div class="event-date">${event.icon} ${dateString} - ${event.time}</div>
@@ -256,7 +274,7 @@ async function loadEvents() {
                 </div>
             `;
         }).join('');
-        
+
     } catch (error) {
         console.error('Error loading events:', error);
         document.getElementById('events-list').innerHTML = '<div class="loading">Erreur de chargement des événements</div>';
@@ -312,7 +330,7 @@ function showMessage(message, type = 'info') {
         z-index: 1000;
         animation: slideIn 0.3s ease;
     `;
-    
+
     if (type === 'error') {
         messageDiv.style.background = '#dc3545';
     } else if (type === 'success') {
@@ -320,10 +338,10 @@ function showMessage(message, type = 'info') {
     } else {
         messageDiv.style.background = '#ff7b1a';
     }
-    
+
     messageDiv.textContent = message;
     document.body.appendChild(messageDiv);
-    
+
     setTimeout(() => {
         messageDiv.remove();
     }, 3000);

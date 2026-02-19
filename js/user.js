@@ -1,35 +1,35 @@
 // User Page JavaScript
 
-document.addEventListener('DOMContentLoaded', function() {
+document.addEventListener('DOMContentLoaded', function () {
     // Check authentication on page load
     checkAuthentication();
-    
+
     // Load user balance from database
     loadUserBalance();
-    
+
     // Update notification badge with event count
     updateNotificationBadge();
-    
+
     // Set up iframe resize listener
     setupIframeResize();
 
     // Close mobile menu when clicking outside
-    document.addEventListener('click', function(event) {
+    document.addEventListener('click', function (event) {
         const sidebar = document.getElementById('sidebar');
         const menuToggle = document.querySelector('.mobile-menu-toggle');
         const profileDropdown = document.getElementById('profileDropdown');
         const profilePicture = document.querySelector('.profile-picture');
         const notificationDropdown = document.getElementById('notificationDropdown');
         const notificationIcon = document.querySelector('.notification-icon');
-        
+
         // Close sidebar if clicking outside
-        if (sidebar && menuToggle && 
-            !sidebar.contains(event.target) && 
+        if (sidebar && menuToggle &&
+            !sidebar.contains(event.target) &&
             !menuToggle.contains(event.target) &&
             sidebar.classList.contains('active')) {
             closeMobileMenu();
         }
-        
+
         // Close profile dropdown if clicking outside
         if (profileDropdown && profilePicture &&
             !profileDropdown.contains(event.target) &&
@@ -37,7 +37,7 @@ document.addEventListener('DOMContentLoaded', function() {
             profileDropdown.classList.contains('active')) {
             profileDropdown.classList.remove('active');
         }
-        
+
         // Close notification dropdown if clicking outside
         if (notificationDropdown && notificationIcon &&
             !notificationDropdown.contains(event.target) &&
@@ -54,39 +54,39 @@ async function loadUserBalance() {
         // Wait for Supabase client to be initialized
         let attempts = 0;
         const maxAttempts = 20;
-        
+
         while (!window.supabaseClient && attempts < maxAttempts) {
             await new Promise(resolve => setTimeout(resolve, 100));
             attempts++;
         }
-        
+
         if (!window.supabaseClient) {
             console.error('Supabase client not initialized after waiting');
             return;
         }
-        
+
         // Get current user
         const { data: { user }, error: userError } = await window.supabaseClient.auth.getUser();
-        
+
         if (userError || !user) {
             console.error('Error getting user:', userError);
             return;
         }
-        
+
         console.log('Fetching balance for user:', user.id);
-        
+
         // Fetch user balance from Users table (note: capital U)
         const { data, error } = await window.supabaseClient
             .from('Users')
             .select('balance')
             .eq('id', user.id)
             .single();
-        
+
         if (error) {
             console.error('Error fetching balance:', error);
             console.error('Error details:', error.message, error.code, error.hint);
             console.error('Full error:', JSON.stringify(error, null, 2));
-            
+
             // Show helpful message if it's a permission error
             if (error.code === 'PGRST116' || error.message?.includes('policy')) {
                 console.error('⚠️ PERMISSION ERROR: RLS policy may be blocking access to Users table.');
@@ -94,9 +94,9 @@ async function loadUserBalance() {
             }
             return;
         }
-        
+
         console.log('Balance data received:', data);
-        
+
         // Update the balance display
         const balanceElement = document.getElementById('userBalance');
         if (balanceElement) {
@@ -110,7 +110,7 @@ async function loadUserBalance() {
         } else {
             console.error('Balance element not found in DOM');
         }
-        
+
     } catch (error) {
         console.error('Error loading user balance:', error);
     }
@@ -129,7 +129,7 @@ function toggleNotifications() {
     const dropdown = document.getElementById('notificationDropdown');
     if (dropdown) {
         dropdown.classList.toggle('active');
-        
+
         // Load events if dropdown is being opened
         if (dropdown.classList.contains('active')) {
             loadNotificationEvents();
@@ -138,28 +138,66 @@ function toggleNotifications() {
 }
 
 // Update notification badge with event count
-function updateNotificationBadge() {
+async function updateNotificationBadge() {
     const badge = document.getElementById('notificationCount');
-    if (badge && typeof upcomingEvents !== 'undefined') {
-        const eventCount = upcomingEvents.length;
-        badge.textContent = eventCount;
-        badge.style.display = eventCount > 0 ? 'flex' : 'none';
+    if (!badge) return;
+
+    const events = await getFilteredEvents();
+    const eventCount = events.length;
+    badge.textContent = eventCount;
+    badge.style.display = eventCount > 0 ? 'flex' : 'none';
+}
+
+// Helper to filter events based on user targeting
+async function getFilteredEvents() {
+    if (typeof upcomingEvents === 'undefined' || !Array.isArray(upcomingEvents)) return [];
+
+    // Get user from auth if available
+    let userClass = null;
+    let userBranch = null;
+
+    if (window.auth) {
+        try {
+            const result = await window.auth.getCurrentUser();
+            if (result.success && result.user) {
+                userClass = result.user.user_metadata?.user_class;
+                userBranch = result.user.user_metadata?.user_branch;
+            }
+        } catch (error) {
+            console.error('Error getting user for filtering:', error);
+        }
     }
+
+    return upcomingEvents.filter(event => {
+        const matchesClass = !event.target_classes ||
+            event.target_classes.length === 0 ||
+            event.target_classes.includes('all') ||
+            (userClass && event.target_classes.includes(userClass));
+
+        const matchesBranch = !event.target_branches ||
+            event.target_branches.length === 0 ||
+            event.target_branches.includes('all') ||
+            (userBranch && event.target_branches.includes(userBranch));
+
+        return matchesClass && matchesBranch;
+    });
 }
 
 // Load events into notification dropdown
-function loadNotificationEvents() {
+async function loadNotificationEvents() {
     const eventsList = document.getElementById('notificationEventsList');
     if (!eventsList) return;
-    
+
+    const events = await getFilteredEvents();
+
     // Check if events are available
-    if (typeof upcomingEvents === 'undefined' || upcomingEvents.length === 0) {
+    if (events.length === 0) {
         eventsList.innerHTML = '<div class="no-events">Aucun événement à venir</div>';
         return;
     }
-    
+
     // Generate event items
-    eventsList.innerHTML = upcomingEvents.map(event => {
+    eventsList.innerHTML = events.map(event => {
         return `
             <div class="notification-event-item">
                 <div class="event-icon">${event.icon || '📅'}</div>
@@ -176,7 +214,7 @@ function loadNotificationEvents() {
 function toggleMobileMenu() {
     const sidebar = document.getElementById('sidebar');
     const menuToggle = document.querySelector('.mobile-menu-toggle');
-    
+
     sidebar.classList.toggle('active');
     menuToggle.classList.toggle('active');
 }
@@ -185,7 +223,7 @@ function toggleMobileMenu() {
 function closeMobileMenu() {
     const sidebar = document.getElementById('sidebar');
     const menuToggle = document.querySelector('.mobile-menu-toggle');
-    
+
     if (sidebar && sidebar.classList.contains('active')) {
         sidebar.classList.remove('active');
         menuToggle.classList.remove('active');
@@ -203,19 +241,19 @@ function loadPageAndCloseSidebar(pageName) {
 function loadPage(pageName) {
     const iframe = document.querySelector('iframe[name="Principal"]');
     if (!iframe) return;
-    
+
     // Show loading state
     iframe.classList.add('loading');
-    
+
     // Update navigation active state
     updateActiveNavigation(pageName);
-    
+
     // Load the page in iframe
     const pagePath = `pages/${pageName}/${pageName}.html`;
     iframe.src = pagePath;
-    
+
     // Remove loading state after iframe loads
-    iframe.onload = function() {
+    iframe.onload = function () {
         iframe.classList.remove('loading');
     };
 }
@@ -224,19 +262,19 @@ function loadPage(pageName) {
 function loadPageWithDate(pageName, date) {
     const iframe = document.querySelector('iframe[name="Principal"]');
     if (!iframe) return;
-    
+
     // Show loading state
     iframe.classList.add('loading');
-    
+
     // Update navigation active state
     updateActiveNavigation(pageName);
-    
+
     // Load the page in iframe with date parameter
     const pagePath = `pages/${pageName}/${pageName}.html?date=${date}`;
     iframe.src = pagePath;
-    
+
     // Remove loading state after iframe loads
-    iframe.onload = function() {
+    iframe.onload = function () {
         iframe.classList.remove('loading');
     };
 }
@@ -247,7 +285,7 @@ function updateActiveNavigation(pageName) {
     document.querySelectorAll('.nav-links a').forEach(link => {
         link.classList.remove('active');
     });
-    
+
     // Add active class to clicked link - updated to match new onclick pattern
     const activeLink = document.querySelector(`[onclick*="'${pageName}'"]`);
     if (activeLink) {
@@ -261,22 +299,22 @@ async function checkAuthentication() {
         // Wait for authentication to initialize
         let attempts = 0;
         const maxAttempts = 10;
-        
+
         while (!window.auth && attempts < maxAttempts) {
             await new Promise(resolve => setTimeout(resolve, 100));
             attempts++;
         }
-        
+
         if (!window.auth) {
             console.error('Authentication not initialized');
             redirectToLogin();
             return;
         }
-        
+
         // Check if user is authenticated
         const isAuth = await window.auth.isAuthenticated();
         console.log('Authentication status:', isAuth);
-        
+
         if (!isAuth) {
             console.log('User not authenticated, redirecting to login...');
             showAuthMessage('يرجى تسجيل الدخول للوصول إلى هذه الصفحة...');
@@ -285,7 +323,7 @@ async function checkAuthentication() {
             }, 2000);
             return;
         }
-        
+
         // User is authenticated, load user data
         try {
             const authResult = await window.auth.getCurrentUser();
@@ -297,7 +335,7 @@ async function checkAuthentication() {
         } catch (error) {
             console.error('Error getting user data:', error);
         }
-        
+
     } catch (error) {
         console.error('Authentication check error:', error);
         redirectToLogin();
@@ -307,7 +345,7 @@ async function checkAuthentication() {
 // Update user information
 function updateUserInfo(user) {
     const displayName = user.user_metadata?.full_name || user.email?.split('@')[0] || 'المستخدم';
-    
+
     // Update any user-specific elements on the page
     const welcomeElements = document.querySelectorAll('.welcome-name, .user-name');
     welcomeElements.forEach(element => {
@@ -364,7 +402,7 @@ function showAuthMessage(message) {
     `;
     messageDiv.textContent = message;
     document.body.appendChild(messageDiv);
-    
+
     // Auto remove after 3 seconds
     setTimeout(() => {
         if (messageDiv.parentNode) {
@@ -377,14 +415,14 @@ function showAuthMessage(message) {
 function setupIframeResize() {
     const iframe = document.querySelector('iframe[name="Principal"]');
     if (!iframe) return;
-    
+
     // Resize iframe on load
-    iframe.addEventListener('load', function() {
+    iframe.addEventListener('load', function () {
         resizeIframe();
     });
-    
+
     // Resize iframe when window resizes
-    window.addEventListener('resize', function() {
+    window.addEventListener('resize', function () {
         resizeIframe();
     });
 }
@@ -393,7 +431,7 @@ function setupIframeResize() {
 function resizeIframe() {
     const iframe = document.querySelector('iframe[name="Principal"]');
     if (!iframe || !iframe.contentWindow) return;
-    
+
     try {
         // Get the height of the content inside the iframe
         const height = iframe.contentWindow.document.body.scrollHeight;
