@@ -141,6 +141,88 @@
                 transform: rotate(360deg);
             }
         }
+
+        /* Modal Styles */
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 9999;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .modal-content {
+            background: white;
+            width: 100%;
+            max-width: 450px;
+            padding: 2.5rem;
+            border-radius: 16px;
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
+        }
+
+        .form-group {
+            margin-bottom: 1.5rem;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 0.5rem;
+            font-weight: 500;
+            font-size: 0.9rem;
+        }
+
+        input {
+            width: 100%;
+            padding: 0.8rem;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            font-family: inherit;
+        }
+
+        .modal-footer {
+            display: flex;
+            justify-content: flex-end;
+            gap: 1rem;
+            margin-top: 2rem;
+        }
+
+        .btn {
+            padding: 0.6rem 1.2rem;
+            border-radius: 8px;
+            font-weight: 600;
+            cursor: pointer;
+            border: none;
+            transition: all 0.2s;
+        }
+
+        .btn-primary {
+            background: var(--primary);
+            color: white;
+        }
+
+        .btn-icon {
+            width: 32px;
+            height: 32px;
+            border-radius: 8px;
+            border: 1px solid #e2e8f0;
+            background: white;
+            color: #64748b;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s;
+        }
+
+        .btn-icon:hover {
+            border-color: var(--primary);
+            color: var(--primary);
+        }
     </style>
 </head>
 
@@ -170,12 +252,32 @@
                     <th>Branche</th>
                     <th>Date d'inscription</th>
                     <th>Solde</th>
+                    <th>Actions</th>
                 </tr>
             </thead>
             <tbody id="studentsBody">
                 <!-- Students will be loaded here -->
             </tbody>
         </table>
+    </div>
+
+    <!-- Password Management Modal -->
+    <div id="passwordModal" class="modal">
+        <div class="modal-content">
+            <h2>Changer le mot de passe</h2>
+            <p id="studentEmailDisplay" style="margin-bottom: 1.5rem; color: #64748b; font-size: 0.9rem;"></p>
+            <form id="passwordForm">
+                <input type="hidden" id="passStudentId">
+                <div class="form-group">
+                    <label>Nouveau mot de passe</label>
+                    <input type="password" id="newPassword" required placeholder="8 caractères minimum" minlength="8">
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn" onclick="closePassModal()">Annuler</button>
+                    <button type="submit" class="btn btn-primary">Mettre à jour</button>
+                </div>
+            </form>
+        </div>
     </div>
 
     <!-- Supabase Client Library -->
@@ -205,7 +307,7 @@
         function renderStudents(students) {
             const body = document.getElementById('studentsBody');
             if (students.length === 0) {
-                body.innerHTML = '<tr><td colspan="7" style="text-align: center; padding: 3rem; color: #64748b;">Aucun étudiant trouvé.</td></tr>';
+                body.innerHTML = '<tr><td colspan="8" style="text-align: center; padding: 3rem; color: #64748b;">Aucun étudiant trouvé.</td></tr>';
                 return;
             }
 
@@ -223,15 +325,54 @@
                     <td><span class="badge badge-branch">${student.branch || '-'}</span></td>
                     <td>${new Date(student.created_at).toLocaleDateString('fr-FR')}</td>
                     <td><strong>${student.balance || '0.00'} DT</strong></td>
+                    <td>
+                        <button class="btn-icon" onclick="openPassModal('${student.id}', '${student.email}')" title="Changer le mot de passe">
+                            <i class="fas fa-key"></i>
+                        </button>
+                    </td>
                 </tr>
             `).join('');
         }
 
+        function openPassModal(id, email) {
+            document.getElementById('passStudentId').value = id;
+            document.getElementById('studentEmailDisplay').textContent = `Étudiant: ${email}`;
+            document.getElementById('passwordForm').reset();
+            document.getElementById('passwordModal').style.display = 'flex';
+        }
+
+        function closePassModal() {
+            document.getElementById('passwordModal').style.display = 'none';
+        }
+
+        document.getElementById('passwordForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const id = document.getElementById('passStudentId').value;
+            const newPass = document.getElementById('newPassword').value;
+
+            if (newPass.length < 8) {
+                alert('Le mot de passe doit contenir au moins 8 caractères.');
+                return;
+            }
+
+            document.getElementById('loading').style.display = 'flex';
+            const result = await window.AdminDashboard.changeStudentPassword(id, newPass);
+            document.getElementById('loading').style.display = 'none';
+
+            if (result.success) {
+                alert('Mot de passe mis à jour avec succès !');
+                closePassModal();
+            } else {
+                alert('Erreur: ' + (result.error || 'Impossible de mettre à jour le mot de passe'));
+            }
+        });
+
         function filterStudents() {
             const q = document.getElementById('searchInput').value.toLowerCase();
             const filtered = allStudents.filter(s =>
-                s.full_name?.toLowerCase().includes(q) ||
-                s.email.toLowerCase().includes(q)
+                s.fullname?.toLowerCase().includes(q) ||
+                s.email.toLowerCase().includes(q) ||
+                s.number?.toString().includes(q)
             );
             renderStudents(filtered);
         }

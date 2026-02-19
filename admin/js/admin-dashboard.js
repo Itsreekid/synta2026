@@ -125,6 +125,25 @@ const AdminDashboard = {
             console.error('Error managing offer:', error);
             return { success: false, error: error.message };
         }
+    },
+
+    /**
+     * changeStudentPassword: Reset a student's password
+     */
+    async changeStudentPassword(studentId, newPassword) {
+        try {
+            const { supabase } = window.auth;
+            const { data, error } = await supabase.rpc('admin_update_user_password', {
+                target_user_id: studentId,
+                new_password: newPassword
+            });
+
+            if (error) throw error;
+            return data;
+        } catch (error) {
+            console.error('Error changing student password:', error);
+            return { success: false, error: error.message };
+        }
     }
 };
 
