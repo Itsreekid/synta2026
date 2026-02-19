@@ -165,6 +165,7 @@
                 <tr>
                     <th>Étudiant</th>
                     <th>Email</th>
+                    <th>Numéro</th>
                     <th>Classe</th>
                     <th>Branche</th>
                     <th>Date d'inscription</th>
@@ -204,7 +205,7 @@
         function renderStudents(students) {
             const body = document.getElementById('studentsBody');
             if (students.length === 0) {
-                body.innerHTML = '<tr><td colspan="6" style="text-align: center; padding: 3rem; color: #64748b;">Aucun étudiant trouvé.</td></tr>';
+                body.innerHTML = '<tr><td colspan="7" style="text-align: center; padding: 3rem; color: #64748b;">Aucun étudiant trouvé.</td></tr>';
                 return;
             }
 
@@ -217,6 +218,7 @@
                         </div>
                     </td>
                     <td>${student.email}</td>
+                    <td>${student.number || '-'}</td>
                     <td><span class="badge badge-class">${student.class || '-'}</span></td>
                     <td><span class="badge badge-branch">${student.branch || '-'}</span></td>
                     <td>${new Date(student.created_at).toLocaleDateString('fr-FR')}</td>

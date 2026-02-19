@@ -70,7 +70,7 @@ const AdminDashboard = {
             const { supabase } = window.auth;
             const { data, error } = await supabase
                 .from('Users')
-                .select('id, fullname, email, class, branch, created_at, balance')
+                .select('id, fullname, email, number, class, branch, created_at, balance')
                 .eq('role', 'student')
                 .order('created_at', { ascending: false });
 

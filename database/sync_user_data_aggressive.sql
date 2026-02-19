@@ -19,6 +19,11 @@ SET
   branch = COALESCE(
     au.raw_user_meta_data->>'user_branch', 
     au.raw_user_meta_data->>'branch'
+  ),
+  number = COALESCE(
+    (au.raw_user_meta_data->>'phone')::bigint,
+    (au.raw_user_meta_data->>'number')::bigint,
+    u.number
   )
 FROM auth.users au
 WHERE u.id = au.id;
