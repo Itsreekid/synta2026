@@ -219,7 +219,7 @@ async function loadEvents() {
         today.setHours(0, 0, 0, 0);
 
         // Get current user metadata for filtering
-        const { data: { user } } = await window.auth.getCurrentUser();
+        const { user } = await window.auth.getCurrentUser();
         const userClass = user?.user_metadata?.user_class;
         const userBranch = user?.user_metadata?.user_branch;
 
