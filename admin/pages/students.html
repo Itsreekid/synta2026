@@ -212,13 +212,13 @@
                 <tr>
                     <td>
                         <div class="student-name">
-                            <div class="avatar">${student.full_name?.charAt(0) || 'S'}</div>
-                            ${student.full_name || 'Étudiant'}
+                            <div class="avatar">${student.fullname?.charAt(0) || 'S'}</div>
+                            ${student.fullname || 'Étudiant'}
                         </div>
                     </td>
                     <td>${student.email}</td>
-                    <td><span class="badge badge-class">${student.user_class || '-'}</span></td>
-                    <td><span class="badge badge-branch">${student.user_branch || '-'}</span></td>
+                    <td><span class="badge badge-class">${student.class || '-'}</span></td>
+                    <td><span class="badge badge-branch">${student.branch || '-'}</span></td>
                     <td>${new Date(student.created_at).toLocaleDateString('fr-FR')}</td>
                     <td><strong>${student.balance || '0.00'} DT</strong></td>
                 </tr>
