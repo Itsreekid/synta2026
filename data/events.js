@@ -27,7 +27,7 @@ const upcomingEvents = [
         },
         icon: "💻",
         color: "#28a745",
-        zoomLink: "https://us06web.zoom.us/j/85897834973?pwd=eHGWYmgsgmREPnyBA0URvraJTbt0aO.1",
+        zoomLink: "https://us06web.zoom.us/j/81958080044?pwd=Gc5jiQ5ZXvHRd8BtWMjWYvYKbo3Vam.1",
         target_classes: ["bac"],
         target_branches: ["economie"]
     },
