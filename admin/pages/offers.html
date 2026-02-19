@@ -293,13 +293,22 @@
                     <div style="display: flex; align-items: center; gap: 2rem;">
                         <div class="offer-price">${offer.fixed_price} DT</div>
                         <div class="actions">
-                            <button class="btn-icon" onclick="editOffer('${offer.id}')">
-                                <i class="fas fa-edit"></i>
+                            <button class="btn-icon edit-btn" data-id="${offer.id}">
+                                <i class="fas fa-edit" style="pointer-events: none;"></i>
                             </button>
                         </div>
                     </div>
                 </div>
             `).join('');
+
+            // Add event listeners to buttons
+            document.querySelectorAll('.edit-btn').forEach(btn => {
+                btn.onclick = (e) => {
+                    const id = e.currentTarget.getAttribute('data-id');
+                    console.log('Edit clicked for ID:', id);
+                    editOffer(id);
+                };
+            });
         }
 
         function openModal() {
@@ -314,9 +323,15 @@
         }
 
         function editOffer(id) {
+            console.log('Searching for offer with ID:', id);
             const offer = allOffers.find(o => o.id === id);
-            if (!offer) return;
 
+            if (!offer) {
+                console.error('Offer not found in local array:', id, allOffers);
+                return;
+            }
+
+            console.log('Found offer:', offer);
             document.getElementById('modalTitle').textContent = 'Modifier l\'offre';
             document.getElementById('offerId').value = offer.id;
             document.getElementById('title').value = offer.title;
