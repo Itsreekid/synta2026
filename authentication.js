@@ -21,15 +21,16 @@ window.authLoading = {
 };
 
 // Wait for Supabase to be loaded
-document.addEventListener('DOMContentLoaded', function() {
+document.addEventListener('DOMContentLoaded', function () {
     console.log('DOM Content Loaded - Initializing Supabase...');
-    initializeSupabase();
+    // Small delay to ensure script execution
+    setTimeout(initializeSupabase, 100);
 });
 
 function initializeSupabase() {
     console.log('Checking if Supabase is available...');
     // Check if Supabase is available
-    if (typeof window.supabase !== 'undefined') {
+    if (typeof window.supabase !== 'undefined' && window.supabase.createClient) {
         console.log('Supabase is available, creating client...');
         try {
             supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
@@ -49,8 +50,8 @@ function retryInitialization() {
     if (initializationAttempts < MAX_INIT_ATTEMPTS) {
         initializationAttempts++;
         console.log(`Retrying initialization (attempt ${initializationAttempts}/${MAX_INIT_ATTEMPTS})...`);
-        setTimeout(function() {
-            if (typeof window.supabase !== 'undefined') {
+        setTimeout(function () {
+            if (typeof window.supabase !== 'undefined' && window.supabase.createClient) {
                 console.log('Supabase now available, creating client...');
                 try {
                     supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
@@ -88,7 +89,7 @@ function showGlobalError(message) {
         max-width: 300px;
         animation: slideInRight 0.3s ease-out;
     `;
-    
+
     const style = document.createElement('style');
     style.textContent = `
         @keyframes slideInRight {
@@ -97,10 +98,10 @@ function showGlobalError(message) {
         }
     `;
     document.head.appendChild(style);
-    
+
     errorDiv.textContent = message;
     document.body.appendChild(errorDiv);
-    
+
     setTimeout(() => {
         if (document.body.contains(errorDiv)) {
             document.body.removeChild(errorDiv);
@@ -112,7 +113,7 @@ function showGlobalError(message) {
 function initializeAuth() {
     console.log('Initializing authentication functions...');
     authInitialized = true;
-    
+
     // Authentication Functions
 
     /**
@@ -126,12 +127,12 @@ function initializeAuth() {
         if (window.authLoading.isRegistering) {
             return { success: false, error: 'جاري التسجيل بالفعل، يرجى الانتظار...' };
         }
-        
+
         window.authLoading.isRegistering = true;
-        
+
         try {
             console.log('Attempting to sign up with email:', email);
-            
+
             const { data, error } = await supabaseClient.auth.signUp({
                 email: email,
                 password: password,
@@ -155,20 +156,20 @@ function initializeAuth() {
             // Auto-confirm the user (no email confirmation needed)
             if (data.user) {
                 console.log('Auto-confirming user:', data.user.email);
-                
+
                 // Update user to confirmed status
                 const { error: updateError } = await supabaseClient.auth.updateUser({
                     data: { email_confirmed_at: new Date().toISOString() }
                 });
-                
+
                 if (updateError) {
                     console.warn('Could not auto-confirm user:', updateError);
                 }
             }
 
-            return { 
-                success: true, 
-                data, 
+            return {
+                success: true,
+                data,
                 message: 'تم إنشاء الحساب بنجاح! يمكنك تسجيل الدخول الآن.',
                 requiresEmailConfirmation: false,
                 user: data.user
@@ -178,16 +179,16 @@ function initializeAuth() {
             console.error('Error message:', error.message);
             console.error('Error code:', error.status);
             console.error('Full error object:', JSON.stringify(error, null, 2));
-            
+
             // Enhanced error messages with better error detection
             let userFriendlyError = 'حدث خطأ أثناء إنشاء الحساب';
             let errorType = 'GENERAL_ERROR';
-            
+
             // Check for specific error types
             if (error.message && error.message.includes('already registered')) {
                 // Treat already registered as success - user can login directly
-                return { 
-                    success: true, 
+                return {
+                    success: true,
                     error: 'ALREADY_REGISTERED',
                     message: 'أنت مسجل بالفعل! يمكنك تسجيل الدخول مباشرة.',
                     user: null,
@@ -195,8 +196,8 @@ function initializeAuth() {
                 };
             } else if (error.message && error.message.includes('User already registered')) {
                 // Alternative "already registered" message
-                return { 
-                    success: true, 
+                return {
+                    success: true,
                     error: 'ALREADY_REGISTERED',
                     message: 'أنت مسجل بالفعل! يمكنك تسجيل الدخول مباشرة.',
                     user: null,
@@ -229,9 +230,9 @@ function initializeAuth() {
                 userFriendlyError = 'حدث خطأ غير متوقع أثناء التسجيل. يرجى المحاولة مرة أخرى.';
                 errorType = 'UNKNOWN_ERROR';
             }
-            
-            return { 
-                success: false, 
+
+            return {
+                success: false,
                 error: errorType,
                 message: userFriendlyError,
                 details: error
@@ -251,12 +252,12 @@ function initializeAuth() {
         if (window.authLoading.isLoggingIn) {
             return { success: false, error: 'جاري تسجيل الدخول بالفعل، يرجى الانتظار...' };
         }
-        
+
         window.authLoading.isLoggingIn = true;
-        
+
         try {
             console.log('Attempting to sign in with email:', email);
-            
+
             const { data, error } = await supabaseClient.auth.signInWithPassword({
                 email: email,
                 password: password
@@ -266,19 +267,19 @@ function initializeAuth() {
 
             if (error) {
                 console.error('Supabase auth error:', error);
-                
+
                 // Handle specific error cases with better detail
                 if (error.message && error.message.includes('Invalid login credentials')) {
-                    return { 
-                        success: false, 
+                    return {
+                        success: false,
                         error: 'INVALID_CREDENTIALS',
                         message: 'البريد الإلكتروني أو كلمة المرور غير صحيحة. يرجى المحاولة مرة أخرى.'
                     };
                 } else if (error.message && error.message.includes('400')) {
                     // Handle 400 Bad Request specifically
                     console.error('400 Bad Request details:', error);
-                    return { 
-                        success: false, 
+                    return {
+                        success: false,
                         error: 'BAD_REQUEST',
                         message: 'خطأ في طلب تسجيل الدخول. يرجى التحقق من البيانات والمحاولة مرة أخرى.',
                         details: error
@@ -288,19 +289,19 @@ function initializeAuth() {
             }
 
             console.log('Sign in successful:', data.user);
-            return { 
-                success: true, 
-                data, 
+            return {
+                success: true,
+                data,
                 message: 'تم تسجيل الدخول بنجاح!',
                 user: data.user
             };
         } catch (error) {
             console.error('Sign in error:', error);
-            
+
             // Enhanced error messages without email confirmation handling
             let userFriendlyError = 'حدث خطأ أثناء تسجيل الدخول';
             let errorType = 'GENERAL_ERROR';
-            
+
             if (error.message && error.message.includes('Invalid login credentials')) {
                 userFriendlyError = 'البريد الإلكتروني أو كلمة المرور غير صحيحة. يرجى المحاولة مرة أخرى.';
                 errorType = 'INVALID_CREDENTIALS';
@@ -317,9 +318,9 @@ function initializeAuth() {
                 userFriendlyError = 'البريد الإلكتروني غير مسجل في النظام. يرجى التحقق من صحة البريد الإلكتروني.';
                 errorType = 'USER_NOT_FOUND';
             }
-            
-            return { 
-                success: false, 
+
+            return {
+                success: false,
                 error: errorType,
                 message: userFriendlyError,
                 details: error
@@ -336,7 +337,7 @@ function initializeAuth() {
     async function signOut() {
         try {
             const { error } = await supabaseClient.auth.signOut();
-            
+
             if (error) {
                 throw error;
             }
@@ -344,8 +345,8 @@ function initializeAuth() {
             return { success: true, message: 'تم تسجيل الخروج بنجاح!' };
         } catch (error) {
             console.error('Sign out error:', error);
-            return { 
-                success: false, 
+            return {
+                success: false,
                 error: error.message || 'حدث خطأ أثناء تسجيل الخروج',
                 details: error
             };
@@ -361,9 +362,9 @@ function initializeAuth() {
         if (window.authLoading.isResettingPassword) {
             return { success: false, error: 'جاري إرسال البريد بالفعل، يرجى الانتظار...' };
         }
-        
+
         window.authLoading.isResettingPassword = true;
-        
+
         try {
             const { data, error } = await supabaseClient.auth.resetPasswordForEmail(email, {
                 redirectTo: window.location.origin + '/password-reset.html'
@@ -373,24 +374,24 @@ function initializeAuth() {
                 throw error;
             }
 
-            return { 
-                success: true, 
-                data, 
+            return {
+                success: true,
+                data,
                 message: 'تم إرسال رابط إعادة تعيين كلمة المرور إلى بريدك الإلكتروني!'
             };
         } catch (error) {
             console.error('Password reset error:', error);
-            
+
             let userFriendlyError = 'حدث خطأ أثناء إرسال رابط إعادة تعيين كلمة المرور';
-            
+
             if (error.message.includes('User not found')) {
                 userFriendlyError = 'البريد الإلكتروني غير مسجل في النظام. يرجى التحقق من صحة البريد الإلكتروني.';
             } else if (error.message.includes('network')) {
                 userFriendlyError = 'خطأ في الاتصال. يرجى التحقق من اتصال الإنترنت والمحاولة مرة أخرى.';
             }
-            
-            return { 
-                success: false, 
+
+            return {
+                success: false,
                 error: userFriendlyError,
                 details: error
             };
@@ -406,7 +407,7 @@ function initializeAuth() {
     async function getCurrentUser() {
         try {
             const { data: { user }, error } = await supabaseClient.auth.getUser();
-            
+
             if (error) {
                 throw error;
             }
@@ -445,8 +446,8 @@ function initializeAuth() {
             return { success: true, data, message: 'تم تحديث الملف الشخصي بنجاح!' };
         } catch (error) {
             console.error('Update profile error:', error);
-            return { 
-                success: false, 
+            return {
+                success: false,
                 error: error.message || 'حدث خطأ أثناء تحديث الملف الشخصي',
                 details: error
             };
@@ -456,11 +457,11 @@ function initializeAuth() {
     // Enhanced auth state listener with better UX
     supabaseClient.auth.onAuthStateChange((event, session) => {
         console.log('Auth state changed:', event, session);
-        
+
         if (event === 'SIGNED_IN') {
             // User signed in
             console.log('User signed in:', session.user);
-            
+
             // Store user info in localStorage for seamless experience
             if (session.user) {
                 localStorage.setItem('synta_user', JSON.stringify({
@@ -472,14 +473,14 @@ function initializeAuth() {
                     user_branch: session.user.user_metadata?.user_branch || ''
                 }));
             }
-            
+
         } else if (event === 'SIGNED_OUT') {
             // User signed out
             console.log('User signed out');
-            
+
             // Clear user info from localStorage
             localStorage.removeItem('synta_user');
-            
+
             // Redirect to login if on protected page
             const protectedPages = ['user.html', 'profile.html'];
             const currentPage = window.location.pathname.split('/').pop();
@@ -501,6 +502,6 @@ function initializeAuth() {
         supabase: supabaseClient,
         isInitialized: () => authInitialized
     };
-    
+
     console.log('Authentication system initialized and ready!', window.auth);
 } 
