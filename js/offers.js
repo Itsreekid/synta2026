@@ -1,7 +1,17 @@
 // Offers Page JS
 
 document.addEventListener('DOMContentLoaded', function () {
-    initOffers();
+    // Wait for authentication.js to finish setting up window.supabaseClient
+    // before calling initOffers, to avoid the race condition where
+    // supabaseClient is still null when this script runs.
+    if (window.supabaseClient) {
+        // Auth already ready (e.g. script loaded after authentication.js finished)
+        initOffers();
+    } else {
+        document.addEventListener('supabaseReady', function () {
+            initOffers();
+        }, { once: true });
+    }
 });
 
 async function initOffers() {

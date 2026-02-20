@@ -504,4 +504,7 @@ function initializeAuth() {
     };
 
     console.log('Authentication system initialized and ready!', window.auth);
+
+    // Notify other scripts that Supabase is ready
+    document.dispatchEvent(new CustomEvent('supabaseReady'));
 } 
