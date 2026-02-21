@@ -22,7 +22,7 @@ const upcomingEvents = [
         date: "2026-02-22",
         time: "20:00",
         description: {
-            line1: "حصة مباشرة في مادة الاعلامية لتلاميذة شعب شعبة الاقتصاد والتصرف",
+            line1: "حصة مباشرة في مادة الاعلامية لتلاميذة شعب الاقتصاد والتصرف",
             line2: ""
         },
         icon: "💻",
@@ -32,7 +32,20 @@ const upcomingEvents = [
         target_branches: ["economie"]
     },
     // New targeted session for Bac Economie
-
+    {
+        title: "حصة مجانية في مادة الاعلامية ",
+        date: "2026-02-23",
+        time: "20:00",
+        description: {
+            line1: "حصة مباشرة في مادة الاعلامية لتلاميذة الشعبة الإعلامية",
+            line2: ""
+        },
+        icon: "💻",
+        color: "#28a745",
+        zoomLink: "https://us06web.zoom.us/j/81213427093?pwd=FdBwfquDCwS7tIMaiPiiL9C21PgFGg.1",
+        target_classes: ["bac"],
+        target_branches: ["informatique"]
+    },
 ];
 
 // Instructions:
