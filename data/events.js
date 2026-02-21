@@ -31,7 +31,7 @@ const upcomingEvents = [
         target_classes: ["bac"],
         target_branches: ["economie"]
     },
-    // New targeted session for Bac Economie
+    // New targeted session for Bac informatique
     {
         title: "حصة مجانية في مادة الاعلامية ",
         date: "2026-02-23",

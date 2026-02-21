@@ -241,6 +241,16 @@
                         <option value="false">Inactive</option>
                     </select>
                 </div>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+                    <div class="form-group">
+                        <label>Classes Cibles (Séparez par virgule)</label>
+                        <input type="text" id="target_classes" placeholder="ex: bac, 3eme">
+                    </div>
+                    <div class="form-group">
+                        <label>Branches Cibles (Séparez par virgule)</label>
+                        <input type="text" id="target_branches" placeholder="ex: sciences, info">
+                    </div>
+                </div>
                 <div class="modal-footer">
                     <button type="button" class="btn" onclick="closeModal()">Annuler</button>
                     <button type="submit" class="btn btn-primary">Enregistrer</button>
@@ -332,6 +342,8 @@
                 document.getElementById('modalTitle').textContent = 'Nouvelle Offre';
                 document.getElementById('offerForm').reset();
                 document.getElementById('offerId').value = '';
+                document.getElementById('target_classes').value = '';
+                document.getElementById('target_branches').value = '';
 
                 const modal = document.getElementById('offerModal');
                 if (!modal) throw new Error('Modal element "offerModal" not found');
@@ -366,6 +378,8 @@
                 document.getElementById('fixed_price').value = offer.fixed_price || 0;
                 document.getElementById('discount_percentage').value = offer.discount_percentage || 0;
                 document.getElementById('is_active').value = String(offer.is_active);
+                document.getElementById('target_classes').value = (offer.target_classes || []).join(', ');
+                document.getElementById('target_branches').value = (offer.target_branches || []).join(', ');
 
                 const modal = document.getElementById('offerModal');
                 if (!modal) throw new Error('Modal element "offerModal" not found');
@@ -391,7 +405,9 @@
                     description: document.getElementById('description').value,
                     fixed_price: parseFloat(document.getElementById('fixed_price').value),
                     discount_percentage: parseInt(document.getElementById('discount_percentage').value),
-                    is_active: document.getElementById('is_active').value === 'true'
+                    is_active: document.getElementById('is_active').value === 'true',
+                    target_classes: document.getElementById('target_classes').value.split(',').map(s => s.trim().toLowerCase()).filter(s => s !== ''),
+                    target_branches: document.getElementById('target_branches').value.split(',').map(s => s.trim().toLowerCase()).filter(s => s !== '')
                 };
 
                 const result = await window.AdminDashboard.manageOffer(data);

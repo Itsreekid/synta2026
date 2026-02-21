@@ -100,6 +100,8 @@ const AdminDashboard = {
                         fixed_price: data.fixed_price,
                         discount_percentage: data.discount_percentage,
                         is_active: data.is_active,
+                        target_classes: data.target_classes || [],
+                        target_branches: data.target_branches || [],
                         valid_from: data.valid_from,
                         valid_until: data.valid_until
                     })
@@ -114,6 +116,8 @@ const AdminDashboard = {
                         fixed_price: data.fixed_price,
                         discount_percentage: data.discount_percentage,
                         is_active: data.is_active,
+                        target_classes: data.target_classes || [],
+                        target_branches: data.target_branches || [],
                         valid_from: data.valid_from,
                         valid_until: data.valid_until
                     }]);
