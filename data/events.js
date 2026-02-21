@@ -32,20 +32,7 @@ const upcomingEvents = [
         target_branches: ["economie"]
     },
     // New targeted session for Bac Economie
-    {
-        title: "حصة مباشرة - Branche Economie",
-        date: "2026-02-25",
-        time: "18:00",
-        description: {
-            line1: "حصة مباشرة خاصة بشعبة الاقتصاد والتصرف",
-            line2: "Bac Economie & Gestion"
-        },
-        icon: "📈",
-        color: "#007bff",
-        zoomLink: "https://zoom.us/j/example",
-        target_classes: ["bac"],
-        target_branches: ["economie"]
-    }
+
 ];
 
 // Instructions:
