@@ -27,11 +27,19 @@
 
         .search-bar {
             margin-bottom: 2rem;
-            position: relative;
-            max-width: 400px;
+            display: flex;
+            gap: 1rem;
+            align-items: center;
+            flex-wrap: wrap;
         }
 
-        .search-bar i {
+        .search-input-wrapper {
+            position: relative;
+            flex: 1;
+            min-width: 300px;
+        }
+
+        .search-input-wrapper i {
             position: absolute;
             left: 1rem;
             top: 50%;
@@ -39,12 +47,30 @@
             color: #64748b;
         }
 
-        .search-bar input {
+        .search-bar input,
+        .search-bar select {
             width: 100%;
             padding: 0.75rem 1rem 0.75rem 2.8rem;
             border: 1px solid #e2e8f0;
             border-radius: 12px;
             font-family: inherit;
+            background: white;
+            color: var(--secondary);
+            font-size: 0.95rem;
+            outline: none;
+            transition: border-color 0.2s;
+        }
+
+        .search-bar select {
+            padding-left: 1rem;
+            width: auto;
+            min-width: 160px;
+            cursor: pointer;
+        }
+
+        .search-bar input:focus,
+        .search-bar select:focus {
+            border-color: var(--primary);
         }
 
         .students-table-container {
@@ -261,8 +287,30 @@
     </div>
 
     <div class="search-bar">
-        <i class="fas fa-search"></i>
-        <input type="text" id="searchInput" placeholder="Rechercher un étudiant..." oninput="filterStudents()">
+        <div class="search-input-wrapper">
+            <i class="fas fa-search"></i>
+            <input type="text" id="searchInput" placeholder="Rechercher un étudiant..." oninput="filterStudents()">
+        </div>
+
+        <select id="classFilter" onchange="filterStudents()">
+            <option value="">Toutes les classes</option>
+            <option value="1ere">1ère année</option>
+            <option value="2eme">2ème année</option>
+            <option value="3eme">3ème année</option>
+            <option value="bac">Bac</option>
+            <option value="other">Autres</option>
+        </select>
+
+        <select id="branchFilter" onchange="filterStudents()">
+            <option value="">Toutes les branches</option>
+            <option value="lettres">Lettres</option>
+            <option value="mathematiques">Mathématiques</option>
+            <option value="informatique">Informatique</option>
+            <option value="sciences">Sciences</option>
+            <option value="technique">Technique</option>
+            <option value="economie">Economie</option>
+            <option value="other">Autres</option>
+        </select>
     </div>
 
     <div class="students-table-container">
@@ -345,7 +393,16 @@
         async function fetchAndRenderStudents() {
             document.getElementById('loading').style.display = 'flex';
             const searchTerm = document.getElementById('searchInput').value;
-            const result = await window.AdminDashboard.loadStudents(currentPage, pageSize, searchTerm);
+            const classFilter = document.getElementById('classFilter').value;
+            const branchFilter = document.getElementById('branchFilter').value;
+
+            const result = await window.AdminDashboard.loadStudents(
+                currentPage,
+                pageSize,
+                searchTerm,
+                classFilter,
+                branchFilter
+            );
 
             totalCount = result.count;
             renderStudents(result.data);
