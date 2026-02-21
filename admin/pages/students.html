@@ -223,6 +223,30 @@
             border-color: var(--primary);
             color: var(--primary);
         }
+
+        .pagination-controls {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 2rem;
+            margin-top: 2rem;
+            padding: 1rem;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+        }
+
+        .page-info {
+            font-weight: 600;
+            color: var(--secondary);
+        }
+
+        .btn:disabled {
+            background: #e2e8f0;
+            color: #94a3b8;
+            cursor: not-allowed;
+            border: none;
+        }
     </style>
 </head>
 
@@ -261,6 +285,18 @@
         </table>
     </div>
 
+    <div class="pagination-controls">
+        <button class="btn" id="prevBtn" onclick="changePage(-1)" disabled>
+            <i class="fas fa-chevron-left"></i> Précédent
+        </button>
+        <div class="page-info">
+            Page <span id="currentPage">1</span> sur <span id="totalPages">1</span>
+        </div>
+        <button class="btn btn-primary" id="nextBtn" onclick="changePage(1)">
+            Suivant <i class="fas fa-chevron-right"></i>
+        </button>
+    </div>
+
     <!-- Password Management Modal -->
     <div id="passwordModal" class="modal">
         <div class="modal-content">
@@ -285,7 +321,10 @@
     <script src="../../authentication.js"></script>
     <script src="../js/admin-dashboard.js"></script>
     <script>
-        let allStudents = [];
+        let currentPage = 1;
+        const pageSize = 10;
+        let totalCount = 0;
+        let searchTimeout;
 
         document.addEventListener('DOMContentLoaded', initStudents);
 
@@ -298,15 +337,41 @@
             }
 
             if (window.AdminDashboard) {
-                allStudents = await window.AdminDashboard.loadStudents();
-                renderStudents(allStudents);
+                await fetchAndRenderStudents();
             }
             document.getElementById('loading').style.display = 'none';
         }
 
+        async function fetchAndRenderStudents() {
+            document.getElementById('loading').style.display = 'flex';
+            const searchTerm = document.getElementById('searchInput').value;
+            const result = await window.AdminDashboard.loadStudents(currentPage, pageSize, searchTerm);
+
+            totalCount = result.count;
+            renderStudents(result.data);
+            updatePaginationUI();
+
+            document.getElementById('loading').style.display = 'none';
+        }
+
+        function updatePaginationUI() {
+            const totalPages = Math.ceil(totalCount / pageSize) || 1;
+            document.getElementById('currentPage').textContent = currentPage;
+            document.getElementById('totalPages').textContent = totalPages;
+
+            document.getElementById('prevBtn').disabled = currentPage <= 1;
+            document.getElementById('nextBtn').disabled = currentPage >= totalPages;
+        }
+
+        async function changePage(delta) {
+            currentPage += delta;
+            await fetchAndRenderStudents();
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+
         function renderStudents(students) {
             const body = document.getElementById('studentsBody');
-            if (students.length === 0) {
+            if (!students || students.length === 0) {
                 body.innerHTML = '<tr><td colspan="8" style="text-align: center; padding: 3rem; color: #64748b;">Aucun étudiant trouvé.</td></tr>';
                 return;
             }
@@ -381,13 +446,12 @@
         });
 
         function filterStudents() {
-            const q = document.getElementById('searchInput').value.toLowerCase();
-            const filtered = allStudents.filter(s =>
-                s.fullname?.toLowerCase().includes(q) ||
-                s.email.toLowerCase().includes(q) ||
-                s.number?.toString().includes(q)
-            );
-            renderStudents(filtered);
+            // Debounce search to avoid too many API calls
+            clearTimeout(searchTimeout);
+            searchTimeout = setTimeout(() => {
+                currentPage = 1;
+                fetchAndRenderStudents();
+            }, 300);
         }
     </script>
 </body>

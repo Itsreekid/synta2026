@@ -63,22 +63,33 @@ const AdminDashboard = {
     },
 
     /**
-     * loadStudents: Fetch all students
+     * loadStudents: Fetch students with pagination
      */
-    async loadStudents() {
+    async loadStudents(page = 1, pageSize = 10, searchTerm = '') {
         try {
             const { supabase } = window.auth;
-            const { data, error } = await supabase
+            const from = (page - 1) * pageSize;
+            const to = from + pageSize - 1;
+
+            let query = supabase
                 .from('Users')
-                .select('id, fullname, email, number, class, branch, created_at, balance')
-                .eq('role', 'student')
-                .order('created_at', { ascending: false });
+                .select('id, fullname, email, number, class, branch, created_at, balance', { count: 'exact' })
+                .eq('role', 'student');
+
+            if (searchTerm) {
+                // Search in fullname or email
+                query = query.or(`fullname.ilike.%${searchTerm}%,email.ilike.%${searchTerm}%`);
+            }
+
+            const { data, error, count } = await query
+                .order('created_at', { ascending: false })
+                .range(from, to);
 
             if (error) throw error;
-            return data;
+            return { data, count };
         } catch (error) {
             console.error('Error loading students:', error);
-            return [];
+            return { data: [], count: 0 };
         }
     },
 
