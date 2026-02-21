@@ -63,9 +63,9 @@ const AdminDashboard = {
     },
 
     /**
-     * loadStudents: Fetch students with pagination
+     * loadStudents: Fetch students with pagination and filters
      */
-    async loadStudents(page = 1, pageSize = 10, searchTerm = '') {
+    async loadStudents(page = 1, pageSize = 10, searchTerm = '', classFilter = '', branchFilter = '') {
         try {
             const { supabase } = window.auth;
             const from = (page - 1) * pageSize;
@@ -79,6 +79,14 @@ const AdminDashboard = {
             if (searchTerm) {
                 // Search in fullname or email
                 query = query.or(`fullname.ilike.%${searchTerm}%,email.ilike.%${searchTerm}%`);
+            }
+
+            if (classFilter) {
+                query = query.eq('class', classFilter);
+            }
+
+            if (branchFilter) {
+                query = query.eq('branch', branchFilter);
             }
 
             const { data, error, count } = await query
