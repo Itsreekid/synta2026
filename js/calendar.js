@@ -9,22 +9,6 @@ document.addEventListener('DOMContentLoaded', function () {
 });
 
 async function initializeCalendar() {
-
-// Utility: Fetch current time in Tunisia (Africa/Tunis)
-async function getTunisiaTime() {
-    try {
-        const response = await fetch('https://worldtimeapi.org/api/timezone/Africa/Tunis');
-        if (!response.ok) throw new Error('Failed to fetch Tunisia time');
-        const data = await response.json();
-        // data.datetime is ISO string, e.g. "2026-02-23T19:55:00.123456+01:00"
-        return new Date(data.datetime);
-    } catch (error) {
-        console.error('Error fetching Tunisia time:', error);
-        // Fallback to local time if API fails
-        return new Date();
-    }
-}
-
     try {
         // Wait for authentication to initialize
         let attempts = 0;
@@ -365,7 +349,7 @@ function createEventElement(event, date) {
     return eventElement;
 }
 
-async function showEventDetails(event, date) {
+function showEventDetails(event, date) {
     const modal = document.getElementById('event-modal');
     const modalBody = document.getElementById('modal-body');
 
@@ -376,8 +360,7 @@ async function showEventDetails(event, date) {
 
     // Parse event date and time
     const eventDateTime = new Date(`${event.date}T${event.time}:00`);
-    // Use Tunisia time for comparison
-    const now = await getTunisiaTime();
+    const now = new Date();
     const isEventLive = now >= eventDateTime;
 
     // Check if session has ended (1.5 hours = 90 minutes after start)
@@ -445,7 +428,7 @@ async function showEventDetails(event, date) {
 
     // Start countdown if event is not live yet
     if (!isEventLive) {
-        startCountdown(eventDateTime, event.zoomLink, true);
+        startCountdown(eventDateTime, event.zoomLink);
     } else if (!isSessionEnded) {
         // If event is live but not ended, start monitoring for session end
         startSessionEndMonitor(sessionEndTime);
@@ -472,7 +455,7 @@ function closeModal() {
     }
 }
 
-function startCountdown(eventDateTime, zoomLink, useTunisiaTime = false) {
+function startCountdown(eventDateTime, zoomLink) {
     const countdownTimer = document.getElementById('countdown-timer');
     const joinBtn = document.getElementById('join-btn');
 
@@ -483,13 +466,8 @@ function startCountdown(eventDateTime, zoomLink, useTunisiaTime = false) {
         clearInterval(countdownInterval);
     }
 
-    async function updateCountdown() {
-        let now;
-        if (useTunisiaTime) {
-            now = await getTunisiaTime();
-        } else {
-            now = new Date();
-        }
+    function updateCountdown() {
+        const now = new Date();
         const distance = eventDateTime - now;
 
         // If countdown is finished
