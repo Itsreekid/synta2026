@@ -7,7 +7,7 @@
 
 // Backend API Configuration
 // Always use Railway production backend
-const BACKEND_URL = 'https://syntaacademy-production.up.railway.app';
+const BACKEND_URL = 'https://syntaacademy-1.onrender.com';
 
 // R2 Public URL (optional alternative - requires public bucket in Cloudflare)
 const R2_PUBLIC_URL = null;

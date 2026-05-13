@@ -2,7 +2,7 @@ import dotenv from 'dotenv';
 
 dotenv.config();
 
-const BACKEND_URL = process.env.BACKEND_URL || 'https://syntaacademy-production.up.railway.app';
+const BACKEND_URL = process.env.BACKEND_URL || 'https://syntaacademy-1.onrender.com';
 
 async function testThumbnailEndpoint() {
     const thumbnailKeys = [
