@@ -1,64 +1,60 @@
 // =====================================================
-// AUTHENTICATION MIDDLEWARE (BEARER TOKEN — UNUSED)
+// AUTH MIDDLEWARE (Bearer token + helpers)
+// Replaces Supabase-based token verification with JWT.
 // =====================================================
-// STATUS: Not used by any current page or API route.
-//         All session handling uses HttpOnly cookies via
-//         middleware/requireAuth.js (cookie-based).
-//
-// This file is retained for potential future use if a
-// third-party API client needs Bearer token auth.
-// Do not import or mount this in server.js for page routes.
-// =====================================================
-import { supabaseAdmin } from "../config/supabase.js";
+import jwt from "jsonwebtoken";
+import pool from "../config/db.js";
 
+const JWT_SECRET = process.env.JWT_SECRET;
+
+/**
+ * authMiddleware — optional auth via Bearer token.
+ * Sets req.user to the decoded payload, or null if missing/invalid.
+ * Used on routes that work for both authenticated and anonymous users.
+ */
 export async function authMiddleware(req, res, next) {
   try {
-    // Get token from Authorization header
     const authHeader = req.headers.authorization;
-    
-    if (!authHeader || !authHeader.startsWith("Bearer ")) {
-      // No token provided - set user to null and continue
+    const cookieToken = req.cookies?.synta_access;
+    const token = cookieToken || (authHeader?.startsWith("Bearer ") ? authHeader.substring(7) : null);
+
+    if (!token) {
       req.user = null;
       return next();
     }
 
-    const token = authHeader.substring(7); // Remove 'Bearer ' prefix
-
-    // Verify token with Supabase
-    const { data, error } = await supabaseAdmin.auth.getUser(token);
-
-    if (error || !data.user) {
-      // Invalid token - set user to null and continue
+    try {
+      req.user = jwt.verify(token, JWT_SECRET);
+    } catch {
       req.user = null;
-      return next();
     }
 
-    // Attach user to request
-    req.user = data.user;
-    next();
+    return next();
   } catch (error) {
     console.error("Auth middleware error:", error);
     req.user = null;
-    next(); // Continue even on error
+    next();
   }
 }
 
 /**
- * Check if user has access to a specific lesson
+ * Check if user has access to a specific lesson via enrollment.
+ * Replaces the Supabase RPC call with a raw SQL query.
  */
 export async function checkLessonAccess(userId, lessonId) {
   try {
-    const { data, error } = await supabaseAdmin.rpc("check_lesson_access", {
-      p_user_id: userId,
-      p_lesson_id: lessonId,
-    });
-
-    if (error) {
-      console.error("Error checking lesson access:", error);
-      return false;
-    }
-
-    return data === true;
+    const result = await pool.query(
+      `SELECT 1
+       FROM enrollments e
+       JOIN modules m ON m.course_id = e.course_id
+       JOIN lessons l ON l.module_id = m.id
+       WHERE e.user_id = $1
+         AND l.id = $2
+         AND (e.expires_at IS NULL OR e.expires_at > NOW())
+       LIMIT 1`,
+      [userId, lessonId]
+    );
+    return result.rowCount > 0;
   } catch (error) {
     console.error("Error in checkLessonAccess:", error);
     return false;
@@ -66,28 +62,21 @@ export async function checkLessonAccess(userId, lessonId) {
 }
 
 /**
- * Check if user is enrolled in a course
+ * Check if user is enrolled in a specific course.
  */
 export async function checkCourseEnrollment(userId, courseId) {
   try {
-    const { data, error } = await supabaseAdmin
-      .from("enrollments")
-      .select("*")
-      .eq("user_id", userId)
-      .eq("course_id", courseId)
-      .single();
+    const result = await pool.query(
+      `SELECT id, expires_at FROM enrollments
+       WHERE user_id = $1 AND course_id = $2
+       LIMIT 1`,
+      [userId, courseId]
+    );
 
-    if (error || !data) {
-      return false;
-    }
+    if (result.rowCount === 0) return false;
 
-    // Check if enrollment is still valid
-    if (data.expires_at) {
-      const expiryDate = new Date(data.expires_at);
-      if (expiryDate < new Date()) {
-        return false; // Expired
-      }
-    }
+    const { expires_at } = result.rows[0];
+    if (expires_at && new Date(expires_at) < new Date()) return false;
 
     return true;
   } catch (error) {

@@ -1,246 +1,168 @@
-import express from 'express';
-import { createClient } from '@supabase/supabase-js';
+// =====================================================
+// PURCHASE API ROUTES
+// =====================================================
+import express from "express";
+import pool from "../config/db.js";
 
 const router = express.Router();
 
-// Initialize Supabase client with service role key for backend operations
-const supabase = createClient(
-    process.env.SUPABASE_URL,
-    process.env.SUPABASE_SERVICE_KEY // Service role key for admin operations
-);
-
 /**
- * Purchase a course
  * POST /api/purchase/course
  */
-router.post('/course', async (req, res) => {
-    try {
-        const { courseId, userId } = req.body;
+router.post("/course", async (req, res) => {
+  const client = await pool.connect();
+  try {
+    const { courseId, userId } = req.body;
 
-        if (!courseId || !userId) {
-            return res.status(400).json({
-                error: 'Missing required fields: courseId and userId'
-            });
-        }
-
-        // Get course details
-        const { data: course, error: courseError } = await supabase
-            .from('courses')
-            .select('price, title, is_free')
-            .eq('id', courseId)
-            .single();
-
-        if (courseError || !course) {
-            return res.status(404).json({
-                error: 'Course not found'
-            });
-        }
-
-        // Check if already enrolled
-        const { data: existingEnrollment } = await supabase
-            .from('enrollments')
-            .select('id')
-            .eq('user_id', userId)
-            .eq('course_id', courseId)
-            .maybeSingle();
-
-        if (existingEnrollment) {
-            return res.status(400).json({
-                error: 'Already enrolled in this course'
-            });
-        }
-
-        // If free course, just enroll
-        if (course.is_free) {
-            const { error: enrollError } = await supabase
-                .from('enrollments')
-                .insert({
-                    user_id: userId,
-                    course_id: courseId,
-                    amount_paid: 0,
-                    enrolled_at: new Date().toISOString()
-                });
-
-            if (enrollError) {
-                throw enrollError;
-            }
-
-            return res.json({
-                success: true,
-                message: 'Successfully enrolled in free course'
-            });
-        }
-
-        // For paid courses, check balance
-        const { data: userData, error: balanceError } = await supabase
-            .from('Users')
-            .select('balance')
-            .eq('id', userId)
-            .single();
-
-        if (balanceError) {
-            throw balanceError;
-        }
-
-        const currentBalance = userData?.balance || 0;
-        const price = parseFloat(course.price);
-
-        if (currentBalance < price) {
-            return res.status(400).json({
-                error: 'Insufficient balance',
-                currentBalance,
-                requiredAmount: price
-            });
-        }
-
-        // Deduct balance using the secure function
-        const { data: deductResult, error: deductError } = await supabase
-            .rpc('deduct_user_balance', {
-                p_user_id: userId,
-                p_amount: price,
-                p_description: `Course purchase: ${course.title}`
-            });
-
-        if (deductError) {
-            console.error('Deduct balance error:', deductError);
-            throw deductError;
-        }
-
-        // Create enrollment
-        const { error: enrollError } = await supabase
-            .from('enrollments')
-            .insert({
-                user_id: userId,
-                course_id: courseId,
-                amount_paid: price,
-                enrolled_at: new Date().toISOString()
-            });
-
-        if (enrollError) {
-            // If enrollment fails, we should add the balance back
-            // But for now, just log the error
-            console.error('Enrollment error after balance deduction:', enrollError);
-            throw enrollError;
-        }
-
-        res.json({
-            success: true,
-            message: 'Course purchased successfully',
-            newBalance: currentBalance - price
-        });
-
-    } catch (error) {
-        console.error('Purchase error:', error);
-        res.status(500).json({
-            error: error.message || 'Failed to purchase course'
-        });
+    if (!courseId || !userId) {
+      return res.status(400).json({ error: "Missing required fields: courseId and userId" });
     }
+
+    await client.query("BEGIN");
+
+    const courseResult = await client.query(
+      `SELECT price, title, is_free FROM courses WHERE id = $1`,
+      [courseId]
+    );
+    if (courseResult.rowCount === 0) {
+      await client.query("ROLLBACK");
+      return res.status(404).json({ error: "Course not found" });
+    }
+    const course = courseResult.rows[0];
+
+    const existing = await client.query(
+      `SELECT id FROM enrollments WHERE user_id = $1 AND course_id = $2`,
+      [userId, courseId]
+    );
+    if (existing.rowCount > 0) {
+      await client.query("ROLLBACK");
+      return res.status(400).json({ error: "Already enrolled in this course" });
+    }
+
+    if (course.is_free) {
+      await client.query(
+        `INSERT INTO enrollments (user_id, course_id, amount_paid, enrolled_at)
+         VALUES ($1, $2, 0, NOW())`,
+        [userId, courseId]
+      );
+      await client.query("COMMIT");
+      return res.json({ success: true, message: "Successfully enrolled in free course" });
+    }
+
+    // Paid: check balance and deduct atomically
+    const userResult = await client.query(
+      `SELECT balance FROM users WHERE id = $1 FOR UPDATE`,
+      [userId]
+    );
+    if (userResult.rowCount === 0) {
+      await client.query("ROLLBACK");
+      return res.status(404).json({ error: "User not found" });
+    }
+
+    const currentBalance = parseFloat(userResult.rows[0].balance) || 0;
+    const price = parseFloat(course.price);
+
+    if (currentBalance < price) {
+      await client.query("ROLLBACK");
+      return res.status(400).json({ error: "Insufficient balance", currentBalance, requiredAmount: price });
+    }
+
+    await client.query(`UPDATE users SET balance = balance - $1 WHERE id = $2`, [price, userId]);
+
+    await client.query(
+      `INSERT INTO transactions (user_id, amount, type, description, created_at)
+       VALUES ($1, $2, 'debit', $3, NOW())`,
+      [userId, price, `Course purchase: ${course.title}`]
+    );
+
+    await client.query(
+      `INSERT INTO enrollments (user_id, course_id, amount_paid, enrolled_at)
+       VALUES ($1, $2, $3, NOW())`,
+      [userId, courseId, price]
+    );
+
+    await client.query("COMMIT");
+
+    res.json({ success: true, message: "Course purchased successfully", newBalance: currentBalance - price });
+  } catch (error) {
+    await client.query("ROLLBACK");
+    console.error("Purchase error:", error);
+    res.status(500).json({ error: error.message || "Failed to purchase course" });
+  } finally {
+    client.release();
+  }
 });
 
 /**
- * Purchase an offer (bundle of courses)
  * POST /api/purchase/offer
  */
-router.post('/offer', async (req, res) => {
-    try {
-        const { offerId, userId } = req.body;
+router.post("/offer", async (req, res) => {
+  const client = await pool.connect();
+  try {
+    const { offerId, userId } = req.body;
 
-        if (!offerId || !userId) {
-            return res.status(400).json({
-                error: 'Missing required fields: offerId and userId'
-            });
-        }
-
-        // Get offer details with courses
-        const { data: offer, error: offerError } = await supabase
-            .from('offers')
-            .select(`
-                *,
-                courses:offer_courses(
-                    course_id
-                )
-            `)
-            .eq('id', offerId)
-            .single();
-
-        if (offerError || !offer) {
-            return res.status(404).json({
-                error: 'Offer not found'
-            });
-        }
-
-        if (!offer.is_active) {
-            return res.status(400).json({
-                error: 'This offer is no longer active'
-            });
-        }
-
-        // Check balance
-        const { data: userData, error: balanceError } = await supabase
-            .from('Users')
-            .select('balance')
-            .eq('id', userId)
-            .single();
-
-        if (balanceError) throw balanceError;
-
-        const currentBalance = userData?.balance || 0;
-        const price = parseFloat(offer.fixed_price || 0);
-
-        if (currentBalance < price) {
-            return res.status(400).json({
-                error: 'Insufficient balance',
-                currentBalance,
-                requiredAmount: price
-            });
-        }
-
-        // Deduct balance
-        const { error: deductError } = await supabase
-            .rpc('deduct_user_balance', {
-                p_user_id: userId,
-                p_amount: price,
-                p_description: `Offer purchase: ${offer.title}`
-            });
-
-        if (deductError) throw deductError;
-
-        // Enroll in all courses in the offer
-        const enrollments = offer.courses.map(oc => ({
-            user_id: userId,
-            course_id: oc.course_id,
-            amount_paid: 0, // Recorded on the offer purchase instead
-            enrolled_at: new Date().toISOString(),
-            offer_id: offer.id // Track which offer granted access
-        }));
-
-        if (enrollments.length > 0) {
-            const { error: enrollError } = await supabase
-                .from('enrollments')
-                .insert(enrollments);
-
-            if (enrollError) {
-                console.error('Enrollment error after balance deduction:', enrollError);
-                // In a perfect world, we'd roll back the transaction here
-                // For now, at least return success since money was taken
-            }
-        }
-
-        // Record the purchase itself (optional table if you want to track offer sales specifically)
-        // For now, the user balance log and enrollments are enough
-
-        res.json({
-            success: true,
-            message: 'Offer purchased successfully',
-            newBalance: currentBalance - price
-        });
-
-    } catch (error) {
-        console.error('Offer purchase error:', error);
-        res.status(500).json({
-            error: error.message || 'Failed to purchase offer'
-        });
+    if (!offerId || !userId) {
+      return res.status(400).json({ error: "Missing required fields: offerId and userId" });
     }
+
+    await client.query("BEGIN");
+
+    const offerResult = await client.query(
+      `SELECT o.*, array_agg(oc.course_id) AS course_ids
+       FROM offers o
+       LEFT JOIN offer_courses oc ON oc.offer_id = o.id
+       WHERE o.id = $1
+       GROUP BY o.id`,
+      [offerId]
+    );
+    if (offerResult.rowCount === 0 || !offerResult.rows[0].is_active) {
+      await client.query("ROLLBACK");
+      return res.status(404).json({ error: "Offer not found or inactive" });
+    }
+    const offer = offerResult.rows[0];
+    const price = parseFloat(offer.fixed_price || 0);
+
+    // Check and deduct balance atomically
+    const userResult = await client.query(
+      `SELECT balance FROM users WHERE id = $1 FOR UPDATE`,
+      [userId]
+    );
+    const currentBalance = parseFloat(userResult.rows[0]?.balance) || 0;
+
+    if (currentBalance < price) {
+      await client.query("ROLLBACK");
+      return res.status(400).json({ error: "Insufficient balance", currentBalance, requiredAmount: price });
+    }
+
+    await client.query(`UPDATE users SET balance = balance - $1 WHERE id = $2`, [price, userId]);
+
+    await client.query(
+      `INSERT INTO transactions (user_id, amount, type, description, created_at)
+       VALUES ($1, $2, 'debit', $3, NOW())`,
+      [userId, price, `Offer purchase: ${offer.title}`]
+    );
+
+    // Enroll in all courses in the offer
+    const courseIds = (offer.course_ids || []).filter(Boolean);
+    for (const courseId of courseIds) {
+      await client.query(
+        `INSERT INTO enrollments (user_id, course_id, amount_paid, offer_id, enrolled_at)
+         VALUES ($1, $2, 0, $3, NOW())
+         ON CONFLICT (user_id, course_id) DO NOTHING`,
+        [userId, courseId, offerId]
+      );
+    }
+
+    await client.query("COMMIT");
+
+    res.json({ success: true, message: "Offer purchased successfully", newBalance: currentBalance - price });
+  } catch (error) {
+    await client.query("ROLLBACK");
+    console.error("Offer purchase error:", error);
+    res.status(500).json({ error: error.message || "Failed to purchase offer" });
+  } finally {
+    client.release();
+  }
 });
 
 export default router;

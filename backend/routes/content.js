@@ -1,79 +1,66 @@
 // =====================================================
-// CONTENT API ROUTES (Main access control logic)
+// CONTENT API ROUTES
 // =====================================================
 import express from "express";
-import { authApiMiddleware } from "../middleware/requireAuth.js"; // FIX #4: blocks unauthenticated requests
+import pool from "../config/db.js";
+import { authApiMiddleware } from "../middleware/requireAuth.js";
 import { checkLessonAccess } from "../middleware/auth.js";
 import { generateSignedUrl } from "../utils/r2Utils.js";
-import { supabaseAdmin } from "../config/supabase.js";
 
 const router = express.Router();
 
 /**
- * GET /api/content/lesson/:lessonId
- * Get signed URL for lesson content (video/PDF)
- * PROTECTED: Requires authentication and enrollment
+ * GET /api/content/lesson/:lessonId — PROTECTED
  */
 router.get("/lesson/:lessonId", authApiMiddleware, async (req, res) => {
   try {
     const { lessonId } = req.params;
-    const userId = req.user?.id; // May be null for unauthenticated users
+    const userId = req.user?.id;
 
-    // Get lesson details from database first
-    const { data: lesson, error: lessonError } = await supabaseAdmin
-      .from("lessons")
-      .select("id, title, type, video_key, pdf_key, duration, is_preview, module_id")
-      .eq("id", lessonId)
-      .single();
+    const lessonResult = await pool.query(
+      `SELECT id, title, type, video_key, pdf_key, duration, is_preview, module_id
+       FROM lessons WHERE id = $1`,
+      [lessonId]
+    );
 
-    if (lessonError || !lesson) {
+    if (lessonResult.rowCount === 0) {
       return res.status(404).json({ error: "Lesson not found" });
     }
 
-    // Check access: preview lessons are public, others require enrollment
-    let hasAccess = lesson.is_preview; // Preview lessons are always accessible
+    const lesson = lessonResult.rows[0];
+    let hasAccess = lesson.is_preview;
 
     if (!hasAccess && userId) {
-      // Check if user has access to this lesson via enrollment
       hasAccess = await checkLessonAccess(userId, lessonId);
     }
-    
+
     if (!hasAccess) {
-      return res.status(403).json({ 
-        error: "Access denied. Please enroll in this course first or sign in to access this lesson.",
-        isPreview: lesson.is_preview
+      return res.status(403).json({
+        error: "Access denied. Please enroll in this course first.",
+        isPreview: lesson.is_preview,
       });
     }
 
-    // Generate signed URLs for available content
     const response = {
       lessonId: lesson.id,
       title: lesson.title,
       type: lesson.type,
       duration: lesson.duration,
-      isPreview: lesson.is_preview
+      isPreview: lesson.is_preview,
     };
 
-    if (lesson.video_key) {
-      response.videoUrl = await generateSignedUrl(lesson.video_key);
-    }
+    if (lesson.video_key) response.videoUrl = await generateSignedUrl(lesson.video_key);
+    if (lesson.pdf_key) response.pdfUrl = await generateSignedUrl(lesson.pdf_key);
 
-    if (lesson.pdf_key) {
-      response.pdfUrl = await generateSignedUrl(lesson.pdf_key);
-    }
-
-    // Log access (only if user is authenticated)
+    // Log access
     if (userId) {
-      await supabaseAdmin
-        .from("lesson_progress")
-        .upsert({
-          user_id: userId,
-          lesson_id: lessonId,
-          updated_at: new Date().toISOString(),
-        }, {
-          onConflict: 'user_id,lesson_id',
-          ignoreDuplicates: false
-        });
+      await pool.query(
+        `INSERT INTO lesson_progress (user_id, lesson_id, updated_at)
+         VALUES ($1, $2, NOW())
+         ON CONFLICT (user_id, lesson_id)
+         DO UPDATE SET updated_at = NOW()`,
+        [userId, lessonId]
+      );
     }
 
     res.json(response);
@@ -84,8 +71,7 @@ router.get("/lesson/:lessonId", authApiMiddleware, async (req, res) => {
 });
 
 /**
- * POST /api/content/lesson/:lessonId/progress
- * Update lesson progress
+ * POST /api/content/lesson/:lessonId/progress — PROTECTED
  */
 router.post("/lesson/:lessonId/progress", authApiMiddleware, async (req, res) => {
   try {
@@ -93,35 +79,48 @@ router.post("/lesson/:lessonId/progress", authApiMiddleware, async (req, res) =>
     const { completed, progressPercentage, lastPosition } = req.body;
     const userId = req.user.id;
 
-    // Update progress
-    const { error } = await supabaseAdmin
-      .from("lesson_progress")
-      .upsert({
-        user_id: userId,
-        lesson_id: lessonId,
-        completed: completed || false,
-        progress_percentage: progressPercentage || 0,
-        last_position: lastPosition || 0,
-        completed_at: completed ? new Date().toISOString() : null,
-        updated_at: new Date().toISOString(),
-      });
-
-    if (error) {
-      return res.status(500).json({ error: "Failed to update progress" });
-    }
+    await pool.query(
+      `INSERT INTO lesson_progress
+         (user_id, lesson_id, completed, progress_percentage, last_position, completed_at, updated_at)
+       VALUES ($1, $2, $3, $4, $5, $6, NOW())
+       ON CONFLICT (user_id, lesson_id) DO UPDATE SET
+         completed          = EXCLUDED.completed,
+         progress_percentage = EXCLUDED.progress_percentage,
+         last_position      = EXCLUDED.last_position,
+         completed_at       = EXCLUDED.completed_at,
+         updated_at         = NOW()`,
+      [
+        userId,
+        lessonId,
+        completed || false,
+        progressPercentage || 0,
+        lastPosition || 0,
+        completed ? new Date().toISOString() : null,
+      ]
+    );
 
     // Update course-level progress
-    const { data: lesson } = await supabaseAdmin
-      .from("lessons")
-      .select("module_id, modules(course_id)")
-      .eq("id", lessonId)
-      .single();
+    const lessonRow = await pool.query(
+      `SELECT m.course_id FROM lessons l JOIN modules m ON m.id = l.module_id WHERE l.id = $1`,
+      [lessonId]
+    );
 
-    if (lesson?.modules?.course_id) {
-      await supabaseAdmin.rpc("update_course_progress", {
-        p_user_id: userId,
-        p_course_id: lesson.modules.course_id,
-      });
+    if (lessonRow.rowCount > 0) {
+      const { course_id } = lessonRow.rows[0];
+      await pool.query(
+        `UPDATE enrollments SET
+           progress = (
+             SELECT ROUND(100.0 * COUNT(*) FILTER (WHERE lp.completed = true)
+                          / NULLIF(COUNT(*), 0))
+             FROM lessons l2
+             JOIN modules m2 ON m2.id = l2.module_id
+             LEFT JOIN lesson_progress lp ON lp.lesson_id = l2.id AND lp.user_id = $1
+             WHERE m2.course_id = $2
+           ),
+           last_accessed = NOW()
+         WHERE user_id = $1 AND course_id = $2`,
+        [userId, course_id]
+      );
     }
 
     res.json({ success: true });
@@ -132,25 +131,13 @@ router.post("/lesson/:lessonId/progress", authApiMiddleware, async (req, res) =>
 });
 
 /**
- * GET /api/content/thumbnail/:thumbnailKey
- * Get signed URL for course thumbnail from R2
- * PUBLIC: Anyone can view course thumbnails
+ * GET /api/content/thumbnail/:thumbnailKey — PUBLIC
  */
 router.get("/thumbnail/:thumbnailKey", async (req, res) => {
   try {
-    const { thumbnailKey } = req.params;
-    
-    // Decode the thumbnail key
-    const decodedKey = decodeURIComponent(thumbnailKey);
-    
-    // Generate signed URL for the thumbnail
-    const thumbnailUrl = await generateSignedUrl(decodedKey, 3600); // 1 hour expiry for thumbnails
-    
-    res.json({ 
-      url: thumbnailUrl,
-      expiresIn: 3600
-    });
-    
+    const decodedKey = decodeURIComponent(req.params.thumbnailKey);
+    const thumbnailUrl = await generateSignedUrl(decodedKey, 3600);
+    res.json({ url: thumbnailUrl, expiresIn: 3600 });
   } catch (error) {
     console.error("Error generating thumbnail URL:", error);
     res.status(500).json({ error: "Failed to generate thumbnail URL" });
