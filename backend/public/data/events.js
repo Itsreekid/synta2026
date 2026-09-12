@@ -2,7 +2,7 @@
 // Edit this file to manage upcoming events in the dashboard
 // Add, remove, or modify events as needed
 
-export const upcomingEvents = [
+const upcomingEvents = [
     {
         title: "حصة مجانية في مادة الفلسفة ",
         date: "2026-02-06",
@@ -47,8 +47,6 @@ export const upcomingEvents = [
         target_branches: ["informatique"]
     },
 ];
-
-export default upcomingEvents;
 
 // Instructions:
 // - To add an event: Copy an existing event object and modify its values

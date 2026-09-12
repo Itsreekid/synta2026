@@ -1,199 +1,311 @@
-// =====================================================
-// PROFILE PAGE JAVASCRIPT
-//
-// The profile form fields are pre-populated server-side
-// via EJS + the attachUserProfile middleware. This script:
-//  1. Handles save (PATCH) operations via window.auth.updateProfile
-//  2. Loads real stats from GET /api/user/stats
-//  3. Updates the profile initial letter if needed
-//
-// The setTimeout polling loop and hardcoded-zero stats
-// have been removed. All data flows from the server.
-// =====================================================
+// Profile Page JavaScript
 
-document.addEventListener('DOMContentLoaded', function () {
-    // Load real stats from the API
-    loadUserStats();
-
-    // Update the profile initial from the server-injected profile
-    // (the EJS template already pre-populates #profile-initial, but
-    // we re-check here in case the client resolves a fresher name)
-    if (window.__SYNTA_PROFILE__) {
-        updateProfileInitialFromState(window.__SYNTA_PROFILE__);
-    }
-
-    // Listen for auth hydration in case authentication.js fires late
-    // (e.g. on a hard refresh where __SYNTA_PROFILE__ might be missing)
-    document.addEventListener('appStateHydrated', function (e) {
-        if (e.detail && !window.__SYNTA_PROFILE__) {
-            updateProfileInitialFromState(e.detail);
-            populateProfileFormFromState(e.detail);
-        }
-    }, { once: true });
-
+document.addEventListener('DOMContentLoaded', function() {
+    // Load user profile data
+    loadUserProfile();
+    
+    // Set up form event listeners
     setupFormListeners();
 });
 
-// --------------------------------------------------
-// Profile Initial
-// --------------------------------------------------
-function updateProfileInitialFromState(profileState) {
-    const profileInitial = document.getElementById('profile-initial');
-    if (!profileInitial) return;
-    const displayName = profileState?.full_name || profileState?.email?.split('@')[0] || 'Utilisateur';
-    profileInitial.textContent = displayName.charAt(0).toUpperCase();
-}
-
-// --------------------------------------------------
-// Fallback Form Population
-// Used only when the server-side profile was unavailable
-// (edge case). Normally EJS handles this.
-// --------------------------------------------------
-function populateProfileFormFromState(profileState) {
-    if (!profileState) return;
-
-    const fullNameInput   = document.getElementById('full-name');
-    const emailInput      = document.getElementById('email');
-    const phoneInput      = document.getElementById('phone');
-    const userClassSelect = document.getElementById('user-class');
-    const userBranchSelect = document.getElementById('user-branch');
-
-    if (fullNameInput   && !fullNameInput.value)   fullNameInput.value   = profileState.full_name   || profileState.user_metadata?.full_name   || '';
-    if (emailInput      && !emailInput.value)       emailInput.value      = profileState.email       || '';
-    if (phoneInput      && !phoneInput.value)       phoneInput.value      = profileState.phone       || profileState.user_metadata?.phone       || '';
-    if (userClassSelect && !userClassSelect.value)  userClassSelect.value = profileState.user_class  || profileState.user_metadata?.user_class  || '';
-    if (userBranchSelect && !userBranchSelect.value) userBranchSelect.value = profileState.user_branch || profileState.user_metadata?.user_branch || '';
-}
-
-// --------------------------------------------------
-// Stats — Connected to real API
-// --------------------------------------------------
-async function loadUserStats() {
+// Load user profile data from Supabase
+async function loadUserProfile() {
     try {
-        const response = await fetch('/api/user/stats', { credentials: 'same-origin' });
-
-        if (!response.ok) return; // Leave the EJS default "0" values in place
-
-        const stats = await response.json();
-
-        const completedEl = document.getElementById('completed-courses');
-        const activeEl    = document.getElementById('active-courses');
-        const achievEl    = document.getElementById('achievements');
-
-        if (completedEl) completedEl.textContent = stats.completedCourses ?? 0;
-        if (activeEl)    activeEl.textContent    = stats.activeCourses    ?? 0;
-        if (achievEl)    achievEl.textContent    = stats.achievements     ?? 0;
-
-        // learning-hours, earned-points, active-days are not returned
-        // by the current API — they remain at their EJS default values.
-
-    } catch (err) {
-        // Non-fatal — stats remain at "0"
-        console.warn('[Profile] Could not load stats:', err.message);
-    }
-}
-
-// --------------------------------------------------
-// Save Profile
-// --------------------------------------------------
-async function saveProfile() {
-    const fullName  = document.getElementById('full-name')?.value.trim()  || '';
-    const phone     = document.getElementById('phone')?.value.trim()      || '';
-    const userClass = document.getElementById('user-class')?.value        || '';
-    const userBranch = document.getElementById('user-branch')?.value      || '';
-
-    if (!fullName) {
-        showMessage('Le nom complet est requis', 'error');
-        return;
-    }
-
-    const saveBtn = document.querySelector('.save-btn');
-    const originalText = saveBtn ? saveBtn.textContent : '';
-    if (saveBtn) {
-        saveBtn.textContent = 'Enregistrement...';
-        saveBtn.disabled = true;
-    }
-
-    try {
+        // Simple check for auth availability
         if (!window.auth) {
-            showMessage("Système d'authentification non disponible", 'error');
+            console.log('Auth not ready, retrying in 500ms...');
+            setTimeout(loadUserProfile, 500);
             return;
         }
-
-        const updates = {
-            full_name:   fullName,
-            phone:       phone,
-            user_class:  userClass,
-            user_branch: userBranch
-        };
-
-        const result = await window.auth.updateProfile(updates);
-
-        if (result.success) {
-            showMessage('Modifications enregistrées avec succès!', 'success');
-            updateProfileInitialFromState({ full_name: fullName });
+        
+        // Get current user
+        const authResult = await window.auth.getCurrentUser();
+        
+        if (authResult.success && authResult.user) {
+            console.log('Loading profile for user:', authResult.user.email);
+            populateProfileForm(authResult.user);
+            updateProfileInitial(authResult.user);
+            loadUserStats();
         } else {
-            showMessage("Erreur lors de l'enregistrement des modifications", 'error');
+            console.error('No user found or authentication failed');
+            showMessage('Veuillez vous connecter pour accéder au profil', 'error');
         }
+        
     } catch (error) {
-        console.error('[Profile] Error saving profile:', error);
-        showMessage("Erreur lors de l'enregistrement des modifications", 'error');
-    } finally {
-        if (saveBtn) {
-            saveBtn.textContent = originalText;
-            saveBtn.disabled = false;
-        }
+        console.error('Error loading user profile:', error);
+        showMessage('Une erreur est survenue lors du chargement des données', 'error');
     }
 }
 
-// --------------------------------------------------
-// Form Listeners
-// --------------------------------------------------
+// Populate the profile form with user data
+function populateProfileForm(user) {
+    console.log('Populating profile form with user data:', user);
+    
+    // Basic user information
+    const fullNameInput = document.getElementById('full-name');
+    const emailInput = document.getElementById('email');
+    const phoneInput = document.getElementById('phone');
+    const userClassSelect = document.getElementById('user-class');
+    const userBranchSelect = document.getElementById('user-branch');
+    
+    console.log('Found elements:', {
+        fullNameInput: !!fullNameInput,
+        emailInput: !!emailInput,
+        phoneInput: !!phoneInput,
+        userClassSelect: !!userClassSelect,
+        userBranchSelect: !!userBranchSelect
+    });
+    
+    // Set values from user metadata
+    if (user.user_metadata) {
+        console.log('User metadata:', user.user_metadata);
+        
+        // Full name
+        if (user.user_metadata.full_name) {
+            fullNameInput.value = user.user_metadata.full_name;
+            console.log('Set full name:', user.user_metadata.full_name);
+        }
+        
+        // Phone
+        if (user.user_metadata.phone) {
+            phoneInput.value = user.user_metadata.phone;
+            console.log('Set phone:', user.user_metadata.phone);
+        }
+        
+        // User class
+        if (user.user_metadata.user_class) {
+            userClassSelect.value = user.user_metadata.user_class;
+            console.log('Set user class:', user.user_metadata.user_class);
+        }
+        
+        // User branch
+        if (user.user_metadata.user_branch) {
+            userBranchSelect.value = user.user_metadata.user_branch;
+            console.log('Set user branch:', user.user_metadata.user_branch);
+        } else {
+            console.log('No user_branch found in metadata, setting to empty');
+            userBranchSelect.value = ''; // Ensure it's set to empty string
+        }
+        
+        // Test: Force the branch field to be visible and populated for testing
+        console.log('Testing branch field visibility...');
+        userBranchSelect.style.display = 'block';
+        userBranchSelect.style.visibility = 'visible';
+        userBranchSelect.style.opacity = '1';
+        
+        // Debug: Check if the element is visible
+        console.log('Branch select element:', userBranchSelect);
+        console.log('Branch select parent:', userBranchSelect.parentElement);
+        console.log('Branch select style:', window.getComputedStyle(userBranchSelect));
+        console.log('Branch select offsetHeight:', userBranchSelect.offsetHeight);
+        console.log('Branch select value:', userBranchSelect.value);
+        console.log('Branch select options:', userBranchSelect.options.length);
+    } else {
+        console.log('No user metadata found');
+    }
+    
+    // Email (always available)
+    if (user.email) {
+        emailInput.value = user.email;
+        console.log('Set email:', user.email);
+    }
+    
+    // Test: Ensure branch field is working
+    setTimeout(() => {
+        const branchField = document.getElementById('user-branch');
+        if (branchField) {
+            console.log('✅ Branch field found and working');
+            console.log('Branch field value:', branchField.value);
+            console.log('Branch field visible:', branchField.offsetHeight > 0);
+            
+            // Force it to be visible if it's not
+            if (branchField.offsetHeight === 0) {
+                console.log('⚠️ Branch field has no height, forcing visibility');
+                branchField.style.display = 'block';
+                branchField.style.height = 'auto';
+                branchField.style.minHeight = '40px';
+            }
+        } else {
+            console.log('❌ Branch field not found!');
+        }
+        
+        // Test all form fields
+        const allFields = ['full-name', 'email', 'phone', 'user-class', 'user-branch', 'birth-date', 'country', 'bio'];
+        allFields.forEach(fieldId => {
+            const field = document.getElementById(fieldId);
+            if (field) {
+                console.log(`✅ ${fieldId}: found, value="${field.value}", visible=${field.offsetHeight > 0}`);
+            } else {
+                console.log(`❌ ${fieldId}: not found!`);
+            }
+        });
+    }, 1000);
+    
+    // Update profile initial
+    updateProfileInitial(user);
+}
+
+// Update profile picture initial automatically
+function updateProfileInitial(user) {
+    const profileInitial = document.getElementById('profile-initial');
+    const displayName = user.user_metadata?.full_name || user.email?.split('@')[0] || 'Utilisateur';
+    
+    // Get first character of the name
+    const initial = displayName.charAt(0).toUpperCase();
+    profileInitial.textContent = initial;
+}
+
+// Load user statistics (placeholder for now)
+function loadUserStats() {
+    // These would typically come from a database
+    // For now, we'll use placeholder data
+    const stats = {
+        completedCourses: 0,
+        activeCourses: 0,
+        learningHours: 0,
+        achievements: 0,
+        currentLevel: 'Débutant',
+        earnedPoints: 0,
+        activeDays: 0,
+        contestsParticipated: 0
+    };
+    
+    // Update stats in the UI
+    document.getElementById('completed-courses').textContent = stats.completedCourses;
+    document.getElementById('active-courses').textContent = stats.activeCourses;
+    document.getElementById('learning-hours').textContent = stats.learningHours;
+    document.getElementById('achievements').textContent = stats.achievements;
+    document.getElementById('current-level').textContent = stats.currentLevel;
+    document.getElementById('earned-points').textContent = stats.earnedPoints;
+    document.getElementById('active-days').textContent = stats.activeDays;
+    document.getElementById('contests-participated').textContent = stats.contestsParticipated;
+}
+
+// Save profile changes
+async function saveProfile() {
+    try {
+        // Get form values
+        const fullName = document.getElementById('full-name').value.trim();
+        const phone = document.getElementById('phone').value.trim();
+        const userClass = document.getElementById('user-class').value;
+        const userBranch = document.getElementById('user-branch').value;
+        const birthDate = document.getElementById('birth-date').value;
+        const country = document.getElementById('country').value;
+        const bio = document.getElementById('bio').value.trim();
+        
+        // Validate required fields
+        if (!fullName) {
+            showMessage('Le nom complet est requis', 'error');
+            return;
+        }
+        
+        // Prepare update data
+        const updates = {
+            full_name: fullName,
+            phone: phone,
+            user_class: userClass,
+            user_branch: userBranch,
+            birth_date: birthDate,
+            country: country,
+            bio: bio
+        };
+        
+        // Show loading state
+        const saveBtn = document.querySelector('.save-btn');
+        const originalText = saveBtn.textContent;
+        saveBtn.textContent = 'Enregistrement...';
+        saveBtn.disabled = true;
+        
+        // Update user profile
+        if (window.auth) {
+            const result = await window.auth.updateProfile(updates);
+            
+            if (result.success) {
+                showMessage('Modifications enregistrées avec succès!', 'success');
+                updateProfileInitial({ user_metadata: updates });
+            } else {
+                showMessage('Erreur lors de l\'enregistrement des modifications', 'error');
+            }
+        } else {
+            showMessage('Système d\'authentification non disponible', 'error');
+        }
+        
+    } catch (error) {
+        console.error('Error saving profile:', error);
+        showMessage('Erreur lors de l\'enregistrement des modifications', 'error');
+    } finally {
+        // Restore button state
+        const saveBtn = document.querySelector('.save-btn');
+        saveBtn.textContent = originalText;
+        saveBtn.disabled = false;
+    }
+}
+
+// Setup form event listeners
 function setupFormListeners() {
+    // Auto-save on form changes (optional)
     const formInputs = document.querySelectorAll('.profile-form input, .profile-form select, .profile-form textarea');
     formInputs.forEach(input => {
-        input.addEventListener('change', function () {
-            // Reserved for future auto-save
+        input.addEventListener('change', function() {
+            // You could implement auto-save here if desired
         });
     });
 }
 
-// --------------------------------------------------
-// Show Message (shared toast)
-// Reuses the global showMessage from user.js if available,
-// otherwise falls back to a local implementation.
-// --------------------------------------------------
+// Show message function
 function showMessage(message, type = 'info') {
-    if (window.showMessage && window.showMessage !== showMessage) {
-        window.showMessage(message, type);
-        return;
-    }
-
+    // Remove existing messages
     const existingMessages = document.querySelectorAll('.profile-message');
     existingMessages.forEach(msg => msg.remove());
-
+    
+    // Create new message
     const messageDiv = document.createElement('div');
     messageDiv.className = `profile-message ${type}`;
     messageDiv.textContent = message;
     messageDiv.style.cssText = `
-        position: fixed; top: 20px; right: 20px;
-        padding: 15px 20px; border-radius: 8px; color: white;
-        font-family: 'Tajawal', sans-serif; z-index: 10000;
-        max-width: 300px; animation: slideInRight 0.3s ease-out;
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        padding: 15px 20px;
+        border-radius: 8px;
+        color: white;
+        font-family: 'Tajawal', sans-serif;
+        z-index: 10000;
+        max-width: 300px;
+        animation: slideInRight 0.3s ease-out;
     `;
-
-    switch (type) {
-        case 'success': messageDiv.style.background = '#28a745'; break;
-        case 'error':   messageDiv.style.background = '#dc3545'; break;
-        default:        messageDiv.style.background = '#17a2b8'; break;
+    
+    // Set background color based on type
+    switch(type) {
+        case 'success':
+            messageDiv.style.background = '#28a745';
+            break;
+        case 'error':
+            messageDiv.style.background = '#dc3545';
+            break;
+        case 'info':
+        default:
+            messageDiv.style.background = '#17a2b8';
+            break;
     }
-
+    
+    // Add animation style
+    const style = document.createElement('style');
+    style.textContent = `
+        @keyframes slideInRight {
+            from { transform: translateX(100%); opacity: 0; }
+            to { transform: translateX(0); opacity: 1; }
+        }
+    `;
+    document.head.appendChild(style);
+    
     document.body.appendChild(messageDiv);
-
+    
+    // Auto remove after 5 seconds
     setTimeout(() => {
-        if (document.body.contains(messageDiv)) messageDiv.remove();
+        if (document.body.contains(messageDiv)) {
+            document.body.removeChild(messageDiv);
+            document.head.removeChild(style);
+        }
     }, 5000);
-}
-
-// Expose for inline onclick handlers
-window.saveProfile = saveProfile;
+} 

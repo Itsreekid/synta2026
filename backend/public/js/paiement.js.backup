@@ -8,11 +8,11 @@ console.log('Paiement.js loaded');
 const isInIframe = window.self !== window.top;
 const SyntaAPI = isInIframe && window.parent.SyntaAPI ? window.parent.SyntaAPI : window.SyntaAPI;
 
-document.addEventListener('DOMContentLoaded', async function () {
+document.addEventListener('DOMContentLoaded', async function() {
     console.log('DOM loaded - starting initialization');
     console.log('Is in iframe:', isInIframe);
     console.log('SyntaAPI available:', !!SyntaAPI);
-
+    
     // Check if API client is loaded
     if (!SyntaAPI) {
         console.error('Client API non chargé');
@@ -29,19 +29,10 @@ document.addEventListener('DOMContentLoaded', async function () {
         }
         return;
     }
-
+    
     // Store globally for use in other functions
     window.SyntaAPI = SyntaAPI;
-
-    console.log('Waiting for Supabase client initialization...');
-    try {
-        await window.SyntaAPI.waitForSupabase();
-        console.log('Supabase client initialized.');
-    } catch (error) {
-        console.error('Supabase initialization error:', error);
-        return;
-    }
-
+    
     console.log('SyntaAPI loaded, loading user data and transactions');
     await loadUserData();
     await loadTransactions();
@@ -57,11 +48,11 @@ async function loadUserData() {
             window.location.href = '../../pages/auth/login.html';
             return;
         }
-
+        
         // In a real app, you would fetch this from the database
         // For now, we'll use placeholder data
         console.log('User loaded:', user.email);
-
+        
     } catch (error) {
         console.error('Error loading user data:', error);
     }
@@ -72,12 +63,12 @@ async function loadUserData() {
  */
 async function loadTransactions() {
     const tbody = document.getElementById('transaction-history');
-
+    
     if (!tbody) {
         console.error('Transaction history tbody not found');
         return;
     }
-
+    
     // Set a loading state first
     tbody.innerHTML = `
         <tr>
@@ -86,7 +77,7 @@ async function loadTransactions() {
             </td>
         </tr>
     `;
-
+    
     try {
         const user = await window.SyntaAPI.getCurrentUser();
         if (!user) {
@@ -100,23 +91,23 @@ async function loadTransactions() {
             `;
             return;
         }
-
+        
         console.log('Loading transactions for user:', user.id);
-
+        
         // Fetch transactions from database
         const { data: transactions, error: txError } = await window.SyntaAPI.supabase
             .from('transactions')
             .select('*')
             .eq('user_id', user.id)
             .order('created_at', { ascending: false });
-
+        
         if (txError) {
             console.error('Transaction fetch error:', txError);
             // Don't throw, continue with empty transactions
         }
-
+        
         console.log('Transactions fetched:', transactions);
-
+        
         // Fetch enrollments/purchases from Supabase
         const { data: enrollments, error } = await window.SyntaAPI.supabase
             .from('enrollments')
@@ -129,26 +120,15 @@ async function loadTransactions() {
             `)
             .eq('user_id', user.id)
             .order('enrolled_at', { ascending: false });
-
+        
         if (error) {
             console.error('Enrollments fetch error:', error);
             // Don't throw, continue with empty enrollments
         }
-
+        
         console.log('Enrollments fetched:', enrollments);
-
-        // Fetch offer payments from Supabase
-        const { data: payments, error: paymentsError } = await window.SyntaAPI.supabase
-            .from('payments')
-            .select('*')
-            .eq('user_id', user.id)
-            .order('created_at', { ascending: false });
-
-        if (paymentsError) {
-            console.error('Payments fetch error:', paymentsError);
-        }
-
-        // Combine transactions, enrollments, and payments
+        
+        // Combine transactions and enrollments
         const allTransactions = [
             ...(transactions || []).map(tx => ({
                 id: tx.transaction_code || tx.id,
@@ -159,39 +139,50 @@ async function loadTransactions() {
                 payment_method: tx.payment_method || 'N/A',
                 isTransaction: true
             })),
-            ...(payments || []).map(p => ({
-                id: p.id,
-                type: 'Achat de Plan',
-                amount: p.amount,
-                date: p.created_at,
-                status: 'completed',
-                payment_method: 'Solde Portefeuille',
+            ...(enrollments || []).map(enrollment => ({
+                id: enrollment.id,
+                type: 'purchase',
+                amount: enrollment.course?.price || 0,
+                date: enrollment.enrolled_at,
+                status: 'approved',
+                payment_method: 'Achat de cours',
                 isTransaction: false,
-                isPayment: true
-            })),
-            ...(enrollments || []).map(enrollment => {
-                // Skip enrollments that are already covered by payments (optional, but cleaner)
-                // For now, let's keep it simple and just show them both or filter appropriately
-                return {
-                    id: enrollment.id,
-                    type: 'Accès Cours',
-                    amount: enrollment.course?.price || 0,
-                    date: enrollment.enrolled_at,
-                    status: 'approved',
-                    payment_method: 'Cours',
-                    isTransaction: false,
-                    isEnrollment: true,
-                    enrollment: enrollment
-                };
-            })
+                enrollment: enrollment
+            }))
         ].sort((a, b) => new Date(b.date) - new Date(a.date));
-
-        // Always show transactions (if any) plus the "Add" button
-        const transactionsHtml = allTransactions.map(tx => {
+        
+        if (allTransactions.length === 0) {
+            tbody.innerHTML = `
+                <tr class="no-transactions">
+                    <td colspan="6" style="text-align: center; padding: 2rem; color: #94a3b8;">
+                        <div style="margin-bottom: 1rem;">Aucune transaction pour le moment</div>
+                        <button onclick="showAddTransactionPopup()" style="
+                            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                            color: white;
+                            border: none;
+                            border-radius: 10px;
+                            padding: 0.75rem 1.5rem;
+                            font-family: 'Inter', sans-serif;
+                            font-weight: 600;
+                            font-size: 0.95rem;
+                            cursor: pointer;
+                            transition: all 0.3s ease;
+                            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+                        " onmouseover="this.style.transform='translateY(-2px)'; this.style.boxShadow='0 6px 20px rgba(102, 126, 234, 0.4)'" onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='0 4px 12px rgba(102, 126, 234, 0.3)'">
+                            Ajouter une nouvelle transaction
+                        </button>
+                    </td>
+                </tr>
+            `;
+            return;
+        }
+        
+        // Render all transactions
+        tbody.innerHTML = allTransactions.map(tx => {
             const date = new Date(tx.date).toLocaleDateString('fr-FR');
             const code = tx.id.toString().substring(0, 12) + (tx.id.length > 12 ? '...' : '');
             const statusInfo = getTransactionStatus(tx.status);
-
+            
             return `
                 <tr class="${tx.status === 'pending' ? 'pending-transaction' : ''}">
                     <td>${code}</td>
@@ -205,24 +196,10 @@ async function loadTransactions() {
                 </tr>
             `;
         }).join('');
-
-        const addButtonHtml = `
-            <tr class="add-transaction-row">
-                <td colspan="6" style="text-align: center;">
-                    ${allTransactions.length === 0 ? '<div class="no-transactions-msg">Aucune transaction pour le moment</div>' : ''}
-                    <button onclick="showAddTransactionPopup()" class="premium-add-btn">
-                        <i class="fas fa-plus"></i> Ajouter une nouvelle transaction
-                    </button>
-                </td>
-            </tr>
-        `;
-
-        tbody.innerHTML = transactionsHtml + addButtonHtml;
-
-
+        
         // Update pagination
         document.getElementById('pagination-info').textContent = `1 / 1 de ${allTransactions.length}`;
-
+        
     } catch (error) {
         console.error('Error loading transactions:', error);
         if (tbody) {
@@ -266,7 +243,7 @@ function getTransactionStatus(status) {
 /**
  * Open transaction details
  */
-window.openTransaction = function (enrollmentId) {
+window.openTransaction = function(enrollmentId) {
     console.log('Opening transaction:', enrollmentId);
     // You can implement a modal or redirect to a details page
     alert('Détails de la transaction: ' + enrollmentId);
@@ -275,7 +252,7 @@ window.openTransaction = function (enrollmentId) {
 /**
  * Show add transaction popup
  */
-window.showAddTransactionPopup = function () {
+window.showAddTransactionPopup = function() {
     const popup = document.createElement('div');
     popup.style.cssText = `
         position: fixed;
@@ -292,7 +269,7 @@ window.showAddTransactionPopup = function () {
         padding: 1rem;
         overflow-y: auto;
     `;
-
+    
     popup.innerHTML = `
         <div style="
             background: white;
@@ -318,7 +295,7 @@ window.showAddTransactionPopup = function () {
             ">Entrez le montant que vous souhaitez ajouter à votre solde</p>
             
             <div style="margin-bottom: 1.5rem;">
-                <label for="transaction-amount" style="
+                <label style="
                     display: block;
                     color: #475569;
                     font-weight: 600;
@@ -378,14 +355,14 @@ window.showAddTransactionPopup = function () {
             </div>
         </div>
     `;
-
+    
     document.body.appendChild(popup);
-
+    
     // Focus on input
     setTimeout(() => {
         document.getElementById('transaction-amount').focus();
     }, 100);
-
+    
     // Add event listeners
     document.getElementById('confirmTransactionBtn').onclick = async () => {
         const amount = parseFloat(document.getElementById('transaction-amount').value);
@@ -396,11 +373,11 @@ window.showAddTransactionPopup = function () {
         popup.remove();
         await createPendingTransaction(amount);
     };
-
+    
     document.getElementById('cancelTransactionBtn').onclick = () => {
         popup.remove();
     };
-
+    
     // Close on background click
     popup.onclick = (e) => {
         if (e.target === popup) {
@@ -419,9 +396,9 @@ async function createPendingTransaction(amount) {
             showMessage('Utilisateur non connecté', 'error');
             return;
         }
-
+        
         const transactionCode = 'TXN-' + Date.now();
-
+        
         // Insert transaction into database
         const { data, error } = await window.SyntaAPI.supabase
             .from('transactions')
@@ -436,20 +413,20 @@ async function createPendingTransaction(amount) {
             })
             .select()
             .single();
-
+        
         if (error) {
             console.error('Database error:', error);
             throw error;
         }
-
+        
         console.log('Transaction created:', data);
-
+        
         // Reload transactions to show the new one
         await loadTransactions();
-
+        
         // Show success message
         showMessage('Transaction créée avec succès! Elle sera traitée prochainement.', 'success');
-
+        
     } catch (error) {
         console.error('Error creating pending transaction:', error);
         showMessage('Erreur lors de la création de la transaction: ' + (error.message || 'Erreur inconnue'), 'error');
@@ -474,7 +451,7 @@ function showMessage(message, type = 'info') {
         animation: slideIn 0.3s ease;
         max-width: 400px;
     `;
-
+    
     if (type === 'error') {
         messageDiv.style.background = '#dc3545';
     } else if (type === 'success') {
@@ -482,11 +459,187 @@ function showMessage(message, type = 'info') {
     } else {
         messageDiv.style.background = '#667eea';
     }
-
+    
     messageDiv.textContent = message;
     document.body.appendChild(messageDiv);
-
+    
     setTimeout(() => {
         messageDiv.remove();
     }, 3000);
 }
+        document.getElementById('plan-period').textContent = '';
+        document.getElementById('subtotal').textContent = 'Sur mesure';
+        document.getElementById('tax').textContent = '-';
+        document.getElementById('total').textContent = 'Sur mesure';
+        document.querySelector('.submit-btn').innerHTML = '<i class="fas fa-envelope"></i> Demander un devis';
+    } else {
+        const subtotal = plan.price;
+        const tax = (subtotal * 0.20).toFixed(2);
+        const total = (subtotal + parseFloat(tax)).toFixed(2);
+        
+        document.getElementById('plan-price').textContent = `${subtotal}€`;
+        document.getElementById('plan-period').textContent = plan.period;
+        document.getElementById('subtotal').textContent = `${subtotal}€`;
+        document.getElementById('tax').textContent = `${tax}€`;
+        document.getElementById('total').textContent = `${total}€`;
+        document.querySelector('.submit-btn').innerHTML = `<i class="fas fa-lock"></i> Payer ${total}€`;
+    }
+    
+    // Update features
+    const featuresList = document.getElementById('plan-features');
+    featuresList.innerHTML = plan.features.map(feature => 
+        `<li><i class="fas fa-check"></i> ${feature}</li>`
+    ).join('');
+}
+
+function setupFormValidation() {
+    const form = document.getElementById('payment-form');
+    const cardNumber = document.getElementById('card-number');
+    const expiry = document.getElementById('expiry');
+    const cvv = document.getElementById('cvv');
+
+    // Format card number
+    cardNumber.addEventListener('input', function(e) {
+        let value = e.target.value.replace(/\s/g, '');
+        let formattedValue = value.match(/.{1,4}/g)?.join(' ') || value;
+        e.target.value = formattedValue;
+    });
+
+    // Format expiry date
+    expiry.addEventListener('input', function(e) {
+        let value = e.target.value.replace(/\D/g, '');
+        if (value.length >= 2) {
+            value = value.slice(0, 2) + '/' + value.slice(2, 4);
+        }
+        e.target.value = value;
+    });
+
+    // CVV validation
+    cvv.addEventListener('input', function(e) {
+        e.target.value = e.target.value.replace(/\D/g, '');
+    });
+
+    // Form submission
+    form.addEventListener('submit', function(e) {
+        e.preventDefault();
+        
+        if (validateForm()) {
+            showSuccessMessage();
+        }
+    });
+}
+
+function validateForm() {
+    const cardNumber = document.getElementById('card-number').value.replace(/\s/g, '');
+    const expiry = document.getElementById('expiry').value;
+    const cvv = document.getElementById('cvv').value;
+    const email = document.getElementById('email').value;
+    const terms = document.getElementById('terms').checked;
+
+    if (cardNumber.length < 13 || cardNumber.length > 19) {
+        showError('Numéro de carte invalide');
+        return false;
+    }
+
+    if (!expiry.match(/^\d{2}\/\d{2}$/)) {
+        showError('Date d\'expiration invalide (MM/AA)');
+        return false;
+    }
+
+    if (cvv.length !== 3) {
+        showError('CVV invalide');
+        return false;
+    }
+
+    if (!email.match(/^[^\s@]+@[^\s@]+\.[^\s@]+$/)) {
+        showError('Email invalide');
+        return false;
+    }
+
+    if (!terms) {
+        showError('Veuillez accepter les conditions d\'utilisation');
+        return false;
+    }
+
+    return true;
+}
+
+function showError(message) {
+    const errorDiv = document.createElement('div');
+    errorDiv.style.cssText = `
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        padding: 1rem 2rem;
+        border-radius: 10px;
+        background: #dc3545;
+        color: white;
+        font-family: 'Tajawal', sans-serif;
+        font-weight: 500;
+        z-index: 1000;
+        animation: slideIn 0.3s ease;
+    `;
+    errorDiv.textContent = message;
+    document.body.appendChild(errorDiv);
+    
+    setTimeout(() => {
+        errorDiv.remove();
+    }, 3000);
+}
+
+function showSuccessMessage() {
+    const successDiv = document.createElement('div');
+    successDiv.style.cssText = `
+        position: fixed;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        padding: 3rem;
+        border-radius: 20px;
+        background: white;
+        box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+        text-align: center;
+        z-index: 1000;
+        max-width: 400px;
+    `;
+    
+    successDiv.innerHTML = `
+        <i class="fas fa-check-circle" style="font-size: 4rem; color: #28a745; margin-bottom: 1rem;"></i>
+        <h2 style="color: #333; margin-bottom: 1rem;">Paiement réussi !</h2>
+        <p style="color: #6c757d; margin-bottom: 2rem;">Votre abonnement a été activé avec succès.</p>
+        <p style="color: #6c757d; font-size: 0.9rem;">Redirection vers votre espace...</p>
+    `;
+    
+    const overlay = document.createElement('div');
+    overlay.style.cssText = `
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0, 0, 0, 0.5);
+        z-index: 999;
+    `;
+    
+    document.body.appendChild(overlay);
+    document.body.appendChild(successDiv);
+    
+    setTimeout(() => {
+        window.location.href = '../auth/login.html';
+    }, 3000);
+}
+
+const style = document.createElement('style');
+style.textContent = `
+    @keyframes slideIn {
+        from {
+            transform: translateX(100%);
+            opacity: 0;
+        }
+        to {
+            transform: translateX(0);
+            opacity: 1;
+        }
+    }
+`;
+document.head.appendChild(style);

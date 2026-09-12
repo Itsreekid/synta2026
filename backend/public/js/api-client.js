@@ -5,22 +5,14 @@
 // Note: SUPABASE_URL, SUPABASE_ANON_KEY, and supabaseClient are defined in authentication.js
 // No need to redeclare them here
 
-// Singleton guard: skip full re-init if already loaded (prevents Turbo re-evaluation crash)
-if (window.SyntaAPI) {
-    console.log('✅ Synta API already initialized, skipping re-init.');
-    // Still dispatch ready event in case any listener is waiting
-    document.dispatchEvent(new Event('supabaseReady'));
-} else {
-
 // Backend API Configuration
 // Detect if running locally or in production
-window.BACKEND_URL = (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
+const BACKEND_URL = (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
     ? 'http://localhost:3000'
     : 'https://syntaacademy-1.onrender.com';
-var BACKEND_URL = window.BACKEND_URL;
 
 // R2 Public URL (optional alternative - requires public bucket in Cloudflare)
-var R2_PUBLIC_URL = null;
+const R2_PUBLIC_URL = null;
 
 /**
  * Get or create Supabase client
@@ -863,5 +855,4 @@ if (typeof window !== 'undefined') {
     };
     
     console.log('✅ Synta API initialized (Supabase direct mode)');
-}
 }

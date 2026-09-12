@@ -231,7 +231,7 @@ async function subscribeToOffer(offerId, title) {
         if (!user) {
             showMessage('Veuillez vous connecter pour acheter un plan', 'error');
             setTimeout(() => {
-                window.location.href = '/login';
+                window.location.href = '../auth/login.html';
             }, 2000);
             return;
         }
@@ -270,7 +270,7 @@ async function subscribeToOffer(offerId, title) {
 
             // Redirect to wallet to see the new payment in history after a short delay
             setTimeout(() => {
-                window.location.href = '/app/paiement';
+                window.location.href = `../paiement/paiement.html`;
             }, 2500);
         } else {
             showMessage(data.message || 'Échec de l\'achat', 'error');

@@ -1,200 +1,398 @@
-// =====================================================
-// DASHBOARD JAVASCRIPT
-// Loads activity, progress, and events from the server
-// API. User name and avatar are pre-populated server-side
-// via EJS — this script only needs to enhance dynamic data.
-// =====================================================
+// Dashboard JavaScript
+document.addEventListener('DOMContentLoaded', function () {
+    initializeDashboard();
+});
 
-if (!window._dashboardEventsBound) {
-    window._dashboardEventsBound = true;
-
-    document.addEventListener('turbo:before-cache', function () {
-        // Clear dynamic content so Turbo doesn't cache stale loading states
-        const loaders = document.querySelectorAll(
-            '#activity-list .loading, #progress-list .loading, #events-list .loading'
-        );
-        loaders.forEach(el => el.remove());
-    });
-
-    document.addEventListener('turbo:load', initDashboardLogicWrapper);
-}
-
-// --------------------------------------------------
-// Boot: run when the page is ready (both Turbo and standard load)
-// --------------------------------------------------
-function initDashboardLogicWrapper() {
-    if (!document.querySelector('.dashboard-container')) return;
-
-    if (window.appUserState) {
-        // State already hydrated (e.g. Turbo back-navigation) — enhance DOM and load data
-        enhanceDashboardDOM(window.appUserState);
-        initializeDashboardLogic();
-    } else {
-        // Wait for the appStateHydrated event fired by authentication.js
-        document.addEventListener('appStateHydrated', function (e) {
-            // Guard: only run on the dashboard page
-            if (!document.querySelector('.dashboard-container')) return;
-            enhanceDashboardDOM(e.detail || window.appUserState);
-            initializeDashboardLogic();
-        }, { once: true });
-    }
-};
-
-initDashboardLogicWrapper();
-
-// --------------------------------------------------
-// DOM Enhancement
-// The EJS template already pre-populates #user-name and #user-avatar
-// server-side. This function is a lightweight client-side enhancement
-// that updates the inline stats after the API call resolves.
-// --------------------------------------------------
-function enhanceDashboardDOM(userState) {
-    if (!userState) return;
-
-    // Update inline stats from userState if available
-    const nameEl   = document.getElementById('user-name');
-    const avatarEl = document.getElementById('user-avatar');
-
-    // Only override if the server rendered a blank value (edge case)
-    if (nameEl && !nameEl.textContent.trim()) {
-        nameEl.textContent = userState.full_name || userState.email?.split('@')[0] || 'Utilisateur';
-    }
-    if (avatarEl && avatarEl.textContent.trim() === 'U') {
-        const name = userState.full_name || userState.email || 'U';
-        avatarEl.textContent = name.charAt(0).toUpperCase();
-    }
-}
-
-// --------------------------------------------------
-// Dashboard Data Loading
-// --------------------------------------------------
-async function initializeDashboardLogic() {
+async function initializeDashboard() {
     try {
-        await Promise.all([
-            loadUserStats(),
-            loadActivities(),
-            loadUpcomingEvents()
-        ]);
+        // Wait for authentication to initialize
+        let attempts = 0;
+        const maxAttempts = 20; // Increased attempts for slower connections
+
+        while (!window.auth && attempts < maxAttempts) {
+            await new Promise(resolve => setTimeout(resolve, 100));
+            attempts++;
+        }
+
+        if (!window.auth) {
+            console.error('Authentication not initialized');
+            showMessage('Erreur de chargement du système d\'authentification. Veuillez actualiser la page.', 'error');
+            return;
+        }
+
+        // Check authentication
+        const authResult = await window.auth.getCurrentUser();
+        if (!authResult.success || !authResult.user) {
+            showMessage('Veuillez vous connecter pour accéder au tableau de bord', 'error');
+            setTimeout(() => {
+                window.location.href = '../auth/login.html';
+            }, 2000);
+            return;
+        }
+
+        // Load user data
+        await loadUserData(authResult.user);
+
+        // Load dashboard data
+        await loadDashboardData();
+
     } catch (error) {
-        console.error('[Dashboard] Error initializing dashboard:', error);
+        console.error('Error initializing dashboard:', error);
+        showMessage('Une erreur est survenue lors du chargement des données', 'error');
     }
 }
 
-/**
- * Fetches /api/user/stats and updates the inline stat counters.
- */
-async function loadUserStats() {
+async function loadUserData(user) {
     try {
-        const response = await fetch('/api/user/stats', { credentials: 'same-origin' });
-        if (!response.ok) return;
+        // Update user info
+        const userName = user.user_metadata?.full_name || user.email?.split('@')[0] || 'Utilisateur';
+        const userEmail = user.email || 'Non disponible';
 
-        const stats = await response.json();
+        const userNameEl = document.getElementById('user-name');
+        if (userNameEl) {
+            userNameEl.textContent = userName;
+        }
+
+        const userEmailEl = document.getElementById('user-email');
+        if (userEmailEl) {
+            userEmailEl.textContent = userEmail;
+        }
+
+        // Update avatar
+        const avatar = document.getElementById('user-avatar');
+        if (avatar && userName && userName.length > 0) {
+            avatar.textContent = userName.charAt(0).toUpperCase();
+        }
+
+    } catch (error) {
+        console.error('Error loading user data:', error);
+    }
+}
+
+async function loadDashboardData() {
+    try {
+        // Load stats
+        await loadStats();
+
+        // Load recent activity
+        await loadRecentActivity();
+
+        // Load progress
+        await loadProgress();
+
+        // Load events
+        await loadEvents();
+
+    } catch (error) {
+        console.error('Error loading dashboard data:', error);
+    }
+}
+
+async function loadStats() {
+    try {
+        // Simulate loading stats from database
+        const stats = {
+            completedCourses: 0,
+            overallProgress: 0,
+            achievements: 0,
+            activeDays: 0
+        };
 
         const completedEl = document.getElementById('completed-courses');
-        const progressEl  = document.getElementById('overall-progress');
-        const achievEl    = document.getElementById('achievements');
+        if (completedEl) {
+            completedEl.textContent = stats.completedCourses;
+        }
 
-        if (completedEl) completedEl.textContent = stats.completedCourses ?? 0;
-        if (progressEl)  progressEl.textContent  = `${stats.overallProgress ?? 0}%`;
-        if (achievEl)    achievEl.textContent     = stats.achievements ?? 0;
-    } catch (err) {
-        // Non-fatal — stats remain at their default "0" values
-        console.warn('[Dashboard] Could not load stats:', err.message);
+        const progressEl = document.getElementById('overall-progress');
+        if (progressEl) {
+            progressEl.textContent = stats.overallProgress + '%';
+        }
+
+        const achievementsEl = document.getElementById('achievements');
+        if (achievementsEl) {
+            achievementsEl.textContent = stats.achievements;
+        }
+
+        const activeDaysEl = document.getElementById('active-days');
+        if (activeDaysEl) {
+            activeDaysEl.textContent = stats.activeDays;
+        }
+
+    } catch (error) {
+        console.error('Error loading stats:', error);
     }
 }
 
-/**
- * Fetches /api/user/activity and renders the activity list.
- */
-async function loadActivities() {
-    const activityList = document.getElementById('activity-list');
-    const progressList = document.getElementById('progress-list');
-
+async function loadRecentActivity() {
     try {
-        const response = await fetch('/api/user/activity', { credentials: 'same-origin' });
+        const activityList = document.getElementById('activity-list');
 
-        if (!response.ok) {
-            if (activityList) activityList.innerHTML = '<div class="activity-item" style="padding:15px; color:#666;">Aucune activité récente</div>';
-            if (progressList) progressList.innerHTML = '<div class="activity-item" style="padding:15px; color:#666;">Aucun progrès</div>';
-            return;
-        }
+        // Simulate activity data
+        const activities = [
+            {
+                icon: '🎮',
+                title: 'Leçon complétée dans le jeu Python',
+                description: 'Il y a 2 heures',
+                color: '#ff7b1a'
+            },
+            {
+                icon: '📚',
+                title: 'Inscrit à un nouveau cours',
+                description: 'Hier',
+                color: '#28a745'
+            },
+            {
+                icon: '🏆',
+                title: 'Nouvelle réalisation obtenue',
+                description: 'Il y a 2 jours',
+                color: '#ffc107'
+            },
+            {
+                icon: '📝',
+                title: 'Test complété',
+                description: 'Il y a 3 jours',
+                color: '#007bff'
+            }
+        ];
 
-        const { activity } = await response.json();
-
-        if (!activity || activity.length === 0) {
-            if (activityList) activityList.innerHTML = '<div class="activity-item" style="padding:15px; color:#666;">Aucune activité récente</div>';
-            if (progressList) progressList.innerHTML = '<div class="activity-item" style="padding:15px; color:#666;">Aucun progrès enregistré</div>';
-            return;
-        }
-
-        // Render activity items
-        if (activityList) {
-            activityList.innerHTML = activity.map(item => `
-                <div class="activity-item">
-                    <span class="activity-icon">📘</span>
-                    <div class="activity-info">
-                        <div class="activity-title">${item.lessons?.title || 'Leçon'}</div>
-                        <div class="activity-course">${item.lessons?.courses?.title || ''}</div>
-                    </div>
+        activityList.innerHTML = activities.map(activity => `
+            <div class="activity-item">
+                <div class="activity-icon" style="background: ${activity.color}">
+                    ${activity.icon}
                 </div>
-            `).join('');
-        }
-
-        // Render progress items (same data, different presentation)
-        if (progressList) {
-            progressList.innerHTML = activity.map(item => `
-                <div class="activity-item">
-                    <span class="activity-icon">✅</span>
-                    <div class="activity-info">
-                        <div class="activity-title">${item.lessons?.courses?.title || 'Cours'}</div>
-                    </div>
-                </div>
-            `).join('');
-        }
-    } catch (err) {
-        console.warn('[Dashboard] Could not load activity:', err.message);
-        if (activityList) activityList.innerHTML = '<div class="activity-item" style="padding:15px; color:#666;">Aucune activité récente</div>';
-        if (progressList) progressList.innerHTML = '<div class="activity-item" style="padding:15px; color:#666;">Aucun progrès</div>';
-    }
-}
-
-/**
- * Fetches /api/events (server-filtered by user class/branch) and renders the events list.
- */
-async function loadUpcomingEvents() {
-    const eventsList = document.getElementById('events-list');
-    if (!eventsList) return;
-
-    try {
-        const response = await fetch('/api/events', { credentials: 'same-origin' });
-
-        if (!response.ok) {
-            eventsList.innerHTML = '<div class="event-item" style="padding:15px; color:#666;">Aucun événement à venir</div>';
-            return;
-        }
-
-        const { events } = await response.json();
-
-        if (!events || events.length === 0) {
-            eventsList.innerHTML = '<div class="event-item" style="padding:15px; color:#666;">Aucun événement à venir</div>';
-            return;
-        }
-
-        eventsList.innerHTML = events.slice(0, 5).map(event => `
-            <div class="event-item" onclick="navigateToCalendar('${event.date}')">
-                <div class="event-icon">${event.icon || '📅'}</div>
-                <div class="event-info">
-                    <div class="event-title">${event.title}</div>
-                    <div class="event-time">${event.time || ''}</div>
+                <div class="activity-content">
+                    <h4>${activity.title}</h4>
+                    <p>${activity.description}</p>
                 </div>
             </div>
         `).join('');
-    } catch (err) {
-        console.warn('[Dashboard] Could not load events:', err.message);
-        eventsList.innerHTML = '<div class="event-item" style="padding:15px; color:#666;">Aucun événement à venir</div>';
+
+    } catch (error) {
+        console.error('Error loading activity:', error);
+        document.getElementById('activity-list').innerHTML = '<div class="loading">Erreur de chargement de l\'activité</div>';
     }
 }
 
-window.navigateToCalendar = function (dateStr) {
-    window.location.href = `/app/calendar?date=${dateStr}`;
-};
+async function loadProgress() {
+    try {
+        const progressList = document.getElementById('progress-list');
+
+        // Simulate progress data
+        const progressData = [
+            { title: 'Cours Python de base', percentage: 0 },
+            { title: 'Cours Excel avancé', percentage: 0 },
+            { title: 'Cours Algorithmes', percentage: 0 },
+            { title: 'Cours Bases de données', percentage: 0 }
+        ];
+
+        progressList.innerHTML = progressData.map(progress => `
+            <div class="progress-item">
+                <div class="progress-header">
+                    <span class="progress-title">${progress.title}</span>
+                    <span class="progress-percentage">${progress.percentage}%</span>
+                </div>
+                <div class="progress-bar">
+                    <div class="progress-fill" style="width: ${progress.percentage}%"></div>
+                </div>
+            </div>
+        `).join('');
+
+    } catch (error) {
+        console.error('Error loading progress:', error);
+        document.getElementById('progress-list').innerHTML = '<div class="loading">Erreur de chargement du progrès</div>';
+    }
+}
+
+async function loadEvents() {
+    try {
+        const eventsList = document.getElementById('events-list');
+
+        // Check if events data is available from events.js
+        if (typeof upcomingEvents === 'undefined' || !Array.isArray(upcomingEvents)) {
+            console.error('upcomingEvents not found. Make sure events.js is loaded.');
+            eventsList.innerHTML = '<div class="loading">Erreur de chargement des événements</div>';
+            return;
+        }
+
+        // Filter events that haven't passed yet
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+
+        // Get current user metadata for filtering
+        const { user } = await window.auth.getCurrentUser();
+        const userClass = user?.user_metadata?.user_class;
+        const userBranch = user?.user_metadata?.user_branch;
+
+        const activeEvents = upcomingEvents.filter(event => {
+            const eventDate = new Date(event.date);
+            if (eventDate < today) return false;
+
+            // Apply targeting filter
+            const matchesClass = !event.target_classes ||
+                event.target_classes.length === 0 ||
+                event.target_classes.includes('all') ||
+                (userClass && event.target_classes.includes(userClass));
+
+            const matchesBranch = !event.target_branches ||
+                event.target_branches.length === 0 ||
+                event.target_branches.includes('all') ||
+                (userBranch && event.target_branches.includes(userBranch));
+
+            return matchesClass && matchesBranch;
+        });
+
+        if (activeEvents.length === 0) {
+            eventsList.innerHTML = '<div class="event-item">Aucun événement à venir</div>';
+            return;
+        }
+
+        eventsList.innerHTML = activeEvents.map(event => {
+            // Format date to French
+            const eventDate = new Date(event.date);
+            const monthNames = ['janvier', 'février', 'mars', 'avril', 'mai', 'juin', 'juillet', 'août', 'septembre', 'octobre', 'novembre', 'décembre'];
+            const dateString = `${eventDate.getDate()} ${monthNames[eventDate.getMonth()]}`;
+
+            // Handle both object and string description formats
+            let descriptionHTML = '';
+            if (typeof event.description === 'object' && event.description.line1) {
+                descriptionHTML = `
+                    <div>${event.description.line1}</div>
+                    ${event.description.line2 ? `<div style="margin-top: 4px; font-size: 0.9em; opacity: 0.9;">${event.description.line2}</div>` : ''}
+                `;
+            } else {
+                descriptionHTML = event.description;
+            }
+
+            return `
+                <div class="event-item" style="border-right: 3px solid ${event.color}; cursor: pointer;" onclick="navigateToCalendar('${event.date}')">
+                    <div class="event-date">${event.icon} ${dateString} - ${event.time}</div>
+                    <div class="event-title" style="display: flex; align-items: center; gap: 20px;">
+                        ${event.title}
+                        <span class="live-indicator"></span>
+                    </div>
+                    <div class="event-description">${descriptionHTML}</div>
+                </div>
+            `;
+        }).join('');
+
+    } catch (error) {
+        console.error('Error loading events:', error);
+        document.getElementById('events-list').innerHTML = '<div class="loading">Erreur de chargement des événements</div>';
+    }
+}
+
+function navigateTo(page) {
+    // This function will be called from the parent iframe
+    if (window.parent && window.parent.loadPage) {
+        window.parent.loadPage(page);
+    } else {
+        // Fallback for direct navigation
+        window.location.href = `../${page}/${page}.html`;
+    }
+}
+
+function navigateToCalendar(eventDate) {
+    // Navigate to calendar page with the event date
+    if (window.parent && window.parent.loadPageWithDate) {
+        // If in iframe, use special function for calendar with date
+        window.parent.loadPageWithDate('calendar', eventDate);
+    } else if (window.parent && window.parent.loadPage) {
+        // If function doesn't exist yet, load calendar normally and store date
+        sessionStorage.setItem('calendarDate', eventDate);
+        window.parent.loadPage('calendar');
+    } else {
+        // Direct navigation fallback
+        window.location.href = `../calendar/calendar.html?date=${eventDate}`;
+    }
+}
+
+function showContact() {
+    if (window.parent && window.parent.loadPage) {
+        window.parent.loadPage('contact');
+    } else {
+        window.location.href = '../contact/contact.html';
+    }
+}
+
+// Utility function for showing messages
+function showMessage(message, type = 'info') {
+    // Create a simple message display
+    const messageDiv = document.createElement('div');
+    messageDiv.style.cssText = `
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        padding: 1rem 2rem;
+        border-radius: 10px;
+        color: white;
+        font-family: 'Tajawal', sans-serif;
+        font-weight: 500;
+        z-index: 1000;
+        animation: slideIn 0.3s ease;
+    `;
+
+    if (type === 'error') {
+        messageDiv.style.background = '#dc3545';
+    } else if (type === 'success') {
+        messageDiv.style.background = '#28a745';
+    } else {
+        messageDiv.style.background = '#ff7b1a';
+    }
+
+    messageDiv.textContent = message;
+    document.body.appendChild(messageDiv);
+
+    setTimeout(() => {
+        messageDiv.remove();
+    }, 3000);
+}
+
+// Add CSS animation
+const style = document.createElement('style');
+style.textContent = `
+    @keyframes slideIn {
+        from {
+            transform: translateX(100%);
+            opacity: 0;
+        }
+        to {
+            transform: translateX(0);
+            opacity: 1;
+        }
+    }
+    
+    @keyframes pulseLive {
+        0%, 100% {
+            opacity: 1;
+            transform: scale(1);
+        }
+        50% {
+            opacity: 0.6;
+            transform: scale(1.1);
+        }
+    }
+    
+    .live-indicator {
+        display: inline-block;
+        width: 8px;
+        height: 8px;
+        background: #ff0000;
+        border-radius: 50%;
+        animation: pulseLive 1.5s ease-in-out infinite;
+        box-shadow: 0 0 8px rgba(255, 0, 0, 0.6);
+        flex-shrink: 0;
+    }
+    
+    .live-indicator::before {
+        content: '';
+        position: absolute;
+        top: -3px;
+        left: -3px;
+        right: -3px;
+        bottom: -3px;
+        border: 2px solid rgba(255, 0, 0, 0.3);
+        border-radius: 50%;
+        animation: pulseLive 1.5s ease-in-out infinite;
+    }
+`;
+document.head.appendChild(style); 

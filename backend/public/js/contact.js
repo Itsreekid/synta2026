@@ -43,19 +43,17 @@ function showMessage(message, type = 'info') {
     }, 3000);
 }
 
-(() => {
-    const customStyle = document.createElement('style');
-    customStyle.textContent = `
-        @keyframes slideIn {
-            from {
-                transform: translateX(100%);
-                opacity: 0;
-            }
-            to {
-                transform: translateX(0);
-                opacity: 1;
-            }
+const style = document.createElement('style');
+style.textContent = `
+    @keyframes slideIn {
+        from {
+            transform: translateX(100%);
+            opacity: 0;
         }
-    `;
-    document.head.appendChild(customStyle);
-})(); 
+        to {
+            transform: translateX(0);
+            opacity: 1;
+        }
+    }
+`;
+document.head.appendChild(style); 

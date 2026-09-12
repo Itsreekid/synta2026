@@ -5,24 +5,20 @@
 let currentCourse = null;
 let currentEnrollment = null;
 
-const initCourseDetailsLogicWrapper = async function () {
-    if (!document.getElementById('course-title')) return; // Structural DOM check
+document.addEventListener('DOMContentLoaded', async function () {
     const urlParams = new URLSearchParams(window.location.search);
     const courseId = urlParams.get('id');
 
     if (!courseId) {
         showError('ID du cours manquant');
         setTimeout(() => {
-            window.location.href = '/app/courses';
+            window.location.href = 'courses.html';
         }, 2000);
         return;
     }
 
-    await window.SyntaAPI.waitForSupabase();
     await loadCourseDetails(courseId);
-};
-initCourseDetailsLogicWrapper();
-document.addEventListener('turbo:load', initCourseDetailsLogicWrapper);
+});
 
 /**
  * Load course details with modules and lessons
@@ -40,7 +36,7 @@ async function loadCourseDetails(courseId) {
         if (courseError) throw courseError;
         if (!course) {
             showError('Cours non trouvé');
-            setTimeout(() => window.location.href = '/app/courses', 2000);
+            setTimeout(() => window.location.href = 'courses.html', 2000);
             return;
         }
 
@@ -637,7 +633,7 @@ async function enrollInCourse(courseId, isFree, hasAccess) {
     if (!authenticated) {
         showError('Vous devez vous connecter d\'abord');
         setTimeout(() => {
-            window.location.href = '/login';
+            window.location.href = '../auth/login.html';
         }, 1500);
         return;
     }
@@ -695,7 +691,7 @@ async function enrollInCourse(courseId, isFree, hasAccess) {
                 // Insufficient balance, redirect to payment page
                 showError('Solde insuffisant. Redirection vers la page de paiement...');
                 setTimeout(() => {
-                    window.location.href = '/app/paiement';
+                    window.location.href = '../paiement/paiement.html';
                 }, 1500);
                 return;
             }
@@ -1029,7 +1025,7 @@ async function enrollInCourse(courseId, isFree) {
     if (!authenticated) {
         window.SyntaAPI.showError('يجب تسجيل الدخول أولاً');
         setTimeout(() => {
-            window.location.href = '/login';
+            window.location.href = '../auth/login.html';
         }, 1500);
         return;
     }
@@ -1041,7 +1037,7 @@ async function enrollInCourse(courseId, isFree) {
             setTimeout(() => location.reload(), 1500);
         } else {
             // Redirect to payment
-            window.location.href = `/app/paiement?course=${courseId}`;
+            window.location.href = `../paiement/paiement.html?course=${courseId}`;
         }
     } catch (error) {
         console.error('Enrollment error:', error);
@@ -1286,4 +1282,3 @@ function showError(message) {
     document.body.appendChild(messageDiv);
     setTimeout(() => messageDiv.remove(), 3000);
 }
-
