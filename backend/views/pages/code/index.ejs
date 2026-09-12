@@ -1,0 +1,1561 @@
+<!DOCTYPE html>
+<html lang="fr" dir="ltr">
+<head>
+    <%- include('../../partials/head', { title: 'Code Pratique', css: 'dashboard' }) %>
+    <!-- CodeMirror for syntax highlighting -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.17/codemirror.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.17/theme/dracula.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.17/codemirror.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.17/mode/python/python.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.17/mode/htmlmixed/htmlmixed.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.17/mode/xml/xml.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.17/mode/javascript/javascript.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.17/mode/css/css.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.17/addon/edit/matchbrackets.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.17/addon/edit/closebrackets.min.js"></script>
+    <!-- Skulpt (Python in browser) -->
+    <script src="https://skulpt.org/js/skulpt.min.js"></script>
+    <script src="https://skulpt.org/js/skulpt-stdlib.js"></script>
+
+    <style>
+        /* ========== PAGE SHELL ========== */
+        .cp-page {
+            display: flex;
+            flex-direction: column;
+            height: calc(100vh - 70px);
+            padding: 16px 20px;
+            gap: 12px;
+            background: #f4f5f7;
+            box-sizing: border-box;
+            overflow: hidden;
+        }
+
+        /* ========== TOP BAR ========== */
+        .cp-topbar {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            flex-shrink: 0;
+        }
+        .cp-brand {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        .cp-brand-icon {
+            width: 44px;
+            height: 44px;
+            background: linear-gradient(135deg, #ff7b1a, #ff5500);
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 18px;
+            font-weight: bold;
+            flex-shrink: 0;
+        }
+        .cp-brand-text h2 {
+            font-size: 18px;
+            font-weight: 700;
+            color: #1a1a2e;
+            margin: 0;
+            font-family: 'Tajawal', sans-serif;
+        }
+        .cp-brand-text p {
+            font-size: 12px;
+            color: #666;
+            margin: 0;
+            font-family: 'Tajawal', sans-serif;
+        }
+        .cp-brand-text p a { color: #ff7b1a; text-decoration: none; }
+
+        /* Mode Tabs */
+        .cp-mode-tabs {
+            display: flex;
+            background: #e2e4ea;
+            border-radius: 8px;
+            padding: 3px;
+            gap: 3px;
+            margin-left: auto;
+        }
+        .cp-tab {
+            padding: 7px 18px;
+            border-radius: 6px;
+            border: none;
+            background: transparent;
+            color: #666;
+            font-weight: 600;
+            font-size: 13px;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-family: 'Tajawal', sans-serif;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .cp-tab.active {
+            background: white;
+            color: #1a1a2e;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.12);
+        }
+        .cp-tab-dot-python { color: #3776ab; }
+        .cp-tab-dot-web { color: #e44d26; }
+
+        /* Status badge */
+        .cp-status {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            border: 1.5px solid #22c55e;
+            border-radius: 20px;
+            padding: 5px 12px;
+            font-size: 12px;
+            color: #16a34a;
+            font-weight: 600;
+            font-family: 'Tajawal', sans-serif;
+            flex-shrink: 0;
+        }
+        .cp-status-dot {
+            width: 8px;
+            height: 8px;
+            background: #22c55e;
+            border-radius: 50%;
+            animation: pulse-dot 2s infinite;
+        }
+        @keyframes pulse-dot {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.4; }
+        }
+
+        /* ========== TOOLBAR ========== */
+        .cp-toolbar {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            flex-shrink: 0;
+        }
+        .cp-select {
+            padding: 7px 12px;
+            border: 1.5px solid #ddd;
+            border-radius: 8px;
+            background: white;
+            color: #333;
+            font-size: 13px;
+            cursor: pointer;
+            font-family: 'Tajawal', sans-serif;
+            outline: none;
+        }
+        .cp-btn-toolbar {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            padding: 7px 14px;
+            border-radius: 8px;
+            border: 1.5px solid #ddd;
+            background: white;
+            color: #444;
+            font-size: 13px;
+            cursor: pointer;
+            font-family: 'Tajawal', sans-serif;
+            font-weight: 500;
+            transition: all 0.2s;
+        }
+        .cp-btn-toolbar:hover { background: #f0f0f0; border-color: #aaa; }
+
+        /* ========== WORKSPACE ========== */
+        .cp-workspace {
+            display: flex;
+            gap: 14px;
+            flex: 1;
+            min-height: 0;
+        }
+
+        /* Panels */
+        .cp-panel {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            border-radius: 12px;
+            overflow: hidden;
+            background: #1e2030;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.2);
+            min-width: 0;
+        }
+        .cp-panel-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 10px 16px;
+            background: #252840;
+            border-bottom: 1px solid #333550;
+            flex-shrink: 0;
+        }
+        .cp-panel-dots {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .cp-panel-dots span {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+        }
+        .dot-red   { background: #ff5f57; }
+        .dot-yellow{ background: #febc2e; }
+        .dot-green { background: #28c840; }
+        .cp-panel-filename {
+            color: #c8cce8;
+            font-size: 13px;
+            font-family: 'Fira Code', 'Courier New', monospace;
+            margin-left: 8px;
+        }
+        .cp-panel-badge {
+            background: #e97316;
+            color: white;
+            font-size: 11px;
+            font-weight: 700;
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-family: monospace;
+        }
+        .cp-panel-badge-html {
+            background: #2563eb;
+            color: white;
+            font-size: 11px;
+            font-weight: 700;
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-family: monospace;
+        }
+        .cp-clear-btn {
+            background: none;
+            border: 1px solid #555;
+            color: #aaa;
+            font-size: 12px;
+            padding: 3px 10px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-family: 'Tajawal', sans-serif;
+            transition: all 0.2s;
+        }
+        .cp-clear-btn:hover { color: white; border-color: #888; }
+
+        /* CodeMirror override */
+        .cp-editor-body {
+            flex: 1;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            min-height: 0;
+        }
+        .cp-editor-body .CodeMirror {
+            flex: 1;
+            height: 100%;
+            background: #1e2030;
+            color: #abb2bf;
+            font-family: 'Fira Code', 'Courier New', monospace;
+            font-size: 14px;
+            line-height: 1.7;
+        }
+        .cp-editor-body .CodeMirror-scroll {
+            height: 100%;
+        }
+        .cp-editor-body .CodeMirror-gutters {
+            background: #252840;
+            border-right: 1px solid #333550;
+        }
+        .cp-editor-body .CodeMirror-linenumber {
+            color: #4a4f6a;
+        }
+        .cp-editor-body .CodeMirror-cursor {
+            border-left: 2px solid #ff7b1a;
+        }
+
+        /* Hint/Autocomplete bubble */
+        .cp-hint {
+            background: #2d3250;
+            border: 1px solid #ff7b1a;
+            border-radius: 8px;
+            padding: 8px 12px;
+            margin: 4px 16px;
+            font-size: 12.5px;
+            color: #fbbf24;
+            font-family: 'Tajawal', sans-serif;
+            display: none;
+            flex-shrink: 0;
+        }
+        .cp-hint.show { display: block; }
+        .cp-hint strong { color: #f97316; }
+
+        /* Editor footer */
+        .cp-editor-footer {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 10px 16px;
+            background: #252840;
+            border-top: 1px solid #333550;
+            flex-shrink: 0;
+        }
+        .cp-run-btn {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            background: linear-gradient(135deg, #ff7b1a, #ff5500);
+            color: white;
+            border: none;
+            padding: 10px 22px;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 700;
+            cursor: pointer;
+            font-family: 'Tajawal', sans-serif;
+            transition: all 0.2s;
+            box-shadow: 0 2px 12px rgba(255, 123, 26, 0.4);
+        }
+        .cp-run-btn:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 18px rgba(255, 123, 26, 0.6);
+        }
+        .cp-run-btn:active { transform: translateY(0); }
+        .cp-shortcut {
+            color: #556;
+            font-size: 12px;
+            font-family: 'Tajawal', sans-serif;
+        }
+
+        /* Console / Output panel */
+        .cp-console {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            min-height: 0;
+            overflow-y: auto;
+            padding: 16px;
+            font-family: 'Fira Code', 'Courier New', monospace;
+            font-size: 13.5px;
+            line-height: 1.75;
+            background: #1e2030;
+            scrollbar-width: thin;
+            scrollbar-color: #444 #1e2030;
+        }
+        .cp-console::-webkit-scrollbar { width: 5px; }
+        .cp-console::-webkit-scrollbar-track { background: #1e2030; }
+        .cp-console::-webkit-scrollbar-thumb { background: #444; border-radius: 3px; }
+        .console-ready   { color: #22c55e; font-weight: bold; }
+        .console-comment { color: #555e8a; }
+        .console-output  { color: #c8cce8; white-space: pre-wrap; }
+        .console-error   { color: #f87171; white-space: pre-wrap; }
+        .console-hint    { color: #fbbf24; white-space: pre-wrap; }
+        .console-input-prompt { color: #818cf8; }
+
+        /* HTML preview panel */
+        .cp-preview {
+            flex: 1;
+            border: none;
+            background: white;
+            display: block;
+        }
+
+        /* ========== MODE PANELS ========== */
+        .mode-panel { display: none; flex-direction: column; height: 100%; }
+        .mode-panel.active { display: flex; }
+
+        /* ========== WEB EDITOR - 3 pane ========== */
+        .web-editor-area {
+            display: flex;
+            flex-direction: column;
+            flex: 1;
+            min-height: 0;
+        }
+        .web-editor-tabs {
+            display: flex;
+            background: #252840;
+            border-bottom: 1px solid #333550;
+            flex-shrink: 0;
+        }
+        .web-editor-tab {
+            padding: 8px 18px;
+            border: none;
+            background: transparent;
+            color: #667;
+            font-size: 13px;
+            font-family: 'Fira Code', monospace;
+            cursor: pointer;
+            border-bottom: 2px solid transparent;
+            transition: all 0.2s;
+        }
+        .web-editor-tab.active {
+            color: #c8cce8;
+            border-bottom-color: #ff7b1a;
+        }
+        .web-pane { display: none; flex: 1; min-height: 0; }
+        .web-pane.active { display: flex; flex-direction: column; }
+        .web-pane .CodeMirror {
+            flex: 1;
+            height: 100%;
+            background: #1e2030;
+            color: #abb2bf;
+            font-family: 'Fira Code', monospace;
+            font-size: 14px;
+            line-height: 1.7;
+        }
+        .web-pane .CodeMirror-scroll { height: 100%; }
+        .web-pane .CodeMirror-gutters {
+            background: #252840;
+            border-right: 1px solid #333550;
+        }
+        .web-pane .CodeMirror-linenumber { color: #4a4f6a; }
+        .web-pane .CodeMirror-cursor { border-left: 2px solid #2563eb; }
+
+        /* ========== RESPONSIVE — mobile first ========== */
+        @media (max-width: 900px) {
+            .cp-workspace { flex-direction: column; }
+            .cp-topbar { flex-wrap: wrap; }
+        }
+
+        @media (max-width: 768px) {
+            /* Page padding */
+            .cp-page {
+                padding: 10px 12px;
+                gap: 8px;
+                height: auto;
+                min-height: calc(100vh - 70px);
+                overflow-y: auto;
+            }
+
+            /* Topbar: brand + status on one row, tabs below */
+            .cp-topbar {
+                flex-wrap: wrap;
+                gap: 10px;
+            }
+            .cp-brand-text h2 { font-size: 15px; }
+            .cp-brand-text p  { font-size: 11px; }
+            .cp-brand-icon    { width: 36px; height: 36px; font-size: 14px; }
+            .cp-status        { font-size: 11px; padding: 4px 10px; }
+            .cp-mode-tabs     { order: 3; width: 100%; justify-content: center; }
+            .cp-tab           { flex: 1; justify-content: center; font-size: 12px; padding: 7px 8px; }
+
+            /* Toolbar */
+            .cp-toolbar { gap: 6px; }
+            .cp-select  { font-size: 12px; padding: 6px 8px; flex: 1; }
+            .cp-btn-toolbar { font-size: 12px; padding: 6px 10px; }
+
+            /* Workspace — stacked, each panel is tall enough to be usable */
+            .cp-workspace { flex-direction: column; gap: 10px; }
+            #mode-python  { flex-direction: column !important; gap: 10px; }
+            #mode-web     { flex-direction: column !important; gap: 10px; }
+
+            /* Each panel: fixed height so code is visible + scrollable */
+            .cp-panel { min-height: 280px; max-height: 380px; }
+
+            /* Editor body fills panel */
+            .cp-editor-body { flex: 1; min-height: 0; }
+            .cp-editor-body .CodeMirror { font-size: 13px; line-height: 1.6; }
+
+            /* Web editor tabs compact */
+            .web-editor-tab { padding: 7px 12px; font-size: 12px; }
+            .web-pane .CodeMirror { font-size: 13px; }
+
+            /* Console */
+            .cp-console { font-size: 12.5px; padding: 12px; }
+
+            /* Preview iframe tall enough to see result */
+            .cp-preview { min-height: 220px; }
+
+            /* Run button full width on mobile */
+            .cp-editor-footer { flex-wrap: wrap; gap: 8px; }
+            .cp-run-btn { flex: 1; justify-content: center; font-size: 13px; padding: 10px 16px; }
+            .cp-shortcut { font-size: 11px; }
+
+            /* Hint box */
+            .cp-hint { font-size: 12px; margin: 4px 10px; }
+
+            /* Input modal */
+            .input-modal { min-width: unset; padding: 20px 18px; }
+            .input-modal-prompt { font-size: 13px; }
+            .input-modal-field  { font-size: 13px; }
+        }
+
+        @media (max-width: 420px) {
+            .cp-panel { min-height: 240px; max-height: 320px; }
+            .cp-brand-icon { display: none; }
+        }
+
+        /* ========== FIX CodeMirror blank space ========== */
+        /* Dracula theme adds padding-top:4px to .CodeMirror-lines — zero it out */
+        .cp-editor-body .CodeMirror-lines,
+        .web-pane .CodeMirror-lines {
+            padding-top: 0 !important;
+        }
+        /* Make all hidden web panes show as flex so CodeMirror measures correctly */
+        .web-pane {
+            position: absolute;
+            visibility: hidden;
+            pointer-events: none;
+            top: 0; left: 0; right: 0; bottom: 0;
+            min-height: 0;
+        }
+        .web-pane.active {
+            position: relative;
+            visibility: visible;
+            pointer-events: all;
+            display: flex;
+            flex-direction: column;
+        }
+        /* ========== INPUT MODAL ========== */
+        .input-modal-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(10, 10, 20, 0.75);
+            backdrop-filter: blur(6px);
+            -webkit-backdrop-filter: blur(6px);
+            z-index: 99999;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.2s ease;
+        }
+        .input-modal-overlay.show {
+            opacity: 1;
+            pointer-events: all;
+        }
+        .input-modal {
+            background: #252840;
+            border: 1px solid #3d4166;
+            border-radius: 16px;
+            padding: 28px 32px;
+            min-width: 360px;
+            max-width: 480px;
+            width: 90%;
+            box-shadow: 0 24px 60px rgba(0,0,0,0.5);
+            transform: translateY(12px) scale(0.97);
+            transition: transform 0.22s ease, opacity 0.2s ease;
+        }
+        .input-modal-overlay.show .input-modal {
+            transform: translateY(0) scale(1);
+        }
+        .input-modal-header {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 16px;
+        }
+        .input-modal-icon {
+            width: 36px;
+            height: 36px;
+            background: linear-gradient(135deg, #818cf8, #6366f1);
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 16px;
+            flex-shrink: 0;
+        }
+        .input-modal-title {
+            font-size: 13px;
+            font-weight: 700;
+            color: #c8cce8;
+            font-family: 'Tajawal', sans-serif;
+            letter-spacing: 0.5px;
+            text-transform: uppercase;
+        }
+        .input-modal-prompt {
+            font-family: 'Fira Code', monospace;
+            font-size: 14.5px;
+            color: #818cf8;
+            background: #1e2030;
+            border: 1px solid #333550;
+            border-radius: 8px;
+            padding: 12px 14px;
+            margin-bottom: 14px;
+            min-height: 42px;
+            white-space: pre-wrap;
+            word-break: break-word;
+        }
+        .input-modal-field {
+            width: 100%;
+            background: #1a1c2e;
+            border: 2px solid #6366f1;
+            border-radius: 8px;
+            padding: 11px 14px;
+            font-family: 'Fira Code', monospace;
+            font-size: 14px;
+            color: #e2e8f0;
+            outline: none;
+            box-sizing: border-box;
+            transition: border-color 0.2s;
+            caret-color: #ff7b1a;
+        }
+        .input-modal-field:focus {
+            border-color: #ff7b1a;
+            box-shadow: 0 0 0 3px rgba(255,123,26,0.18);
+        }
+        .input-modal-actions {
+            display: flex;
+            justify-content: flex-end;
+            gap: 10px;
+            margin-top: 16px;
+        }
+        .input-modal-ok {
+            background: linear-gradient(135deg, #ff7b1a, #ff5500);
+            color: white;
+            border: none;
+            padding: 9px 22px;
+            border-radius: 8px;
+            font-size: 13px;
+            font-weight: 700;
+            cursor: pointer;
+            font-family: 'Tajawal', sans-serif;
+            transition: all 0.2s;
+        }
+        .input-modal-ok:hover { filter: brightness(1.1); transform: translateY(-1px); }
+        .input-modal-hint {
+            font-size: 11.5px;
+            color: #555e8a;
+            margin-top: 8px;
+            font-family: 'Tajawal', sans-serif;
+        }
+    </style>
+</head>
+<body>
+<div id="global-hydration-overlay"><div class="spinner"></div></div>
+<%- include('../../partials/header') %>
+
+<!-- ===== INPUT() MODAL ===== -->
+<div class="input-modal-overlay" id="input-modal-overlay">
+    <div class="input-modal">
+        <div class="input-modal-header">
+            <div class="input-modal-icon">⌨️</div>
+            <span class="input-modal-title">Entrée utilisateur — input()</span>
+        </div>
+        <div class="input-modal-prompt" id="input-modal-prompt"></div>
+        <input type="text" class="input-modal-field" id="input-modal-field"
+               placeholder="Tapez votre réponse..."
+               autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false">
+        <div class="input-modal-hint">Appuyez sur <strong>Entrée</strong> ou cliquez <strong>Valider</strong> pour continuer.</div>
+        <div class="input-modal-actions">
+            <button class="input-modal-ok" id="input-modal-ok">✔ Valider</button>
+        </div>
+    </div>
+</div>
+
+<div class="content-wrapper">
+    <%- include('../../partials/sidebar', { active: 'code' }) %>
+
+    <section id="main-section" class="main-section" style="padding:0;overflow:hidden;">
+    <div class="cp-page">
+
+        <!-- TOP BAR -->
+        <div class="cp-topbar">
+            <div class="cp-brand">
+                <div class="cp-brand-icon">&lt;/&gt;</div>
+                <div class="cp-brand-text">
+                    <h2 id="cp-title">Code Pratique</h2>
+                    <p id="cp-subtitle">Écrivez et exécutez du <a href="#">Python</a> directement dans votre navigateur – sans installation.</p>
+                </div>
+            </div>
+
+            <!-- Mode switch tabs -->
+            <div class="cp-mode-tabs">
+                <button class="cp-tab active" id="tab-python" onclick="switchMode('python')">
+                    <span class="cp-tab-dot-python">🐍</span> Python
+                </button>
+                <button class="cp-tab" id="tab-web" onclick="switchMode('web')">
+                    <span class="cp-tab-dot-web">🌐</span> HTML / CSS / JS
+                </button>
+            </div>
+
+            <!-- Status -->
+            <div class="cp-status" id="cp-status">
+                <div class="cp-status-dot"></div>
+                <span id="cp-status-text">Python prêt</span>
+            </div>
+        </div>
+
+        <!-- TOOLBAR -->
+        <div class="cp-toolbar">
+            <select class="cp-select" id="examples-select" onchange="loadExample()">
+                <option value="">Exemples de code...</option>
+            </select>
+            <button class="cp-btn-toolbar" onclick="clearEditor()"><i class="fas fa-trash"></i> Vider</button>
+            <button class="cp-btn-toolbar" onclick="copyCode()"><i class="fas fa-copy"></i> Copier</button>
+        </div>
+
+        <!-- WORKSPACE -->
+        <div class="cp-workspace">
+
+            <!-- ===== PYTHON MODE ===== -->
+            <div class="mode-panel active" id="mode-python" style="flex:1;min-width:0;display:flex;gap:14px;">
+
+                <!-- Editor panel -->
+                <div class="cp-panel" style="flex:1;">
+                    <div class="cp-panel-header">
+                        <div style="display:flex;align-items:center;gap:8px;">
+                            <div class="cp-panel-dots">
+                                <span class="dot-red"></span>
+                                <span class="dot-yellow"></span>
+                                <span class="dot-green"></span>
+                            </div>
+                            <span class="cp-panel-filename">main.py</span>
+                        </div>
+                        <span class="cp-panel-badge">Python 3</span>
+                    </div>
+                    <div class="cp-editor-body" id="py-editor-body">
+                        <!-- CodeMirror mounts here -->
+                        <textarea id="py-code-raw" style="display:none;"></textarea>
+                    </div>
+                    <!-- Contextual hint -->
+                    <div class="cp-hint" id="py-hint"></div>
+                    <div class="cp-editor-footer">
+                        <div style="display:flex; gap:10px;">
+                            <button class="cp-run-btn" id="run-btn" onclick="runPython()">
+                                <i class="fas fa-play"></i> Exécuter le code
+                            </button>
+                            <button class="cp-export-btn" onclick="exportPythonCode()" title="Exporter en .py" style="background:#2d3250; color:#c8cce8; border:1px solid #333550; padding:10px 16px; border-radius:8px; cursor:pointer; font-size:14px; display:flex; align-items:center; gap:8px; font-weight:600; font-family:'Tajawal', sans-serif; transition:all 0.2s;">
+                                <i class="fas fa-download"></i> Exporter
+                            </button>
+                        </div>
+                        <span class="cp-shortcut">Ctrl + Enter</span>
+                    </div>
+                </div>
+
+                <!-- Console panel -->
+                <div class="cp-panel" style="flex:1;">
+                    <div class="cp-panel-header">
+                        <div style="display:flex;align-items:center;gap:8px;">
+                            <div class="cp-panel-dots">
+                                <span class="dot-red"></span>
+                                <span class="dot-yellow"></span>
+                                <span class="dot-green"></span>
+                            </div>
+                            <span class="cp-panel-filename">console</span>
+                        </div>
+                        <button class="cp-clear-btn" onclick="clearConsole()">clear</button>
+                    </div>
+                    <div class="cp-console" id="py-console">
+                        <span class="console-ready">Python 3.10 prêt !</span><br>
+                        <span class="console-comment"># Écrivez du code et Cliquez Exécuter</span><br>
+                        <span class="console-comment"># Raccourci : Ctrl + Enter</span><br>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ===== WEB MODE ===== -->
+            <div class="mode-panel" id="mode-web" style="flex:1;min-width:0;display:none;gap:14px;">
+
+                <!-- Web editor panel -->
+                <div class="cp-panel" style="flex:1;">
+                    <div class="cp-panel-header">
+                        <div style="display:flex;align-items:center;gap:8px;">
+                            <div class="cp-panel-dots">
+                                <span class="dot-red"></span>
+                                <span class="dot-yellow"></span>
+                                <span class="dot-green"></span>
+                            </div>
+                            <span class="cp-panel-filename" id="web-filename">index.html</span>
+                        </div>
+                        <span class="cp-panel-badge-html" id="web-badge">HTML</span>
+                    </div>
+                    <div class="web-editor-tabs">
+                        <button class="web-editor-tab active" onclick="switchWebTab('html')">HTML</button>
+                        <button class="web-editor-tab" onclick="switchWebTab('css')">CSS</button>
+                        <button class="web-editor-tab" onclick="switchWebTab('js')">JavaScript</button>
+                    </div>
+                    <div style="flex:1;min-height:0;display:flex;flex-direction:column;">
+                        <div class="web-pane active" id="web-pane-html">
+                            <textarea id="web-html-raw" style="display:none;"></textarea>
+                        </div>
+                        <div class="web-pane" id="web-pane-css">
+                            <textarea id="web-css-raw" style="display:none;"></textarea>
+                        </div>
+                        <div class="web-pane" id="web-pane-js">
+                            <textarea id="web-js-raw" style="display:none;"></textarea>
+                        </div>
+                    </div>
+                    <div class="cp-editor-footer">
+                        <button class="cp-run-btn" onclick="runWeb()">
+                            <i class="fas fa-play"></i> Exécuter le code
+                        </button>
+                        <span class="cp-shortcut">Ctrl + Enter</span>
+                    </div>
+                </div>
+
+                <!-- Preview panel -->
+                <div class="cp-panel" style="flex:1;">
+                    <div class="cp-panel-header">
+                        <div style="display:flex;align-items:center;gap:8px;">
+                            <div class="cp-panel-dots">
+                                <span class="dot-red"></span>
+                                <span class="dot-yellow"></span>
+                                <span class="dot-green"></span>
+                            </div>
+                            <span class="cp-panel-filename">aperçu</span>
+                        </div>
+                        <button class="cp-clear-btn" onclick="clearPreview()">clear</button>
+                    </div>
+                    <iframe class="cp-preview" id="web-preview" sandbox="allow-scripts allow-same-origin"></iframe>
+                </div>
+            </div>
+
+        </div><!-- /workspace -->
+    </div><!-- /cp-page -->
+    </section>
+</div>
+
+<!-- Scripts -->
+<script src="/js/authentication.js"></script>
+<script src="/js/user.js"></script>
+
+<script>
+// ================================================================
+// EXPORT LOGIC
+// ================================================================
+function exportPythonCode() {
+    if (!pyEditor) return;
+    const code = pyEditor.getValue();
+    const blob = new Blob([code], { type: 'text/x-python;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'mon_code.py';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+}
+
+// ================================================================
+// CODE PRATIQUE — Main Controller
+// ================================================================
+let pyEditor, webHtmlEditor, webCssEditor, webJsEditor;
+let currentMode = 'python';
+let currentWebTab = 'html';
+
+// ----------------------------------------------------------------
+// PYTHON EXAMPLES
+// ----------------------------------------------------------------
+const PYTHON_EXAMPLES = {
+    'hello': {
+        label: '🐍 Bonjour le monde',
+        code: `# Bonjour le monde en Python
+print("Bonjour, Synta Academy !")
+print("Bienvenue dans le Code Pratique 🚀")`
+    },
+    'variables': {
+        label: '📦 Variables et types',
+        code: `# Variables et types de données
+nom = "Ali"
+age = 17
+note = 18.5
+est_inscrit = True
+
+print("Nom :", nom)
+print("Âge :", age, "ans")
+print("Note :", note, "/ 20")
+print("Inscrit :", est_inscrit)`
+    },
+    'for_loop': {
+        label: '🔁 Boucle for',
+        code: `# Boucle for — parcourir une liste
+fruits = ["pomme", "banane", "orange", "fraise"]
+
+for fruit in fruits:
+    print("J'aime le/la", fruit)
+
+# Boucle avec range()
+print()
+print("Compter de 1 à 5 :")
+for i in range(1, 6):
+    print(i)`
+    },
+    'while_loop': {
+        label: '🔄 Boucle while',
+        code: `# Boucle while — répéter jusqu'à une condition
+compteur = 1
+
+while compteur <= 5:
+    print("Tour numéro", compteur)
+    compteur = compteur + 1
+
+print("Boucle terminée !")`
+    },
+    'if_else': {
+        label: '❓ Conditions if/else',
+        code: `# Conditions if / elif / else
+note = 15
+
+if note >= 18:
+    print("Excellent ! 🏆")
+elif note >= 14:
+    print("Bien ! 👍")
+elif note >= 10:
+    print("Passable 😊")
+else:
+    print("Insuffisant 😞")
+
+print("Note :", note, "/ 20")`
+    },
+    'fonction': {
+        label: '⚙️ Fonctions',
+        code: `# Définir et appeler une fonction
+def saluer(prenom):
+    message = "Bonjour, " + prenom + " !"
+    return message
+
+def additionner(a, b):
+    return a + b
+
+# Appel des fonctions
+print(saluer("Amira"))
+print(saluer("Khalil"))
+
+resultat = additionner(10, 25)
+print("10 + 25 =", resultat)`
+    },
+    'liste': {
+        label: '📋 Listes',
+        code: `# Manipulation de listes
+notes = [12, 15, 18, 9, 16, 11]
+
+print("Notes :", notes)
+print("Nombre de notes :", len(notes))
+print("Meilleure note :", max(notes))
+print("Note la plus basse :", min(notes))
+print("Moyenne :", sum(notes) / len(notes))
+
+# Ajouter une note
+notes.append(14)
+print("Après ajout :", notes)`
+    },
+    'dict': {
+        label: '📖 Dictionnaires',
+        code: `# Dictionnaires — paires clé / valeur
+etudiant = {
+    "nom": "Fatma",
+    "age": 17,
+    "classe": "Bac Info",
+    "note": 19
+}
+
+print("Nom :", etudiant["nom"])
+print("Classe :", etudiant["classe"])
+
+for cle, valeur in etudiant.items():
+    print(cle, "→", valeur)`
+    }
+};
+
+// WEB EXAMPLES
+const WEB_EXAMPLES = {
+    'web_hello': {
+        label: '🌐 Page HTML simple',
+        html: `<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <title>Ma Page</title>
+</head>
+<body>
+    <h1>Bonjour, Synta Academy ! 🚀</h1>
+    <p>Bienvenue dans mon éditeur web.</p>
+</body>
+</html>`,
+        css: `body {
+    font-family: sans-serif;
+    background: #f0f4ff;
+    text-align: center;
+    padding: 40px;
+}
+h1 { color: #ff7b1a; }
+p { color: #555; }`,
+        js: `console.log("Page chargée !");`
+    },
+    'web_card': {
+        label: '🎨 Carte stylisée',
+        html: `<div class="card">
+    <div class="avatar">🎓</div>
+    <h2>Ali Ben Youssef</h2>
+    <p>Étudiant en Bac Informatique</p>
+    <span class="badge">Synta Academy</span>
+</div>`,
+        css: `body {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100vh;
+    margin: 0;
+    background: linear-gradient(135deg, #1e2030, #2d3250);
+    font-family: sans-serif;
+}
+.card {
+    background: white;
+    border-radius: 20px;
+    padding: 40px;
+    text-align: center;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+    max-width: 300px;
+}
+.avatar { font-size: 60px; margin-bottom: 16px; }
+h2 { color: #1a1a2e; margin: 0 0 8px; }
+p { color: #666; margin: 0 0 16px; }
+.badge {
+    background: #ff7b1a;
+    color: white;
+    padding: 6px 16px;
+    border-radius: 20px;
+    font-weight: bold;
+    font-size: 13px;
+}`,
+        js: `// Animation au clic
+document.querySelector('.card').addEventListener('click', function() {
+    this.style.transform = 'scale(1.05)';
+    this.style.transition = 'transform 0.3s ease';
+    setTimeout(() => this.style.transform = 'scale(1)', 300);
+});`
+    },
+    'web_counter': {
+        label: '🔢 Compteur interactif',
+        html: `<div class="counter-app">
+    <h1>Compteur</h1>
+    <div id="count">0</div>
+    <div class="buttons">
+        <button id="minus">−</button>
+        <button id="reset">Reset</button>
+        <button id="plus">+</button>
+    </div>
+</div>`,
+        css: `body {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100vh;
+    margin: 0;
+    background: #1e2030;
+    font-family: sans-serif;
+}
+.counter-app {
+    text-align: center;
+    color: white;
+}
+h1 { font-size: 28px; margin-bottom: 20px; color: #c8cce8; }
+#count {
+    font-size: 100px;
+    font-weight: bold;
+    color: #ff7b1a;
+    margin: 20px 0;
+    min-width: 200px;
+    display: inline-block;
+}
+.buttons { display: flex; gap: 16px; justify-content: center; }
+button {
+    width: 60px;
+    height: 60px;
+    border-radius: 50%;
+    border: none;
+    font-size: 26px;
+    cursor: pointer;
+    font-weight: bold;
+    transition: transform 0.15s;
+}
+button:active { transform: scale(0.9); }
+#minus { background: #ef4444; color: white; }
+#plus  { background: #22c55e; color: white; }
+#reset { background: #6366f1; color: white; }`,
+        js: `let count = 0;
+const display = document.getElementById('count');
+document.getElementById('plus').onclick  = () => { count++; update(); };
+document.getElementById('minus').onclick = () => { count--; update(); };
+document.getElementById('reset').onclick = () => { count = 0; update(); };
+function update() {
+    display.textContent = count;
+    display.style.color = count > 0 ? '#22c55e' : count < 0 ? '#ef4444' : '#ff7b1a';
+}`
+    }
+};
+
+// ----------------------------------------------------------------
+// SMART PYTHON HINTS (bilingual FR + AR)
+// ----------------------------------------------------------------
+const PYTHON_HINTS = [
+    {
+        trigger: /^\s*for\s+\w+\s+in\s+.+:\s*$/m,
+        fr: '🔁 <strong>Boucle for :</strong> Appuyez sur Entrée — le code suivant sera indenté automatiquement (4 espaces). Tout ce qui est indenté fait partie de la boucle.',
+        ar: 'حلقة for: اضغط Enter — سيتم المسافة البادئة تلقائياً. كل ما هو مبادر ينتمي للحلقة.'
+    },
+    {
+        trigger: /^\s*while\s+.+:\s*$/m,
+        fr: '🔄 <strong>Boucle while :</strong> N\'oubliez pas de modifier la variable de condition à l\'intérieur, sinon la boucle sera infinie !',
+        ar: 'حلقة while: لا تنسَ تغيير متغير الشرط داخل الحلقة وإلا ستكون لانهائية!'
+    },
+    {
+        trigger: /^\s*def\s+\w+/m,
+        fr: '⚙️ <strong>Fonction :</strong> Définissez vos paramètres entre les parenthèses, puis utilisez <code>return</code> pour renvoyer un résultat.',
+        ar: 'دالة: ضع المتغيرات بين القوسين، واستخدم return لإعادة النتيجة.'
+    },
+    {
+        trigger: /^\s*if\s+.+:\s*$/m,
+        fr: '❓ <strong>Condition if :</strong> Ajoutez <code>elif</code> pour d\'autres cas, et <code>else</code> pour le cas par défaut.',
+        ar: 'شرط if: أضف elif لحالات أخرى، وelse للحالة الافتراضية.'
+    },
+    {
+        trigger: /^\s*class\s+\w+/m,
+        fr: '🏗️ <strong>Classe :</strong> Définissez <code>__init__(self, ...)</code> comme constructeur. Utilisez <code>self</code> pour accéder aux attributs de l\'objet.',
+        ar: 'صنف: عرّف __init__ كمنشئ. استخدم self للوصول إلى خصائص الكائن.'
+    }
+];
+
+// ----------------------------------------------------------------
+// BILINGUAL ERROR MESSAGES
+// ----------------------------------------------------------------
+function translateError(msg) {
+    const rules = [
+        { r: /NameError.*'(\w+)'/i,       fr: (m) => `Erreur de nom : '${m[1]}' n'est pas défini. Vérifiez l'orthographe ou définissez la variable.`, ar: (m) => `خطأ: '${m[1]}' غير معرّف. تحقق من الإملاء أو عرّف المتغير.` },
+        { r: /SyntaxError/i,              fr: () => `Erreur de syntaxe : vérifiez les deux-points ':' après if / for / while / def, et l'indentation.`, ar: () => `خطأ في الصياغة: تحقق من النقطتين ':' بعد if/for/while/def والمسافات البادئة.` },
+        { r: /IndentationError/i,         fr: () => `Erreur d'indentation : les lignes à l'intérieur d'une boucle ou condition doivent avoir 4 espaces.`, ar: () => `خطأ في المسافة البادئة: الأسطر داخل الحلقة أو الشرط يجب أن تبدأ بـ 4 مسافات.` },
+        { r: /TypeError.*unsupported.*'(\w+)'/i, fr: (m) => `Erreur de type : opération non supportée. Vérifiez que vous mélangez pas texte et nombre.`, ar: () => `خطأ في النوع: تأكد أنك لا تخلط بين النص والأرقام في نفس العملية.` },
+        { r: /ZeroDivisionError/i,        fr: () => `Erreur : division par zéro est interdite en mathématiques !`, ar: () => `خطأ: القسمة على صفر ممنوعة رياضياً!` },
+        { r: /IndexError/i,               fr: () => `Erreur d'index : vous essayez d'accéder à un élément qui n'existe pas dans la liste.`, ar: () => `خطأ في الفهرس: تحاول الوصول لعنصر غير موجود في القائمة.` },
+        { r: /KeyError.*'(\w+)'/i,        fr: (m) => `Erreur de clé : '${m[1]}' n'existe pas dans le dictionnaire.`, ar: (m) => `خطأ: المفتاح '${m[1]}' غير موجود في القاموس.` },
+        { r: /ValueError/i,               fr: () => `Erreur de valeur : la valeur fournie n'est pas du bon type ou format.`, ar: () => `خطأ في القيمة: القيمة المُعطاة ليست من النوع أو الصيغة الصحيحة.` },
+        { r: /RecursionError/i,           fr: () => `Erreur de récursion : votre fonction s'appelle elle-même à l'infini. Ajoutez une condition d'arrêt.`, ar: () => `خطأ في التكرار: الدالة تستدعي نفسها إلى ما لا نهاية. أضف شرط توقف.` },
+        { r: /AttributeError.*'(\w+)'/i,  fr: (m) => `Erreur d'attribut : '${m[1]}' n'existe pas. Vérifiez le type de votre variable.`, ar: (m) => `خطأ في الخاصية: '${m[1]}' غير موجودة. تحقق من نوع المتغير.` },
+    ];
+    for (const rule of rules) {
+        const m = msg.match(rule.r);
+        if (m) {
+            return { fr: rule.fr(m), ar: rule.ar(m) };
+        }
+    }
+    return { fr: `Erreur Python : ${msg}`, ar: `خطأ Python: ${msg}` };
+}
+
+// ----------------------------------------------------------------
+// MODE SWITCHING
+// ----------------------------------------------------------------
+function switchMode(mode) {
+    currentMode = mode;
+
+    document.getElementById('mode-python').style.display = mode === 'python' ? 'flex' : 'none';
+    document.getElementById('mode-web').style.display    = mode === 'web'    ? 'flex' : 'none';
+
+    document.getElementById('tab-python').classList.toggle('active', mode === 'python');
+    document.getElementById('tab-web').classList.toggle('active', mode === 'web');
+
+    const statusText = document.getElementById('cp-status-text');
+    const subtitle   = document.getElementById('cp-subtitle');
+
+    if (mode === 'python') {
+        statusText.textContent = 'Python prêt';
+        subtitle.innerHTML = 'Écrivez et exécutez du <a href="#">Python</a> directement dans votre navigateur – sans installation.';
+        populateExamples('python');
+        if (pyEditor) pyEditor.refresh();
+    } else {
+        statusText.textContent = 'HTML/CSS/JS prêt';
+        subtitle.innerHTML = 'Construisez des pages web avec <a href="#">HTML</a>, <a href="#">CSS</a> et <a href="#">JavaScript</a>.';
+        populateExamples('web');
+        [webHtmlEditor, webCssEditor, webJsEditor].forEach(e => e && e.refresh());
+        runWeb();
+    }
+}
+
+// ----------------------------------------------------------------
+// EXAMPLES DROPDOWN
+// ----------------------------------------------------------------
+function populateExamples(mode) {
+    const sel = document.getElementById('examples-select');
+    sel.innerHTML = '<option value="">Exemples de code...</option>';
+    const src = mode === 'python' ? PYTHON_EXAMPLES : WEB_EXAMPLES;
+    for (const [key, val] of Object.entries(src)) {
+        const opt = document.createElement('option');
+        opt.value = key;
+        opt.textContent = val.label;
+        sel.appendChild(opt);
+    }
+}
+
+function loadExample() {
+    const key = document.getElementById('examples-select').value;
+    if (!key) return;
+    if (currentMode === 'python' && PYTHON_EXAMPLES[key]) {
+        pyEditor.setValue(PYTHON_EXAMPLES[key].code);
+        clearConsole();
+        showConsoleWelcome();
+    } else if (currentMode === 'web' && WEB_EXAMPLES[key]) {
+        const ex = WEB_EXAMPLES[key];
+        webHtmlEditor.setValue(ex.html || '');
+        webCssEditor.setValue(ex.css || '');
+        webJsEditor.setValue(ex.js || '');
+        runWeb();
+    }
+}
+
+// ----------------------------------------------------------------
+// TOOLBAR ACTIONS
+// ----------------------------------------------------------------
+function clearEditor() {
+    if (currentMode === 'python') { pyEditor.setValue(''); }
+    else { webHtmlEditor.setValue(''); webCssEditor.setValue(''); webJsEditor.setValue(''); }
+}
+
+function copyCode() {
+    let code = '';
+    if (currentMode === 'python') code = pyEditor.getValue();
+    else if (currentWebTab === 'html') code = webHtmlEditor.getValue();
+    else if (currentWebTab === 'css')  code = webCssEditor.getValue();
+    else code = webJsEditor.getValue();
+    navigator.clipboard.writeText(code).then(() => {
+        const btn = document.querySelector('.cp-btn-toolbar:last-child');
+        btn.innerHTML = '<i class="fas fa-check"></i> Copié !';
+        setTimeout(() => btn.innerHTML = '<i class="fas fa-copy"></i> Copier', 1500);
+    });
+}
+
+// ----------------------------------------------------------------
+// PYTHON EXECUTION (Skulpt)
+// ----------------------------------------------------------------
+// ----------------------------------------------------------------
+// INPUT MODAL helpers
+// ----------------------------------------------------------------
+function showInputModal(prompt) {
+    return new Promise((resolve) => {
+        const overlay = document.getElementById('input-modal-overlay');
+        const promptEl = document.getElementById('input-modal-prompt');
+        const field    = document.getElementById('input-modal-field');
+        const okBtn    = document.getElementById('input-modal-ok');
+
+        // Show the prompt text (what the student passed to input())
+        promptEl.textContent = prompt || 'Entrez une valeur :';
+        field.value = '';
+        overlay.classList.add('show');
+        setTimeout(() => field.focus(), 80);
+
+        // Show prompt in console too
+        appendConsole('<span class="console-input-prompt">' + escapeHtml(prompt) + '</span>');
+
+        function submit() {
+            const val = field.value;
+            overlay.classList.remove('show');
+            okBtn.removeEventListener('click', submit);
+            field.removeEventListener('keydown', keyHandler);
+            // Echo the typed value in console
+            appendConsole('<span class="console-output">' + escapeHtml(val) + '</span>\n');
+            resolve(val);
+        }
+
+        function keyHandler(e) {
+            if (e.key === 'Enter') { e.preventDefault(); submit(); }
+        }
+
+        okBtn.addEventListener('click', submit);
+        field.addEventListener('keydown', keyHandler);
+    });
+}
+
+// ================================================================
+// EXPORT LOGIC
+// ================================================================
+function exportPythonCode() {
+    if (!pyEditor) return;
+    const code = pyEditor.getValue();
+    const blob = new Blob([code], { type: 'text/x-python;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'mon_code.py';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+}
+
+function runPython() {
+    const code = pyEditor.getValue().trim();
+    if (!code) return;
+
+    clearConsole();
+    appendConsole('<span class="console-comment">▶ Exécution en cours...</span>\n');
+
+    const statusEl = document.getElementById('cp-status-text');
+    statusEl.textContent = '⏳ Exécution...';
+
+    function outf(text) { appendConsole('<span class="console-output">' + escapeHtml(text) + '</span>'); }
+    function errf(err)  {
+        const msg = err.toString();
+        const trans = translateError(msg);
+        appendConsole(
+            '<span class="console-error">❌ ' + escapeHtml(trans.fr) + '\n' +
+            '   ' + escapeHtml(trans.ar) + '</span>\n'
+        );
+        const hintEl = document.getElementById('py-hint');
+        if (/SyntaxError/i.test(msg) || /IndentationError/i.test(msg)) {
+            hintEl.innerHTML = '💡 Conseil : <strong>Vérifiez les deux-points</strong> à la fin des instructions <code>if</code>, <code>for</code>, <code>while</code>, <code>def</code> et assurez-vous d\'utiliser exactement 4 espaces pour l\'indentation.';
+            hintEl.classList.add('show');
+        }
+    }
+
+    Sk.configure({
+        output: outf,
+        // input() handler — shows beautiful modal, returns Promise
+        inputfun: (prompt) => showInputModal(prompt || ''),
+        inputfunTakesPrompt: true,
+        read: (x) => {
+            if (Sk.builtinFiles === undefined || Sk.builtinFiles["files"][x] === undefined)
+                throw "Fichier introuvable : '" + x + "'";
+            return Sk.builtinFiles["files"][x];
+        },
+        execLimit: 30000
+    });
+
+    const promise = Sk.misceval.asyncToPromise(() =>
+        Sk.importMainWithBody("<stdin>", false, code, true)
+    );
+
+    promise.then(
+        () => {
+            appendConsole('<span class="console-comment">\n✅ Programme terminé.</span>\n');
+            statusEl.textContent = 'Python prêt';
+        },
+        (err) => {
+            errf(err);
+            statusEl.textContent = 'Python prêt';
+        }
+    );
+}
+
+function clearConsole() {
+    document.getElementById('py-console').innerHTML = '';
+    document.getElementById('py-hint').classList.remove('show');
+}
+
+function showConsoleWelcome() {
+    appendConsole('<span class="console-ready">Python 3.10 prêt !</span>\n');
+    appendConsole('<span class="console-comment"># Écrivez du code et Cliquez Exécuter</span>\n');
+    appendConsole('<span class="console-comment"># Raccourci : Ctrl + Enter</span>\n');
+}
+
+function appendConsole(html) {
+    const c = document.getElementById('py-console');
+    c.innerHTML += html;
+    c.scrollTop = c.scrollHeight;
+}
+
+function escapeHtml(str) {
+    return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;');
+}
+
+// ----------------------------------------------------------------
+// WEB EXECUTION
+// ----------------------------------------------------------------
+function runWeb() {
+    const html = webHtmlEditor ? webHtmlEditor.getValue() : '';
+    const css  = webCssEditor  ? webCssEditor.getValue()  : '';
+    const js   = webJsEditor   ? webJsEditor.getValue()   : '';
+
+    const combined = `<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<style>${css}</style>
+</head>
+<body>
+${html}
+<script>
+try { ${js} } catch(e) { document.body.innerHTML += '<div style="color:red;font-family:monospace;padding:16px;">Erreur JS: '+e.message+'</div>'; }
+<\/script>
+</body>
+</html>`;
+
+    const frame = document.getElementById('web-preview');
+    const doc = frame.contentDocument || frame.contentWindow.document;
+    doc.open(); doc.write(combined); doc.close();
+}
+
+function clearPreview() {
+    const frame = document.getElementById('web-preview');
+    const doc = frame.contentDocument || frame.contentWindow.document;
+    doc.open(); doc.write('<html><body></body></html>'); doc.close();
+}
+
+// ----------------------------------------------------------------
+// WEB TAB SWITCHING
+// ----------------------------------------------------------------
+function switchWebTab(tab) {
+    currentWebTab = tab;
+    document.querySelectorAll('.web-editor-tab').forEach((btn, i) => {
+        const tabs = ['html','css','js'];
+        btn.classList.toggle('active', tabs[i] === tab);
+    });
+    document.querySelectorAll('.web-pane').forEach(p => p.classList.remove('active'));
+    document.getElementById('web-pane-' + tab).classList.add('active');
+
+    const badges = { html: 'HTML', css: 'CSS', js: 'JavaScript' };
+    const files  = { html: 'index.html', css: 'style.css', js: 'script.js' };
+    document.getElementById('web-badge').textContent    = badges[tab];
+    document.getElementById('web-filename').textContent = files[tab];
+
+    const editors = { html: webHtmlEditor, css: webCssEditor, js: webJsEditor };
+    if (editors[tab]) editors[tab].refresh();
+}
+
+// ----------------------------------------------------------------
+// SMART INDENT + HINTS (Python)
+// ----------------------------------------------------------------
+function checkAndShowHint(code) {
+    const hintEl = document.getElementById('py-hint');
+    for (const hint of PYTHON_HINTS) {
+        if (hint.trigger.test(code)) {
+            hintEl.innerHTML = `💡 ${hint.fr}<br><span style="color:#a78bfa;font-size:11.5px;">${hint.ar}</span>`;
+            hintEl.classList.add('show');
+            return;
+        }
+    }
+    hintEl.classList.remove('show');
+}
+
+// ----------------------------------------------------------------
+// INIT — mount CodeMirror editors
+// ----------------------------------------------------------------
+function initEditors() {
+    // Clear any previous CodeMirror instances from DOM
+    ['py-editor-body','web-pane-html','web-pane-css','web-pane-js'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) {
+            const cm = el.querySelector('.CodeMirror');
+            if (cm) cm.remove();
+        }
+    });
+
+    // ---- PYTHON editor ----
+    pyEditor = CodeMirror(document.getElementById('py-editor-body'), {
+        value: '# Ecrivez votre code Python ici...',
+        mode: 'python',
+        theme: 'dracula',
+        lineNumbers: true,
+        matchBrackets: true,
+        autoCloseBrackets: true,
+        indentUnit: 4,
+        tabSize: 4,
+        indentWithTabs: false,
+        lineWrapping: false,
+        extraKeys: {
+            'Ctrl-Enter': runPython,
+            'Enter': function(cm) {
+                const cursor  = cm.getCursor();
+                const line    = cm.getLine(cursor.line);
+                const trimmed = line.trimEnd();
+                if (trimmed.endsWith(':')) {
+                    const indent = line.match(/^\s*/)[0];
+                    cm.replaceSelection('\n' + indent + '    ');
+                } else {
+                    cm.execCommand('newlineAndIndent');
+                }
+            }
+        }
+    });
+    pyEditor.on('change', function() { checkAndShowHint(pyEditor.getValue()); });
+
+    // ---- WEB editors — initialize ALL even if hidden so CodeMirror has correct size ----
+    // We force them visible temporarily, init, then hide again
+    var htmlPane = document.getElementById('web-pane-html');
+    var cssPane  = document.getElementById('web-pane-css');
+    var jsPane   = document.getElementById('web-pane-js');
+
+    webHtmlEditor = CodeMirror(htmlPane, {
+        value: '<!-- Ecrivez votre HTML ici -->\n<h1>Bonjour, Synta Academy !</h1>\n<p>Testez votre page web ici.</p>',
+        mode: 'htmlmixed',
+        theme: 'dracula',
+        lineNumbers: true,
+        matchBrackets: true,
+        autoCloseBrackets: true,
+        indentUnit: 2,
+        tabSize: 2,
+        lineWrapping: true,
+        extraKeys: { 'Ctrl-Enter': runWeb }
+    });
+
+    webCssEditor = CodeMirror(cssPane, {
+        value: '/* Votre CSS ici */\nbody {\n  font-family: sans-serif;\n  text-align: center;\n  padding: 40px;\n  background: #f0f4ff;\n}\nh1 { color: #ff7b1a; }',
+        mode: 'css',
+        theme: 'dracula',
+        lineNumbers: true,
+        matchBrackets: true,
+        autoCloseBrackets: true,
+        indentUnit: 2,
+        tabSize: 2,
+        extraKeys: { 'Ctrl-Enter': runWeb }
+    });
+
+    webJsEditor = CodeMirror(jsPane, {
+        value: '// Votre JavaScript ici\nconsole.log("Page chargee !");',
+        mode: 'javascript',
+        theme: 'dracula',
+        lineNumbers: true,
+        matchBrackets: true,
+        autoCloseBrackets: true,
+        indentUnit: 2,
+        tabSize: 2,
+        extraKeys: { 'Ctrl-Enter': runWeb }
+    });
+
+    // Refresh all editors after a short delay to fix hidden-pane sizing
+    setTimeout(function() {
+        pyEditor.refresh();
+        webHtmlEditor.refresh();
+        webCssEditor.refresh();
+        webJsEditor.refresh();
+        // Set cursor to line 0 col 0 (no blank space scroll offset)
+        pyEditor.setCursor(0, 0);
+        webHtmlEditor.setCursor(0, 0);
+        webCssEditor.setCursor(0, 0);
+        webJsEditor.setCursor(0, 0);
+    }, 50);
+
+    // Populate examples + run initial web preview
+    populateExamples('python');
+    runWeb();
+}
+
+// ----------------------------------------------------------------
+// BOOT
+// ----------------------------------------------------------------
+function boot() {
+    // Guard: only run on the Code Pratique page
+    if (!document.getElementById('py-editor-body')) return;
+    pyEditor = null; webHtmlEditor = null; webCssEditor = null; webJsEditor = null;
+    initEditors();
+    clearConsole();
+    showConsoleWelcome();
+}
+
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', boot);
+} else {
+    boot();
+}
+
+// Turbo SPA: always re-boot when the page is loaded (DOM may have changed)
+document.addEventListener('turbo:load', function() {
+    // Check if CodeMirror is actually mounted in the current DOM
+    var pyBody = document.getElementById('py-editor-body');
+    if (!pyBody) return; // not on this page
+    var alreadyMounted = !!pyBody.querySelector('.CodeMirror');
+    if (!alreadyMounted) { boot(); }
+    else {
+        // Editor is there — just refresh layout
+        if (pyEditor) pyEditor.refresh();
+        if (webHtmlEditor) webHtmlEditor.refresh();
+        if (webCssEditor)  webCssEditor.refresh();
+        if (webJsEditor)   webJsEditor.refresh();
+    }
+});
+</script>
+</body>
+</html>

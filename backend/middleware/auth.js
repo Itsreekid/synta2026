@@ -1,12 +1,16 @@
 // =====================================================
-// AUTHENTICATION MIDDLEWARE
+// AUTHENTICATION MIDDLEWARE (BEARER TOKEN — UNUSED)
+// =====================================================
+// STATUS: Not used by any current page or API route.
+//         All session handling uses HttpOnly cookies via
+//         middleware/requireAuth.js (cookie-based).
+//
+// This file is retained for potential future use if a
+// third-party API client needs Bearer token auth.
+// Do not import or mount this in server.js for page routes.
 // =====================================================
 import { supabaseAdmin } from "../config/supabase.js";
 
-/**
- * Verify Supabase JWT token and attach user to request
- * Optional: if allowUnauthenticated is true, continues without user
- */
 export async function authMiddleware(req, res, next) {
   try {
     // Get token from Authorization header

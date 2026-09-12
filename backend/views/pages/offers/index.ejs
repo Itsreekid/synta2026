@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="fr" dir="ltr">
+<head>
+    <%- include('../../partials/head', { title: 'Plans d\'abonnement', css: 'offers',
+        extraHead: '<script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.9.2/dist/confetti.browser.min.js"><\/script>' }) %>
+</head>
+<body>
+    <div id="global-hydration-overlay"><div class="spinner"></div></div>
+    <%- include('../../partials/header') %>
+
+    <div class="content-wrapper">
+        <%- include('../../partials/sidebar', { active: 'offers' }) %>
+
+        <section id="main-section" class="main-section">
+            <div class="offers-container">
+                <div class="offers-list" id="offers-list">
+                    <!-- Offers loaded by offers.js -->
+                </div>
+            </div>
+        </section>
+    </div>
+
+    <!-- Scripts -->
+    <script src="/js/authentication.js"></script>
+    <script src="/js/user.js"></script>
+    <script src="/js/api-client.js"></script>
+    <script src="/js/offers-config.js"></script>
+    <script src="/js/offers.js"></script>
+</body>
+</html>

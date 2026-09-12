@@ -1,0 +1,416 @@
+/* =====================================================
+   PAIEMENT (WALLET) STYLES - Synta Academy
+   Scoped under .wallet-container for SPA bundle safety
+   ===================================================== */
+
+/* Wallet-scoped CSS variables (safe inside .wallet-container) */
+.wallet-container {
+    --primary-h: 245;
+    --primary-s: 75%;
+    --primary-l: 60%;
+    --primary-color: hsl(245, 75%, 60%);
+    --primary-hover: hsl(245, 75%, 52%);
+    --bg-color: hsl(215, 60%, 98%);
+    --card-bg: hsl(0, 0%, 100%);
+    --text-main: hsl(222, 47%, 12%);
+    --text-muted: hsl(215, 18%, 45%);
+    --border-color: hsl(214, 32%, 91%);
+    --success-bg: hsl(142, 76%, 95%);
+    --success-text: hsl(142, 76%, 22%);
+    --pending-bg: hsl(48, 96%, 90%);
+    --pending-text: hsl(48, 96%, 20%);
+    --danger-bg: hsl(0, 84%, 96%);
+    --danger-text: hsl(0, 84%, 30%);
+    --shadow-soft: 0 4px 6px -1px rgba(0, 0, 0, 0.03), 0 2px 4px -1px rgba(0, 0, 0, 0.02);
+    --shadow-premium: 0 10px 30px -10px rgba(102, 126, 234, 0.12), 0 8px 12px -8px rgba(102, 126, 234, 0.06);
+    --shadow-btn: 0 8px 20px -6px rgba(102, 126, 234, 0.35);
+    --radius-sm: 8px;
+    --radius-md: 14px;
+    --radius-lg: 24px;
+    --transition-timing: 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+}
+
+/* body styles stripped for SPA */
+
+/* body override stripped */
+
+/* --- Layout (Mobile-First) --- */
+.wallet-container {
+    max-width: 100%;
+    width: 100%;
+    margin: 0 auto;
+    padding: 1.5rem 2rem;
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+    box-sizing: border-box;
+    min-width: 0;
+}
+
+.wallet-header {
+    text-align: center;
+}
+
+.wallet-header h1 {
+    font-size: clamp(1.5rem, 5vw, 1.8rem);
+    font-weight: 700;
+    color: #1E3448;
+}
+
+.wallet-content {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 1.5rem;
+    width: 100%;
+    min-width: 0;
+}
+
+/* --- Column Structures --- */
+.left-column {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    min-width: 0;
+    width: 100%;
+}
+
+.right-column {
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+    min-width: 0;
+    width: 100%;
+}
+
+/* --- Account Info Cards --- */
+.account-card {
+    background: var(--card-bg);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-md);
+    padding: 1.5rem;
+    box-shadow: var(--shadow-soft);
+    transition: transform var(--transition-timing), box-shadow var(--transition-timing), border-color var(--transition-timing);
+}
+
+.account-card:hover {
+    transform: translateY(-4px);
+    box-shadow: var(--shadow-premium);
+    border-color: hsla(var(--primary-h), var(--primary-s), var(--primary-l), 0.25);
+}
+
+.account-card h3 {
+    font-size: 1.15rem;
+    font-weight: 700;
+    color: var(--text-main);
+    margin: -1.5rem -1.5rem 1rem -1.5rem;
+    padding: 1.5rem 1.5rem 0.8rem 1.5rem;
+    border-bottom: 1px solid #e2e8f0;
+    letter-spacing: -0.01em;
+}
+
+.account-details {
+    display: flex;
+    flex-direction: column;
+    gap: 0.85rem;
+}
+
+.detail-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 1rem;
+}
+
+.detail-row .label {
+    color: var(--text-muted);
+    font-size: 0.875rem;
+    font-weight: 500;
+}
+
+.detail-row .value {
+    color: var(--text-main);
+    font-size: 0.9rem;
+    font-weight: 600;
+    word-break: break-all;
+    text-align: right;
+}
+
+/* --- QR Code Section --- */
+.qr-text {
+    color: var(--text-muted);
+    font-size: 0.85rem;
+    text-align: center;
+    margin-top: 1.25rem;
+    margin-bottom: 1rem;
+    line-height: 1.5;
+}
+
+.qr-code-container {
+    display: flex;
+    justify-content: center;
+    padding: 0.5rem;
+}
+
+.qr-code-image {
+    width: 100%;
+    max-width: 180px;
+    height: auto;
+    border-radius: var(--radius-sm);
+    border: 6px solid var(--card-bg);
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.08);
+}
+
+.payment-methods-section,
+.history-section {
+    background: var(--card-bg);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-md);
+    padding: 1.5rem;
+    box-shadow: var(--shadow-soft);
+    width: 100%;
+    min-width: 0;
+}
+
+.payment-methods-section h2,
+.history-header h2 {
+    font-size: clamp(1.2rem, 3.5vw, 1.45rem);
+    font-weight: 700;
+    color: var(--text-main);
+    letter-spacing: -0.01em;
+}
+
+.payment-methods-section h2 {
+    margin-bottom: 1.25rem;
+}
+
+.payment-methods-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 1rem;
+}
+
+.payment-method {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 0.85rem;
+    padding: 1.25rem 1rem;
+    border-radius: var(--radius-md);
+    border: 1.5px solid hsl(214, 32%, 95%);
+    background: hsl(0, 0%, 100%);
+    transition: transform var(--transition-timing), border-color var(--transition-timing), box-shadow var(--transition-timing), background var(--transition-timing);
+    cursor: pointer;
+}
+
+.payment-method:hover {
+    border-color: var(--primary-color);
+    background: hsl(var(--primary-h), var(--primary-s), 99%);
+    transform: translateY(-3px);
+    box-shadow: var(--shadow-premium);
+}
+
+.payment-method img {
+    width: 50px;
+    height: 50px;
+    object-fit: contain;
+}
+
+.payment-method span {
+    color: var(--text-main);
+    font-size: 0.875rem;
+    font-weight: 600;
+    text-align: center;
+}
+
+/* --- Transaction History --- */
+.history-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1.25rem;
+    gap: 1rem;
+}
+
+.pagination {
+    color: var(--text-muted);
+    font-size: 0.85rem;
+    font-weight: 600;
+    background: hsl(210, 40%, 96%);
+    padding: 0.35rem 0.75rem;
+    border-radius: 20px;
+}
+
+.history-table {
+    overflow-x: auto;
+    width: 100%;
+    -webkit-overflow-scrolling: touch;
+}
+
+.history-table table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.history-table caption {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    border: 0;
+}
+
+.history-table th {
+    padding: 0.85rem 1rem;
+    text-align: left;
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: #64748b;
+    border-bottom: 1px solid hsl(210, 40%, 90%);
+    white-space: nowrap;
+}
+
+.history-table td {
+    padding: 1.1rem 1rem;
+    font-size: 0.9rem;
+    color: var(--text-main);
+    border-bottom: 1px solid hsl(210, 40%, 97%);
+    white-space: nowrap;
+}
+
+.dt-currency-icon-table {
+    width: 14px;
+    height: 14px;
+    vertical-align: middle;
+    margin-left: 2px;
+}
+
+/* --- Status Badges --- */
+.status-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0.35rem 0.8rem;
+    border-radius: 30px;
+    font-size: 0.75rem;
+    font-weight: 700;
+    letter-spacing: 0.02em;
+}
+
+.status-approved,
+.status-completed {
+    background: var(--success-bg);
+    color: var(--success-text);
+}
+
+.status-pending {
+    background: var(--pending-bg);
+    color: var(--pending-text);
+}
+
+.status-rejected,
+.status-cancelled {
+    background: var(--danger-bg);
+    color: var(--danger-text);
+}
+
+/* --- Buttons --- */
+.action-btn {
+    padding: 0.4rem 1.2rem;
+    background: transparent;
+    border: 1px solid #60a5fa;
+    color: #3b82f6;
+    border-radius: 20px;
+    font-size: 0.85rem;
+    font-weight: 600;
+    cursor: pointer;
+    min-height: 36px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s ease;
+}
+
+.action-btn:hover {
+    background: var(--primary-color);
+    color: white;
+    box-shadow: 0 4px 10px rgba(102, 126, 234, 0.2);
+}
+
+.add-transaction-row td {
+    border-bottom: none;
+    padding: 2.25rem 1rem 1rem;
+}
+
+.no-transactions-msg {
+    margin-bottom: 1.25rem;
+    color: var(--text-muted);
+    font-weight: 500;
+    font-size: 0.95rem;
+}
+
+.premium-add-btn {
+    background: linear-gradient(135deg, var(--primary-color) 0%, hsl(265, 80%, 55%) 100%);
+    color: white;
+    border: none;
+    border-radius: var(--radius-md);
+    padding: 0.9rem 2rem;
+    font-family: inherit;
+    font-weight: 700;
+    font-size: 0.95rem;
+    cursor: pointer;
+    min-height: 52px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    box-shadow: var(--shadow-btn);
+    transition: transform var(--transition-timing), box-shadow var(--transition-timing);
+}
+
+.premium-add-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 10px 25px -4px hsla(var(--primary-h), var(--primary-s), var(--primary-l), 0.45);
+}
+
+.premium-add-btn:active {
+    transform: translateY(0);
+}
+
+/* --- Responsive Media Queries (Min-Width Mobile-First) --- */
+
+/* Tablets and up (>= 600px) */
+@media (min-width: 600px) {
+    .wallet-container .payment-methods-grid {
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+    }
+}
+
+/* Desktops and large viewports (>= 1024px) */
+@media (min-width: 1024px) {
+    .wallet-container {
+        padding: 25px 2.5rem;
+    }
+
+    .wallet-container .wallet-content {
+        grid-template-columns: minmax(300px, 380px) minmax(0, 1fr);
+        gap: 2rem;
+        align-items: start;
+    }
+
+    .left-column {
+        position: sticky;
+        top: 2rem;
+        align-self: start;
+        max-height: calc(100vh - 8rem);
+        overflow-y: auto;
+    }
+
+    .wallet-container .payment-methods-section,
+    .wallet-container .history-section {
+        padding: 2rem;
+    }
+}

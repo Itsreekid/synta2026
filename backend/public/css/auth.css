@@ -1,0 +1,817 @@
+/* Auth Pages Styles - Modern Professional Login/Register */
+:root {
+    --primary-color: #013047;
+    --secondary-color: #F6851F;
+    --text-color: #219EBC;
+    --light-bg: #f4f7f6;
+    --light-text: #ffffff;
+    --dark-text: #333333;
+    --gray-text: #6c757d;
+}
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: 'Tajawal', sans-serif;
+    background-color: var(--light-bg);
+    color: var(--text-color);
+    direction: rtl;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 100vh;
+    overflow: hidden;
+    margin: 0;
+}
+
+.auth-section {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.container {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 2rem;
+}
+
+.auth-container {
+    display: flex;
+    background-color: var(--light-text);
+    border-radius: 20px;
+    box-shadow: 0 20px 50px rgba(0, 0, 0, 0.08);
+    overflow: hidden;
+    width: 100%;
+    max-width: 1100px;
+    height: 85vh;
+    max-height: 800px;
+}
+
+.auth-image {
+    flex: 1.2;
+    background: linear-gradient(160deg, #fff7ed 0%, #ffedd5 35%, #fed7aa 70%, #fdba74 100%);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+    overflow: hidden;
+}
+
+/* Register page — dark navy (#013047) theme */
+.auth-image.theme-primary {
+    background: linear-gradient(160deg, #024a6e 0%, #013047 35%, #012538 70%, #001a2b 100%);
+}
+
+.auth-image.theme-primary .bubble-1 {
+    background: radial-gradient(circle, rgba(1, 48, 71, 0.35) 0%, transparent 70%);
+}
+.auth-image.theme-primary .bubble-2 {
+    background: radial-gradient(circle, rgba(56, 189, 248, 0.4) 0%, transparent 70%);
+}
+.auth-image.theme-primary .bubble-3 {
+    background: radial-gradient(circle, rgba(1, 48, 71, 0.2) 0%, transparent 70%);
+}
+.auth-image.theme-primary .bubble-4 {
+    background: radial-gradient(circle, rgba(255, 255, 255, 0.5) 0%, rgba(56, 189, 248, 0.2) 40%, transparent 70%);
+}
+.auth-image.theme-primary .bubble-5 {
+    background: radial-gradient(ellipse, rgba(1, 48, 71, 0.18) 0%, transparent 70%);
+}
+
+.auth-image.theme-primary .streak-1,
+.auth-image.theme-primary .streak-3,
+.auth-image.theme-primary .streak-5,
+.auth-image.theme-primary .streak-7 {
+    background: linear-gradient(to left, rgba(1, 48, 71, 0.5), transparent);
+}
+.auth-image.theme-primary .streak-2,
+.auth-image.theme-primary .streak-4,
+.auth-image.theme-primary .streak-6,
+.auth-image.theme-primary .streak-8 {
+    background: linear-gradient(to left, rgba(255, 255, 255, 0.65), transparent);
+}
+
+.auth-image.theme-primary .dynamic-auth-bg::before {
+    background: linear-gradient(to left, rgba(1, 48, 71, 0.45), transparent);
+}
+.auth-image.theme-primary .dynamic-auth-bg::after {
+    background: linear-gradient(to left, rgba(255, 255, 255, 0.55), transparent);
+}
+
+/* Password-reset page — purple theme */
+.auth-image.theme-purple {
+    background: linear-gradient(160deg, #f3e8ff 0%, #e9d5ff 30%, #d8b4fe 60%, #c084fc 100%);
+}
+
+.auth-image.theme-purple .bubble-1 {
+    background: radial-gradient(circle, rgba(126, 34, 206, 0.35) 0%, transparent 70%);
+}
+.auth-image.theme-purple .bubble-2 {
+    background: radial-gradient(circle, rgba(192, 132, 252, 0.4) 0%, transparent 70%);
+}
+.auth-image.theme-purple .bubble-3 {
+    background: radial-gradient(circle, rgba(126, 34, 206, 0.2) 0%, transparent 70%);
+}
+.auth-image.theme-purple .bubble-4 {
+    background: radial-gradient(circle, rgba(255, 255, 255, 0.5) 0%, rgba(192, 132, 252, 0.2) 40%, transparent 70%);
+}
+.auth-image.theme-purple .bubble-5 {
+    background: radial-gradient(ellipse, rgba(126, 34, 206, 0.18) 0%, transparent 70%);
+}
+
+.auth-image.theme-purple .streak-1,
+.auth-image.theme-purple .streak-3,
+.auth-image.theme-purple .streak-5,
+.auth-image.theme-purple .streak-7 {
+    background: linear-gradient(to left, rgba(126, 34, 206, 0.5), transparent);
+}
+.auth-image.theme-purple .streak-2,
+.auth-image.theme-purple .streak-4,
+.auth-image.theme-purple .streak-6,
+.auth-image.theme-purple .streak-8 {
+    background: linear-gradient(to left, rgba(255, 255, 255, 0.65), transparent);
+}
+
+.auth-image.theme-purple .dynamic-auth-bg::before {
+    background: linear-gradient(to left, rgba(126, 34, 206, 0.45), transparent);
+}
+.auth-image.theme-purple .dynamic-auth-bg::after {
+    background: linear-gradient(to left, rgba(255, 255, 255, 0.55), transparent);
+}
+
+.auth-image img {
+    max-width: 100%;
+    height: auto;
+}
+
+/* Dynamic Auth Image Background & Animations */
+.dynamic-auth-bg {
+    position: absolute;
+    width: 100%;
+    height: 100%;
+    top: 0;
+    left: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1;
+}
+
+.logo-bubble-wrapper {
+    position: absolute;
+    width: 100%;
+    height: 100%;
+    top: 0;
+    left: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1;
+    pointer-events: none;
+}
+
+.logo-bubble {
+    max-width: 75%;
+    max-height: 320px;
+    width: auto;
+    height: auto;
+    filter: blur(40px);
+    opacity: 0.25;
+    animation: floatLogoBubble 12s ease-in-out infinite alternate;
+}
+
+@keyframes floatLogoBubble {
+    0% {
+        transform: scale(1) rotate(0deg);
+    }
+
+    100% {
+        transform: scale(1.1) rotate(8deg);
+    }
+}
+
+/* Rocket Animation Styling */
+.rocket-glow {
+    position: absolute;
+    width: 300px;
+    height: 300px;
+    background: radial-gradient(circle, rgba(255, 255, 255, 0.9) 0%, rgba(255, 255, 255, 0) 70%);
+    z-index: 2;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    pointer-events: none;
+}
+
+.rocket-container {
+    position: absolute;
+    width: 280px;
+    height: 280px;
+    z-index: 3;
+    top: calc(50% - 140px);
+    left: calc(50% - 140px);
+    pointer-events: none;
+}
+
+.rocket-svg {
+    width: 100%;
+    height: 100%;
+    filter: drop-shadow(0 8px 16px rgba(1, 48, 71, 0.15));
+}
+
+.rocket-flame {
+    transform-origin: top center;
+    animation: flamePulse 0.15s ease-in-out infinite alternate;
+}
+
+.rocket-flame-inner {
+    transform-origin: top center;
+    animation: flamePulse 0.1s ease-in-out infinite alternate;
+}
+
+@keyframes rocketFly {
+    0% {
+        transform: translate(0, 0);
+    }
+
+    50% {
+        transform: translate(12px, -18px);
+    }
+
+    100% {
+        transform: translate(0, 0);
+    }
+}
+
+@keyframes rocketShake {
+    0% {
+        margin-left: 0;
+        margin-top: 0;
+    }
+
+    25% {
+        margin-left: -0.4px;
+        margin-top: 0.4px;
+    }
+
+    50% {
+        margin-left: 0.4px;
+        margin-top: -0.4px;
+    }
+
+    75% {
+        margin-left: -0.4px;
+        margin-top: -0.4px;
+    }
+
+    100% {
+        margin-left: 0;
+        margin-top: 0;
+    }
+}
+
+@keyframes flamePulse {
+    0% {
+        transform: scaleY(1);
+        opacity: 0.95;
+    }
+
+    100% {
+        transform: scaleY(1.3);
+        opacity: 1;
+    }
+}
+
+/* Ambient glow blobs — warm rocket exhaust tones */
+.bubble {
+    position: absolute;
+    border-radius: 50%;
+    z-index: 1;
+    pointer-events: none;
+}
+
+/* Large warm exhaust glow — bottom-left (behind the rocket trail) */
+.bubble-1 {
+    width: 320px;
+    height: 320px;
+    background: radial-gradient(circle, rgba(246, 133, 31, 0.35) 0%, transparent 70%);
+    bottom: -60px;
+    left: -80px;
+    filter: blur(50px);
+    animation: glowPulse 6s ease-in-out infinite alternate;
+}
+
+/* Upper-right warm accent — near where the rocket is heading */
+.bubble-2 {
+    width: 200px;
+    height: 200px;
+    background: radial-gradient(circle, rgba(253, 186, 116, 0.4) 0%, transparent 70%);
+    top: -40px;
+    right: -40px;
+    filter: blur(40px);
+    animation: glowPulse 5s ease-in-out infinite alternate;
+    animation-delay: 1.5s;
+}
+
+/* Mid-left soft amber — fills the trailing area */
+.bubble-3 {
+    width: 250px;
+    height: 250px;
+    background: radial-gradient(circle, rgba(246, 133, 31, 0.2) 0%, transparent 70%);
+    top: 40%;
+    left: -50px;
+    filter: blur(60px);
+    animation: glowDrift 8s ease-in-out infinite alternate;
+    animation-delay: 0.5s;
+}
+
+/* Small bright spark near center — adds depth */
+.bubble-4 {
+    width: 140px;
+    height: 140px;
+    background: radial-gradient(circle, rgba(255, 255, 255, 0.5) 0%, rgba(253, 186, 116, 0.2) 40%, transparent 70%);
+    top: 30%;
+    right: 20%;
+    filter: blur(30px);
+    animation: glowPulse 4s ease-in-out infinite alternate;
+    animation-delay: 2.5s;
+}
+
+/* Bottom-right trailing warmth */
+.bubble-5 {
+    width: 280px;
+    height: 180px;
+    background: radial-gradient(ellipse, rgba(246, 133, 31, 0.18) 0%, transparent 70%);
+    bottom: 10%;
+    right: -30px;
+    filter: blur(45px);
+    transform: rotate(-35deg);
+    animation: glowDrift 7s ease-in-out infinite alternate;
+    animation-delay: 3s;
+}
+
+@keyframes glowPulse {
+    0% {
+        opacity: 0.6;
+        transform: scale(1);
+    }
+    100% {
+        opacity: 1;
+        transform: scale(1.15);
+    }
+}
+
+@keyframes glowDrift {
+    0% {
+        opacity: 0.5;
+        transform: translate(0, 0) scale(1);
+    }
+    50% {
+        opacity: 0.8;
+        transform: translate(-15px, 10px) scale(1.08);
+    }
+    100% {
+        opacity: 0.5;
+        transform: translate(10px, -8px) scale(0.95);
+    }
+}
+
+/* Speed streaks via pseudo-elements on the background */
+.dynamic-auth-bg::before,
+.dynamic-auth-bg::after {
+    content: '';
+    position: absolute;
+    border-radius: 100px;
+    z-index: 2;
+    pointer-events: none;
+}
+
+.dynamic-auth-bg::before {
+    width: 160px;
+    height: 3px;
+    background: linear-gradient(to left, rgba(246, 133, 31, 0.5), transparent);
+    top: 30%;
+    right: -10px;
+    transform: rotate(-35deg);
+    animation: streakFly 3.5s ease-out infinite;
+    animation-delay: 0.5s;
+}
+
+.dynamic-auth-bg::after {
+    width: 120px;
+    height: 2px;
+    background: linear-gradient(to left, rgba(255, 255, 255, 0.6), transparent);
+    top: 55%;
+    right: 5%;
+    transform: rotate(-35deg);
+    animation: streakFly 4s ease-out infinite;
+    animation-delay: 2s;
+}
+
+@keyframes streakFly {
+    0% {
+        opacity: 0;
+        transform: rotate(-35deg) translateX(0);
+    }
+    15% {
+        opacity: 0.6;
+    }
+    100% {
+        opacity: 0;
+        transform: rotate(-35deg) translateX(-280px);
+    }
+}
+
+/* Dedicated speed streak elements around the rocket */
+.streak {
+    position: absolute;
+    border-radius: 100px;
+    z-index: 2;
+    opacity: 0;
+    pointer-events: none;
+    transform: rotate(-35deg);
+}
+
+/* --- Top streaks (above rocket) --- */
+.streak-1 {
+    width: 140px;
+    height: 3px;
+    background: linear-gradient(to left, rgba(246, 133, 31, 0.55), transparent);
+    top: 12%;
+    right: 5%;
+    animation: streakFly 3s ease-out infinite;
+    animation-delay: 0.3s;
+}
+
+.streak-2 {
+    width: 90px;
+    height: 2px;
+    background: linear-gradient(to left, rgba(255, 255, 255, 0.7), transparent);
+    top: 20%;
+    right: 15%;
+    animation: streakFly 2.6s ease-out infinite;
+    animation-delay: 1.2s;
+}
+
+.streak-3 {
+    width: 180px;
+    height: 3px;
+    background: linear-gradient(to left, rgba(246, 133, 31, 0.4), transparent);
+    top: 28%;
+    right: -5%;
+    animation: streakFly 3.8s ease-out infinite;
+    animation-delay: 2.4s;
+}
+
+.streak-4 {
+    width: 60px;
+    height: 2px;
+    background: linear-gradient(to left, rgba(255, 255, 255, 0.5), transparent);
+    top: 38%;
+    right: 25%;
+    animation: streakFly 2.2s ease-out infinite;
+    animation-delay: 0.8s;
+}
+
+/* --- Bottom streaks (below rocket) --- */
+.streak-5 {
+    width: 160px;
+    height: 3px;
+    background: linear-gradient(to left, rgba(246, 133, 31, 0.5), transparent);
+    top: 58%;
+    right: 0%;
+    animation: streakFly 3.2s ease-out infinite;
+    animation-delay: 1.8s;
+}
+
+.streak-6 {
+    width: 100px;
+    height: 2px;
+    background: linear-gradient(to left, rgba(255, 255, 255, 0.6), transparent);
+    top: 68%;
+    right: 12%;
+    animation: streakFly 2.8s ease-out infinite;
+    animation-delay: 0.5s;
+}
+
+.streak-7 {
+    width: 200px;
+    height: 3px;
+    background: linear-gradient(to left, rgba(246, 133, 31, 0.35), transparent);
+    top: 78%;
+    right: -8%;
+    animation: streakFly 4s ease-out infinite;
+    animation-delay: 3s;
+}
+
+.streak-8 {
+    width: 70px;
+    height: 2px;
+    background: linear-gradient(to left, rgba(255, 255, 255, 0.45), transparent);
+    top: 85%;
+    right: 20%;
+    animation: streakFly 2.5s ease-out infinite;
+    animation-delay: 1.5s;
+}
+.auth-form {
+    flex: 1;
+    padding: 3rem 4rem;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    overflow-y: auto;
+    background: #ffffff;
+    -ms-overflow-style: none;
+    /* IE and Edge */
+    scrollbar-width: none;
+    /* Firefox */
+}
+
+.auth-form::-webkit-scrollbar {
+    display: none;
+}
+
+.auth-form h2 {
+    color: var(--primary-color);
+    font-size: 2.2rem;
+    margin-bottom: 0.5rem;
+    font-weight: 700;
+}
+
+.auth-form p {
+    color: var(--gray-text);
+    margin-bottom: 2rem;
+    font-size: 1rem;
+}
+
+.auth-form p a {
+    color: var(--secondary-color);
+    font-weight: 600;
+    text-decoration: none;
+    transition: color 0.3s;
+}
+
+.auth-form p a:hover {
+    color: #e6740e;
+}
+
+/* Form Groups */
+.form-row {
+    display: flex;
+    gap: 1rem;
+}
+
+.form-row .form-group {
+    flex: 1;
+    margin-bottom: 1rem;
+}
+
+.form-group {
+    margin-bottom: 1rem;
+}
+
+.form-group label {
+    display: block;
+    margin-bottom: 0.5rem;
+    color: var(--primary-color);
+    font-weight: 600;
+    font-size: 0.95rem;
+}
+
+.form-group input,
+.form-group select {
+    width: 100%;
+    padding: 0.85rem 1rem;
+    border: 2px solid #e9ecef;
+    border-radius: 10px;
+    font-family: 'Tajawal', sans-serif;
+    transition: all 0.3s ease;
+    background: #f8f9fa;
+    color: var(--dark-text);
+    font-size: 1rem;
+}
+
+.password-input-wrapper {
+    position: relative;
+    width: 100%;
+}
+
+.password-input-wrapper input {
+    padding-left: 3rem;
+}
+
+.toggle-password {
+    position: absolute;
+    left: 1rem;
+    top: 50%;
+    transform: translateY(-50%);
+    cursor: pointer;
+    color: var(--gray-text);
+    transition: color 0.3s;
+    font-size: 1.2rem;
+}
+
+.toggle-password:hover {
+    color: var(--secondary-color);
+}
+
+.form-group input:focus,
+.form-group select:focus {
+    border-color: var(--secondary-color);
+    outline: none;
+    background: #fff;
+    box-shadow: 0 0 0 4px rgba(246, 133, 31, 0.1);
+}
+
+.password-hint {
+    display: block;
+    margin-top: 0.5rem;
+    font-size: 0.85rem;
+    color: var(--gray-text);
+}
+
+/* Terms */
+.terms {
+    display: flex;
+    align-items: center;
+    margin: 1.5rem 0;
+}
+
+.terms input {
+    margin-left: 0.75rem;
+    width: 1.2rem;
+    height: 1.2rem;
+    accent-color: var(--secondary-color);
+    cursor: pointer;
+}
+
+.terms label {
+    font-size: 0.95rem;
+    color: var(--gray-text);
+    margin: 0;
+    cursor: pointer;
+}
+
+.terms a {
+    color: var(--secondary-color);
+    text-decoration: none;
+    font-weight: 600;
+}
+
+.terms a:hover {
+    color: #e6740e;
+}
+
+/* Buttons */
+.btn {
+    display: inline-block;
+    padding: 1rem 2rem;
+    border-radius: 10px;
+    font-weight: 600;
+    font-size: 1.1rem;
+    transition: all 0.3s ease;
+    text-align: center;
+    cursor: pointer;
+    border: none;
+    font-family: 'Tajawal', sans-serif;
+    text-decoration: none;
+}
+
+.primary-btn {
+    background-color: var(--primary-color);
+    color: var(--light-text);
+}
+
+.primary-btn:hover {
+    background-color: #022030;
+    transform: translateY(-2px);
+    box-shadow: 0 5px 15px rgba(1, 48, 71, 0.2);
+}
+
+.secondary-btn {
+    background-color: var(--secondary-color);
+    color: var(--light-text);
+}
+
+.secondary-btn:hover {
+    background-color: #e6740e;
+    transform: translateY(-2px);
+    box-shadow: 0 5px 15px rgba(246, 133, 31, 0.2);
+}
+
+.btn-block {
+    display: block;
+    width: 100%;
+}
+
+/* Forgot Password */
+.forgot-password {
+    color: var(--secondary-color);
+    text-decoration: none;
+    font-size: 0.95rem;
+    font-weight: 600;
+    transition: color 0.3s;
+    display: inline-block;
+}
+
+.forgot-password:hover {
+    color: #e6740e;
+}
+
+/* Loading States */
+.btn.loading {
+    position: relative;
+    color: transparent;
+    pointer-events: none;
+}
+
+.btn.loading::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 24px;
+    height: 24px;
+    border: 3px solid rgba(255, 255, 255, 0.3);
+    border-top: 3px solid white;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    0% {
+        transform: translate(-50%, -50%) rotate(0deg);
+    }
+
+    100% {
+        transform: translate(-50%, -50%) rotate(360deg);
+    }
+}
+
+/* Messages */
+.message {
+    padding: 1rem;
+    border-radius: 8px;
+    margin-bottom: 1.5rem;
+    font-weight: 600;
+    font-size: 0.95rem;
+}
+
+.message.error {
+    background: #fff5f5;
+    color: #dc3545;
+    border: 1px solid #ffe3e3;
+}
+
+.message.success {
+    background: #f1fcf5;
+    color: #28a745;
+    border: 1px solid #e3f9eb;
+}
+
+.message.info {
+    background: #fff8f0;
+    color: var(--secondary-color);
+    border: 1px solid #ffe8cc;
+}
+
+/* Field Error */
+.field-error {
+    color: #dc3545;
+    font-size: 0.85rem;
+    margin-top: 0.4rem;
+    font-weight: 500;
+    display: block;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+    .container {
+        padding: 1rem;
+    }
+
+    .auth-container {
+        height: 100%;
+        max-height: none;
+        border-radius: 15px;
+    }
+
+    .auth-image {
+        display: none;
+    }
+
+    .auth-form {
+        padding: 2rem;
+    }
+}

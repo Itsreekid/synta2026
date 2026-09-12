@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="fr" dir="ltr">
+<head>
+    <%- include('../../partials/head', { title: 'Mon Portefeuille', css: 'paiement',
+        extraHead: '<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">' }) %>
+</head>
+<body>
+    <div id="global-hydration-overlay"><div class="spinner"></div></div>
+    <%- include('../../partials/header') %>
+
+    <div class="content-wrapper">
+        <%- include('../../partials/sidebar', { active: 'paiement' }) %>
+
+        <section id="main-section" class="main-section">
+            <main class="wallet-container">
+                <header class="wallet-header">
+                    <h1>Mon portefeuille</h1>
+                </header>
+
+                <div class="wallet-content">
+                    <!-- Left Column -->
+                    <aside class="left-column" aria-label="Comptes de dépôt et virement">
+                        <!-- E-dinar Account -->
+                        <article class="account-card">
+                            <h3>E-dinar Compte</h3>
+                            <div class="account-details">
+                                <div class="detail-row">
+                                    <span class="label">Compte :</span>
+                                    <span class="value" id="edinar-account">Ahmed Abidi</span>
+                                </div>
+                                <div class="detail-row">
+                                    <span class="label">Nombre :</span>
+                                    <span class="value" id="edinar-number">5359 4014 2650 9168</span>
+                                </div>
+                            </div>
+                        </article>
+
+                        <!-- Bank Account -->
+                        <article class="account-card">
+                            <h3>Compte bancaire</h3>
+                            <div class="account-details">
+                                <div class="detail-row">
+                                    <span class="label">Nom:</span>
+                                    <span class="value" id="bank-name">Ahmed Abidi</span>
+                                </div>
+                                <div class="detail-row">
+                                    <span class="label">Banque:</span>
+                                    <span class="value" id="bank-institution">UIB</span>
+                                </div>
+                                <div class="detail-row">
+                                    <span class="label">RIB:</span>
+                                    <span class="value" id="bank-rib">12121000013314243557</span>
+                                </div>
+                            </div>
+                        </article>
+
+                        <!-- D17 Account -->
+                        <article class="account-card">
+                            <h3>D17</h3>
+                            <div class="account-details">
+                                <div class="detail-row">
+                                    <span class="label">Nombre :</span>
+                                    <span class="value" id="d17-number">27 131 431</span>
+                                </div>
+                            </div>
+                            <p class="qr-text">Vous pouvez utiliser ce code QR pour transférer directement de l'argent</p>
+                            <div class="qr-code-container">
+                                <img src="/source/portoflio/QR code.jpg" alt="Code QR D17" class="qr-code-image">
+                            </div>
+                        </article>
+                    </aside>
+
+                    <!-- Right Column -->
+                    <section class="right-column" aria-label="Méthodes de dépôt et historique des transactions">
+                        <!-- Payment Methods -->
+                        <section class="payment-methods-section">
+                            <h2>Méthodes de paiement</h2>
+                            <div class="payment-methods-grid">
+                                <article class="payment-method">
+                                    <img src="/source/portoflio/poste.jpg" alt="E-Dinar">
+                                    <span>E-dinar</span>
+                                </article>
+                                <article class="payment-method">
+                                    <img src="/source/portoflio/d17.png" alt="D17">
+                                    <span>D17</span>
+                                </article>
+                                <article class="payment-method">
+                                    <img src="/source/portoflio/enligne.jpg" alt="Paiement en ligne">
+                                    <span>Paiement en ligne</span>
+                                </article>
+                                <article class="payment-method">
+                                    <img src="/source/portoflio/bank.jpg" alt="Virement bancaire">
+                                    <span>Virement bancaire</span>
+                                </article>
+                            </div>
+                        </section>
+
+                        <!-- Transaction History -->
+                        <section class="history-section">
+                            <header class="history-header">
+                                <h2>Historique</h2>
+                                <span class="pagination" id="pagination-info">1 / 1 de 1</span>
+                            </header>
+                            <div class="history-table">
+                                <table>
+                                    <caption>Historique de vos dépôts et transactions</caption>
+                                    <thead>
+                                        <tr>
+                                            <th scope="col">Code</th>
+                                            <th scope="col">Méthode de paiement</th>
+                                            <th scope="col">Montant</th>
+                                            <th scope="col">Date</th>
+                                            <th scope="col">Statut</th>
+                                            <th scope="col">Action</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="transaction-history">
+                                        <!-- Transactions loaded by paiement.js -->
+                                    </tbody>
+                                </table>
+                            </div>
+                        </section>
+                    </section>
+                </div>
+            </main>
+        </section>
+    </div>
+
+    <!-- Scripts -->
+    <script src="/js/authentication.js"></script>
+    <script src="/js/user.js"></script>
+    <script src="/js/api-client.js"></script>
+    <script src="/js/paiement.js"></script>
+</body>
+</html>

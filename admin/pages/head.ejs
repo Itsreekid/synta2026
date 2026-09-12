@@ -1,0 +1,87 @@
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title><%= title %> - Synta Academy</title>
+<!-- Turbo SPA -->
+<script src="https://cdn.jsdelivr.net/npm/@hotwired/turbo@8.0.5/dist/turbo.es2017-umd.js"></script>
+<!-- Supabase -->
+<script src="https://unpkg.com/@supabase/supabase-js@2"></script>
+<!-- Fonts -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700&display=swap" rel="stylesheet" data-turbo-track="reload">
+<!-- Font Awesome -->
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" data-turbo-track="reload">
+<!-- Favicon -->
+<link rel="icon" href="/source/logoweb.png" type="image/x-icon">
+<!-- App Shell CSS -->
+<link rel="stylesheet" href="/css/user.css" data-turbo-track="reload">
+<!-- Bundled Page CSS -->
+<link rel="stylesheet" href="/css/app-bundle.css" data-turbo-track="reload">
+<!-- Extra head content -->
+<%- (typeof extraHead !== 'undefined' && extraHead) ? extraHead : '' %>
+
+<!-- =====================================================
+     SERVER-INJECTED CONFIGURATION
+     Provides Supabase credentials and the server-resolved
+     user profile to the client without any async round-trip.
+     This eliminates the client-side auth race condition.
+     ===================================================== -->
+<script id="__SYNTA_CONFIG__">
+  window.__SYNTA_CONFIG__ = {
+    supabaseUrl:     "<%- (typeof syntaConfig !== 'undefined' && syntaConfig.url)     ? syntaConfig.url     : '' %>",
+    supabaseAnonKey: "<%- (typeof syntaConfig !== 'undefined' && syntaConfig.anonKey) ? syntaConfig.anonKey : '' %>"
+  };
+  <% if (typeof profile !== 'undefined' && profile) { %>
+  // Pre-hydrate the global app state with the server-resolved profile.
+  // Client scripts can read this immediately — no async fetch needed.
+  window.__SYNTA_PROFILE__ = {
+    id:          "<%- profile.id %>",
+    email:       "<%- profile.email %>",
+    full_name:   "<%- profile.full_name %>",
+    firstName:   "<%- profile.firstName %>",
+    initial:     "<%- profile.initial %>",
+    phone:       "<%- profile.phone %>",
+    user_class:  "<%- profile.user_class %>",
+    user_branch: "<%- profile.user_branch %>",
+    balance:     "<%- profile.balance %>"
+  };
+  <% } else { %>
+  window.__SYNTA_PROFILE__ = null;
+  <% } %>
+</script>
+
+<!-- Global Hydration Blocker -->
+<style id="global-hydration-style">
+    /* Hide the app content initially */
+    .content-wrapper {
+        opacity: 0;
+        pointer-events: none;
+        transition: opacity 0.4s ease;
+    }
+    
+    /* Loading overlay */
+    #global-hydration-overlay {
+        position: fixed; 
+        top: 0; 
+        left: 0; 
+        width: 100vw; 
+        height: 100vh;
+        background: rgba(255, 255, 255, 0.4);
+        backdrop-filter: blur(12px);
+        -webkit-backdrop-filter: blur(12px);
+        display: flex; 
+        align-items: center; 
+        justify-content: center;
+        z-index: 99999;
+        transition: opacity 0.4s ease;
+    }
+    #global-hydration-overlay .spinner {
+        width: 50px; 
+        height: 50px;
+        border: 4px solid rgba(0,0,0,0.1);
+        border-left-color: #000;
+        border-radius: 50%;
+        animation: spin 1s linear infinite;
+    }
+    @keyframes spin { 100% { transform: rotate(360deg); } }
+</style>

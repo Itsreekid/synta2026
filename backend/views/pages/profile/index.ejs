@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="fr" dir="ltr">
+<head>
+    <%- include('../../partials/head', { title: 'Mon Profil', css: 'profile' }) %>
+</head>
+<body>
+    <div id="global-hydration-overlay"><div class="spinner"></div></div>
+    <%- include('../../partials/header') %>
+
+    <div class="content-wrapper">
+        <%- include('../../partials/sidebar', { active: 'profile' }) %>
+
+        <section id="main-section" class="main-section">
+            <div class="page-profile-wrapper">
+                <div class="profile-container">
+                <div class="profile-header">
+                    <h1>👤 Profil</h1>
+                    <p>Gérez vos informations personnelles et votre progrès éducatif</p>
+                </div>
+
+                <div class="profile-content">
+                    <div class="profile-main">
+                        <!-- Personal Information
+                             Fields are pre-filled server-side. JS (profile.js) may
+                             update them after Supabase client auth resolves, but the
+                             form is always immediately usable on page load. -->
+                        <div class="profile-section">
+                            <h2>📋 Informations personnelles</h2>
+                            <div class="profile-form">
+                                <div class="form-group">
+                                    <label for="full-name">Nom complet</label>
+                                    <input type="text"
+                                           id="full-name"
+                                           placeholder="Entrez votre nom complet"
+                                           value="<%= (typeof profile !== 'undefined' && profile) ? profile.full_name : '' %>">
+                                </div>
+                                <div class="form-group">
+                                    <label for="email">Adresse e-mail</label>
+                                    <input type="email"
+                                           id="email"
+                                           placeholder="Entrez votre e-mail"
+                                           value="<%= (typeof profile !== 'undefined' && profile) ? profile.email : (typeof user !== 'undefined' && user) ? user.email : '' %>"
+                                           readonly>
+                                </div>
+                                <div class="form-group">
+                                    <label for="phone">Numéro de téléphone</label>
+                                    <input type="tel"
+                                           id="phone"
+                                           placeholder="Entrez votre numéro"
+                                           value="<%= (typeof profile !== 'undefined' && profile) ? profile.phone : '' %>">
+                                </div>
+                                <div class="form-group">
+                                    <label for="user-class">Niveau scolaire</label>
+                                    <select id="user-class">
+                                        <option value="">Choisissez le niveau</option>
+                                        <option value="1ere"  <%= (typeof profile !== 'undefined' && profile && profile.user_class === '1ere')  ? 'selected' : '' %>>1ère année</option>
+                                        <option value="2eme"  <%= (typeof profile !== 'undefined' && profile && profile.user_class === '2eme')  ? 'selected' : '' %>>2ème année</option>
+                                        <option value="3eme"  <%= (typeof profile !== 'undefined' && profile && profile.user_class === '3eme')  ? 'selected' : '' %>>3ème année</option>
+                                        <option value="bac"   <%= (typeof profile !== 'undefined' && profile && profile.user_class === 'bac')   ? 'selected' : '' %>>Bac</option>
+                                        <option value="other" <%= (typeof profile !== 'undefined' && profile && profile.user_class === 'other') ? 'selected' : '' %>>Autre</option>
+                                    </select>
+                                </div>
+                                <div class="form-group">
+                                    <label for="user-branch">Branche</label>
+                                    <select id="user-branch">
+                                        <option value="">Choisissez la branche</option>
+                                        <option value="lettres"       <%= (typeof profile !== 'undefined' && profile && profile.user_branch === 'lettres')       ? 'selected' : '' %>>Lettres</option>
+                                        <option value="mathematiques" <%= (typeof profile !== 'undefined' && profile && profile.user_branch === 'mathematiques') ? 'selected' : '' %>>Mathématiques</option>
+                                        <option value="informatique"  <%= (typeof profile !== 'undefined' && profile && profile.user_branch === 'informatique')  ? 'selected' : '' %>>Informatique</option>
+                                        <option value="sciences"      <%= (typeof profile !== 'undefined' && profile && profile.user_branch === 'sciences')      ? 'selected' : '' %>>Sciences</option>
+                                        <option value="technique"     <%= (typeof profile !== 'undefined' && profile && profile.user_branch === 'technique')     ? 'selected' : '' %>>Technique</option>
+                                        <option value="economie"      <%= (typeof profile !== 'undefined' && profile && profile.user_branch === 'economie')      ? 'selected' : '' %>>Économie</option>
+                                        <option value="other"         <%= (typeof profile !== 'undefined' && profile && profile.user_branch === 'other')         ? 'selected' : '' %>>Autre</option>
+                                    </select>
+                                </div>
+                                <button class="save-btn" onclick="saveProfile()">💾 Enregistrer les modifications</button>
+                            </div>
+                        </div>
+
+                        <!-- Learning Progress -->
+                        <div class="profile-section">
+                            <h2>📈 Progrès d'apprentissage</h2>
+                            <div class="progress-overview">
+                                <div class="progress-card">
+                                    <div class="progress-icon">🎯</div>
+                                    <div class="progress-info">
+                                        <h3>Cours complétés</h3>
+                                        <span class="progress-number" id="completed-courses">0</span>
+                                    </div>
+                                </div>
+                                <div class="progress-card">
+                                    <div class="progress-icon">📚</div>
+                                    <div class="progress-info">
+                                        <h3>Cours en cours</h3>
+                                        <span class="progress-number" id="active-courses">0</span>
+                                    </div>
+                                </div>
+                                <div class="progress-card">
+                                    <div class="progress-icon">⏱️</div>
+                                    <div class="progress-info">
+                                        <h3>Heures d'apprentissage</h3>
+                                        <span class="progress-number" id="learning-hours">0</span>
+                                    </div>
+                                </div>
+                                <div class="progress-card">
+                                    <div class="progress-icon">🏆</div>
+                                    <div class="progress-info">
+                                        <h3>Réalisations</h3>
+                                        <span class="progress-number" id="achievements">0</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Course History -->
+                        <div class="profile-section">
+                            <h2>📖 Historique des cours</h2>
+                            <div class="course-history" id="course-history">
+                                <div class="no-courses-message">
+                                    <p>Aucun cours enregistré pour le moment</p>
+                                    <p>Commencez votre parcours éducatif avec Synta Academy!</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="profile-sidebar">
+                        <!-- Profile Picture -->
+                        <div class="profile-picture-section">
+                            <div class="profile-picture" id="profile-picture">
+                                <span id="profile-initial">
+                                    <%= (typeof profile !== 'undefined' && profile) ? profile.initial : 'U' %>
+                                </span>
+                            </div>
+                        </div>
+
+                        <!-- Quick Stats -->
+                        <div class="quick-stats">
+                            <h3>📊 Statistiques rapides</h3>
+                            <div class="stat-item">
+                                <span class="stat-label">Niveau actuel</span>
+                                <span class="stat-value" id="current-level">Débutant</span>
+                            </div>
+                            <div class="stat-item">
+                                <span class="stat-label">Points gagnés</span>
+                                <span class="stat-value" id="earned-points">0</span>
+                            </div>
+                            <div class="stat-item">
+                                <span class="stat-label">Jours actifs</span>
+                                <span class="stat-value" id="active-days">0</span>
+                            </div>
+                        </div>
+
+                        <!-- Achievements -->
+                        <div class="achievements-section">
+                            <h3>🏆 Dernières réalisations</h3>
+                            <div class="achievement-item unlocked">
+                                <span class="achievement-icon">🎯</span>
+                                <div class="achievement-info">
+                                    <h4>Débutant</h4>
+                                    <p>Complétez le premier cours</p>
+                                </div>
+                            </div>
+                            <div class="achievement-item locked">
+                                <span class="achievement-icon">🚀</span>
+                                <div class="achievement-info">
+                                    <h4>Persévérant</h4>
+                                    <p>Apprenez pendant 7 jours consécutifs</p>
+                                </div>
+                            </div>
+                            <div class="achievement-item locked">
+                                <span class="achievement-icon">👑</span>
+                                <div class="achievement-info">
+                                    <h4>Expert</h4>
+                                    <p>Complétez 5 cours</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </div>
+
+    <!-- Scripts -->
+    <script src="/js/authentication.js"></script>
+    <script src="/js/user.js"></script>
+    <script src="/js/profile.js"></script>
+</body>
+</html>

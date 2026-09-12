@@ -160,14 +160,19 @@ async function renderCourseInfo(course, totalLessons, hasAccess) {
 
         // If it's an R2 key (not a full URL), get signed URL
         if (!thumbnailUrl.startsWith('http')) {
-            try {
-                const response = await fetch(`${window.SyntaAPI.BACKEND_URL}/api/content/thumbnail/${encodeURIComponent(thumbnailUrl)}`);
-                if (response.ok) {
-                    const data = await response.json();
-                    thumbnailUrl = data.url;
+            const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+            if (isLocal && thumbnailUrl.startsWith('Courses-th/')) {
+                thumbnailUrl = '../../source/' + thumbnailUrl.replace('Courses-th/', '');
+            } else {
+                try {
+                    const response = await fetch(`${window.SyntaAPI.BACKEND_URL}/api/content/thumbnail/${encodeURIComponent(thumbnailUrl)}`);
+                    if (response.ok) {
+                        const data = await response.json();
+                        thumbnailUrl = data.url;
+                    }
+                } catch (err) {
+                    console.warn('Failed to get thumbnail signed URL:', err);
                 }
-            } catch (err) {
-                console.warn('Failed to get thumbnail signed URL:', err);
             }
         }
 

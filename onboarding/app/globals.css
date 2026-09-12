@@ -1,0 +1,162 @@
+@import "tailwindcss";
+
+:root {
+  --synta-navy: #013047;
+  --synta-blue: #219EBC;
+  --synta-orange: #F6851F;
+  --synta-dark: #010d14;
+  --synta-glass: rgba(1, 48, 71, 0.45);
+  --synta-glass-border: rgba(33, 158, 188, 0.25);
+  --synta-glow: rgba(33, 158, 188, 0.4);
+  --synta-orange-glow: rgba(246, 133, 31, 0.35);
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html,
+body {
+  height: 100%;
+  font-family: 'Inter', system-ui, sans-serif;
+}
+
+body {
+  background: var(--synta-dark);
+  color: white;
+  overflow-x: hidden;
+}
+
+/* Animated background gradient */
+.bg-synta {
+  background: radial-gradient(ellipse at 20% 20%, rgba(33, 158, 188, 0.12) 0%, transparent 50%),
+              radial-gradient(ellipse at 80% 80%, rgba(246, 133, 31, 0.1) 0%, transparent 50%),
+              radial-gradient(ellipse at 50% 50%, rgba(1, 48, 71, 0.8) 0%, #010d14 100%);
+}
+
+/* Glassmorphism card */
+.glass-card {
+  background: rgba(1, 48, 71, 0.5);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(33, 158, 188, 0.2);
+  border-radius: 1.5rem;
+}
+
+.glass-card-orange {
+  background: rgba(1, 48, 71, 0.5);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(246, 133, 31, 0.3);
+  border-radius: 1.5rem;
+}
+
+/* Input styles */
+.synta-input {
+  width: 100%;
+  padding: 0.875rem 1.25rem;
+  background: rgba(1, 48, 71, 0.6);
+  border: 1px solid rgba(33, 158, 188, 0.25);
+  border-radius: 0.875rem;
+  color: white;
+  font-size: 1rem;
+  outline: none;
+  transition: all 0.2s ease;
+}
+
+.synta-input::placeholder {
+  color: rgba(255, 255, 255, 0.35);
+}
+
+.synta-input:focus {
+  border-color: #219EBC;
+  box-shadow: 0 0 0 3px rgba(33, 158, 188, 0.15);
+}
+
+/* Primary button */
+.btn-primary {
+  background: linear-gradient(135deg, #F6851F, #e07415);
+  color: white;
+  font-weight: 700;
+  padding: 1rem 2rem;
+  border-radius: 0.875rem;
+  border: none;
+  cursor: pointer;
+  width: 100%;
+  font-size: 1.05rem;
+  transition: all 0.2s ease;
+  letter-spacing: 0.025em;
+  box-shadow: 0 4px 24px rgba(246, 133, 31, 0.3);
+}
+
+.btn-primary:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 32px rgba(246, 133, 31, 0.45);
+}
+
+.btn-primary:active {
+  transform: translateY(0);
+}
+
+.btn-primary:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none;
+}
+
+/* Progress step dots */
+.step-dot {
+  width: 0.625rem;
+  height: 0.625rem;
+  border-radius: 50%;
+  transition: all 0.3s ease;
+}
+
+/* Glow text */
+.text-glow-blue {
+  text-shadow: 0 0 20px rgba(33, 158, 188, 0.6);
+}
+
+.text-glow-orange {
+  text-shadow: 0 0 20px rgba(246, 133, 31, 0.6);
+}
+
+/* Tier badge glow */
+.badge-elite {
+  background: linear-gradient(135deg, #ffd700, #ffaa00);
+  box-shadow: 0 0 30px rgba(255, 215, 0, 0.5);
+}
+
+.badge-challenger {
+  background: linear-gradient(135deg, #219EBC, #0d7fa0);
+  box-shadow: 0 0 30px rgba(33, 158, 188, 0.5);
+}
+
+.badge-explorer {
+  background: linear-gradient(135deg, #6c757d, #495057);
+  box-shadow: 0 0 20px rgba(108, 117, 125, 0.4);
+}
+
+/* Animated particles */
+@keyframes float {
+  0%, 100% { transform: translateY(0px) rotate(0deg); }
+  50% { transform: translateY(-20px) rotate(180deg); }
+}
+
+.particle {
+  animation: float 4s ease-in-out infinite;
+}
+
+/* Scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+}
+::-webkit-scrollbar-track {
+  background: var(--synta-dark);
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(33, 158, 188, 0.4);
+  border-radius: 3px;
+}

@@ -118,6 +118,10 @@
                         <div class="nav-icon"><i class="fas fa-tags"></i></div>
                         <span class="nav-text">Gestion des Offres</span>
                     </a></li>
+                <li><a href="#" onclick="loadAdminPage('sessions')" id="nav-sessions">
+                        <div class="nav-icon"><i class="fas fa-video"></i></div>
+                        <span class="nav-text">Séances Live</span>
+                    </a></li>
                 <li><a href="#" onclick="loadAdminPage('students')" id="nav-students">
                         <div class="nav-icon"><i class="fas fa-users"></i></div>
                         <span class="nav-text">Liste des Étudiants</span>
@@ -126,11 +130,15 @@
                         <div class="nav-icon"><i class="fas fa-cog"></i></div>
                         <span class="nav-text">Configuration</span>
                     </a></li>
+                <li><a href="#" onclick="loadAdminPage('free-session')" id="nav-free-session">
+                        <div class="nav-icon"><i class="fas fa-rocket"></i></div>
+                        <span class="nav-text">Session Gratuite</span>
+                    </a></li>
             </ul>
         </div>
 
         <!-- Main Content Area -->
-        <section>
+        <section class="main-section">
             <iframe src="pages/overview.html" name="Principal" id="adminIframe" title="Zone d'administration"></iframe>
         </section>
     </div>

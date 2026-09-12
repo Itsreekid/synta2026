@@ -59,7 +59,7 @@ function getR2Client() {
         secretAccessKey: process.env.R2_SECRET_KEY,
       },
       // Optional: Force path-style URLs (more compatible)
-      forcePathStyle: false,
+      forcePathStyle: true,
     });
 
     // Log successful initialization (development only)

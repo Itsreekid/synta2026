@@ -1,0 +1,101 @@
+<!-- Sidebar Navigation -->
+<aside id="app-sidebar" data-turbo-permanent class="sidebar">
+    <div class="logo">
+        <div class="logo-icon">
+            <img src="/source/logosynta.png" alt="Synta Academy" width="55">
+        </div>
+        <span class="logo-text"> Synta Academy</span>
+    </div>
+    <ul class="nav-links">
+        <li>
+            <a href="/dashboard">
+                <div class="nav-icon"><i class="fas fa-home"></i></div>
+                <span class="nav-text">Tableau de bord</span>
+            </a>
+        </li>
+        <li>
+            <a href="/app/calendar">
+                <div class="nav-icon"><i class="fas fa-calendar"></i></div>
+                <span class="nav-text">Calendrier</span>
+            </a>
+        </li>
+        <li>
+            <a href="/app/courses">
+                <div class="nav-icon"><i class="fas fa-book"></i></div>
+                <span class="nav-text">Cours</span>
+            </a>
+        </li>
+        <li>
+            <a href="/app/paiement">
+                <div class="nav-icon"><i class="fas fa-wallet"></i></div>
+                <span class="nav-text">Mon Portefeuille</span>
+            </a>
+        </li>
+        <li>
+            <a href="/app/offers">
+                <div class="nav-icon"><i class="fas fa-tags"></i></div>
+                <span class="nav-text">Offres</span>
+            </a>
+        </li>
+        <li>
+            <a href="/app/code-pratique">
+                <div class="nav-icon"><i class="fas fa-code"></i></div>
+                <span class="nav-text">Code Pratique</span>
+            </a>
+        </li>
+    </ul>
+</aside>
+
+<script>
+(function () {
+    // Map of href prefixes to which link href should be highlighted
+    const routeMap = {
+        '/dashboard': '/dashboard',
+        '/app/calendar': '/app/calendar',
+        '/app/courses': '/app/courses',
+        '/app/course-details': '/app/courses', // highlight Courses tab for details page
+        '/app/paiement': '/app/paiement',
+        '/app/offers': '/app/offers',
+        '/app/profile': '/app/profile',
+        '/app/contact': '/app/contact',
+        '/app/code-pratique': '/app/code-pratique',
+    };
+
+    function updateActiveLink() {
+        const currentPath = window.location.pathname;
+        const navLinks = document.querySelectorAll('#app-sidebar .nav-links a');
+
+        // Find which nav href should be active
+        let activeHref = null;
+        for (const [prefix, target] of Object.entries(routeMap)) {
+            if (currentPath === prefix || currentPath.startsWith(prefix + '?') || currentPath === prefix + '/') {
+                activeHref = target;
+                break;
+            }
+        }
+
+        navLinks.forEach(link => {
+            if (link.getAttribute('href') === activeHref) {
+                link.classList.add('active');
+            } else {
+                link.classList.remove('active');
+            }
+        });
+    }
+
+    // Run immediately on first script evaluation (covers hard refresh & first load)
+    updateActiveLink();
+    // Run on every Turbo navigation
+    document.addEventListener('turbo:load', updateActiveLink);
+
+    // Auto-close mobile sidebar after any Turbo navigation
+    document.addEventListener('turbo:visit', function () {
+        const sidebar    = document.getElementById('app-sidebar');
+        const menuToggle = document.querySelector('.mobile-menu-toggle');
+        const overlay    = document.getElementById('sidebar-overlay');
+        if (sidebar)    sidebar.classList.remove('active');
+        if (menuToggle) menuToggle.classList.remove('active');
+        if (overlay)    overlay.classList.remove('active');
+    });
+}());
+</script>

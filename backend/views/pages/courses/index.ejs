@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="fr" dir="ltr">
+<head>
+    <%- include('../../partials/head', { title: 'Tous les Cours', css: 'courses',
+        extraHead: '<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">' }) %>
+</head>
+<body>
+    <div id="global-hydration-overlay"><div class="spinner"></div></div>
+    <%- include('../../partials/header') %>
+
+    <div class="content-wrapper">
+        <%- include('../../partials/sidebar', { active: 'courses' }) %>
+
+        <section id="main-section" class="main-section">
+            <div class="courses-container">
+                <div class="courses-header">
+                    <h1>📚 Tous les Cours</h1>
+                    <p>Explorez tous les cours disponibles à l'académie</p>
+                </div>
+                <div class="courses-list" id="courses-list">
+                    <!-- Courses loaded by courses.js -->
+                </div>
+            </div>
+        </section>
+    </div>
+
+    <!-- Scripts -->
+    <script src="/js/authentication.js"></script>
+    <script src="/js/user.js"></script>
+    <script src="/js/api-client.js"></script>
+    <script src="/js/courses.js"></script>
+</body>
+</html>

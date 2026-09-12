@@ -2,7 +2,7 @@
 // ENROLLMENT & PURCHASE API ROUTES
 // =====================================================
 import express from "express";
-import { authMiddleware } from "../middleware/auth.js";
+import { authApiMiddleware } from "../middleware/requireAuth.js"; // FIX #4: use middleware that actually blocks unauthenticated requests
 import { supabaseAdmin } from "../config/supabase.js";
 
 const router = express.Router();
@@ -12,7 +12,7 @@ const router = express.Router();
  * Enroll user in a course (after payment or for free courses)
  * PROTECTED
  */
-router.post("/enroll", authMiddleware, async (req, res) => {
+router.post("/enroll", authApiMiddleware, async (req, res) => {
   try {
     const { courseId, paymentId, amountPaid } = req.body;
     const userId = req.user.id;
@@ -97,7 +97,7 @@ router.post("/enroll", authMiddleware, async (req, res) => {
  * Quick enrollment for free courses
  * PROTECTED
  */
-router.post("/free-enroll/:courseId", authMiddleware, async (req, res) => {
+router.post("/free-enroll/:courseId", authApiMiddleware, async (req, res) => {
   try {
     const { courseId } = req.params;
     const userId = req.user.id;
@@ -147,7 +147,7 @@ router.post("/free-enroll/:courseId", authMiddleware, async (req, res) => {
  * Get all user enrollments
  * PROTECTED
  */
-router.get("/my-enrollments", authMiddleware, async (req, res) => {
+router.get("/my-enrollments", authApiMiddleware, async (req, res) => {
   try {
     const userId = req.user.id;
 

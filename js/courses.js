@@ -2,15 +2,25 @@
 // Courses Page - Backend Integration (French)
 // =====================================================
 
-document.addEventListener('DOMContentLoaded', function() {
+document.addEventListener('DOMContentLoaded', async function() {
     // Check if API client is loaded
     if (!window.SyntaAPI) {
         console.error('Client API non chargé. Veuillez inclure api-client.js avant courses.js');
         return;
     }
     
-    loadCourses();
-    setupFilters();
+    try {
+        // Wait for Supabase to be ready
+        await window.SyntaAPI.waitForSupabase();
+        loadCourses();
+        setupFilters();
+    } catch (err) {
+        console.error('Failed to initialize Supabase client:', err);
+        const coursesList = document.getElementById('courses-list');
+        if (coursesList) {
+            coursesList.innerHTML = '<div class="error-message">Erreur de connexion à la base de données. Veuillez rafraîchir la page.</div>';
+        }
+    }
 });
 
 /**
@@ -42,46 +52,30 @@ async function loadCourses(filters = {}) {
             }
         }
         
-        // Fetch thumbnail signed URLs for courses that have R2 keys
-        const coursesWithThumbnails = await Promise.all(
-            courses.map(async (course) => {
-                if (course.thumbnail_url && !course.thumbnail_url.startsWith('http')) {
-                    // It's an R2 key, get signed URL from backend
-                    try {
-                        const url = `${window.SyntaAPI.BACKEND_URL}/api/content/thumbnail/${encodeURIComponent(course.thumbnail_url)}`;
-                        const response = await fetch(url);
-                        if (response.ok) {
-                            const data = await response.json();
-                            course.thumbnail_url = data.url; // Replace the R2 key with signed URL
-                        } else {
-                            course.thumbnail_url = null; // Clear invalid URL
-                        }
-                    } catch (err) {
-                        console.error('Failed to fetch thumbnail for:', course.title, err);
-                        course.thumbnail_url = null; // Clear invalid URL
-                    }
-                }
-                return course;
-            })
-        );
-        
-        // Render courses
-        coursesList.innerHTML = coursesWithThumbnails.map(course => {
+        // Render courses immediately using placeholder or local/already signed thumbnails
+        coursesList.innerHTML = courses.map(course => {
             const enrollment = enrollments.find(e => e.course_id === course.id);
             const isEnrolled = !!enrollment;
             const progress = enrollment ? enrollment.progress : 0;
             
+            const hasSignedUrl = course.thumbnail_url && course.thumbnail_url.startsWith('http');
+            const imgId = `course-img-${course.id}`;
+            
+            // Resolve local path if running on localhost to bypass backend API requests
+            const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+            let initialImgSrc = `https://via.placeholder.com/400x200/667eea/ffffff?text=${encodeURIComponent(course.title)}`;
+            
+            if (hasSignedUrl) {
+                initialImgSrc = course.thumbnail_url;
+            } else if (isLocal && course.thumbnail_url && course.thumbnail_url.startsWith('Courses-th/')) {
+                initialImgSrc = '../../source/' + course.thumbnail_url.replace('Courses-th/', '');
+            }
+            
             return `
                 <div class="course-card" data-course-id="${course.id}">
-                    ${course.thumbnail_url ? `
-                        <div class="course-thumbnail">
-                            <img src="${course.thumbnail_url}" alt="${course.title}">
-                        </div>
-                    ` : `
-                        <div class="course-thumbnail">
-                            <img src="https://via.placeholder.com/400x200/667eea/ffffff?text=${encodeURIComponent(course.title)}" alt="${course.title}">
-                        </div>
-                    `}
+                    <div class="course-thumbnail">
+                        <img id="${imgId}" src="${initialImgSrc}" alt="${course.title}">
+                    </div>
                     <div class="course-info">
                         <h3 class="course-title">${course.title}</h3>
                         <p class="course-description">${course.description || 'Description du cours'}</p>
@@ -124,6 +118,33 @@ async function loadCourses(filters = {}) {
                 </div>
             `;
         }).join('');
+
+        // Fetch thumbnail signed URLs asynchronously in the background
+        courses.forEach(async (course) => {
+            if (course.thumbnail_url && !course.thumbnail_url.startsWith('http')) {
+                const imgId = `course-img-${course.id}`;
+                
+                // If running locally, check if we've already loaded it from source folder
+                const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+                if (isLocal && course.thumbnail_url.startsWith('Courses-th/')) {
+                    return; // Already resolved in initial render
+                }
+                
+                try {
+                    const url = `${window.SyntaAPI.BACKEND_URL}/api/content/thumbnail/${encodeURIComponent(course.thumbnail_url)}`;
+                    const response = await fetch(url);
+                    if (response.ok) {
+                        const data = await response.json();
+                        const imgElement = document.getElementById(imgId);
+                        if (imgElement && data.url) {
+                            imgElement.src = data.url;
+                        }
+                    }
+                } catch (err) {
+                    console.error('Failed to fetch thumbnail for:', course.title, err);
+                }
+            }
+        });
         
     } catch (error) {
         console.error('Erreur lors du chargement des cours:', error);

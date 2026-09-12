@@ -33,6 +33,15 @@ document.addEventListener('DOMContentLoaded', async function () {
     // Store globally for use in other functions
     window.SyntaAPI = SyntaAPI;
 
+    console.log('Waiting for Supabase client initialization...');
+    try {
+        await window.SyntaAPI.waitForSupabase();
+        console.log('Supabase client initialized.');
+    } catch (error) {
+        console.error('Supabase initialization error:', error);
+        return;
+    }
+
     console.log('SyntaAPI loaded, loading user data and transactions');
     await loadUserData();
     await loadTransactions();
@@ -309,7 +318,7 @@ window.showAddTransactionPopup = function () {
             ">Entrez le montant que vous souhaitez ajouter à votre solde</p>
             
             <div style="margin-bottom: 1.5rem;">
-                <label style="
+                <label for="transaction-amount" style="
                     display: block;
                     color: #475569;
                     font-weight: 600;

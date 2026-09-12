@@ -1,0 +1,444 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Synta Academy - الحصة المجانية</title>
+    <meta name="description" content="سجّل في الحصة المجانية لـ Synta Academy واكتشف مستواك في الإعلامية">
+    <!-- Cairo Font -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/style.css">
+    <link rel="stylesheet" href="/css/session.css">
+    <!-- SortableJS for Drag and Drop -->
+    <script src="https://cdn.jsdelivr.net/npm/sortablejs@latest/Sortable.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+    <style>
+        /* Cairo RTL overrides */
+        *, body, input, button, select, textarea {
+            font-family: 'Cairo', sans-serif !important;
+        }
+
+        /* RTL-specific layout fixes */
+        .track-btn { flex-direction: row; }
+        .track-arrow { margin-right: auto; margin-left: 0; transform: scaleX(-1); }
+        .track-text { text-align: right; }
+        .flex-between { flex-direction: row; }
+
+        /* Step indicator RTL */
+        .step-indicator { flex-direction: row-reverse; }
+
+        /* Quiz nav RTL */
+        #btn-prev::before { content: '→'; margin-left: 0.5rem; }
+        #btn-next::after  { content: '←'; margin-right: 0.5rem; }
+        #btn-prev::before, #btn-next::after { display:none; }
+
+        /* Input text direction for email/phone stays LTR */
+        input[type="email"], input[type="tel"] {
+            direction: ltr;
+            text-align: right;
+        }
+
+        /* Timer align */
+        #quiz-timer-wrap { text-align: left; }
+
+        /* Modal RTL */
+        .modal-btn-row { flex-direction: row-reverse; }
+
+        /* Countdown labels */
+        .countdown-label { font-family: 'Cairo', sans-serif !important; }
+
+        /* Perks right-aligned */
+        .perks-card { text-align: right; }
+        .perks-list li { text-align: right; }
+
+        /* Subtle gradient badge */
+        .session-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            background: linear-gradient(135deg, rgba(240,126,21,0.2), rgba(240,126,21,0.05));
+            border: 1px solid rgba(240,126,21,0.4);
+            border-radius: 999px;
+            padding: 0.35rem 1.25rem;
+            font-size: 0.8rem;
+            font-weight: 700;
+            color: #f07e15;
+            letter-spacing: 0.02em;
+            margin-bottom: 0.75rem;
+        }
+
+        /* drag-drop list in RTL */
+        .drag-item {
+            cursor: grab;
+            background: rgba(255,255,255,0.06);
+            border: 1px solid rgba(255,255,255,0.1);
+            border-radius: 10px;
+            padding: 0.75rem 1rem;
+            margin-bottom: 0.5rem;
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            color: rgba(255,255,255,0.85);
+            font-weight: 600;
+            transition: background 0.2s, border-color 0.2s;
+            user-select: none;
+        }
+        .drag-item:active { cursor: grabbing; }
+        .drag-item .drag-handle {
+            color: rgba(240,126,21,0.6);
+            font-size: 1rem;
+        }
+        .drag-item.sortable-ghost {
+            opacity: 0.4;
+            background: rgba(240,126,21,0.15);
+            border-color: rgba(240,126,21,0.5);
+        }
+
+        /* Success header animation */
+        @keyframes scaleIn {
+            from { transform: scale(0.7); opacity: 0; }
+            to   { transform: scale(1);   opacity: 1; }
+        }
+        .tier-icon { animation: scaleIn 0.5s cubic-bezier(.34,1.56,.64,1) both; }
+    </style>
+</head>
+<body class="bg-synta">
+    <!-- Animated Background -->
+    <div class="fixed top-0 left-0 w-full h-full pointer-events-none overflow-hidden z-bg">
+        <div class="gradient-background">
+            <div class="gradient-sphere sphere-1"></div>
+            <div class="gradient-sphere sphere-2"></div>
+            <div class="gradient-sphere sphere-3"></div>
+            <div class="glow"></div>
+            <div class="grid-overlay"></div>
+            <div class="noise-overlay"></div>
+        </div>
+        <div class="particles-container" id="particles-container"></div>
+    </div>
+
+    <main class="min-h-screen flex-center px-4 py-8 relative">
+        <!-- Header -->
+        <div class="mb-6 flex-col-center fade-in">
+            <div class="logo-container">
+                <img src="/source/logo.png" alt="Synta Academy" width="150" style="filter: drop-shadow(0 4px 10px rgba(240, 126, 21, 0.4));">
+            </div>
+            <div class="session-badge">🎓 حصة مجانية · <%= sessionConfig.session_matiere %></div>
+        </div>
+
+        <!-- Step Indicator -->
+        <div id="step-indicator" class="step-indicator fade-in">
+            <!-- Rendered by JS -->
+        </div>
+
+        <!-- Wizard Container -->
+        <div class="w-full max-w-md relative glass-card wizard-container fade-in">
+
+            <!-- ============================
+                 STEP 1: Identity
+            ============================= -->
+            <div id="step-1" class="wizard-step active">
+                <div class="text-center mb-8">
+                    <div class="emoji-icon">🎓</div>
+                    <h1 class="step-title">حصة <%= sessionConfig.session_matiere %> المجانية</h1>
+                    <p class="step-desc">📅 <%= sessionConfig.session_date %> — سجّل الآن واكتشف مستواك!</p>
+                </div>
+                <form id="identity-form" class="space-y-4">
+                    <div class="input-group">
+                        <label for="full_name">👤 الاسم الكامل</label>
+                        <input id="full_name" type="text" placeholder="مثال: أحمد بن علي" required class="synta-input">
+                    </div>
+                    <div class="input-group">
+                        <label for="email">✉️ البريد الإلكتروني</label>
+                        <input id="email" type="email" placeholder="email@exemple.com" required class="synta-input">
+                    </div>
+                    <div class="input-group">
+                        <label for="phone">📱 رقم الهاتف</label>
+                        <input id="phone" type="tel" placeholder="+216 XX XXX XXX" required class="synta-input">
+                    </div>
+                    <div id="identity-error" class="error-box hidden"></div>
+                    <div class="pt-2">
+                        <button type="submit" id="identity-submit" class="btn-primary">احجز مكانك مجاناً ←</button>
+                    </div>
+                    <p class="secure-text">🔒 بياناتك في أمان تام. لا رسائل مزعجة.</p>
+                </form>
+            </div>
+
+            <!-- ============================
+                 STEP 2: Track Selection
+            ============================= -->
+            <div id="step-2" class="wizard-step hidden">
+                <div class="text-center mb-6">
+                    <h2 class="step-title">ما هو مستواك الدراسي؟</h2>
+                    <p class="step-desc">سنخصّص الأسئلة حسب مستواك.</p>
+                </div>
+                <div class="space-y-3">
+                    <button class="track-btn" data-track="bac">
+                        <div class="track-icon">🎓</div>
+                        <div class="track-text">
+                            <span class="track-title">الباكالوريا</span>
+                            <span class="track-subtitle">السنة النهائية · تحضير الباك</span>
+                        </div>
+                        <div class="track-arrow">←</div>
+                    </button>
+                    <button class="track-btn" data-track="3eme">
+                        <div class="track-icon">🚀</div>
+                        <div class="track-text">
+                            <span class="track-title">السنة الثالثة</span>
+                            <span class="track-subtitle">تخصّص وبرمجة متقدّمة</span>
+                        </div>
+                        <div class="track-arrow">←</div>
+                    </button>
+                    <button class="track-btn" data-track="2eme">
+                        <div class="track-icon">💻</div>
+                        <div class="track-text">
+                            <span class="track-title">السنة الثانية</span>
+                            <span class="track-subtitle">أساسيات الخوارزميات</span>
+                        </div>
+                        <div class="track-arrow">←</div>
+                    </button>
+                </div>
+            </div>
+
+            <!-- ============================
+                 STEP 3: Filiere Selection
+            ============================= -->
+            <div id="step-3" class="wizard-step hidden">
+                <div class="text-center mb-6">
+                    <h2 class="step-title">ما هي شعبتك؟</h2>
+                    <p class="step-desc">اختر الشعبة (Filière) الخاصة بك.</p>
+                </div>
+                <div class="grid grid-cols-1 gap-3">
+                    <button class="filier-btn track-btn" data-filier="Mathématiques">
+                        <div class="track-text"><span class="track-title">Mathématiques</span></div>
+                        <div class="track-arrow">←</div>
+                    </button>
+                    <button class="filier-btn track-btn" data-filier="Sciences expérimentales">
+                        <div class="track-text"><span class="track-title">Sciences expérimentales</span></div>
+                        <div class="track-arrow">←</div>
+                    </button>
+                    <button class="filier-btn track-btn" data-filier="Économie et gestion">
+                        <div class="track-text"><span class="track-title">Économie et gestion</span></div>
+                        <div class="track-arrow">←</div>
+                    </button>
+                    <button class="filier-btn track-btn" data-filier="Sciences techniques">
+                        <div class="track-text"><span class="track-title">Sciences techniques</span></div>
+                        <div class="track-arrow">←</div>
+                    </button>
+                    <button class="filier-btn track-btn" data-filier="Lettres">
+                        <div class="track-text"><span class="track-title">Lettres</span></div>
+                        <div class="track-arrow">←</div>
+                    </button>
+                    <button class="filier-btn track-btn" data-filier="Sciences de l\'informatique">
+                        <div class="track-text"><span class="track-title">Sciences de l'informatique</span></div>
+                        <div class="track-arrow">←</div>
+                    </button>
+                </div>
+            </div>
+
+            <!-- ============================
+                 STEP 4: Quiz
+            ============================= -->
+            <div id="step-4" class="wizard-step hidden">
+                <div class="flex-between mb-4">
+                    <div>
+                        <h2 class="quiz-title">🧠 اختبار تقني سريع</h2>
+                        <p id="quiz-progress-text" class="quiz-subtitle">السؤال 1 من X</p>
+                    </div>
+                    <div id="quiz-timer-wrap" style="text-align:left;">
+                        <div id="quiz-timer" style="color: var(--primary); font-weight: bold; font-size: 1.1rem; margin-bottom: 0.25rem;">⏱️ 05:00</div>
+                        <div id="quiz-track-badge" class="track-badge">الباك</div>
+                    </div>
+                </div>
+
+                <div class="progress-bar-container">
+                    <div id="quiz-progress-bar" class="progress-bar-fill"></div>
+                </div>
+
+                <div id="question-container" class="mb-6">
+                    <!-- Injected by JS -->
+                </div>
+
+                <div id="quiz-error" class="error-box hidden mb-4"></div>
+
+                <div class="flex gap-3">
+                    <button id="btn-prev" class="btn-secondary hidden">→ السابق</button>
+                    <button id="btn-next" class="btn-primary flex-1 disabled" disabled>التالي ←</button>
+                    <button id="btn-submit" class="btn-primary-finish flex-1 hidden">🚀 إنهاء الاختبار</button>
+                </div>
+            </div>
+
+            <!-- ============================
+                 STEP 5: VIP Success
+            ============================= -->
+            <div id="step-5" class="wizard-step hidden text-center">
+                <!-- Tier Result -->
+                <div class="success-header mb-6">
+                    <div class="badge-glow" id="success-glow"></div>
+                    <div class="tier-icon" id="success-icon">🏆</div>
+                    <h2 class="font-black mt-4 tier-title" id="success-tier-name">تم فتح مستواك!</h2>
+                    <p class="score-text mt-2">النتيجة: <span id="success-score">0</span></p>
+                </div>
+
+                <!-- Live Countdown -->
+                <div id="countdown-container" class="mb-6" style="display:none;">
+                    <p class="step-desc mb-3">⏳ تبدأ الحصة بعد:</p>
+                    <div class="countdown-grid">
+                        <div class="countdown-block">
+                            <span class="countdown-num" id="cd-days">00</span>
+                            <span class="countdown-label">أيام</span>
+                        </div>
+                        <div class="countdown-sep">:</div>
+                        <div class="countdown-block">
+                            <span class="countdown-num" id="cd-hours">00</span>
+                            <span class="countdown-label">ساعات</span>
+                        </div>
+                        <div class="countdown-sep">:</div>
+                        <div class="countdown-block">
+                            <span class="countdown-num" id="cd-minutes">00</span>
+                            <span class="countdown-label">دقائق</span>
+                        </div>
+                        <div class="countdown-sep">:</div>
+                        <div class="countdown-block">
+                            <span class="countdown-num" id="cd-seconds">00</span>
+                            <span class="countdown-label">ثواني</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Group Routing Message (injected by JS) -->
+                <div id="group-message" class="mb-4"></div>
+
+                <!-- Perks -->
+                <div class="perks-card mb-6">
+                    <h3 class="font-bold mb-3">🎁 مزاياك الحصرية:</h3>
+                    <ul class="space-y-2 perks-list" id="success-perks"></ul>
+                </div>
+
+                <!-- CTA -->
+                <button id="btn-activate" class="btn-primary block w-full mb-3" onclick="openPasswordModal()">
+                    جرّب الكود ←
+                </button>
+                <p class="text-xs" style="color: rgba(255,255,255,0.4)">
+                    أنشئ حسابك للوصول إلى فضائك الخاص.
+                </p>
+            </div>
+
+        </div><!-- end wizard-container -->
+    </main>
+
+    <!-- ============================
+         Password Activation Modal
+    ============================= -->
+    <div id="password-modal" style="
+        display:none; position:fixed; inset:0; z-index:9999;
+        background:rgba(0,0,0,0.78); backdrop-filter:blur(8px);
+        justify-content:center; align-items:center; padding:1rem;
+    ">
+        <div style="
+            background: rgba(15,23,42,0.97);
+            border: 1px solid rgba(240,126,21,0.35);
+            border-radius: 22px;
+            padding: 2rem;
+            width: 100%; max-width: 420px;
+            box-shadow: 0 30px 70px rgba(0,0,0,0.55);
+            animation: scaleIn 0.3s cubic-bezier(.34,1.56,.64,1) both;
+        ">
+            <div class="text-center mb-6">
+                <div style="font-size:2.5rem; margin-bottom:0.5rem;">🔐</div>
+                <h3 style="color:white; font-weight:800; font-size:1.3rem; margin:0;">أنشئ كلمة المرور</h3>
+                <p style="color:rgba(255,255,255,0.5); font-size:0.875rem; margin-top:0.5rem;">
+                    فعّل حسابك في Synta Academy
+                </p>
+            </div>
+            <div class="input-group">
+                <label for="modal-password" style="color:rgba(255,255,255,0.75);">🔑 كلمة المرور</label>
+                <input id="modal-password" type="password" class="synta-input" placeholder="6 أحرف على الأقل" autocomplete="new-password" style="direction:ltr; text-align:left;">
+            </div>
+            <div class="input-group">
+                <label for="modal-password-confirm" style="color:rgba(255,255,255,0.75);">🔑 تأكيد كلمة المرور</label>
+                <input id="modal-password-confirm" type="password" class="synta-input" placeholder="أعد كتابة كلمة المرور" style="direction:ltr; text-align:left;">
+            </div>
+            <div id="modal-error" class="error-box hidden mb-4"></div>
+            <div style="display:flex; flex-direction:row-reverse; gap:0.75rem; margin-top:1.5rem;">
+                <button id="btn-confirm-password" onclick="submitPassword()" style="
+                    flex:2; padding:0.9rem; border-radius:12px; border:none;
+                    background:linear-gradient(135deg, #f07e15, #e07415);
+                    color:white; font-weight:800; cursor:pointer; font-size:1rem;
+                    box-shadow:0 4px 20px rgba(240,126,21,0.4);
+                    font-family:'Cairo',sans-serif;
+                ">تفعيل الحساب ←</button>
+                <button onclick="closePasswordModal()" style="
+                    flex:1; padding:0.9rem; border-radius:12px;
+                    border:1px solid rgba(255,255,255,0.15);
+                    background:transparent; color:rgba(255,255,255,0.6);
+                    font-weight:600; cursor:pointer;
+                    font-family:'Cairo',sans-serif;
+                ">إلغاء</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Backend config passed to JS -->
+    <script>
+        window.__SYNTA_CONFIG__ = <%- JSON.stringify(syntaConfig || {}) %>;
+        window.__SESSION_DATE__ = '<%= sessionConfig.session_date_raw || "" %>';
+    </script>
+    <script src="/js/session.js"></script>
+    <script>
+        // ── Particle cursor effect ──────────────────────────────────────
+        const particlesContainer = document.getElementById('particles-container');
+        let mouseX = window.innerWidth / 2;
+        let mouseY = window.innerHeight / 2;
+
+        if (particlesContainer) {
+            document.addEventListener('mousemove', (e) => {
+                mouseX = e.clientX;
+                mouseY = e.clientY;
+                if (Math.random() > 0.7) createParticle(e.clientX, e.clientY);
+            });
+
+            function createParticle(x, y) {
+                const particle = document.createElement('div');
+                particle.className = 'particle';
+                const size = Math.random() * 4 + 2;
+                particle.style.cssText = `width:${size}px;height:${size}px;left:${x}px;top:${y}px;`;
+                particlesContainer.appendChild(particle);
+
+                const angle    = Math.random() * Math.PI * 2;
+                const velocity = Math.random() * 30 + 20;
+                const lifetime = Math.random() * 800 + 1200;
+                const vx = Math.cos(angle) * velocity;
+                const vy = Math.sin(angle) * velocity;
+                let opacity = 1;
+                let posX = x, posY = y;
+                const startTime = Date.now();
+
+                function animate() {
+                    const elapsed = Date.now() - startTime;
+                    if (elapsed > lifetime) { particle.remove(); return; }
+
+                    const dx = mouseX - posX, dy = mouseY - posY;
+                    const dist = Math.sqrt(dx * dx + dy * dy);
+
+                    if (dist < 150) {
+                        posX += (vx * 0.016) + (dx * 0.002);
+                        posY += (vy * 0.016) + (dy * 0.002);
+                    } else {
+                        posX += vx * 0.016;
+                        posY += vy * 0.016;
+                    }
+
+                    opacity -= (1 / lifetime) * 16;
+                    particle.style.left    = posX + 'px';
+                    particle.style.top     = posY + 'px';
+                    particle.style.opacity = Math.max(0, opacity);
+                    requestAnimationFrame(animate);
+                }
+                animate();
+            }
+        }
+    </script>
+</body>
+</html>

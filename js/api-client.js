@@ -6,8 +6,10 @@
 // No need to redeclare them here
 
 // Backend API Configuration
-// Always use Railway production backend
-const BACKEND_URL = 'https://syntaacademy-1.onrender.com';
+// Detect if running locally or in production
+const BACKEND_URL = (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
+    ? 'http://localhost:3000'
+    : 'https://syntaacademy-1.onrender.com';
 
 // R2 Public URL (optional alternative - requires public bucket in Cloudflare)
 const R2_PUBLIC_URL = null;
@@ -30,6 +32,43 @@ function getSupabase() {
     }
     
     return client;
+}
+
+/**
+ * Safely wait for Supabase client to be initialized
+ */
+async function waitForSupabase() {
+    const isInIframe = window.self !== window.top;
+    const getClient = () => {
+        try {
+            return isInIframe && window.parent && window.parent.supabaseClient 
+                ? window.parent.supabaseClient 
+                : window.supabaseClient;
+        } catch (e) {
+            // Fallback if cross-origin access is blocked
+            return window.supabaseClient;
+        }
+    };
+
+    if (getClient()) {
+        return getClient();
+    }
+
+    return new Promise((resolve, reject) => {
+        let attempts = 0;
+        const maxAttempts = 100; // 5 seconds max
+        const interval = setInterval(() => {
+            attempts++;
+            const client = getClient();
+            if (client) {
+                clearInterval(interval);
+                resolve(client);
+            } else if (attempts >= maxAttempts) {
+                clearInterval(interval);
+                reject(new Error('Supabase client initialization timed out.'));
+            }
+        }, 50);
+    });
 }
 
 /**
@@ -811,7 +850,8 @@ if (typeof window !== 'undefined') {
         isAuthenticated,
         showError,
         showSuccess,
-        getCurrentUser
+        getCurrentUser,
+        waitForSupabase
     };
     
     console.log('✅ Synta API initialized (Supabase direct mode)');

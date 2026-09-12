@@ -416,12 +416,31 @@ function setupIframeResize() {
     const iframe = document.querySelector('iframe[name="Principal"]');
     if (!iframe) return;
 
-    // Resize iframe on load
+    let resizeObserver = null;
+
+    // Resize iframe on load and setup ResizeObserver
     iframe.addEventListener('load', function () {
         resizeIframe();
+
+        // Dynamically monitor height changes inside the iframe content document body
+        try {
+            if (iframe.contentWindow && iframe.contentWindow.document && iframe.contentWindow.document.body) {
+                if (resizeObserver) {
+                    resizeObserver.disconnect();
+                }
+
+                resizeObserver = new ResizeObserver(() => {
+                    resizeIframe();
+                });
+
+                resizeObserver.observe(iframe.contentWindow.document.body);
+            }
+        } catch (e) {
+            console.log('Cannot observe iframe body (cross-origin restriction or page loading):', e);
+        }
     });
 
-    // Resize iframe when window resizes
+    // Resize iframe when parent window resizes
     window.addEventListener('resize', function () {
         resizeIframe();
     });
@@ -444,9 +463,8 @@ function resizeIframe() {
     }
 }
 
-// Global function for iframe navigation (called from iframe content)
+// Global functions for iframe communication (called from iframe content)
 window.loadPage = loadPage;
 window.loadPageWithDate = loadPageWithDate;
-
-// Global function for logout (called from iframe content)
-window.logout = logout; 
+window.logout = logout;
+window.resizeIframe = resizeIframe; 

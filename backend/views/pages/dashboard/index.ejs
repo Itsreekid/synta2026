@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="fr" dir="ltr">
+<head>
+    <%- include('../../partials/head', { title: 'Tableau de bord', css: 'dashboard' }) %>
+</head>
+<body>
+    <div id="global-hydration-overlay"><div class="spinner"></div></div>
+    <%- include('../../partials/header') %>
+
+    <div class="content-wrapper">
+        <%- include('../../partials/sidebar', { active: 'dashboard' }) %>
+
+        <section id="main-section" class="main-section">
+            <div class="dashboard-container">
+                <!-- Welcome Header -->
+                <div class="dashboard-header">
+                    <div class="welcome-section">
+                        <div class="user-info">
+                            <!-- Avatar initial pre-populated server-side — no flash of placeholder -->
+                            <div class="user-avatar" id="user-avatar">
+                                <%= (typeof profile !== 'undefined' && profile) ? profile.initial : 'U' %>
+                            </div>
+                            <div class="user-details">
+                                <h2>Bienvenue, <span id="user-name">
+                                    <%= (typeof profile !== 'undefined' && profile && profile.full_name)
+                                        ? profile.full_name
+                                        : (typeof user !== 'undefined' && user && user.email)
+                                            ? user.email.split('@')[0]
+                                            : '' %>
+                                </span>! 👋</h2>
+                                <div class="inline-stats">
+                                    <div class="inline-stat">
+                                        <span class="stat-icon">📚</span>
+                                        <span class="stat-text"><strong id="completed-courses">0</strong> Cours complétés</span>
+                                    </div>
+                                    <div class="inline-stat">
+                                        <span class="stat-icon">📈</span>
+                                        <span class="stat-text"><strong id="overall-progress">0%</strong> Progrès</span>
+                                    </div>
+                                    <div class="inline-stat">
+                                        <span class="stat-icon">🏆</span>
+                                        <span class="stat-text"><strong id="achievements">0</strong> Réalisations</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Dashboard Content -->
+                <div class="dashboard-content">
+                    <div class="content-grid">
+                        <div class="main-content">
+                            <!-- Quick Actions -->
+                            <div class="quick-actions">
+                                <h3 class="section-title">🚀 Actions rapides</h3>
+                                <div class="actions-grid">
+                                    <div class="action-card" onclick="Turbo.visit('/app/courses')">
+                                        <div class="action-icon">📚</div>
+                                        <div class="action-title">Cours</div>
+                                        <div class="action-description">Explorez tous les cours disponibles</div>
+                                    </div>
+                                    <div class="action-card" onclick="Turbo.visit('/app/offers')">
+                                        <div class="action-icon">💰</div>
+                                        <div class="action-title">Offres</div>
+                                        <div class="action-description">Réductions exclusives sur les cours</div>
+                                    </div>
+                                    <div class="action-card" onclick="Turbo.visit('/app/profile')">
+                                        <div class="action-icon">👤</div>
+                                        <div class="action-title">Profil</div>
+                                        <div class="action-description">Gérez vos informations et votre progrès</div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Recent Activity -->
+                            <div class="recent-activity">
+                                <h3 class="section-title">📊 Activité récente</h3>
+                                <div id="activity-list">
+                                    <div class="loading">Chargement de l'activité...</div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="sidebar-content">
+                            <!-- Learning Progress -->
+                            <div class="progress-section">
+                                <h3 class="section-title">📈 Progrès d'apprentissage</h3>
+                                <div id="progress-list">
+                                    <div class="loading">Chargement du progrès...</div>
+                                </div>
+                            </div>
+
+                            <!-- Upcoming Events -->
+                            <div class="upcoming-events">
+                                <h3 class="section-title">📅 Événements à venir</h3>
+                                <div id="events-list">
+                                    <div class="loading">Chargement des événements...</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </div>
+
+    <!-- Scripts
+         NOTE: The static /data/events.js script tag has been removed.
+         Events are now fetched via GET /api/events (server-filtered by user class/branch).
+         No global `upcomingEvents` variable is used. -->
+    <script src="/js/authentication.js"></script>
+    <script src="/js/user.js"></script>
+    <script src="/js/dashboard.js"></script>
+</body>
+</html>

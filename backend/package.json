@@ -13,16 +13,23 @@
     "dev": "nodemon server.js",
     "test:r2": "node test-r2.js"
   },
-  "keywords": ["education", "academy", "cloudflare", "r2"],
+  "keywords": [
+    "education",
+    "academy",
+    "cloudflare",
+    "r2"
+  ],
   "author": "Synta Academy",
   "license": "MIT",
   "dependencies": {
     "@aws-sdk/client-s3": "^3.490.0",
     "@aws-sdk/s3-request-presigner": "^3.490.0",
     "@supabase/supabase-js": "^2.39.0",
-    "express": "^4.18.2",
+    "cookie-parser": "^1.4.7",
     "cors": "^2.8.5",
     "dotenv": "^16.3.1",
+    "ejs": "^6.0.1",
+    "express": "^4.18.2",
     "helmet": "^7.1.0"
   },
   "devDependencies": {

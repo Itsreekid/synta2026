@@ -1,0 +1,57 @@
+<!-- Header Top Bar -->
+<!-- data-* attributes are pre-populated server-side so client scripts
+     can read user data instantly without any async fetch. -->
+<div id="app-header-top"
+     data-turbo-permanent
+     class="header-top"
+     data-user-name="<%= (typeof profile !== 'undefined' && profile) ? profile.full_name : '' %>"
+     data-user-balance="<%= (typeof profile !== 'undefined' && profile) ? profile.balance : '0.00' %>">
+
+    <!-- Mobile Menu Button -->
+    <button class="mobile-menu-toggle" onclick="toggleMobileMenu()" aria-label="Toggle menu">
+        <span></span>
+        <span></span>
+        <span></span>
+    </button>
+
+    <!-- Currency Balance -->
+    <div class="currency-balance">
+        <img src="/source/dt.png" alt="DT" class="currency-icon">
+        <span class="balance-amount" id="userBalance">
+            <%= (typeof profile !== 'undefined' && profile) ? profile.balance : '0.00' %>
+        </span>
+    </div>
+
+    <!-- Notification Icon -->
+    <div class="notification-icon" onclick="toggleNotifications()">
+        <i class="fas fa-bell"></i>
+        <span class="notification-badge" id="notificationCount" style="display:none">0</span>
+    </div>
+
+    <!-- Notification Dropdown -->
+    <div class="dropdown-menu" id="notificationDropdown">
+        <div class="dropdown-header">Événements à venir</div>
+        <div id="notificationEventsList">
+            <!-- Events loaded by user.js via /api/events -->
+        </div>
+    </div>
+
+    <!-- Profile Dropdown -->
+    <div class="profile-dropdown">
+        <div class="profile-picture" onclick="toggleProfileDropdown()">
+            <i class="fas fa-user"></i>
+        </div>
+        <div class="dropdown-menu" id="profileDropdown">
+            <div class="dropdown-item" onclick="window.location.href='/app/profile'">
+                <i class="fas fa-user"></i>
+                <span>Mon Profil</span>
+            </div>
+            <div class="dropdown-item" onclick="logout()">
+                <i class="fas fa-sign-out-alt"></i>
+                <span>Déconnexion</span>
+            </div>
+        </div>
+    </div>
+</div>
+<!-- Mobile sidebar overlay (closes sidebar when tapped) -->
+<div class="sidebar-overlay" id="sidebar-overlay" onclick="toggleMobileMenu()"></div>

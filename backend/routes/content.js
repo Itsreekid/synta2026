@@ -2,7 +2,8 @@
 // CONTENT API ROUTES (Main access control logic)
 // =====================================================
 import express from "express";
-import { authMiddleware, checkLessonAccess } from "../middleware/auth.js";
+import { authApiMiddleware } from "../middleware/requireAuth.js"; // FIX #4: blocks unauthenticated requests
+import { checkLessonAccess } from "../middleware/auth.js";
 import { generateSignedUrl } from "../utils/r2Utils.js";
 import { supabaseAdmin } from "../config/supabase.js";
 
@@ -13,7 +14,7 @@ const router = express.Router();
  * Get signed URL for lesson content (video/PDF)
  * PROTECTED: Requires authentication and enrollment
  */
-router.get("/lesson/:lessonId", authMiddleware, async (req, res) => {
+router.get("/lesson/:lessonId", authApiMiddleware, async (req, res) => {
   try {
     const { lessonId } = req.params;
     const userId = req.user?.id; // May be null for unauthenticated users
@@ -86,7 +87,7 @@ router.get("/lesson/:lessonId", authMiddleware, async (req, res) => {
  * POST /api/content/lesson/:lessonId/progress
  * Update lesson progress
  */
-router.post("/lesson/:lessonId/progress", authMiddleware, async (req, res) => {
+router.post("/lesson/:lessonId/progress", authApiMiddleware, async (req, res) => {
   try {
     const { lessonId } = req.params;
     const { completed, progressPercentage, lastPosition } = req.body;

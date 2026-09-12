@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Synta Academy - إنشاء حساب</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700&display=swap" rel="stylesheet">
+    <link rel="icon" href="/source/logoweb.png" type="image/x-icon">
+    <link rel="stylesheet" href="/css/auth.css">
+    <script id="__SYNTA_CONFIG__">
+        window.__SYNTA_CONFIG__ = {
+            supabaseUrl: "<%- (typeof syntaConfig !== 'undefined' && syntaConfig.url) ? syntaConfig.url : '' %>",
+            supabaseAnonKey: "<%- (typeof syntaConfig !== 'undefined' && syntaConfig.anonKey) ? syntaConfig.anonKey : '' %>"
+        };
+    </script>
+    <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
+</head>
+<body>
+    <section class="auth-section">
+        <div class="container">
+            <div class="auth-container">
+                <div class="auth-image theme-primary">
+                    <div class="dynamic-auth-bg">
+                        <div class="bubble bubble-1"></div>
+                        <div class="bubble bubble-2"></div>
+                        <div class="bubble bubble-3"></div>
+                        <div class="bubble bubble-4"></div>
+                        <div class="bubble bubble-5"></div>
+                        <div class="streak streak-1"></div>
+                        <div class="streak streak-2"></div>
+                        <div class="streak streak-3"></div>
+                        <div class="streak streak-4"></div>
+                        <div class="streak streak-5"></div>
+                        <div class="streak streak-6"></div>
+                        <div class="streak streak-7"></div>
+                        <div class="streak streak-8"></div>
+                        <div class="rocket-glow"></div>
+                        <div class="rocket-container">
+                            <img src="/source/rocket.svg" alt="Rocket" class="rocket-svg">
+                        </div>
+                        <div class="logo-bubble-wrapper">
+                            <img src="/source/logo.png" alt="Synta Academy" class="logo-bubble">
+                        </div>
+                    </div>
+                </div>
+                <div class="auth-form">
+                    <h2>إنشاء حساب جديد</h2>
+                    <p>لديك حساب بالفعل؟ <a href="/login">تسجيل الدخول</a></p>
+
+                    <form id="registerForm" method="POST">
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="fullName">الاسم الكامل</label>
+                                <input type="text" id="fullName" name="fullName" required>
+                            </div>
+                            <div class="form-group">
+                                <label for="email">البريد الإلكتروني</label>
+                                <input type="email" id="email" name="email" required>
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label for="phone">رقم الهاتف</label>
+                            <input type="tel" id="phone" name="phone" required minlength="8" maxlength="8"
+                                pattern="^[24579][0-9]{7}$"
+                                title="يرجى إدخال رقم هاتف تونسي صحيح (8 أرقام تبدأ بـ 2، 4، 5، 7، أو 9)">
+                            <span class="password-hint">رقم هاتف يجب أن يكون متكون من 8 أرقام</span>
+                        </div>
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="userClass">المستوى الدراسي</label>
+                                <select id="userClass" name="userClass" required>
+                                    <option value="" disabled selected>اختر المستوى</option>
+                                    <option value="1ere">1ère année</option>
+                                    <option value="2eme">2ème année</option>
+                                    <option value="3eme">3ème année</option>
+                                    <option value="bac">Bac</option>
+                                    <option value="other">أخرى</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label for="userBranch">الفرع</label>
+                                <select id="userBranch" name="userBranch" required>
+                                    <option value="" disabled selected>اختر الشعبة</option>
+                                    <option value="lettres">شعبة الآداب</option>
+                                    <option value="mathematiques">شعبة الرياضيات</option>
+                                    <option value="informatique">شعبة العلوم الإعلامية</option>
+                                    <option value="sciences">شعبة العلوم التجريبية</option>
+                                    <option value="technique">شعبة العلوم التقنية</option>
+                                    <option value="economie">شعبة الاقتصاد والتصرف</option>
+                                    <option value="other">أخرى</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="password">كلمة المرور</label>
+                                <div class="password-input-wrapper">
+                                    <input type="password" id="password" name="password" required>
+                                </div>
+                                <span class="password-hint">يجب أن تكون 6 أحرف على الأقل</span>
+                            </div>
+                            <div class="form-group">
+                                <label for="confirmPassword">تأكيد كلمة المرور</label>
+                                <div class="password-input-wrapper">
+                                    <input type="password" id="confirmPassword" name="confirmPassword" required>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="terms">
+                            <input type="checkbox" id="terms" name="terms" required>
+                            <label for="terms">أوافق على <a href="#">الشروط والأحكام</a></label>
+                        </div>
+                        <button type="submit" id="registerSubmitBtn" class="btn primary-btn btn-block">إنشاء الحساب</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <script src="/js/authentication.js"></script>
+    <script src="/js/auth.js"></script>
+</body>
+</html>

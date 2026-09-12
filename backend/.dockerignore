@@ -1,0 +1,10 @@
+node_modules
+.env
+.git
+README.md
+*.md
+data/
+test-*.js
+diagnose-*.js
+check-*.js
+patch_*.py

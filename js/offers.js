@@ -21,38 +21,103 @@ async function initOffers() {
         // Show loading state
         offersList.innerHTML = '<div class="loading">Chargement des offres...</div>';
 
-        // Get session for auth token
+        // 1. Get current user session
         const { data: { session } } = await window.supabaseClient.auth.getSession();
-        const token = session?.access_token;
+        const user = session?.user;
 
-        // Fetch offers from backend
-        const response = await fetch(`${window.SyntaAPI.BACKEND_URL}/api/offers`, {
-            headers: token ? { 'Authorization': `Bearer ${token}` } : {}
-        });
-        if (!response.ok) throw new Error('Failed to fetch offers');
+        let userProfile = null;
+        let purchasedOfferIds = [];
 
-        const data = await response.json();
-        let offers = [];
-        let userBalance = 0;
+        if (user) {
+            // 2. Fetch user profile targeting fields and balance
+            const { data: profile, error: profileError } = await window.supabaseClient
+                .from("Users")
+                .select("class, branch, balance")
+                .eq("id", user.id)
+                .single();
 
-        if (Array.isArray(data)) {
-            offers = data;
-            userBalance = 0; // Default for old API format
-        } else if (data && typeof data === 'object') {
-            offers = data.offers || [];
-            userBalance = data.userBalance || 0;
+            if (!profileError) {
+                userProfile = profile;
+            } else {
+                console.error("Error fetching user profile:", profileError);
+            }
+
+            // 3. Fetch user's existing payments/purchased offers
+            const { data: payments, error: paymentsError } = await window.supabaseClient
+                .from("payments")
+                .select("offer_id")
+                .eq("user_id", user.id);
+
+            if (!paymentsError && payments) {
+                purchasedOfferIds = payments.map(p => p.offer_id);
+            } else {
+                console.error("Error fetching user purchases:", paymentsError);
+            }
         }
+
+        // 4. Fetch active offers from Supabase
+        const { data: offers, error: offersError } = await window.supabaseClient
+            .from("offers")
+            .select(`
+                *,
+                courses:offer_courses(
+                    course:courses(*)
+                )
+            `)
+            .eq("is_active", true)
+            .order("created_at", { ascending: false });
+
+        if (offersError) throw offersError;
+
+        // 5. Filter offers based on targeting
+        let filteredOffers = offers || [];
+        if (userProfile) {
+            filteredOffers = (offers || []).filter(offer => {
+                const targetClasses = offer.target_classes || [];
+                const targetBranches = offer.target_branches || [];
+
+                // Match class if targeting is defined
+                const classMatch = targetClasses.length === 0 ||
+                    (userProfile.class && targetClasses.includes(userProfile.class));
+
+                // Match branch if targeting is defined
+                const branchMatch = targetBranches.length === 0 ||
+                    (userProfile.branch && targetBranches.includes(userProfile.branch));
+
+                return classMatch && branchMatch;
+            });
+        }
+
+        const userBalance = userProfile?.balance || 0;
+
+        // 6. Format offers
+        const formattedOffers = filteredOffers.map(offer => {
+            const price = parseFloat(offer.fixed_price || offer.price || 0);
+            const isPurchased = purchasedOfferIds.includes(offer.id);
+
+            // Clean up courses list
+            const coursesList = offer.courses
+                ? offer.courses.map(oc => oc.course).filter(Boolean)
+                : [];
+
+            return {
+                ...offer,
+                courses: coursesList,
+                is_purchased: isPurchased,
+                can_purchase: !isPurchased && userBalance >= price
+            };
+        });
 
         // Update balance display
         updateBalanceInUI(userBalance);
 
-        if (!offers || offers.length === 0) {
+        if (!formattedOffers || formattedOffers.length === 0) {
             offersList.innerHTML = '<div class="no-courses">Aucune offre disponible pour le moment</div>';
             return;
         }
 
         // Render dynamic offers
-        offersList.innerHTML = offers.map(offer => {
+        offersList.innerHTML = formattedOffers.map(offer => {
             const isFeatured = offer.title.toLowerCase().includes('pro') || offer.title.toLowerCase().includes('integral') || offer.is_best_seller;
 
             const price = parseFloat(offer.fixed_price || offer.price || 0);
@@ -302,7 +367,7 @@ style.textContent = `
     .balance-amount {
         font-size: 1.1rem;
         font-weight: 700;
-        color: #10b981;
+        color: #1E3448;
     }
     .offer-card.insufficient-balance {
         opacity: 0.8;

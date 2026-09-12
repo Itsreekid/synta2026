@@ -2,25 +2,15 @@
 // MAIN SERVER FILE
 // =====================================================
 // IMPORTANT: Load environment variables FIRST
-import dotenv from "dotenv";
-import { fileURLToPath } from "url";
-import { dirname, join } from "path";
-
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = dirname(__filename);
-
-// Only load .env file in development (Railway uses environment variables)
-if (process.env.NODE_ENV !== "production") {
-  dotenv.config({ path: join(__dirname, ".env") });
-  console.log("📋 Loaded .env file (development mode)");
-} else {
-  console.log("📋 Using Railway environment variables (production mode)");
-}
+import "./loadEnv.js";
 
 // Now import everything else
 import express from "express";
 import cors from "cors";
 import helmet from "helmet";
+import cookieParser from "cookie-parser";
+import path from "path";
+import { fileURLToPath } from "url";
 
 // Import routes
 import contentRoutes from "./routes/content.js";
@@ -30,6 +20,13 @@ import purchaseRoutes from "./routes/purchase.js";
 import offersRoutes from "./routes/offers.js";
 import liveRoutes from "./routes/live.js";
 import trackingRoutes from "./routes/tracking.js";
+import authApiRoutes from "./routes/auth-api.js";
+import userApiRoutes from "./routes/user-api.js";
+import pageRoutes from "./routes/pages.js";
+import sessionRoutes from "./routes/session.js";
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -54,64 +51,69 @@ if (missingEnvVars.length > 0) {
   missingEnvVars.forEach(varName => {
     console.error(`   - ${varName}`);
   });
-  console.error('\n📝 Please set these environment variables in Railway dashboard.');
-  console.error('   Railway Dashboard → Your Service → Variables tab\n');
+  console.error('\n📝 Please set these environment variables in your Coolify environment variables panel.\n');
   process.exit(1);
 }
 
 // =====================================================
 // MIDDLEWARE
 // =====================================================
-// CORS Configuration - Strict enforcement
-const allowedOrigins = process.env.ALLOWED_ORIGINS?.split(",").map(o => o.trim()) || [];
 
-console.log("🔐 CORS Configuration:");
-console.log("  Allowed Origins:", allowedOrigins);
-console.log("  Environment ALLOWED_ORIGINS:", process.env.ALLOWED_ORIGINS || "NOT SET");
+// CORS Configuration
+// Since Express now serves both frontend and API from the same origin,
+// CORS is only needed if you have external clients calling the API.
+const allowedOrigins = process.env.ALLOWED_ORIGINS?.split(",").map(o => o.trim()) || [];
 
 const corsOptions = {
   origin: function (origin, callback) {
-    console.log(`📨 CORS Request from origin: ${origin || 'NO ORIGIN'}`);
-
-    // Allow requests with no origin (like mobile apps, curl, Postman, server-to-server)
-    if (!origin) {
-      console.log(`✅ CORS allowed for request with no origin (Postman/Server)`);
-      return callback(null, true);
-    }
-
-    // Check if origin is in allowed list
+    // Allow server-to-server (no Origin header) and same-origin requests
+    if (!origin) return callback(null, true);
+    // FIX #3: If no allowlist configured, default-deny. Otherwise check list.
     if (allowedOrigins.length > 0 && allowedOrigins.includes(origin)) {
-      console.log(`✅ CORS allowed for: ${origin}`);
       return callback(null, true);
-    } else {
-      console.error(`❌ CORS BLOCKED origin: ${origin}`);
-      console.error(`   Allowed origins: ${allowedOrigins.join(", ")}`);
-      const msg = `CORS policy does not allow access from origin: ${origin}`;
-      return callback(new Error(msg), false);
     }
+    // Reject any origin not explicitly in the allowlist
+    return callback(new Error(`CORS: Origin '${origin}' not allowed. Add it to ALLOWED_ORIGINS in .env`));
   },
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH', 'HEAD'],
   allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept', 'Origin'],
-  exposedHeaders: ['Content-Length', 'Content-Type'],
   credentials: true,
-  maxAge: 86400, // 24 hours
+  maxAge: 86400,
   optionsSuccessStatus: 200
 };
 
-// Apply CORS before other middleware
 app.use(cors(corsOptions));
-
-// Explicitly handle OPTIONS requests
 app.options('*', cors(corsOptions));
 
-// Security headers (after CORS to avoid conflicts)
+// Security headers
 app.use(helmet({
   crossOriginResourcePolicy: { policy: "cross-origin" },
-  crossOriginOpenerPolicy: { policy: "same-origin-allow-popups" }
+  crossOriginOpenerPolicy: { policy: "same-origin-allow-popups" },
+  // Allow inline scripts needed by EJS templates and CDN scripts
+  contentSecurityPolicy: false,
 }));
+
+// Cookie parser — must be before routes that read cookies
+app.use(cookieParser());
 
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+
+// =====================================================
+// EJS VIEW ENGINE
+// =====================================================
+app.set("view engine", "ejs");
+app.set("views", path.join(__dirname, "views"));
+
+// =====================================================
+// STATIC FILES
+// Serve all frontend assets from backend/public/
+// =====================================================
+app.use(express.static(path.join(__dirname, "public")));
+
+// Also serve the root-level files (index.html, Accueil.html, etc.)
+// so GET / can find index.html
+app.use(express.static(path.join(__dirname, "..")));
 
 // Request logging
 app.use((req, res, next) => {
@@ -122,44 +124,19 @@ app.use((req, res, next) => {
 // =====================================================
 // ROUTES
 // =====================================================
-app.get("/", (req, res) => {
-  res.json({
-    message: "Synta Academy API",
-    version: "1.0.0",
-    status: "running",
-  });
-});
 
 // Health check
 app.get("/health", (req, res) => {
   res.json({ status: "healthy", timestamp: new Date().toISOString() });
 });
 
-// Debug endpoint - Check CORS configuration
-app.get("/debug/cors", (req, res) => {
-  res.json({
-    message: "CORS Debug - If you see this, backend is working!",
-    timestamp: new Date().toISOString(),
-    environment: {
-      ALLOWED_ORIGINS_RAW: process.env.ALLOWED_ORIGINS || "❌ NOT SET",
-      ALLOWED_ORIGINS_PARSED: allowedOrigins,
-      NODE_ENV: process.env.NODE_ENV || "not set"
-    },
-    request: {
-      origin: req.headers.origin || "NO ORIGIN HEADER",
-      host: req.headers.host,
-      referer: req.headers.referer || "no referer"
-    },
-    cors: {
-      willAllow: !req.headers.origin || allowedOrigins.includes(req.headers.origin),
-      reason: !req.headers.origin ? "No origin header (direct access)" :
-        allowedOrigins.includes(req.headers.origin) ? "Origin in allowed list" :
-          `Origin ${req.headers.origin} NOT in allowed list: ${allowedOrigins.join(", ")}`
-    }
-  });
-});
+// Auth cookie routes (must come before page routes)
+app.use(authApiRoutes);
 
-// API routes
+// User data API routes
+app.use(userApiRoutes);
+
+// Existing API routes
 app.use("/api/content", contentRoutes);
 app.use("/api/courses", coursesRoutes);
 app.use("/api/enrollment", enrollmentRoutes);
@@ -168,19 +145,32 @@ app.use("/api/offers", offersRoutes);
 app.use("/api/live", liveRoutes);
 app.use("/api/tracking", trackingRoutes);
 
+// Session onboarding API routes
+app.use("/api/session", sessionRoutes);
+
+// HTML page routes (must come last among GET routes)
+app.use(pageRoutes);
+
 // =====================================================
 // ERROR HANDLING
 // =====================================================
 app.use((req, res) => {
-  res.status(404).json({ error: "Route not found" });
+  // For API requests return JSON, for page requests render 404
+  if (req.path.startsWith("/api/")) {
+    return res.status(404).json({ error: "Route not found" });
+  }
+  res.status(404).send("<h1>404 – Page introuvable</h1><a href='/'>Retour à l'accueil</a>");
 });
 
 app.use((error, req, res, next) => {
   console.error("Server error:", error);
-  res.status(500).json({
-    error: "Internal server error",
-    message: process.env.NODE_ENV === "development" ? error.message : undefined,
-  });
+  if (req.path.startsWith("/api/")) {
+    return res.status(500).json({
+      error: "Internal server error",
+      message: process.env.NODE_ENV === "development" ? error.message : undefined,
+    });
+  }
+  res.status(500).send("<h1>500 – Erreur serveur</h1>");
 });
 
 // =====================================================
@@ -189,12 +179,15 @@ app.use((error, req, res, next) => {
 app.listen(PORT, '0.0.0.0', () => {
   console.log(`
 ╔═══════════════════════════════════════════╗
-║      🎓 Synta Academy API Server         ║
+║      🎓 Synta Academy — Full Stack       ║
 ║      Port: ${PORT}                          ║
 ║      Environment: ${process.env.NODE_ENV || 'development'}      ║
 ╚═══════════════════════════════════════════╝
   `);
-  console.log(`✅ Server running on http://0.0.0.0:${PORT}`);
+  console.log(`✅ Server running → http://localhost:${PORT}`);
+  console.log(`📄 Pages:   GET /  /login  /register  /dashboard`);
+  console.log(`🔐 Auth:    POST /api/auth/session  /api/auth/logout`);
+  console.log(`📊 API:     GET /api/user/stats  /api/user/balance`);
 });
 
 // Handle graceful shutdown

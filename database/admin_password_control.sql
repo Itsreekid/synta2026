@@ -12,7 +12,7 @@ CREATE OR REPLACE FUNCTION public.admin_update_user_password(
 RETURNS JSONB
 LANGUAGE plpgsql
 SECURITY DEFINER 
-SET search_path = public, auth
+SET search_path = public, auth, extensions
 AS $$
 DECLARE
     caller_role TEXT;

@@ -1,0 +1,231 @@
+/* Font import removed — loaded in head.ejs */
+.offers-container {
+    --primary-blue: #0a2e6b;
+    --accent-orange: #ff7b1a;
+    --success-green: #4caf50;
+    --discount-red: #ff0000;
+    --border-purple: #6c40a7;
+    --bg-light: #f4f8ff;
+    --text-dark: #333;
+}
+
+/* body styles stripped for SPA */
+
+.offers-container {
+    max-width: 1200px;
+    margin: 0 auto;
+}
+
+.offers-list {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+    gap: 3rem;
+    justify-content: center;
+    padding: 2rem 0;
+}
+
+/* --- Premium Offer Card --- */
+
+.offer-card {
+    background: white;
+    border: 2px solid var(--border-purple);
+    border-radius: 12px;
+    overflow: hidden;
+    box-shadow: 0 10px 30px rgba(108, 64, 167, 0.1);
+    display: flex;
+    flex-direction: column;
+    position: relative;
+    transition: transform 0.3s ease;
+    max-width: 450px;
+    margin: 0 auto;
+}
+
+.offer-card:hover {
+    transform: translateY(-5px);
+}
+
+.best-seller-banner {
+    background: var(--border-purple);
+    color: white;
+    text-align: center;
+    padding: 0.5rem;
+    font-weight: 700;
+    font-size: 1rem;
+    font-family: 'Tajawal', sans-serif;
+}
+
+.offer-image-section {
+    height: 200px;
+    margin: 10px;
+    overflow: hidden;
+    border-radius: 10px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    border-bottom: 1px solid #eee;
+}
+
+.offer-image-section img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.offer-price-section {
+    padding: 1.5rem;
+    text-align: center;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.discount-badge {
+    background: var(--discount-red);
+    color: white;
+    padding: 4px 12px;
+    border-radius: 8px;
+    font-weight: 800;
+    font-size: 1.1rem;
+    margin-bottom: 0.5rem;
+}
+
+.price-comparison {
+    display: flex;
+    align-items: baseline;
+    gap: 1rem;
+}
+
+.original-price {
+    color: #666;
+    text-decoration: line-through;
+    font-size: 1.5rem;
+    font-weight: 500;
+}
+
+.current-price-container {
+    display: flex;
+    align-items: center;
+}
+
+.current-price {
+    font-size: 3.5rem;
+    font-weight: 800;
+    color: #013047;
+    line-height: 1;
+}
+
+.currency-label {
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: #013047;
+    margin-left: 5px;
+}
+
+/* --- Period / Date Box --- */
+
+.validity-box {
+    margin: 1rem 1.5rem;
+    border: 2px solid var(--border-purple);
+    border-radius: 8px;
+    padding: 0.75rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    color: #333;
+    font-weight: 600;
+    font-size: 0.95rem;
+}
+
+.validity-box i {
+    font-size: 1.25rem;
+    color: #666;
+}
+
+/* --- Feature List --- */
+
+.features-section {
+    padding: 1rem 2rem;
+    flex: 1;
+}
+
+.feature-item {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    /* RTL feel like the image */
+    gap: 12px;
+    margin-bottom: 0.8rem;
+    font-family: 'Tajawal', sans-serif;
+    color: #444;
+    font-weight: 500;
+    text-align: right;
+    font-size: 1rem;
+}
+
+.feature-text {
+    flex: 1;
+}
+
+.check-icon {
+    width: 18px;
+    height: 18px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.check-icon img {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+}
+
+/* --- Action Button --- */
+
+.purchase-section {
+    padding: 1.5rem 2rem;
+}
+
+.acheter-btn {
+    width: 100%;
+    padding: 1rem;
+    background: var(--primary-blue);
+    color: white;
+    border: none;
+    border-radius: 30px;
+    font-size: 1.25rem;
+    font-weight: 700;
+    cursor: pointer;
+    box-shadow: 0 4px 10px rgba(10, 46, 107, 0.3);
+    transition: all 0.2s ease;
+}
+
+.acheter-btn:hover {
+    background: #082455;
+    transform: scale(1.02);
+    box-shadow: 0 6px 15px rgba(10, 46, 107, 0.4);
+}
+
+.acheter-btn:disabled {
+    background: #ccc;
+    cursor: not-allowed;
+    box-shadow: none;
+}
+
+/* Hide balance summary as requested */
+.user-balance-summary {
+    display: none !important;
+}
+
+@media (max-width: 480px) {
+    .offers-list {
+        grid-template-columns: 1fr;
+        padding: 1rem;
+    }
+
+    .current-price {
+        font-size: 2.5rem;
+    }
+}
