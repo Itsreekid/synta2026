@@ -28,22 +28,9 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 
 async function checkIfAlreadyLoggedIn() {
-    try {
-        await waitForAuth(5000);
-        const result = await window.auth.getCurrentUser();
-        if (result.success && result.user) {
-            // Fix loop: Ensure server has the cookie before redirecting
-            const serverSynced = await setServerSessionCookie();
-            if (serverSynced) {
-                window.location.href = '/dashboard';
-            } else {
-                // If server sync fails, sign out client to prevent infinite loop
-                await window.auth.signOut();
-            }
-        }
-    } catch (error) {
-        // No active session — stay on login page
-    }
+    // Rely on EJS server-side redirects instead of client-side loops
+    // If the user visits /login and has a valid HttpOnly cookie,
+    // the server will automatically 302 redirect them to /dashboard.
 }
 
 function setupPasswordToggle() {
@@ -94,9 +81,6 @@ async function handleLogin(e) {
         if (result.success) {
             showMessage('تم تسجيل الدخول بنجاح!', 'success');
             
-            // Exchange Supabase JWT for server-side HttpOnly cookie
-            await setServerSessionCookie();
-            
             // Redirect to dashboard (server-side auth guard will verify cookie)
             setTimeout(() => {
                 window.location.href = '/dashboard';
@@ -117,43 +101,7 @@ async function handleLogin(e) {
     }
 }
 
-/**
- * Sends the Supabase JWT to the Express backend to set HttpOnly cookies.
- * This is the bridge between client-side Supabase auth and server-side session.
- */
-async function setServerSessionCookie() {
-    try {
-        // Get the current session from Supabase
-        const { data: { session }, error } = await window.supabaseClient.auth.getSession();
-        
-        if (error || !session) {
-            console.error('Could not get Supabase session:', error);
-            return false;
-        }
-        
-        // POST tokens to Express — it will set the HttpOnly cookie
-        const response = await fetch('/api/auth/session', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            credentials: 'same-origin',
-            body: JSON.stringify({
-                access_token: session.access_token,
-                refresh_token: session.refresh_token,
-            }),
-        });
-        
-        if (!response.ok) {
-            console.error('Failed to set server session cookie:', await response.text());
-            return false;
-        } else {
-            console.log('✅ Server session cookie set successfully');
-            return true;
-        }
-    } catch (error) {
-        console.error('Error setting server session cookie:', error);
-        return false;
-    }
-}
+
 
 async function handleRegister(e) {
     e.preventDefault();
