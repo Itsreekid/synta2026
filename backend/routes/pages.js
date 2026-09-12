@@ -31,11 +31,11 @@ function renderPage(res, view, locals = {}) {
 // --------------------------------------------------
 
 router.get("/", (req, res) => {
-  res.sendFile(path.join(__dirname, "../../index.html"));
+  res.sendFile(path.join(__dirname, "../public/index.html"));
 });
 
 router.get("/accueil", (req, res) => {
-  res.sendFile(path.join(__dirname, "../../Accueil.html"));
+  res.sendFile(path.join(__dirname, "../public/Accueil.html"));
 });
 
 router.get("/session", async (req, res) => {

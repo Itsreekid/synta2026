@@ -27,8 +27,8 @@ pool.on("error", (err) => {
 pool.query("SELECT 1").then(() => {
   console.log("✅ Database connected successfully");
 }).catch((err) => {
-  console.error("❌ Database connection failed:", err.message);
-  process.exit(1);
+  console.error("❌ Database connection failed (Local Dev):", err.message);
+  // process.exit(1); // Commented out to allow the frontend to be viewed locally without a DB
 });
 
 export default pool;
