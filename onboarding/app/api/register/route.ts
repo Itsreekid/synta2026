@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase/server';
 
+export const dynamic = 'force-dynamic';
+
 export async function POST(req: NextRequest) {
   // Guard: catch missing/placeholder service key immediately
   const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;

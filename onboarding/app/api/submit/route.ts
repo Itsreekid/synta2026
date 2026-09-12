@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase/server';
 
+export const dynamic = 'force-dynamic';
+
 function computeTier(score: number, total: number): 'explorer' | 'challenger' | 'elite' {
   if (total === 0) return 'explorer';
   const pct = score / total;
