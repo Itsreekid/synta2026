@@ -10,30 +10,12 @@ document.addEventListener('DOMContentLoaded', function () {
 
 async function initializeCalendar() {
     try {
-        // Wait for authentication to initialize
-        let attempts = 0;
-        const maxAttempts = 20;
-
-        while (!window.auth && attempts < maxAttempts) {
-            await new Promise(resolve => setTimeout(resolve, 100));
-            attempts++;
+        // Authentication is verified server-side.
+        // We get the user profile from the pre-hydrated global state.
+        if (window.__SYNTA_PROFILE__) {
+            userClass = window.__SYNTA_PROFILE__.user_class;
+            userBranch = window.__SYNTA_PROFILE__.user_branch;
         }
-
-        if (!window.auth) {
-            console.error('Authentication not initialized');
-            return;
-        }
-
-        // Check authentication
-        const authResult = await window.auth.getCurrentUser();
-        if (!authResult.success || !authResult.user) {
-            window.location.href = '../auth/login.html';
-            return;
-        }
-
-        // Store user metadata for filtering
-        userClass = authResult.user.user_metadata?.user_class;
-        userBranch = authResult.user.user_metadata?.user_branch;
 
         // Check if a date was passed via URL
         const urlParams = new URLSearchParams(window.location.search);
