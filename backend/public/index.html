@@ -1,27 +1,23 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="ar" dir="rtl">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="googlebot-news" content="notranslate">
-    <meta name="description" content="synta academy : plateforme de formation spécialisé en informatique offrant des cours en ligne . Maîtrisez la programmation, python, excel et plus avec nos profs">
-    <title>Synta Academy</title>
+    <meta name="description" content="سينتى أكادمي: منصة تعليمية متخصصة في الإعلامية والبرمجة. دروس أونلاين للتلاميذ وتحضير للباكالوريا.">
+    <title>سينتى أكادمي | تعلم الإعلامية والبرمجة</title>
     <link rel="icon" href="source/logoweb.png" type="image/x-icon">
-    <link rel="stylesheet" href="style.css">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" media="print" onload="this.media='all'">
+    <noscript><link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"></noscript>
+    <link rel="stylesheet" href="style.css">
 </head>
-
 <body>
-    
     <header>
-
         <div class="container">
             <div class="logo">
-                <a href="Accueil.html" target="Principal" ><img href="index.html" src="source/logo.png" alt="synta academy" width="80"> </a>
-                
+                <a href="/"><img src="source/logo.png" alt="سينتى أكادمي" width="80" height="80" loading="eager"></a>
             </div>
             <button class="mobile-menu-btn" aria-label="Toggle menu">
                 <span class="menu-icon"></span>
@@ -29,134 +25,221 @@
                 <span class="menu-icon"></span>
             </button>
             <nav>
-                
-            <ul>
-                    <li><a href="Accueil.html" target="Principal" class="active">الرئيسية</a></li>
-                    <li><a href="/app/courses"target="Principal" >عروضنا</a></li>
-                    <li><a href="#" target="Principal" >عن الأكاديمية</a></li>
-                    <li><a href="#" target="Principal">تواصل معنا</a></li>
-            </ul>
-                
+                <ul>
+                    <li><a href="/" class="active">الرئيسية</a></li>
+                    <li><a href="/app/courses">عروضنا</a></li>
+                    <li><a href="#">عن الأكاديمية</a></li>
+                    <li><a href="/app/contact">تواصل معنا</a></li>
+                </ul>
             </nav>
-
             <div class="auth-buttons">
                 <a href="/login" class="btn login-btn">تسجيل الدخول</a>
                 <a href="/register" class="btn register-btn">إنشاء حساب</a>
             </div>
-            
         </div>
     </header>
-    <section>
-        <iframe src="Accueil.html" name="Principal" title="zone principale"></iframe>
+
+    <!-- Hero Section — inlined, no iframe -->
+    <section class="hero">
+        <div class="gradient-background">
+            <div class="gradient-sphere sphere-1"></div>
+            <div class="gradient-sphere sphere-2"></div>
+            <div class="gradient-sphere sphere-3"></div>
+            <div class="glow"></div>
+            <div class="grid-overlay"></div>
+            <div class="noise-overlay"></div>
+        </div>
+        <div class="particles-container" id="particles-container"></div>
+        <div class="container">
+            <div class="hero-content">
+                <h1>ابدأ رحلتك في التعلم مع سينتى أكادمي</h1>
+                <p>تقدم لكم منصتنا تجربة متكاملة وجديدة في التعلم لتلاميذ والمهتمين بتطوير مهاراتهم</p>
+                <div class="hero-buttons">
+                    <a href="/app/courses" class="btn primary-btn">اكتشف عروضنا</a>
+                    <a href="/register" class="btn secondary-btn">جرب مجاناً</a>
+                </div>
+            </div>
+            <div class="hero-image">
+                <img src="source/hero1.png" alt="تعلم البرمجة" loading="eager" width="500">
+            </div>
+        </div>
     </section>
-    <!-- Testimonials Section -->
+
+    <!-- Courses Section -->
+    <section class="courses">
+        <div class="container">
+            <h2 class="section-title">عروضنا الأكثر طلباً</h2>
+            <div class="courses-grid">
+                <div class="course-card">
+                    <div class="course-badge">الأكثر مبيعاً</div>
+                    <div class="course-image"><img src="source/algo2.gif" alt="مراجعة الإعلامية" loading="lazy"></div>
+                    <div class="course-content">
+                        <h3>مراجعة الإعلامية</h3>
+                        <p class="course-description">تعلم الأساسيات من الألف للياء بلغة سهلة وواضحة — كل شي اللي تحتاجه للنجاح في الإعلامية</p>
+                        <div class="course-meta">
+                            <span class="course-duration">30 ساعة</span>
+                            <span class="course-level">2éme / 3éme / Bac</span>
+                        </div>
+                        <div class="course-rating"><span class="stars">★★★★★</span></div>
+                        <div class="course-price">
+                            <span class="price">متوفر الآن</span>
+                            <a href="/register" class="btn enroll-btn">سجل الآن</a>
+                        </div>
+                    </div>
+                </div>
+                <div class="course-card">
+                    <div class="course-badge">جديد</div>
+                    <div class="course-image"><img src="source/soon1.jpg" alt="تحدي الويب" loading="lazy"></div>
+                    <div class="course-content">
+                        <h3>تحدي الويب</h3>
+                        <p class="course-description">دليلك الشامل لاجتياز اختبارات STI: واجبٌ على كل تلميذ</p>
+                        <div class="course-meta">
+                            <span class="course-duration">20 ساعة</span>
+                            <span class="course-level">3éme / Bac informatique</span>
+                        </div>
+                        <div class="course-price">
+                            <span class="price">متوفر الآن</span>
+                            <a href="/register" class="btn enroll-btn">سجل الآن</a>
+                        </div>
+                    </div>
+                </div>
+                <div class="course-card">
+                    <div class="course-badge">جديد</div>
+                    <div class="course-image"><img src="source/graphique.jfif" alt="دورة Graphic Design" loading="lazy"></div>
+                    <div class="course-content">
+                        <h3>دورة Graphic Designer</h3>
+                        <p class="course-description">تعلم HTML, CSS, JavaScript لبناء مواقع الويب</p>
+                        <div class="course-meta">
+                            <span class="course-duration">20 ساعة</span>
+                            <span class="course-level">متوسط</span>
+                        </div>
+                        <div class="course-price">
+                            <span class="price">قريبا</span>
+                            <a href="/register" class="btn enroll-btn">سجل الآن</a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="view-all">
+                <a href="/app/courses" class="btn view-all-btn">عرض جميع عروضنا</a>
+            </div>
+        </div>
+    </section>
+
+    <!-- Features -->
+    <section class="features">
+        <div class="container">
+            <h2 class="section-title">لماذا تختار أكاديميتنا؟</h2>
+            <div class="features-grid">
+                <div class="feature-card"><div class="feature-icon">📚</div><h3>مناهج متكاملة</h3><p>دورات مصممة خصيصاً لتلاميذ حسب مستواهم الدراسي</p></div>
+                <div class="feature-card"><div class="feature-icon">👨‍🏫</div><h3>أساتذة خبراء</h3><p>تعلم من أساتذة محترفين في مجال البرمجة والخوارزميات</p></div>
+                <div class="feature-card"><div class="feature-icon">💻</div><h3>تمارين عملية</h3><p>تمارين وتطبيقات عملية بعد كل درس لترسيخ المعلومة</p></div>
+                <div class="feature-card"><div class="feature-icon">📱</div><h3>تعلم في أي وقت</h3><p>دورات متاحة على مدار الساعة — تتعلم حسب وقتك</p></div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Testimonials -->
     <section class="testimonials">
         <div class="container">
             <h2 class="section-title">آراء طلابنا</h2>
             <div class="testimonials-grid">
                 <div class="testimonial-card">
-                    <div class="testimonial-content">
-                        <p>"كنت نجيب 5 في الإنفو و كنت نكرهو و نفد منو أما حمدلله بديت معاكم و هذه من أحسن القرارات لخذيتهم عامت الباك و حمدلله تحسنت برشا وصلت حتى نجيب 16 في آخر العام"</p>
-                    </div>
+                    <div class="testimonial-content"><p>"كنت نجيب 5 في الإنفو و كنت نكرهو و نفد منو أما حمدلله بديت معاكم و هذه من أحسن القرارات لخذيتهم عامت الباك و حمدلله تحسنت برشا وصلت حتى نجيب 16 في آخر العام"</p></div>
                     <div class="testimonial-author">
-                        <div ><img class="author-image" src="source/users/imen.jpg" /></div>
-                        <div class="author-info">
-                            <h4> Imen belaid </h4>
-                            <p> Bac science </p>
-                        </div>
+                        <div><img class="author-image" src="source/users/imen.jpg" alt="Imen Belaid" loading="lazy"></div>
+                        <div class="author-info"><h4>Imen Belaid</h4><p>Bac Science</p></div>
                     </div>
                 </div>
                 <div class="testimonial-card">
-                    <div class="testimonial-content">
-                        <p>"حبيت نشركم برشا و الكلام لباش نقولو و شوي و كان موش بروف لوقف معانا و وسع بالو و عندو طريقة تحببك في الإنفو و تخليك تفهمو من أحسن البروفات لقريت عندهم"</p>
-                    </div>
+                    <div class="testimonial-content"><p>"حبيت نشركم برشا و الكلام لباش نقولو و شوي و كان موش بروف لوقف معانا و وسع بالو و عندو طريقة تحببك في الإنفو و تخليك تفهمو من أحسن البروفات لقريت عندهم"</p></div>
                     <div class="testimonial-author">
-                        <div ><img class="author-image" src="source/users/baraa.jpg" /></div>
-                        <div class="author-info">
-                            <h4> Baraâ Chaabéne  </h4>
-                            <p> Bac technique </p>
-                        </div>
+                        <div><img class="author-image" src="source/users/baraa.jpg" alt="Baraâ Chaabéne" loading="lazy"></div>
+                        <div class="author-info"><h4>Baraâ Chaabéne</h4><p>Bac Technique</p></div>
                     </div>
                 </div>
             </div>
         </div>
     </section>
 
-    <!-- CTA Section -->
+    <!-- CTA -->
     <section class="cta">
         <div class="container">
             <h2>جاهز لبدء رحلتك في التعلم؟</h2>
-            <p>سجل الآن واحصل على خصم 20% على أول عرض تسجل فيها</p>
+            <p>سجل الآن واحصل على خصم 20% على أول عرض تسجل فيه</p>
             <a href="/register" class="btn cta-btn">ابدأ التعلم الآن</a>
         </div>
     </section>
 
     <!-- Footer -->
     <footer>
-
         <div class="container">
             <div class="footer-grid">
                 <div class="footer-about">
-                    <h3><img src="source/whiteorangeweb.png" alt="أكاديمية العلوم البرمجية" width="80"></h3>
-                    <p>تقدم لكم منصتنا تجرب متكملة وجديدة في التعلم لتلاميذة و للمهتمين بتطوير مهاراتهم</p>
+                    <h3><img src="source/whiteorangeweb.png" alt="سينتى أكادمي" width="80" loading="lazy"></h3>
+                    <p>تقدم لكم منصتنا تجربة متكاملة وجديدة في التعلم لتلاميذ والمهتمين بتطوير مهاراتهم</p>
                 </div>
                 <div class="footer-links">
                     <h3>روابط سريعة</h3>
                     <ul>
-                        <li><a href="index.html">الرئيسية</a></li>
+                        <li><a href="/">الرئيسية</a></li>
                         <li><a href="/app/courses">عروضنا</a></li>
                         <li><a href="#">عن الأكاديمية</a></li>
-                        <li><a href="/contact">تواصل معنا</a></li>
+                        <li><a href="/app/contact">تواصل معنا</a></li>
                     </ul>
- 
                 </div>
                 <div class="footer-contact">
                     <h3>تواصل معنا</h3>
                     <div class="social-links">
-                            <a href="https://www.facebook.com/profile.php?id=61572584305078"><i class="fa-brands fa-facebook-f"></i></i></a>
-                            <a href="https://www.instagram.com/synta.academy/"><i class="fab fa-instagram"></i></a>
-                            <a href="https://www.tiktok.com/@synta.academy"><i class="fa-brands fa-tiktok"></i></a>
-                            <a href="https://www.youtube.com/@Synta.Academy"><i class="fab fa-youtube"></i></a>
+                        <a href="https://www.facebook.com/profile.php?id=61572584305078" aria-label="Facebook"><i class="fa-brands fa-facebook-f"></i></a>
+                        <a href="https://www.instagram.com/synta.academy/" aria-label="Instagram"><i class="fab fa-instagram"></i></a>
+                        <a href="https://www.tiktok.com/@synta.academy" aria-label="TikTok"><i class="fa-brands fa-tiktok"></i></a>
+                        <a href="https://www.youtube.com/@Synta.Academy" aria-label="YouTube"><i class="fab fa-youtube"></i></a>
                     </div>
-            
                 </div>
             </div>
         </div>
         <div class="footer-bottom">
-            <p>&copy; Synta Academy. All Rights Reserved 2026 </p>
-            </div>
+            <p>&copy; Synta Academy. All Rights Reserved 2026</p>
         </div>
     </footer>
 
-    <script src="main.js"></script>
-        <script>
-        function resizeIframe() {
-            const iframe = document.querySelector('iframe[name="Principal"]');
-            if (iframe && iframe.contentWindow) {
-                try {
-                    // Get the height of the content inside the iframe
-                    const height = iframe.contentWindow.document.body.scrollHeight;
-                    iframe.style.height = height + 'px'; // Apply new height
-                } catch (e) {
-                    console.error("Cannot access iframe content (cross-origin restriction)");
+    <script>
+        (function () {
+            const container = document.getElementById('particles-container');
+            if (!container) return;
+            let mouseX = 0, mouseY = 0;
+            document.addEventListener('mousemove', function(e) {
+                mouseX = e.clientX; mouseY = e.clientY;
+                if (Math.random() > 0.7) createParticle(e.clientX, e.clientY);
+            }, { passive: true });
+            function createParticle(x, y) {
+                const p = document.createElement('div');
+                p.className = 'particle';
+                const size = Math.random() * 4 + 2;
+                p.style.cssText = 'width:' + size + 'px;height:' + size + 'px;left:' + x + 'px;top:' + y + 'px;position:absolute;border-radius:50%;pointer-events:none;';
+                container.appendChild(p);
+                const angle = Math.random() * Math.PI * 2;
+                const vel = Math.random() * 30 + 20;
+                const life = Math.random() * 800 + 1200;
+                var vx = Math.cos(angle) * vel, vy = Math.sin(angle) * vel;
+                var px = x, py = y;
+                var start = Date.now();
+                function tick() {
+                    var elapsed = Date.now() - start;
+                    if (elapsed > life) { p.remove(); return; }
+                    var dx = mouseX - px, dy = mouseY - py;
+                    var dist = Math.sqrt(dx*dx + dy*dy);
+                    px += dist < 150 ? vx*0.016 + dx*0.002 : vx*0.016;
+                    py += dist < 150 ? vy*0.016 + dy*0.002 : vy*0.016;
+                    p.style.left = px + 'px'; p.style.top = py + 'px';
+                    p.style.opacity = Math.max(0, 1 - elapsed/life);
+                    requestAnimationFrame(tick);
                 }
+                requestAnimationFrame(tick);
             }
-        }
-    
-        // Resize on initial load
-        window.addEventListener('load', resizeIframe);
-    
-        // Resize when navigation occurs (for links targeting the iframe)
-        const links = document.querySelectorAll('a[target="Principal"]');
-        links.forEach(link => {
-            link.addEventListener('click', () => setTimeout(resizeIframe, 500));
-        });
-    
-        // Optional: Resize on iframe content changes (if same domain)
-        const iframe = document.querySelector('iframe[name="Principal"]');
-        if (iframe) {
-            iframe.addEventListener('load', resizeIframe);
-        }
+        })();
     </script>
+    <script src="main.js" defer></script>
 </body>
 </html>

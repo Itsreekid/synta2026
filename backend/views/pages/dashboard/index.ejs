@@ -1,7 +1,7 @@
 <!DOCTYPE html>
-<html lang="fr" dir="ltr">
+<html lang="ar" dir="rtl">
 <head>
-    <%- include('../../partials/head', { title: 'Tableau de bord', css: 'dashboard' }) %>
+    <%- include('../../partials/head', { title: 'لوحة التحكم', css: 'dashboard' }) %>
 </head>
 <body>
     <div id="global-hydration-overlay"><div class="spinner"></div></div>
@@ -12,103 +12,94 @@
 
         <section id="main-section" class="main-section">
             <div class="dashboard-container">
-                <!-- Welcome Header -->
-                <div class="dashboard-header">
-                    <div class="welcome-section">
-                        <div class="user-info">
-                            <!-- Avatar initial pre-populated server-side — no flash of placeholder -->
-                            <div class="user-avatar" id="user-avatar">
-                                <%= (typeof profile !== 'undefined' && profile) ? profile.initial : 'U' %>
-                            </div>
-                            <div class="user-details">
-                                <h2>Bienvenue, <span id="user-name">
-                                    <%= (typeof profile !== 'undefined' && profile && profile.full_name)
-                                        ? profile.full_name
-                                        : (typeof user !== 'undefined' && user && user.email)
-                                            ? user.email.split('@')[0]
-                                            : '' %>
-                                </span>! 👋</h2>
-                                <div class="inline-stats">
-                                    <div class="inline-stat">
-                                        <span class="stat-icon">📚</span>
-                                        <span class="stat-text"><strong id="completed-courses">0</strong> Cours complétés</span>
-                                    </div>
-                                    <div class="inline-stat">
-                                        <span class="stat-icon">📈</span>
-                                        <span class="stat-text"><strong id="overall-progress">0%</strong> Progrès</span>
-                                    </div>
-                                    <div class="inline-stat">
-                                        <span class="stat-icon">🏆</span>
-                                        <span class="stat-text"><strong id="achievements">0</strong> Réalisations</span>
-                                    </div>
-                                </div>
-                            </div>
+
+                <!-- ══ GREETING CARD ══ -->
+                <div class="greeting-card">
+                    <div class="greeting-avatar" id="user-avatar">
+                        <%= (typeof profile !== 'undefined' && profile) ? profile.initial : 'U' %>
+                    </div>
+                    <div class="greeting-text">
+                        <div class="greeting-label">مرحباً 👋</div>
+                        <h1 class="greeting-name" id="user-name">
+                            <%= (typeof profile !== 'undefined' && profile && profile.full_name)
+                                ? profile.full_name.split(' ')[0]
+                                : (typeof user !== 'undefined' && user && user.email)
+                                    ? user.email.split('@')[0]
+                                    : 'Étudiant' %>
+                        </h1>
+                        <div class="greeting-sub">استعد لجلسة تعلم رائعة!</div>
+                    </div>
+                </div>
+
+                <!-- ══ STAT PILLS ══ -->
+                <div class="stat-pills">
+                    <div class="stat-pill">
+                        <span class="pill-icon">📚</span>
+                        <div class="pill-body">
+                            <strong id="completed-courses">0</strong>
+                            <span>دروس</span>
+                        </div>
+                    </div>
+                    <div class="stat-pill">
+                        <span class="pill-icon">📈</span>
+                        <div class="pill-body">
+                            <strong id="overall-progress">0%</strong>
+                            <span>تقدم</span>
+                        </div>
+                    </div>
+                    <div class="stat-pill">
+                        <span class="pill-icon">🏆</span>
+                        <div class="pill-body">
+                            <strong id="achievements">0</strong>
+                            <span>إنجازات</span>
                         </div>
                     </div>
                 </div>
 
-                <!-- Dashboard Content -->
-                <div class="dashboard-content">
-                    <div class="content-grid">
-                        <div class="main-content">
-                            <!-- Quick Actions -->
-                            <div class="quick-actions">
-                                <h3 class="section-title">🚀 Actions rapides</h3>
-                                <div class="actions-grid">
-                                    <div class="action-card" onclick="Turbo.visit('/app/courses')">
-                                        <div class="action-icon">📚</div>
-                                        <div class="action-title">Cours</div>
-                                        <div class="action-description">Explorez tous les cours disponibles</div>
-                                    </div>
-                                    <div class="action-card" onclick="Turbo.visit('/app/offers')">
-                                        <div class="action-icon">💰</div>
-                                        <div class="action-title">Offres</div>
-                                        <div class="action-description">Réductions exclusives sur les cours</div>
-                                    </div>
-                                    <div class="action-card" onclick="Turbo.visit('/app/profile')">
-                                        <div class="action-icon">👤</div>
-                                        <div class="action-title">Profil</div>
-                                        <div class="action-description">Gérez vos informations et votre progrès</div>
-                                    </div>
-                                </div>
-                            </div>
-
-                            <!-- Recent Activity -->
-                            <div class="recent-activity">
-                                <h3 class="section-title">📊 Activité récente</h3>
-                                <div id="activity-list">
-                                    <div class="loading">Chargement de l'activité...</div>
-                                </div>
-                            </div>
-                        </div>
-
-                        <div class="sidebar-content">
-                            <!-- Learning Progress -->
-                            <div class="progress-section">
-                                <h3 class="section-title">📈 Progrès d'apprentissage</h3>
-                                <div id="progress-list">
-                                    <div class="loading">Chargement du progrès...</div>
-                                </div>
-                            </div>
-
-                            <!-- Upcoming Events -->
-                            <div class="upcoming-events">
-                                <h3 class="section-title">📅 Événements à venir</h3>
-                                <div id="events-list">
-                                    <div class="loading">Chargement des événements...</div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
+                <!-- ══ QUICK ACTION GRID ══ -->
+                <div class="section-header">
+                    <h2 class="section-title">⚡ الوصول السريع</h2>
                 </div>
+                <div class="shortcut-grid">
+                    <a href="/app/courses" class="shortcut-card" data-turbo="true">
+                        <div class="shortcut-icon" style="background:linear-gradient(135deg,#6c63ff,#4a42d6)">📚</div>
+                        <span>الدروس</span>
+                    </a>
+                    <a href="/app/calendar" class="shortcut-card" data-turbo="true">
+                        <div class="shortcut-icon" style="background:linear-gradient(135deg,#f7941d,#f05a28)">📅</div>
+                        <span>التقويم</span>
+                    </a>
+                    <a href="/app/paiement" class="shortcut-card" data-turbo="true">
+                        <div class="shortcut-icon" style="background:linear-gradient(135deg,#28c76f,#1a9e53)">💳</div>
+                        <span>المحفظة</span>
+                    </a>
+                    <a href="/app/offers" class="shortcut-card" data-turbo="true">
+                        <div class="shortcut-icon" style="background:linear-gradient(135deg,#ff6584,#e0405f)">🎁</div>
+                        <span>العروض</span>
+                    </a>
+                    <a href="/app/code-pratique" class="shortcut-card" data-turbo="true">
+                        <div class="shortcut-icon" style="background:linear-gradient(135deg,#00b4d8,#0077b6)">💻</div>
+                        <span>Code</span>
+                    </a>
+                    <a href="/app/profile" class="shortcut-card" data-turbo="true">
+                        <div class="shortcut-icon" style="background:linear-gradient(135deg,#9b59b6,#6c3483)">👤</div>
+                        <span>ملفي</span>
+                    </a>
+                </div>
+
+                <!-- ══ UPCOMING EVENTS ══ -->
+                <div class="section-header">
+                    <h2 class="section-title">📅 الجلسات القادمة</h2>
+                    <a href="/app/calendar" class="see-all-link">عرض الكل</a>
+                </div>
+                <div class="events-card" id="events-list">
+                    <div class="loading-state">جاري التحميل...</div>
+                </div>
+
             </div>
         </section>
     </div>
 
-    <!-- Scripts
-         NOTE: The static /data/events.js script tag has been removed.
-         Events are now fetched via GET /api/events (server-filtered by user class/branch).
-         No global `upcomingEvents` variable is used. -->
     <script src="/js/authentication.js"></script>
     <script src="/js/user.js"></script>
     <script src="/js/dashboard.js"></script>

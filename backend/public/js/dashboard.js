@@ -47,18 +47,10 @@ async function loadUserData(user) {
 
 async function loadDashboardData() {
     try {
-        // Load stats
-        await loadStats();
-
-        // Load recent activity
-        await loadRecentActivity();
-
-        // Load progress
-        await loadProgress();
-
-        // Load events
+        // Stats (completed-courses, overall-progress, achievements) are
+        // pre-populated server-side via profile data — nothing to fetch here.
+        // Only load live upcoming events from the API.
         await loadEvents();
-
     } catch (error) {
         console.error('Error loading dashboard data:', error);
     }
