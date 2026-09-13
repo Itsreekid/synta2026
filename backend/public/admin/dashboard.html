@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="fr" dir="ltr">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Synta Academy - Admin Dashboard</title>
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700&display=swap" rel="stylesheet">
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <!-- CSS -->
+    <link rel="icon" href="/source/logoweb.png" type="image/x-icon">
+    <link rel="stylesheet" href="/css/user.css">
+    <style>
+        /* Admin specific overrides */
+        .sidebar {
+            background: rgba(30, 52, 72, 0.95);
+            color: white;
+        }
+
+        .logo-text {
+            color: white;
+        }
+
+        .nav-links a {
+            color: rgba(255, 255, 255, 0.8);
+        }
+
+        .nav-links a:hover {
+            background: rgba(255, 255, 255, 0.1);
+            color: white;
+        }
+
+        .nav-links a.active {
+            background: linear-gradient(45deg, #ff7b1a, #ffa500);
+            box-shadow: 0 4px 15px rgba(255, 123, 26, 0.4);
+        }
+
+        .header-top {
+            background: #ffffff;
+            border-bottom: 1px solid #e2e8f0;
+        }
+
+        .admin-badge {
+            background: #ff7b1a;
+            color: white;
+            padding: 0.2rem 0.6rem;
+            border-radius: 6px;
+            font-size: 0.75rem;
+            font-weight: 700;
+            margin-right: 1rem;
+        }
+
+        /* Essential Fix for Modals inside Iframes */
+        section {
+            overflow: hidden !important;
+            height: calc(100vh - 70px) !important;
+        }
+
+        #adminIframe {
+            height: 100% !important;
+            width: 100% !important;
+            overflow-y: auto !important;
+        }
+    </style>
+    <!-- Supabase Client Library -->
+    <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
+</head>
+
+<body>
+    <!-- Header with Profile Icon -->
+    <div class="header-top">
+        <!-- Mobile Menu Button -->
+        <button class="mobile-menu-toggle" onclick="toggleMobileMenu()" aria-label="Toggle menu">
+            <span></span>
+            <span></span>
+            <span></span>
+        </button>
+
+        <div class="admin-badge">ADMINISTRATEUR</div>
+
+        <div class="profile-dropdown">
+            <div class="profile-picture" onclick="toggleProfileDropdown()">
+                <i class="fas fa-user-shield"></i>
+            </div>
+            <div class="dropdown-menu" id="profileDropdown">
+                <div class="dropdown-item" onclick="window.location.href='/dashboard'">
+                    <i class="fas fa-user"></i>
+                    <span>Vue Étudiant</span>
+                </div>
+                <div class="dropdown-item" onclick="adminLogout()">
+                    <i class="fas fa-sign-out-alt"></i>
+                    <span>Déconnexion</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Content Wrapper -->
+    <div class="content-wrapper">
+        <!-- Sidebar Navigation -->
+        <div class="sidebar" id="sidebar">
+            <div class="logo">
+                <div class="logo-icon">
+                    <img src="/source/logosynta.png" alt="synta academy" width="55">
+                </div>
+                <span class="logo-text"> Synta Admin</span>
+            </div>
+            <ul class="nav-links">
+                <li><a href="#" onclick="loadAdminPage('overview')" class="active" id="nav-overview">
+                        <div class="nav-icon"><i class="fas fa-chart-line"></i></div>
+                        <span class="nav-text">Vue d'ensemble</span>
+                    </a></li>
+                <li><a href="#" onclick="loadAdminPage('offers')" id="nav-offers">
+                        <div class="nav-icon"><i class="fas fa-tags"></i></div>
+                        <span class="nav-text">Gestion des Offres</span>
+                    </a></li>
+                <li><a href="#" onclick="loadAdminPage('sessions')" id="nav-sessions">
+                        <div class="nav-icon"><i class="fas fa-video"></i></div>
+                        <span class="nav-text">Séances Live</span>
+                    </a></li>
+                <li><a href="#" onclick="loadAdminPage('students')" id="nav-students">
+                        <div class="nav-icon"><i class="fas fa-users"></i></div>
+                        <span class="nav-text">Liste des Étudiants</span>
+                    </a></li>
+                <li><a href="#" onclick="loadAdminPage('settings')" id="nav-settings">
+                        <div class="nav-icon"><i class="fas fa-cog"></i></div>
+                        <span class="nav-text">Configuration</span>
+                    </a></li>
+                <li><a href="#" onclick="loadAdminPage('free-session')" id="nav-free-session">
+                        <div class="nav-icon"><i class="fas fa-rocket"></i></div>
+                        <span class="nav-text">Session Gratuite</span>
+                    </a></li>
+            </ul>
+        </div>
+
+        <!-- Main Content Area -->
+        <section class="main-section">
+            <iframe src="pages/overview.html" name="Principal" id="adminIframe" title="Zone d'administration"></iframe>
+        </section>
+    </div>
+
+    <!-- Scripts -->
+    <script src="/js/authentication.js"></script>
+    <script src="js/admin-auth.js"></script>
+    <script>
+        // Check access immediately
+        document.addEventListener('DOMContentLoaded', async () => {
+            const admin = await checkAdminAccess();
+            if (admin) {
+                console.log('Admin session active');
+            }
+        });
+
+        function loadAdminPage(page) {
+            const iframe = document.getElementById('adminIframe');
+            iframe.src = `pages/${page}.html`;
+
+            // Update active state in nav
+            document.querySelectorAll('.nav-links a').forEach(link => link.classList.remove('active'));
+            document.getElementById(`nav-${page}`).classList.add('active');
+
+            // Close mobile menu if open
+            const sidebar = document.getElementById('sidebar');
+            const toggle = document.querySelector('.mobile-menu-toggle');
+            if (sidebar.classList.contains('active')) {
+                sidebar.classList.remove('active');
+                toggle.classList.remove('active');
+            }
+        }
+
+        function toggleMobileMenu() {
+            const sidebar = document.getElementById('sidebar');
+            const toggle = document.querySelector('.mobile-menu-toggle');
+            sidebar.classList.toggle('active');
+            toggle.classList.toggle('active');
+        }
+
+        function toggleProfileDropdown() {
+            const dropdown = document.getElementById('profileDropdown');
+            dropdown.classList.toggle('active');
+        }
+
+        // Close dropdowns on outside click
+        window.onclick = function (event) {
+            if (!event.target.closest('.profile-dropdown')) {
+                const dropdown = document.getElementById('profileDropdown');
+                if (dropdown && dropdown.classList.contains('active')) {
+                    dropdown.classList.remove('active');
+                }
+            }
+        }
+    </script>
+</body>
+
+</html>

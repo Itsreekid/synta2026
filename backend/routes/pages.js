@@ -54,6 +54,11 @@ router.get("/password-reset.html",  (req, res) => res.redirect(301, "/password-r
 router.get("/pages/auth/login.html",    (req, res) => res.redirect(301, "/login"));
 router.get("/pages/auth/register.html", (req, res) => res.redirect(301, "/register"));
 
+// Admin static redirects
+router.get("/admin",                (req, res) => res.redirect(301, "/admin/login.html"));
+router.get("/admin/login",          (req, res) => res.redirect(301, "/admin/login.html"));
+router.get("/admin/dashboard",      (req, res) => res.redirect(301, "/admin/dashboard.html"));
+
 
 router.get("/accueil", (req, res) => {
   res.sendFile(path.join(__dirname, "../public/Accueil.html"));

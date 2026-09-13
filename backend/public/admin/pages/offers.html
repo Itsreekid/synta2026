@@ -1,0 +1,435 @@
+<!DOCTYPE html>
+<html lang="fr">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gestion des Offres - Admin</title>
+    <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        :root {
+            --primary: #ff7b1a;
+            --secondary: #1E3448;
+            --success: #10b981;
+            --danger: #ef4444;
+            --bg: #f8fafc;
+        }
+
+        body {
+            font-family: 'Tajawal', sans-serif;
+            background: var(--bg);
+            padding: 2rem;
+            color: var(--secondary);
+        }
+
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 2rem;
+        }
+
+        .btn {
+            padding: 0.6rem 1.2rem;
+            border-radius: 8px;
+            font-weight: 600;
+            cursor: pointer;
+            border: none;
+            transition: all 0.2s;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .btn-primary {
+            background: var(--primary);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            opacity: 0.9;
+            transform: translateY(-1px);
+        }
+
+        .offers-list {
+            display: grid;
+            gap: 1rem;
+        }
+
+        .offer-item {
+            background: white;
+            padding: 1.5rem;
+            border-radius: 12px;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .offer-info h3 {
+            font-size: 1.1rem;
+            margin-bottom: 0.25rem;
+        }
+
+        .offer-info p {
+            color: #64748b;
+            font-size: 0.9rem;
+        }
+
+        .offer-price {
+            font-weight: 700;
+            color: var(--success);
+        }
+
+        .actions {
+            display: flex;
+            gap: 0.5rem;
+        }
+
+        .btn-icon {
+            width: 36px;
+            height: 36px;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border: 1px solid #e2e8f0;
+            background: white;
+            color: #64748b;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .btn-icon:hover {
+            border-color: var(--primary);
+            color: var(--primary);
+        }
+
+        /* Modal Styles */
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 1000;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .modal-content {
+            background: white;
+            width: 100%;
+            max-width: 500px;
+            padding: 2rem;
+            border-radius: 16px;
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
+        }
+
+        .form-group {
+            margin-bottom: 1.25rem;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 0.5rem;
+            font-weight: 500;
+            font-size: 0.9rem;
+        }
+
+        input,
+        textarea,
+        select {
+            width: 100%;
+            padding: 0.75rem;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            font-family: inherit;
+        }
+
+        .modal-footer {
+            margin-top: 2rem;
+            display: flex;
+            justify-content: flex-end;
+            gap: 1rem;
+        }
+
+        .loading-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(255, 255, 255, 0.8);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 1100;
+            display: none;
+        }
+
+        .badge {
+            font-size: 0.7rem;
+            padding: 0.2rem 0.5rem;
+            border-radius: 4px;
+            font-weight: 700;
+            margin-left: 0.5rem;
+        }
+
+        .badge-active {
+            background: #dcfce7;
+            color: #16a34a;
+        }
+
+        .badge-inactive {
+            background: #fee2e2;
+            color: #dc2626;
+        }
+    </style>
+</head>
+
+<body>
+    <div id="loading" class="loading-overlay">
+        <div class="spinner"></div>
+    </div>
+
+    <div class="header">
+        <div>
+            <h1>Gestion des Offres</h1>
+            <p>Créez et modifiez les packs de cours</p>
+        </div>
+        <button class="btn btn-primary" onclick="openModal()">
+            <i class="fas fa-plus"></i> Nouvelle Offre
+        </button>
+    </div>
+
+    <div class="offers-list" id="offersList">
+        <!-- Offers will be loaded here -->
+    </div>
+
+    <!-- Modal for Create/Edit -->
+    <div id="offerModal" class="modal">
+        <div class="modal-content">
+            <h2 id="modalTitle">Nouvelle Offre</h2>
+            <form id="offerForm">
+                <input type="hidden" id="offerId">
+                <div class="form-group">
+                    <label>Titre</label>
+                    <input type="text" id="title" required placeholder="Ex: Pack Bac Info Pro">
+                </div>
+                <div class="form-group">
+                    <label>Description</label>
+                    <textarea id="description" rows="3" placeholder="Description de l'offre"></textarea>
+                </div>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+                    <div class="form-group">
+                        <label>Prix (DT)</label>
+                        <input type="number" id="fixed_price" step="0.1" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Réduction (%)</label>
+                        <input type="number" id="discount_percentage" value="0">
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>Statut</label>
+                    <select id="is_active">
+                        <option value="true">Active</option>
+                        <option value="false">Inactive</option>
+                    </select>
+                </div>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+                    <div class="form-group">
+                        <label>Classes Cibles (Séparez par virgule)</label>
+                        <input type="text" id="target_classes" placeholder="ex: bac, 3eme">
+                    </div>
+                    <div class="form-group">
+                        <label>Branches Cibles (Séparez par virgule)</label>
+                        <input type="text" id="target_branches" placeholder="ex: sciences, info">
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn" onclick="closeModal()">Annuler</button>
+                    <button type="submit" class="btn btn-primary">Enregistrer</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Supabase Client Library -->
+    <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
+    <script src="../../authentication.js"></script>
+    <script src="../js/admin-dashboard.js"></script>
+    <script>
+        let allOffers = [];
+        document.addEventListener('DOMContentLoaded', initOffers);
+
+        async function initOffers() {
+            console.log('Initializing Offers page...');
+            showLoader(true);
+            try {
+                // Wait for auth
+                let attempts = 0;
+                while (!window.auth && attempts < 30) {
+                    await new Promise(resolve => setTimeout(resolve, 100));
+                    attempts++;
+                }
+
+                if (!window.auth) {
+                    console.error('Auth system not found after 3 seconds');
+                    return;
+                }
+
+                if (window.AdminDashboard) {
+                    allOffers = await window.AdminDashboard.loadOffers();
+                    console.log('Loaded offers:', allOffers);
+                    renderOffers(allOffers);
+                } else {
+                    console.error('AdminDashboard utility not found');
+                }
+            } catch (error) {
+                console.error('Error during initOffers:', error);
+            } finally {
+                showLoader(false);
+            }
+        }
+
+        function renderOffers(offers) {
+            const container = document.getElementById('offersList');
+            if (offers.length === 0) {
+                container.innerHTML = '<p style="text-align: center; color: #64748b; padding: 2rem;">Aucune offre trouvée.</p>';
+                return;
+            }
+
+            container.innerHTML = offers.map(offer => `
+                <div class="offer-item">
+                    <div class="offer-info">
+                        <h3>${offer.title} 
+                            <span class="badge ${offer.is_active ? 'badge-active' : 'badge-inactive'}">
+                                ${offer.is_active ? 'Active' : 'Inactive'}
+                            </span>
+                        </h3>
+                        <p>${offer.description || 'Pas de description'}</p>
+                    </div>
+                    <div style="display: flex; align-items: center; gap: 2rem;">
+                        <div class="offer-price">${offer.fixed_price} DT</div>
+                        <div class="actions">
+                            <button class="btn-icon edit-btn" data-id="${offer.id}">
+                                <i class="fas fa-edit" style="pointer-events: none;"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        // Global click listener for event delegation
+        document.addEventListener('click', function (e) {
+            const editBtn = e.target.closest('.edit-btn');
+            if (editBtn) {
+                const id = editBtn.getAttribute('data-id');
+                console.log('Event Delegation: Edit clicked for ID:', id);
+                editOffer(id);
+            }
+        });
+
+        function openModal() {
+            console.log('Opening "New Offer" modal');
+            try {
+                document.getElementById('modalTitle').textContent = 'Nouvelle Offre';
+                document.getElementById('offerForm').reset();
+                document.getElementById('offerId').value = '';
+                document.getElementById('target_classes').value = '';
+                document.getElementById('target_branches').value = '';
+
+                const modal = document.getElementById('offerModal');
+                if (!modal) throw new Error('Modal element "offerModal" not found');
+
+                modal.style.display = 'flex';
+                modal.style.zIndex = '9999';
+            } catch (err) {
+                console.error('openModal error:', err);
+                alert('Erreur: ' + err.message);
+            }
+        }
+
+        function closeModal() {
+            document.getElementById('offerModal').style.display = 'none';
+        }
+
+        function editOffer(id) {
+            console.log('Attempting to edit offer ID:', id);
+            try {
+                const offer = allOffers.find(o => String(o.id) === String(id));
+
+                if (!offer) {
+                    console.error('Offer not found local array. ID:', id);
+                    alert('Offre introuvable localement. ID: ' + id);
+                    return;
+                }
+
+                document.getElementById('modalTitle').textContent = 'Modifier l\'offre';
+                document.getElementById('offerId').value = offer.id || '';
+                document.getElementById('title').value = offer.title || '';
+                document.getElementById('description').value = offer.description || '';
+                document.getElementById('fixed_price').value = offer.fixed_price || 0;
+                document.getElementById('discount_percentage').value = offer.discount_percentage || 0;
+                document.getElementById('is_active').value = String(offer.is_active);
+                document.getElementById('target_classes').value = (offer.target_classes || []).join(', ');
+                document.getElementById('target_branches').value = (offer.target_branches || []).join(', ');
+
+                const modal = document.getElementById('offerModal');
+                if (!modal) throw new Error('Modal element "offerModal" not found');
+
+                modal.style.display = 'flex';
+                modal.style.zIndex = '9999';
+                console.log('Modal display set to flex');
+            } catch (err) {
+                console.error('editOffer error:', err);
+                alert('Erreur lors de l\'ouverture: ' + err.message);
+            }
+        }
+
+        document.getElementById('offerForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            console.log('Form submitted');
+            showLoader(true);
+
+            try {
+                const data = {
+                    id: document.getElementById('offerId').value,
+                    title: document.getElementById('title').value,
+                    description: document.getElementById('description').value,
+                    fixed_price: parseFloat(document.getElementById('fixed_price').value),
+                    discount_percentage: parseInt(document.getElementById('discount_percentage').value),
+                    is_active: document.getElementById('is_active').value === 'true',
+                    target_classes: document.getElementById('target_classes').value.split(',').map(s => s.trim().toLowerCase()).filter(s => s !== ''),
+                    target_branches: document.getElementById('target_branches').value.split(',').map(s => s.trim().toLowerCase()).filter(s => s !== '')
+                };
+
+                const result = await window.AdminDashboard.manageOffer(data);
+                if (result.success) {
+                    closeModal();
+                    await initOffers();
+                } else {
+                    alert('Erreur: ' + result.error);
+                }
+            } catch (err) {
+                console.error('Error submitting form:', err);
+                alert('Une erreur est survenue lors de l\'enregistrement.');
+            } finally {
+                showLoader(false);
+            }
+        });
+
+        function showLoader(show) {
+            const loader = document.getElementById('loading');
+            if (loader) loader.style.display = show ? 'flex' : 'none';
+        }
+    </script>
+</body>
+
+</html>

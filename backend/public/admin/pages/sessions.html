@@ -1,0 +1,601 @@
+<!DOCTYPE html>
+<html lang="fr" dir="ltr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gestion des Séances — Admin</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background: #f0f4f8;
+            color: #1a202c;
+            min-height: 100vh;
+        }
+
+        /* ── Page header ── */
+        .page-header {
+            background: linear-gradient(135deg, #1e3448 0%, #2d4a6e 100%);
+            color: white;
+            padding: 1.5rem 2rem;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 1rem;
+        }
+        .page-header h1 { font-size: 1.4rem; font-weight: 700; display: flex; align-items: center; gap: 0.6rem; }
+        .btn-primary {
+            background: linear-gradient(135deg, #ff7b1a, #ffa040);
+            color: white;
+            border: none;
+            padding: 0.65rem 1.4rem;
+            border-radius: 10px;
+            font-weight: 600;
+            font-size: 0.9rem;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            transition: transform 0.15s, box-shadow 0.15s;
+            box-shadow: 0 4px 14px rgba(255,123,26,0.35);
+        }
+        .btn-primary:hover { transform: translateY(-1px); box-shadow: 0 6px 20px rgba(255,123,26,0.45); }
+        .btn-danger {
+            background: #e53e3e; color: white; border: none;
+            padding: 0.4rem 0.85rem; border-radius: 8px; font-size: 0.8rem;
+            cursor: pointer; transition: background 0.15s;
+        }
+        .btn-danger:hover { background: #c53030; }
+        .btn-host {
+            background: linear-gradient(135deg, #38a169, #2f855a); color: white; border: none;
+            padding: 0.4rem 0.85rem; border-radius: 8px; font-size: 0.8rem;
+            cursor: pointer; display: inline-flex; align-items: center; gap: 0.35rem;
+            text-decoration: none; transition: opacity 0.15s;
+        }
+        .btn-host:hover { opacity: 0.88; }
+
+        /* ── Stat cards ── */
+        .stats-row {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 1rem;
+            padding: 1.5rem 2rem 0;
+        }
+        .stat-card {
+            background: white;
+            border-radius: 14px;
+            padding: 1.2rem 1.4rem;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.06);
+            display: flex; flex-direction: column; gap: 0.3rem;
+        }
+        .stat-card .label { font-size: 0.78rem; color: #718096; font-weight: 500; }
+        .stat-card .value { font-size: 1.8rem; font-weight: 700; color: #1e3448; }
+
+        /* ── Session list ── */
+        .content { padding: 1.5rem 2rem; }
+
+        .section-title {
+            font-size: 1rem;
+            font-weight: 700;
+            color: #2d3748;
+            margin-bottom: 1rem;
+            display: flex; align-items: center; gap: 0.5rem;
+        }
+
+        .session-card {
+            background: white;
+            border-radius: 16px;
+            padding: 1.4rem 1.6rem;
+            margin-bottom: 1rem;
+            box-shadow: 0 2px 12px rgba(0,0,0,0.06);
+            border-left: 5px solid #ff7b1a;
+            display: grid;
+            grid-template-columns: 1fr auto;
+            gap: 1rem;
+            align-items: center;
+            transition: box-shadow 0.2s;
+        }
+        .session-card:hover { box-shadow: 0 4px 20px rgba(0,0,0,0.1); }
+        .session-card.live { border-left-color: #38a169; }
+        .session-card.completed { border-left-color: #a0aec0; opacity: 0.75; }
+
+        .session-title { font-weight: 700; font-size: 1rem; color: #1a202c; margin-bottom: 0.4rem; }
+        .session-meta { display: flex; flex-wrap: wrap; gap: 0.6rem; align-items: center; }
+        .meta-chip {
+            background: #edf2f7; color: #4a5568;
+            padding: 0.2rem 0.6rem; border-radius: 6px; font-size: 0.78rem;
+            display: inline-flex; align-items: center; gap: 0.3rem;
+        }
+        .badge-live { background: #c6f6d5; color: #276749; font-weight: 700; }
+        .badge-scheduled { background: #ebf4ff; color: #2b6cb0; }
+        .badge-completed { background: #e2e8f0; color: #718096; }
+        .badge-offer { background: #fef3cd; color: #92400e; }
+
+        .session-actions { display: flex; gap: 0.5rem; flex-shrink: 0; align-items: center; flex-wrap: wrap; justify-content: flex-end; }
+
+        .empty-state {
+            text-align: center; padding: 3rem;
+            background: white; border-radius: 16px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+        }
+        .empty-state i { font-size: 3rem; color: #cbd5e0; margin-bottom: 1rem; display: block; }
+        .empty-state p { color: #718096; }
+
+        /* ── Modal ── */
+        .modal-overlay {
+            display: none; position: fixed; inset: 0;
+            background: rgba(0,0,0,0.55); z-index: 1000;
+            align-items: center; justify-content: center;
+        }
+        .modal-overlay.open { display: flex; }
+        .modal {
+            background: white; border-radius: 20px; padding: 2rem;
+            width: 100%; max-width: 560px; margin: 1rem;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.25);
+            animation: popIn 0.2s ease;
+            max-height: 90vh; overflow-y: auto;
+        }
+        @keyframes popIn { from { transform: scale(0.92); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+        .modal-title { font-size: 1.2rem; font-weight: 700; margin-bottom: 1.5rem; color: #1e3448; display: flex; align-items: center; gap: 0.5rem; }
+        .form-group { margin-bottom: 1.2rem; }
+        .form-group label { display: block; font-size: 0.85rem; font-weight: 600; color: #4a5568; margin-bottom: 0.45rem; }
+        .form-group input,
+        .form-group select,
+        .form-group textarea {
+            width: 100%; padding: 0.7rem 1rem;
+            border: 1.5px solid #e2e8f0; border-radius: 10px;
+            font-size: 0.9rem; font-family: inherit;
+            transition: border-color 0.15s;
+            background: #fafbfc;
+        }
+        .form-group input:focus,
+        .form-group select:focus,
+        .form-group textarea:focus { outline: none; border-color: #ff7b1a; background: white; }
+        .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+        .modal-actions { display: flex; gap: 0.75rem; justify-content: flex-end; margin-top: 1.5rem; }
+        .btn-secondary {
+            background: #edf2f7; color: #4a5568; border: none;
+            padding: 0.65rem 1.4rem; border-radius: 10px;
+            font-weight: 600; font-size: 0.9rem; cursor: pointer;
+        }
+        .btn-secondary:hover { background: #e2e8f0; }
+
+        /* Recurring UI */
+        .day-btn {
+            background: white; border: 1px solid #cbd5e0; padding: 0.4rem 0.8rem;
+            border-radius: 6px; cursor: pointer; font-size: 0.85rem; color: #4a5568;
+            display: flex; align-items: center; gap: 0.4rem; user-select: none;
+        }
+        .day-btn:has(input:checked) {
+            background: #ebf4ff; border-color: #3182ce; color: #2b6cb0; font-weight: 600;
+        }
+        .day-btn input { display: none; }
+
+        /* ── Toast ── */
+        .toast {
+            position: fixed; bottom: 1.5rem; right: 1.5rem;
+            background: #1a202c; color: white; padding: 0.9rem 1.4rem;
+            border-radius: 12px; font-size: 0.9rem; font-weight: 500;
+            box-shadow: 0 8px 25px rgba(0,0,0,0.25);
+            transform: translateY(100px); opacity: 0;
+            transition: all 0.3s ease; z-index: 9999;
+        }
+        .toast.show { transform: translateY(0); opacity: 1; }
+        .toast.success { border-left: 4px solid #38a169; }
+        .toast.error { border-left: 4px solid #e53e3e; }
+
+        .loader { text-align: center; padding: 3rem; color: #a0aec0; font-size: 2rem; }
+    </style>
+</head>
+<body>
+
+<!-- Page Header -->
+<div class="page-header">
+    <h1><i class="fas fa-video"></i> Gestion des Séances Live</h1>
+    <button class="btn-primary" onclick="openCreateModal()">
+        <i class="fas fa-plus"></i> Nouvelle Séance
+    </button>
+</div>
+
+<!-- Stat Cards -->
+<div class="stats-row">
+    <div class="stat-card">
+        <div class="label">Total séances</div>
+        <div class="value" id="stat-total">—</div>
+    </div>
+    <div class="stat-card">
+        <div class="label">À venir</div>
+        <div class="value" id="stat-upcoming">—</div>
+    </div>
+    <div class="stat-card">
+        <div class="label">En direct</div>
+        <div class="value" id="stat-live">—</div>
+    </div>
+    <div class="stat-card">
+        <div class="label">Terminées</div>
+        <div class="value" id="stat-done">—</div>
+    </div>
+</div>
+
+<!-- Sessions List -->
+<div class="content">
+    <div id="sessions-live-section" style="display:none">
+        <div class="section-title"><i class="fas fa-circle" style="color:#38a169;font-size:0.7rem"></i> En direct maintenant</div>
+        <div id="sessions-live"></div>
+    </div>
+
+    <div class="section-title"><i class="fas fa-calendar-alt"></i> Toutes les séances</div>
+    <div id="sessions-list"><div class="loader"><i class="fas fa-spinner fa-spin"></i></div></div>
+</div>
+
+<!-- Create Session Modal -->
+<div class="modal-overlay" id="createModal">
+    <div class="modal">
+        <div class="modal-title"><i class="fas fa-plus-circle" style="color:#ff7b1a"></i> Créer une nouvelle séance</div>
+        <div class="form-group">
+            <label>Titre de la séance *</label>
+            <input type="text" id="f-title" placeholder="Ex: Séance de révision — Algorithmique">
+        </div>
+        <div class="form-row">
+            <div class="form-group">
+                <label>Heure de début *</label>
+                <input type="datetime-local" id="f-datetime">
+            </div>
+            <div class="form-group">
+                <label>Durée (minutes) *</label>
+                <input type="number" id="f-duration" value="90" min="15" max="480">
+            </div>
+        </div>
+        
+        <!-- Recurrence Toggle -->
+        <div class="form-group" style="margin-top: 0.5rem; border-top: 1px solid #e2e8f0; padding-top: 1rem;">
+            <label style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer;">
+                <input type="checkbox" id="f-is-recurring" onchange="toggleRecurrence()" style="width: auto; height: 16px; margin: 0;">
+                <span style="font-size: 0.95rem; font-weight: 600; color: #1e3448;">Répéter cette séance (Réunion périodique)</span>
+            </label>
+        </div>
+
+        <div id="recurrence-options" style="display: none; background: #fafbfc; padding: 1rem; border-radius: 10px; margin-bottom: 1.2rem; border: 1px solid #e2e8f0;">
+            <label style="display: block; font-size: 0.85rem; font-weight: 600; color: #4a5568; margin-bottom: 0.6rem;">Jours de la semaine *</label>
+            <div style="display: flex; gap: 0.5rem; flex-wrap: wrap; margin-bottom: 1rem;" id="f-days">
+                <label class="day-btn"><input type="checkbox" value="1"> Lun</label>
+                <label class="day-btn"><input type="checkbox" value="2"> Mar</label>
+                <label class="day-btn"><input type="checkbox" value="3"> Mer</label>
+                <label class="day-btn"><input type="checkbox" value="4"> Jeu</label>
+                <label class="day-btn"><input type="checkbox" value="5"> Ven</label>
+                <label class="day-btn"><input type="checkbox" value="6"> Sam</label>
+                <label class="day-btn"><input type="checkbox" value="0"> Dim</label>
+            </div>
+            
+            <label style="display: block; font-size: 0.85rem; font-weight: 600; color: #4a5568; margin-bottom: 0.45rem;">Répéter pendant combien de semaines ? *</label>
+            <input type="number" id="f-weeks" value="4" min="1" max="12" style="width: 100px;">
+        </div>
+        
+        <div class="form-group">
+            <label>Offre requise <span style="color:#718096;font-weight:400">(laisser vide = accès libre aux inscrits)</span></label>
+            <select id="f-offer">
+                <option value="">— Accès libre pour les inscrits du cours —</option>
+            </select>
+        </div>
+        <div class="form-group">
+            <label>Cours associé *</label>
+            <select id="f-course">
+                <option value="">Chargement…</option>
+            </select>
+        </div>
+        <div class="form-group">
+            <label>Description (optionnel)</label>
+            <textarea id="f-desc" rows="2" placeholder="Thèmes abordés, matériel nécessaire…"></textarea>
+        </div>
+        <div class="modal-actions">
+            <button class="btn-secondary" onclick="closeCreateModal()">Annuler</button>
+            <button class="btn-primary" onclick="createSession()" id="createBtn">
+                <i class="fas fa-video"></i> Créer & Planifier sur Zoom
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- Toast -->
+<div class="toast" id="toast"></div>
+
+<script>
+const API = window.location.origin;
+
+// ── Data ──────────────────────────────────────────────────────────────
+let allSessions = [];
+let allOffers = [];
+let allCourses = [];
+
+// ── Init ──────────────────────────────────────────────────────────────
+document.addEventListener('DOMContentLoaded', async () => {
+    // Pre-set datetime to next round hour
+    const now = new Date();
+    now.setHours(now.getHours() + 1, 0, 0, 0);
+    document.getElementById('f-datetime').value = now.toISOString().slice(0, 16);
+
+    await Promise.all([loadSessions(), loadOffers(), loadCourses()]);
+});
+
+// ── Load Sessions ─────────────────────────────────────────────────────
+async function loadSessions() {
+    try {
+        const { data: { session } } = await window.parent.auth.supabase.auth.getSession();
+        const token = session?.access_token;
+        
+        const res = await fetch(`${API}/api/live/admin/sessions`, { 
+            headers: { 'Authorization': `Bearer ${token}` },
+            credentials: 'include' 
+        });
+        if (res.status === 401) { document.getElementById('sessions-list').innerHTML = '<div class="empty-state"><i class="fas fa-lock"></i><p>Accès réservé aux administrateurs.</p></div>'; return; }
+        allSessions = await res.json();
+        renderSessions();
+    } catch (e) {
+        document.getElementById('sessions-list').innerHTML = '<div class="empty-state"><i class="fas fa-exclamation-triangle"></i><p>Erreur de chargement.</p></div>';
+    }
+}
+
+// ── Render ────────────────────────────────────────────────────────────
+function renderSessions() {
+    const now = new Date();
+    const live = allSessions.filter(s => {
+        const start = new Date(s.scheduled_at);
+        const end = new Date(start.getTime() + s.duration_minutes * 60000);
+        return now >= start && now <= end;
+    });
+    const upcoming = allSessions.filter(s => new Date(s.scheduled_at) > now);
+    const done = allSessions.filter(s => {
+        const start = new Date(s.scheduled_at);
+        const end = new Date(start.getTime() + s.duration_minutes * 60000);
+        return now > end;
+    });
+
+    // Stats
+    document.getElementById('stat-total').textContent = allSessions.length;
+    document.getElementById('stat-upcoming').textContent = upcoming.length;
+    document.getElementById('stat-live').textContent = live.length;
+    document.getElementById('stat-done').textContent = done.length;
+
+    // Live section
+    const liveSection = document.getElementById('sessions-live-section');
+    const liveContainer = document.getElementById('sessions-live');
+    if (live.length > 0) {
+        liveSection.style.display = 'block';
+        liveContainer.innerHTML = live.map(s => renderCard(s, 'live')).join('');
+    } else {
+        liveSection.style.display = 'none';
+    }
+
+    // All sessions sorted by date desc
+    const list = document.getElementById('sessions-list');
+    if (allSessions.length === 0) {
+        list.innerHTML = '<div class="empty-state"><i class="fas fa-calendar-times"></i><p>Aucune séance planifiée. Créez votre première séance !</p></div>';
+        return;
+    }
+
+    const sorted = [...allSessions].sort((a, b) => new Date(b.scheduled_at) - new Date(a.scheduled_at));
+    list.innerHTML = sorted.map(s => {
+        const start = new Date(s.scheduled_at);
+        const end = new Date(start.getTime() + s.duration_minutes * 60000);
+        const isLive = now >= start && now <= end;
+        const isDone = now > end;
+        return renderCard(s, isLive ? 'live' : isDone ? 'completed' : 'scheduled');
+    }).join('');
+}
+
+function renderCard(s, status) {
+    const start = new Date(s.scheduled_at);
+    const dateStr = start.toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+    const timeStr = start.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
+
+    const statusBadge = status === 'live'
+        ? '<span class="meta-chip badge-live"><i class="fas fa-circle" style="font-size:0.5rem"></i> EN DIRECT</span>'
+        : status === 'completed'
+        ? '<span class="meta-chip badge-completed"><i class="fas fa-check"></i> Terminée</span>'
+        : '<span class="meta-chip badge-scheduled"><i class="fas fa-clock"></i> Planifiée</span>';
+
+    const offerBadge = s.offer_id
+        ? `<span class="meta-chip badge-offer"><i class="fas fa-ticket-alt"></i> Offre requise</span>`
+        : '<span class="meta-chip"><i class="fas fa-users"></i> Inscrits au cours</span>';
+
+    const hostBtn = s.zoom_start_url
+        ? `<a href="${s.zoom_start_url}" target="_blank" class="btn-host"><i class="fas fa-video"></i> Lancer (Hôte)</a>`
+        : '<span class="meta-chip" style="color:#e53e3e"><i class="fas fa-exclamation"></i> Pas de lien Zoom</span>';
+
+    return `
+    <div class="session-card ${status}" id="card-${s.id}">
+        <div>
+            <div class="session-title">${escT(s.title)}</div>
+            <div class="session-meta">
+                ${statusBadge}
+                <span class="meta-chip"><i class="fas fa-calendar"></i> ${dateStr}</span>
+                <span class="meta-chip"><i class="fas fa-clock"></i> ${timeStr} · ${s.duration_minutes} min</span>
+                ${s.course ? `<span class="meta-chip"><i class="fas fa-book"></i> ${escT(s.course.title)}</span>` : ''}
+                ${offerBadge}
+                ${s.zoom_meeting_id ? `<span class="meta-chip" style="color:#718096;font-size:0.72rem">Meeting ID: ${escT(s.zoom_meeting_id)}</span>` : ''}
+            </div>
+        </div>
+        <div class="session-actions">
+            ${hostBtn}
+            ${status !== 'completed' ? `<button class="btn-danger" onclick="deleteSession('${s.id}')"><i class="fas fa-trash"></i></button>` : ''}
+        </div>
+    </div>`;
+}
+
+// ── Load Offers & Courses for form dropdowns ──────────────────────────
+async function loadOffers() {
+    try {
+        const res = await fetch(`${API}/api/offers`, { credentials: 'include' });
+        const data = await res.json();
+        allOffers = data.offers || [];
+        const sel = document.getElementById('f-offer');
+        allOffers.forEach(o => {
+            const opt = document.createElement('option');
+            opt.value = o.id;
+            opt.textContent = `${o.title} (${o.fixed_price || o.price || 0} DT)`;
+            sel.appendChild(opt);
+        });
+    } catch (e) { console.warn('Could not load offers:', e.message); }
+}
+
+async function loadCourses() {
+    try {
+        const res = await fetch(`${API}/api/courses`, { credentials: 'include' });
+        const data = await res.json();
+        const courses = Array.isArray(data) ? data : (data.courses || []);
+        allCourses = courses;
+        const sel = document.getElementById('f-course');
+        sel.innerHTML = '<option value="">— Sélectionner un cours —</option>';
+        courses.forEach(c => {
+            const opt = document.createElement('option');
+            opt.value = c.id;
+            opt.textContent = c.title;
+            sel.appendChild(opt);
+        });
+    } catch (e) {
+        document.getElementById('f-course').innerHTML = '<option value="">Erreur de chargement</option>';
+    }
+}
+
+// ── Create Session ─────────────────────────────────────────────────────
+async function createSession() {
+    const title = document.getElementById('f-title').value.trim();
+    const datetimeVal = document.getElementById('f-datetime').value;
+    const duration = parseInt(document.getElementById('f-duration').value);
+    const courseId = document.getElementById('f-course').value;
+    const offerId = document.getElementById('f-offer').value;
+    const description = document.getElementById('f-desc').value.trim();
+
+    if (!title) return showToast('Veuillez entrer un titre.', 'error');
+    if (!datetimeVal) return showToast('Veuillez choisir une date/heure.', 'error');
+    if (!courseId) return showToast('Veuillez sélectionner un cours.', 'error');
+
+    // Handle Dates calculation
+    const isRecurring = document.getElementById('f-is-recurring').checked;
+    let startTimes = [];
+    const baseDate = new Date(datetimeVal);
+
+    if (isRecurring) {
+        const weeks = parseInt(document.getElementById('f-weeks').value) || 1;
+        const selectedDays = Array.from(document.querySelectorAll('#f-days input:checked')).map(cb => parseInt(cb.value));
+        
+        if (selectedDays.length === 0) return showToast('Veuillez sélectionner au moins un jour.', 'error');
+        
+        // Calculate all dates for the next N weeks
+        for (let w = 0; w < weeks; w++) {
+            for (const day of selectedDays) {
+                let d = new Date(baseDate);
+                const currentDay = d.getDay();
+                
+                // Diff to target day
+                let diff = day - currentDay;
+                if (diff < 0) diff += 7; // Get next occurrence in the week
+                
+                d.setDate(d.getDate() + diff + (w * 7));
+                
+                // Make sure we don't schedule in the past compared to the base time
+                // If it's the exact same week but an earlier day, it bumps to next occurrence logically,
+                // but our simple diff logic handled it (if diff < 0 it added 7). So it's always future.
+                startTimes.push(d.toISOString());
+            }
+        }
+        
+        // Sort chronologically
+        startTimes.sort((a, b) => new Date(a) - new Date(b));
+    } else {
+        startTimes.push(baseDate.toISOString());
+    }
+
+    const btn = document.getElementById('createBtn');
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Création en cours…';
+
+    try {
+        const { data: { session } } = await window.parent.auth.supabase.auth.getSession();
+        const token = session?.access_token;
+        
+        const res = await fetch(`${API}/api/live/schedule`, {
+            method: 'POST',
+            headers: { 
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+            },
+            credentials: 'include',
+            body: JSON.stringify({
+                courseId,
+                offerId: offerId || null,
+                title,
+                description,
+                startTimes,
+                durationMinutes: duration,
+            })
+        });
+
+        const data = await res.json();
+
+        if (!res.ok) throw new Error(data.error || 'Erreur serveur');
+
+        closeCreateModal();
+        showToast('✅ Séance créée et planifiée sur Zoom !', 'success');
+        await loadSessions();
+    } catch (e) {
+        showToast(`❌ ${e.message}`, 'error');
+    } finally {
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fas fa-video"></i> Créer & Planifier sur Zoom';
+    }
+}
+
+// ── Delete Session ─────────────────────────────────────────────────────
+async function deleteSession(sessionId) {
+    if (!confirm('Supprimer cette séance ? La réunion Zoom sera aussi annulée.')) return;
+
+    try {
+        const { data: { session } } = await window.parent.auth.supabase.auth.getSession();
+        const token = session?.access_token;
+        
+        const res = await fetch(`${API}/api/live/${sessionId}`, {
+            method: 'DELETE',
+            headers: { 'Authorization': `Bearer ${token}` },
+            credentials: 'include',
+        });
+        if (!res.ok) { const d = await res.json(); throw new Error(d.error); }
+        showToast('Séance supprimée.', 'success');
+        allSessions = allSessions.filter(s => s.id !== sessionId);
+        renderSessions();
+    } catch (e) {
+        showToast(`Erreur: ${e.message}`, 'error');
+    }
+}
+
+// ── Modal helpers ──────────────────────────────────────────────────────
+function toggleRecurrence() {
+    const isChecked = document.getElementById('f-is-recurring').checked;
+    document.getElementById('recurrence-options').style.display = isChecked ? 'block' : 'none';
+}
+
+function openCreateModal() { document.getElementById('createModal').classList.add('open'); }
+function closeCreateModal() { document.getElementById('createModal').classList.remove('open'); }
+document.getElementById('createModal').addEventListener('click', e => { if (e.target.id === 'createModal') closeCreateModal(); });
+
+// ── Toast ──────────────────────────────────────────────────────────────
+function showToast(msg, type = 'success') {
+    const t = document.getElementById('toast');
+    t.textContent = msg;
+    t.className = `toast ${type} show`;
+    setTimeout(() => t.classList.remove('show'), 3500);
+}
+
+// ── XSS-safe text escape ───────────────────────────────────────────────
+function escT(str) {
+    const d = document.createElement('div');
+    d.textContent = str || '';
+    return d.innerHTML;
+}
+</script>
+</body>
+</html>
