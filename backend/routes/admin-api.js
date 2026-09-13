@@ -74,7 +74,7 @@ router.get("/api/admin/students", requireAdmin, async (req, res) => {
   try {
     const { page = 1, pageSize = 10, searchTerm = "", classFilter = "", branchFilter = "" } = req.query;
     
-    let queryStr = `SELECT id, name, email, phone, user_class, user_branch, balance, created_at FROM users WHERE role = 'user'`;
+    let queryStr = `SELECT id, name as fullname, email, phone as number, user_class as class, user_branch as branch, balance, created_at FROM users WHERE role = 'user'`;
     let countStr = `SELECT count(*) FROM users WHERE role = 'user'`;
     let params = [];
     let paramIndex = 1;

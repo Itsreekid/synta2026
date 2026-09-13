@@ -324,11 +324,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 // ── Load Sessions ─────────────────────────────────────────────────────
 async function loadSessions() {
     try {
-        const { data: { session } } = await window.parent.auth.supabase.auth.getSession();
-        const token = session?.access_token;
-        
         const res = await fetch(`${API}/api/live/admin/sessions`, { 
-            headers: { 'Authorization': `Bearer ${token}` },
             credentials: 'include' 
         });
         if (res.status === 401) { document.getElementById('sessions-list').innerHTML = '<div class="empty-state"><i class="fas fa-lock"></i><p>Accès réservé aux administrateurs.</p></div>'; return; }
@@ -515,14 +511,10 @@ async function createSession() {
     btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Création en cours…';
 
     try {
-        const { data: { session } } = await window.parent.auth.supabase.auth.getSession();
-        const token = session?.access_token;
-        
         const res = await fetch(`${API}/api/live/schedule`, {
             method: 'POST',
             headers: { 
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${token}`
+                'Content-Type': 'application/json'
             },
             credentials: 'include',
             body: JSON.stringify({
@@ -555,12 +547,8 @@ async function deleteSession(sessionId) {
     if (!confirm('Supprimer cette séance ? La réunion Zoom sera aussi annulée.')) return;
 
     try {
-        const { data: { session } } = await window.parent.auth.supabase.auth.getSession();
-        const token = session?.access_token;
-        
         const res = await fetch(`${API}/api/live/${sessionId}`, {
             method: 'DELETE',
-            headers: { 'Authorization': `Bearer ${token}` },
             credentials: 'include',
         });
         if (!res.ok) { const d = await res.json(); throw new Error(d.error); }
