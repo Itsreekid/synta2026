@@ -1,12 +1,9 @@
 // User Page JavaScript
 
 document.addEventListener('DOMContentLoaded', function () {
-    // Check authentication on page load
-    checkAuthentication();
-
-    // Load user balance from database
-    loadUserBalance();
-
+    // Note: Authentication is handled server-side. 
+    // User balance is pre-rendered in HTML by EJS.
+    
     // Update notification badge with event count
     updateNotificationBadge();
 
@@ -48,73 +45,7 @@ document.addEventListener('DOMContentLoaded', function () {
     });
 });
 
-// Load user balance from Supabase
-async function loadUserBalance() {
-    try {
-        // Wait for Supabase client to be initialized
-        let attempts = 0;
-        const maxAttempts = 20;
 
-        while (!window.supabaseClient && attempts < maxAttempts) {
-            await new Promise(resolve => setTimeout(resolve, 100));
-            attempts++;
-        }
-
-        if (!window.supabaseClient) {
-            console.error('Supabase client not initialized after waiting');
-            return;
-        }
-
-        // Get current user
-        const { data: { user }, error: userError } = await window.supabaseClient.auth.getUser();
-
-        if (userError || !user) {
-            console.error('Error getting user:', userError);
-            return;
-        }
-
-        console.log('Fetching balance for user:', user.id);
-
-        // Fetch user balance from Users table (note: capital U)
-        const { data, error } = await window.supabaseClient
-            .from('Users')
-            .select('balance')
-            .eq('id', user.id)
-            .single();
-
-        if (error) {
-            console.error('Error fetching balance:', error);
-            console.error('Error details:', error.message, error.code, error.hint);
-            console.error('Full error:', JSON.stringify(error, null, 2));
-
-            // Show helpful message if it's a permission error
-            if (error.code === 'PGRST116' || error.message?.includes('policy')) {
-                console.error('⚠️ PERMISSION ERROR: RLS policy may be blocking access to Users table.');
-                console.error('Please run the fix-users-rls.sql file in your Supabase SQL Editor.');
-            }
-            return;
-        }
-
-        console.log('Balance data received:', data);
-
-        // Update the balance display
-        const balanceElement = document.getElementById('userBalance');
-        if (balanceElement) {
-            if (data && typeof data.balance !== 'undefined') {
-                const balance = data.balance || 0;
-                balanceElement.textContent = balance.toFixed(2);
-                console.log('✅ Balance loaded successfully:', balance);
-            } else {
-                console.warn('No balance data found, keeping default 0.00');
-            }
-        } else {
-            console.error('Balance element not found in DOM');
-        }
-
-    } catch (error) {
-        console.error('Error loading user balance:', error);
-    }
-}
 
 // Toggle profile dropdown
 function toggleProfileDropdown() {
@@ -293,65 +224,7 @@ function updateActiveNavigation(pageName) {
     }
 }
 
-// Authentication check
-async function checkAuthentication() {
-    try {
-        // Wait for authentication to initialize
-        let attempts = 0;
-        const maxAttempts = 10;
 
-        while (!window.auth && attempts < maxAttempts) {
-            await new Promise(resolve => setTimeout(resolve, 100));
-            attempts++;
-        }
-
-        if (!window.auth) {
-            console.error('Authentication not initialized');
-            redirectToLogin();
-            return;
-        }
-
-        // Check if user is authenticated
-        const isAuth = await window.auth.isAuthenticated();
-        console.log('Authentication status:', isAuth);
-
-        if (!isAuth) {
-            console.log('User not authenticated, redirecting to login...');
-            showAuthMessage('يرجى تسجيل الدخول للوصول إلى هذه الصفحة...');
-            setTimeout(() => {
-                redirectToLogin();
-            }, 2000);
-            return;
-        }
-
-        // User is authenticated, load user data
-        try {
-            const authResult = await window.auth.getCurrentUser();
-            if (authResult.success && authResult.user) {
-                console.log('User authenticated:', authResult.user.email);
-                // Update welcome message with user's name if needed
-                updateUserInfo(authResult.user);
-            }
-        } catch (error) {
-            console.error('Error getting user data:', error);
-        }
-
-    } catch (error) {
-        console.error('Authentication check error:', error);
-        redirectToLogin();
-    }
-}
-
-// Update user information
-function updateUserInfo(user) {
-    const displayName = user.user_metadata?.full_name || user.email?.split('@')[0] || 'المستخدم';
-
-    // Update any user-specific elements on the page
-    const welcomeElements = document.querySelectorAll('.welcome-name, .user-name');
-    welcomeElements.forEach(element => {
-        element.textContent = displayName;
-    });
-}
 
 // Logout function
 async function logout() {
@@ -379,7 +252,7 @@ async function logout() {
 
 // Redirect to login page
 function redirectToLogin() {
-    window.location.href = '../index.html';
+    window.location.href = '/login';
 }
 
 // Show authentication message

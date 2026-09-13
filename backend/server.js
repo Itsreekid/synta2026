@@ -125,6 +125,22 @@ app.get("/health", (req, res) => {
   res.json({ status: "healthy", timestamp: new Date().toISOString() });
 });
 
+import fs from "fs";
+import pool from "./config/db.js";
+
+// TEMPORARY ENDPOINT TO INITIALIZE THE DATABASE SCHEMA
+app.get("/api/admin/init-db", async (req, res) => {
+  try {
+    const schemaPath = path.join(__dirname, "..", "database", "schema_postgres.sql");
+    const sql = fs.readFileSync(schemaPath, "utf8");
+    await pool.query(sql);
+    res.send("<h1>Database initialized successfully!</h1><p>You can now login.</p>");
+  } catch (error) {
+    console.error("Error initializing DB:", error);
+    res.status(500).send(`<h1>Error initializing DB</h1><pre>${error.message}</pre>`);
+  }
+});
+
 // Auth cookie routes (must come before page routes)
 app.use(authApiRoutes);
 
