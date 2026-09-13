@@ -34,6 +34,27 @@ router.get("/", (req, res) => {
   res.sendFile(path.join(__dirname, "../public/index.html"));
 });
 
+// --------------------------------------------------
+// LEGACY .HTML REDIRECTS
+// Old Supabase-era static URLs → new EJS routes
+// --------------------------------------------------
+router.get("/user.html",            (req, res) => res.redirect(301, "/dashboard"));
+router.get("/dashboard.html",       (req, res) => res.redirect(301, "/dashboard"));
+router.get("/login.html",           (req, res) => res.redirect(301, "/login"));
+router.get("/register.html",        (req, res) => res.redirect(301, "/register"));
+router.get("/courses.html",         (req, res) => res.redirect(301, "/app/courses"));
+router.get("/course-details.html",  (req, res) => res.redirect(301, "/app/course-details"));
+router.get("/profile.html",         (req, res) => res.redirect(301, "/app/profile"));
+router.get("/paiement.html",        (req, res) => res.redirect(301, "/app/paiement"));
+router.get("/offers.html",          (req, res) => res.redirect(301, "/app/offers"));
+router.get("/contact.html",         (req, res) => res.redirect(301, "/app/contact"));
+router.get("/password-reset.html",  (req, res) => res.redirect(301, "/password-reset"));
+
+// Old nested paths (pages/auth/...)
+router.get("/pages/auth/login.html",    (req, res) => res.redirect(301, "/login"));
+router.get("/pages/auth/register.html", (req, res) => res.redirect(301, "/register"));
+
+
 router.get("/accueil", (req, res) => {
   res.sendFile(path.join(__dirname, "../public/Accueil.html"));
 });

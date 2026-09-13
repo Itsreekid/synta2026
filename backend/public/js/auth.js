@@ -113,7 +113,7 @@ async function handleLogin(e) {
         if (result.success) {
             showMessage('تم تسجيل الدخول بنجاح!', 'success');
             setTimeout(() => {
-                window.location.href = '../../user.html';
+                window.location.href = '/dashboard';
             }, 1500);
         } else {
             showMessage(result.message, 'error');
@@ -213,81 +213,16 @@ async function handleRegister(e) {
                     currency: 'TND'
                 });
             }
-            
-            // Show success popup
-            const popup = document.createElement('div');
-            popup.className = 'success-popup';
-            popup.innerHTML = `
-                <div class="popup-content">
-                    <div class="popup-icon">✅</div>
-                    <h3>تم إنشاء الحساب بنجاح!</h3>
-                    <p>يمكنك الآن تسجيل الدخول باستخدام بريدك الإلكتروني وكلمة المرور</p>
-                    <button onclick="window.location.href='login.html'" class="popup-button">تسجيل الدخول</button>
-                </div>
-            `;
-            document.body.appendChild(popup);
 
-            // Add styles for the popup
-            const style = document.createElement('style');
-            style.textContent = `
-                .success-popup {
-                    position: fixed;
-                    top: 0;
-                    left: 0;
-                    width: 100%;
-                    height: 100%;
-                    background: rgba(0, 0, 0, 0.5);
-                    display: flex;
-                    justify-content: center;
-                    align-items: center;
-                    z-index: 10000;
-                    animation: fadeIn 0.3s ease-out;
-                }
-                .popup-content {
-                    background: white;
-                    padding: 2rem;
-                    border-radius: 15px;
-                    text-align: center;
-                    max-width: 400px;
-                    width: 90%;
-                    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
-                }
-                .popup-icon {
-                    font-size: 3rem;
-                    margin-bottom: 1rem;
-                }
-                .popup-content h3 {
-                    color: #2ecc71;
-                    margin-bottom: 1rem;
-                    font-size: 1.5rem;
-                }
-                .popup-content p {
-                    color: #666;
-                    margin-bottom: 1.5rem;
-                    line-height: 1.5;
-                }
-                .popup-button {
-                    background: #2ecc71;
-                    color: white;
-                    border: none;
-                    padding: 0.8rem 2rem;
-                    border-radius: 8px;
-                    font-size: 1rem;
-                    cursor: pointer;
-                    transition: background 0.3s ease;
-                }
-                .popup-button:hover {
-                    background: #27ae60;
-                }
-                @keyframes fadeIn {
-                    from { opacity: 0; }
-                    to { opacity: 1; }
-                }
-            `;
-            document.head.appendChild(style);
-
-            // Clear form
+            // The backend already set session cookies on /api/auth/register,
+            // so the user is fully logged in. Show a brief success message
+            // then redirect straight to the dashboard — no manual login needed.
+            showMessage('تم إنشاء الحساب بنجاح! جاري التحويل إلى لوحة التحكم...', 'success');
             e.target.reset();
+
+            setTimeout(() => {
+                window.location.href = '/dashboard';
+            }, 1500);
         } else {
             showMessage(result.message, 'error');
         }
