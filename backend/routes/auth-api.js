@@ -36,7 +36,7 @@ function signRefreshToken(userId) {
  */
 router.post("/api/auth/register", async (req, res) => {
   try {
-    const { email, password, name, phone } = req.body;
+    const { email, password, name, phone, class: userClass, branch } = req.body;
 
     if (!email || !password || !name) {
       return res.status(400).json({ error: "email, password, and name are required" });
@@ -55,10 +55,10 @@ router.post("/api/auth/register", async (req, res) => {
     const passwordHash = await bcrypt.hash(password, SALT_ROUNDS);
 
     const result = await pool.query(
-      `INSERT INTO users (email, password_hash, name, phone, role)
-       VALUES ($1, $2, $3, $4, 'user')
+      `INSERT INTO users (email, password_hash, name, phone, class, branch, role)
+       VALUES ($1, $2, $3, $4, $5, $6, 'user')
        RETURNING id, email, name, role`,
-      [email.toLowerCase().trim(), passwordHash, name.trim(), phone?.trim() || null]
+      [email.toLowerCase().trim(), passwordHash, name.trim(), phone?.trim() || null, userClass?.trim() || null, branch?.trim() || null]
     );
 
     const user = result.rows[0];

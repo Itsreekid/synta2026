@@ -14,14 +14,50 @@ router.get("/api/user/me", authApiMiddleware, async (req, res) => {
   try {
     const userId = req.user.id;
     const result = await pool.query(
-      `SELECT id, email, name, role FROM users WHERE id = $1`,
+      `SELECT id, email, name, role, phone, class, branch FROM users WHERE id = $1`,
       [userId]
     );
     if (result.rowCount === 0) return res.status(401).json({ error: "User not found" });
-    return res.json({ success: true, user: result.rows[0] });
+    const user = result.rows[0];
+    
+    // Format to match old Supabase user object for frontend compatibility
+    const formattedUser = {
+      id: user.id,
+      email: user.email,
+      role: user.role,
+      user_metadata: {
+        full_name: user.name,
+        phone: user.phone,
+        user_class: user.class,
+        user_branch: user.branch
+      }
+    };
+    
+    return res.json({ success: true, user: formattedUser });
   } catch (err) {
     console.error("[user/me] Error:", err.message);
     return res.status(500).json({ error: "Failed to load user" });
+  }
+});
+
+/**
+ * PUT /api/user/me
+ * Update user profile
+ */
+router.put("/api/user/me", authApiMiddleware, async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const { full_name, phone, user_class, user_branch } = req.body;
+    
+    await pool.query(
+      `UPDATE users SET name = COALESCE($1, name), phone = COALESCE($2, phone), class = COALESCE($3, class), branch = COALESCE($4, branch) WHERE id = $5`,
+      [full_name, phone, user_class, user_branch, userId]
+    );
+    
+    return res.json({ success: true });
+  } catch (err) {
+    console.error("[user/me] Update Error:", err.message);
+    return res.status(500).json({ error: "Failed to update user profile" });
   }
 });
 

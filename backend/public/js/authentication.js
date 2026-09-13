@@ -125,6 +125,22 @@
         }
     }
 
+    async function updateProfile(updates) {
+        try {
+            const response = await fetch('/api/user/me', {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(updates)
+            });
+            if (response.ok) {
+                return { success: true };
+            }
+            return { success: false, error: 'Update failed' };
+        } catch (error) {
+            return { success: false, error: 'Network error' };
+        }
+    }
+
     // Expose public API
     window.auth = {
         signUp,
@@ -132,6 +148,7 @@
         signOut,
         resetPassword,
         getCurrentUser,
+        updateProfile,
         isInitialized: () => true
     };
 
