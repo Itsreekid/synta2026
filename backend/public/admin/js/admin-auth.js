@@ -26,7 +26,7 @@ async function checkAdminAccess() {
         }
 
         // 3. Verify admin role
-        const role = result.user.user_metadata?.role || 'student';
+        const role = result.user.role || 'student';
         if (role !== 'admin') {
             console.warn('Access denied: User is not an admin');
             // Redirect to main site

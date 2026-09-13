@@ -113,11 +113,16 @@
     }
 
     async function getCurrentUser() {
-        // We rely on HttpOnly cookies, so the client doesn't hold the token.
-        // We can check if `synta_user` is in localStorage, or hit a `/api/user/me` endpoint.
-        // For the login page's `checkIfAlreadyLoggedIn`, we'll just return null so it doesn't loop.
-        // The EJS template already redirects logged-in users away from /login.
-        return { success: true, user: null };
+        try {
+            const response = await fetch('/api/user/me');
+            if (response.ok) {
+                const data = await response.json();
+                return { success: true, user: data.user };
+            }
+            return { success: true, user: null };
+        } catch (error) {
+            return { success: true, user: null };
+        }
     }
 
     // Expose public API

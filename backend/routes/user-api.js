@@ -8,6 +8,24 @@ import { authApiMiddleware } from "../middleware/requireAuth.js";
 const router = express.Router();
 
 /**
+ * GET /api/user/me
+ */
+router.get("/api/user/me", authApiMiddleware, async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const result = await pool.query(
+      `SELECT id, email, name, role FROM users WHERE id = $1`,
+      [userId]
+    );
+    if (result.rowCount === 0) return res.status(401).json({ error: "User not found" });
+    return res.json({ success: true, user: result.rows[0] });
+  } catch (err) {
+    console.error("[user/me] Error:", err.message);
+    return res.status(500).json({ error: "Failed to load user" });
+  }
+});
+
+/**
  * GET /api/user/stats
  */
 router.get("/api/user/stats", authApiMiddleware, async (req, res) => {

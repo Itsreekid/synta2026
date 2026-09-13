@@ -245,7 +245,7 @@
                 if (result.success) {
                     // Check if it's an admin
                     const user = result.user;
-                    const role = user.user_metadata?.role || 'student';
+                    const role = user.role || 'student';
 
                     if (role === 'admin') {
                         message.className = 'message success';
