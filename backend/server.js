@@ -141,6 +141,26 @@ app.get("/api/admin/init-db", async (req, res) => {
   }
 });
 
+// TEMPORARY ENDPOINT TO PROMOTE A USER TO ADMIN
+app.get("/api/admin/promote", async (req, res) => {
+  try {
+    const email = req.query.email;
+    if (!email) {
+      return res.send("<h1>Error</h1><p>Please provide an email in the URL, like this: <code>/api/admin/promote?email=your@email.com</code></p>");
+    }
+    const result = await pool.query("UPDATE users SET role = 'admin' WHERE email = $1 RETURNING id", [email.toLowerCase().trim()]);
+    
+    if (result.rowCount === 0) {
+      return res.send(`<h1>User not found!</h1><p>No account exists with the email <strong>${email}</strong>. Please register first.</p>`);
+    }
+    
+    res.send(`<h1>Success! 🎉</h1><p><strong>${email}</strong> has been promoted to an admin.</p><p>If you are currently logged in, please <strong>log out and log back in</strong> to apply the changes, then go to <a href="/admin/login">Admin Portal</a>.</p>`);
+  } catch (error) {
+    console.error("Error promoting user:", error);
+    res.status(500).send(`<h1>Error promoting user</h1><pre>${error.message}</pre>`);
+  }
+});
+
 // Auth cookie routes (must come before page routes)
 app.use(authApiRoutes);
 
