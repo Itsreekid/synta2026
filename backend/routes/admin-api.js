@@ -13,7 +13,7 @@ router.get("/api/admin/overview-stats", requireAdmin, async (req, res) => {
   try {
     const studentResult = await pool.query(`SELECT count(*) FROM users WHERE role = 'user'`);
     const offerResult = await pool.query(`SELECT count(*) FROM offers`);
-    const revenueResult = await pool.query(`SELECT COALESCE(SUM(amount), 0) as total FROM payments WHERE status = 'completed'`);
+    const revenueResult = await pool.query(`SELECT COALESCE(SUM(amount), 0) as total FROM purchases WHERE payment_status = 'completed'`);
     
     return res.json({
       success: true,
@@ -74,7 +74,7 @@ router.get("/api/admin/students", requireAdmin, async (req, res) => {
   try {
     const { page = 1, pageSize = 10, searchTerm = "", classFilter = "", branchFilter = "" } = req.query;
     
-    let queryStr = `SELECT id, name as fullname, email, phone as number, user_class as class, user_branch as branch, balance, created_at FROM users WHERE role = 'user'`;
+    let queryStr = `SELECT id, name as fullname, email, phone as number, class, branch, balance, created_at FROM users WHERE role = 'user'`;
     let countStr = `SELECT count(*) FROM users WHERE role = 'user'`;
     let params = [];
     let paramIndex = 1;
@@ -88,15 +88,15 @@ router.get("/api/admin/students", requireAdmin, async (req, res) => {
     }
     
     if (classFilter) {
-      queryStr += ` AND user_class = $${paramIndex}`;
-      countStr += ` AND user_class = $${paramIndex}`;
+      queryStr += ` AND class = $${paramIndex}`;
+      countStr += ` AND class = $${paramIndex}`;
       params.push(classFilter);
       paramIndex++;
     }
     
     if (branchFilter) {
-      queryStr += ` AND user_branch = $${paramIndex}`;
-      countStr += ` AND user_branch = $${paramIndex}`;
+      queryStr += ` AND branch = $${paramIndex}`;
+      countStr += ` AND branch = $${paramIndex}`;
       params.push(branchFilter);
       paramIndex++;
     }
