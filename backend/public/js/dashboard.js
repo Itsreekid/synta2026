@@ -5,33 +5,9 @@ document.addEventListener('DOMContentLoaded', function () {
 
 async function initializeDashboard() {
     try {
-        // Wait for authentication to initialize
-        let attempts = 0;
-        const maxAttempts = 20; // Increased attempts for slower connections
-
-        while (!window.auth && attempts < maxAttempts) {
-            await new Promise(resolve => setTimeout(resolve, 100));
-            attempts++;
-        }
-
-        if (!window.auth) {
-            console.error('Authentication not initialized');
-            showMessage('Erreur de chargement du système d\'authentification. Veuillez actualiser la page.', 'error');
-            return;
-        }
-
-        // Check authentication
-        const authResult = await window.auth.getCurrentUser();
-        if (!authResult.success || !authResult.user) {
-            showMessage('Veuillez vous connecter pour accéder au tableau de bord', 'error');
-            setTimeout(() => {
-                window.location.href = '../auth/login.html';
-            }, 2000);
-            return;
-        }
-
-        // Load user data
-        await loadUserData(authResult.user);
+        // NOTE: Server-side requireAuth already guards this page.
+        // If the user is not logged in, Express redirects to /login
+        // before this JS ever runs. No client-side auth check needed.
 
         // Load dashboard data
         await loadDashboardData();
