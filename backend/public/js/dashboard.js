@@ -180,106 +180,62 @@ async function loadProgress() {
 }
 
 async function loadEvents() {
+    const eventsList = document.getElementById('events-list');
+    if (!eventsList) return;
+
     try {
-        const eventsList = document.getElementById('events-list');
+        eventsList.innerHTML = '<div class="loading">Chargement des événements...</div>';
 
-        // Check if events data is available from events.js
-        if (typeof upcomingEvents === 'undefined' || !Array.isArray(upcomingEvents)) {
-            console.error('upcomingEvents not found. Make sure events.js is loaded.');
-            eventsList.innerHTML = '<div class="loading">Erreur de chargement des événements</div>';
-            return;
-        }
+        const res = await fetch('/api/live/upcoming', { credentials: 'include' });
 
-        // Filter events that haven't passed yet
-        const today = new Date();
-        today.setHours(0, 0, 0, 0);
-
-        // Get current user metadata for filtering
-        const { user } = await window.auth.getCurrentUser();
-        const userClass = user?.user_metadata?.user_class;
-        const userBranch = user?.user_metadata?.user_branch;
-
-        const activeEvents = upcomingEvents.filter(event => {
-            const eventDate = new Date(event.date);
-            if (eventDate < today) return false;
-
-            // Apply targeting filter
-            const matchesClass = !event.target_classes ||
-                event.target_classes.length === 0 ||
-                event.target_classes.includes('all') ||
-                (userClass && event.target_classes.includes(userClass));
-
-            const matchesBranch = !event.target_branches ||
-                event.target_branches.length === 0 ||
-                event.target_branches.includes('all') ||
-                (userBranch && event.target_branches.includes(userBranch));
-
-            return matchesClass && matchesBranch;
-        });
-
-        if (activeEvents.length === 0) {
+        if (!res.ok) {
             eventsList.innerHTML = '<div class="event-item">Aucun événement à venir</div>';
             return;
         }
 
-        eventsList.innerHTML = activeEvents.map(event => {
-            // Format date to French
-            const eventDate = new Date(event.date);
-            const monthNames = ['janvier', 'février', 'mars', 'avril', 'mai', 'juin', 'juillet', 'août', 'septembre', 'octobre', 'novembre', 'décembre'];
-            const dateString = `${eventDate.getDate()} ${monthNames[eventDate.getMonth()]}`;
+        const events = await res.json();
 
-            // Handle both object and string description formats
-            let descriptionHTML = '';
-            if (typeof event.description === 'object' && event.description.line1) {
-                descriptionHTML = `
-                    <div>${event.description.line1}</div>
-                    ${event.description.line2 ? `<div style="margin-top: 4px; font-size: 0.9em; opacity: 0.9;">${event.description.line2}</div>` : ''}
-                `;
-            } else {
-                descriptionHTML = event.description;
-            }
+        if (!Array.isArray(events) || events.length === 0) {
+            eventsList.innerHTML = '<div class="event-item">Aucun événement à venir</div>';
+            return;
+        }
+
+        const monthNames = ['janvier', 'février', 'mars', 'avril', 'mai', 'juin',
+                            'juillet', 'août', 'septembre', 'octobre', 'novembre', 'décembre'];
+
+        eventsList.innerHTML = events.map(event => {
+            const d = new Date(event.scheduled_at);
+            const dateString = `${d.getDate()} ${monthNames[d.getMonth()]}`;
+            const timeString = d.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
+            const isLive = event.status === 'live';
 
             return `
-                <div class="event-item" style="border-right: 3px solid ${event.color}; cursor: pointer;" onclick="navigateToCalendar('${event.date}')">
-                    <div class="event-date">${event.icon} ${dateString} - ${event.time}</div>
-                    <div class="event-title" style="display: flex; align-items: center; gap: 20px;">
+                <div class="event-item" style="border-right: 3px solid #6c63ff; cursor: pointer;"
+                     onclick="window.location.href='/app/calendar'">
+                    <div class="event-date">📅 ${dateString} - ${timeString}</div>
+                    <div class="event-title" style="display: flex; align-items: center; gap: 12px;">
                         ${event.title}
-                        <span class="live-indicator"></span>
+                        ${isLive ? '<span class="live-indicator">🔴 En direct</span>' : ''}
                     </div>
-                    <div class="event-description">${descriptionHTML}</div>
+                    <div class="event-description">${event.course_title || ''}</div>
                 </div>
             `;
         }).join('');
 
     } catch (error) {
         console.error('Error loading events:', error);
-        document.getElementById('events-list').innerHTML = '<div class="loading">Erreur de chargement des événements</div>';
+        eventsList.innerHTML = '<div class="event-item">Aucun événement à venir</div>';
     }
 }
 
+
+
 function navigateTo(page) {
-    // This function will be called from the parent iframe
-    if (window.parent && window.parent.loadPage) {
-        window.parent.loadPage(page);
-    } else {
-        // Fallback for direct navigation
-        window.location.href = `../${page}/${page}.html`;
-    }
+    window.location.href = `/app/${page}`;
 }
 
 function navigateToCalendar(eventDate) {
-    // Navigate to calendar page with the event date
-    if (window.parent && window.parent.loadPageWithDate) {
-        // If in iframe, use special function for calendar with date
-        window.parent.loadPageWithDate('calendar', eventDate);
-    } else if (window.parent && window.parent.loadPage) {
-        // If function doesn't exist yet, load calendar normally and store date
-        sessionStorage.setItem('calendarDate', eventDate);
-        window.parent.loadPage('calendar');
-    } else {
-        // Direct navigation fallback
-        window.location.href = `../calendar/calendar.html?date=${eventDate}`;
-    }
+    window.location.href = `/app/calendar?date=${eventDate}`;
 }
 
 function showContact() {
