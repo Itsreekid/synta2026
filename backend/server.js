@@ -24,6 +24,7 @@ import authApiRoutes from "./routes/auth-api.js";
 import userApiRoutes from "./routes/user-api.js";
 import pageRoutes from "./routes/pages.js";
 import sessionRoutes from "./routes/session.js";
+import adminApiRoutes from "./routes/admin-api.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -175,6 +176,9 @@ app.use("/api/purchase", purchaseRoutes);
 app.use("/api/offers", offersRoutes);
 app.use("/api/live", liveRoutes);
 app.use("/api/tracking", trackingRoutes);
+
+// Admin routes
+app.use(adminApiRoutes);
 
 // Session onboarding API routes
 app.use("/api/session", sessionRoutes);
