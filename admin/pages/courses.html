@@ -1,0 +1,722 @@
+<!DOCTYPE html>
+<html lang="fr">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gestion des Cours - Admin</title>
+    <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        :root {
+            --primary: #ff7b1a;
+            --secondary: #1E3448;
+            --success: #10b981;
+            --danger: #ef4444;
+            --warning: #f59e0b;
+            --bg: #f8fafc;
+            --card: #ffffff;
+            --border: #e2e8f0;
+            --text: #1E3448;
+            --text-muted: #64748b;
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+
+        body {
+            font-family: 'Tajawal', sans-serif;
+            background: var(--bg);
+            padding: 2rem;
+            color: var(--text);
+        }
+
+        /* ── Header ── */
+        .page-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 2rem;
+            gap: 1rem;
+            flex-wrap: wrap;
+        }
+
+        .page-header h1 { font-size: 1.6rem; }
+        .page-header p { color: var(--text-muted); font-size: 0.9rem; margin-top: 0.2rem; }
+
+        /* ── Buttons ── */
+        .btn {
+            padding: 0.6rem 1.2rem;
+            border-radius: 8px;
+            font-weight: 600;
+            cursor: pointer;
+            border: none;
+            transition: all 0.2s;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            font-family: inherit;
+            font-size: 0.9rem;
+        }
+
+        .btn-primary { background: var(--primary); color: white; }
+        .btn-primary:hover { opacity: 0.9; transform: translateY(-1px); }
+
+        .btn-success { background: var(--success); color: white; }
+        .btn-success:hover { opacity: 0.9; }
+
+        .btn-danger { background: var(--danger); color: white; }
+        .btn-icon {
+            width: 34px; height: 34px;
+            border-radius: 8px;
+            display: flex; align-items: center; justify-content: center;
+            border: 1px solid var(--border);
+            background: white; color: var(--text-muted);
+            cursor: pointer; transition: all 0.2s;
+        }
+        .btn-icon:hover { border-color: var(--primary); color: var(--primary); }
+        .btn-icon.danger:hover { border-color: var(--danger); color: var(--danger); }
+
+        /* ── Stats bar ── */
+        .stats-bar {
+            display: flex;
+            gap: 1rem;
+            margin-bottom: 1.5rem;
+            flex-wrap: wrap;
+        }
+
+        .stat-chip {
+            background: white;
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            padding: 0.5rem 1rem;
+            font-size: 0.85rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .stat-chip .num { font-weight: 700; color: var(--primary); }
+
+        /* ── Search / filter bar ── */
+        .filter-bar {
+            display: flex;
+            gap: 0.75rem;
+            margin-bottom: 1.5rem;
+            flex-wrap: wrap;
+        }
+
+        .filter-bar input,
+        .filter-bar select {
+            padding: 0.55rem 0.9rem;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            font-family: inherit;
+            font-size: 0.9rem;
+            background: white;
+        }
+
+        .filter-bar input { flex: 1; min-width: 180px; }
+
+        /* ── Course table ── */
+        .table-wrap {
+            background: white;
+            border-radius: 14px;
+            box-shadow: 0 1px 4px rgba(0,0,0,0.08);
+            overflow: hidden;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        thead th {
+            background: #f1f5f9;
+            padding: 0.85rem 1rem;
+            text-align: left;
+            font-size: 0.8rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+            color: var(--text-muted);
+            border-bottom: 1px solid var(--border);
+        }
+
+        tbody tr { border-bottom: 1px solid #f1f5f9; transition: background 0.15s; }
+        tbody tr:last-child { border-bottom: none; }
+        tbody tr:hover { background: #fafbfc; }
+
+        td {
+            padding: 0.85rem 1rem;
+            font-size: 0.9rem;
+            vertical-align: middle;
+        }
+
+        .course-thumb {
+            width: 52px; height: 36px;
+            border-radius: 6px;
+            object-fit: cover;
+            background: #e2e8f0;
+        }
+
+        .course-thumb-placeholder {
+            width: 52px; height: 36px;
+            border-radius: 6px;
+            background: #e2e8f0;
+            display: flex; align-items: center; justify-content: center;
+            color: #94a3b8; font-size: 1.1rem;
+        }
+
+        .course-title-cell strong { display: block; }
+        .course-title-cell span { color: var(--text-muted); font-size: 0.82rem; }
+
+        .badge {
+            font-size: 0.72rem;
+            padding: 0.2rem 0.55rem;
+            border-radius: 4px;
+            font-weight: 700;
+        }
+        .badge-published { background: #dcfce7; color: #16a34a; }
+        .badge-draft     { background: #fee2e2; color: #dc2626; }
+        .badge-free      { background: #dbeafe; color: #1d4ed8; }
+        .badge-category  { background: #f1f5f9; color: #475569; }
+
+        .actions { display: flex; gap: 0.4rem; }
+
+        .empty-state {
+            text-align: center;
+            padding: 3rem;
+            color: var(--text-muted);
+        }
+        .empty-state i { font-size: 2.5rem; margin-bottom: 0.75rem; }
+
+        /* ── Loading overlay ── */
+        .loading-overlay {
+            position: fixed; inset: 0;
+            background: rgba(255,255,255,0.8);
+            display: flex; align-items: center; justify-content: center;
+            z-index: 1100; display: none;
+        }
+
+        /* ── Modal ── */
+        .modal {
+            display: none;
+            position: fixed; inset: 0;
+            background: rgba(0,0,0,0.45);
+            z-index: 1000;
+            align-items: center; justify-content: center;
+            padding: 1rem;
+        }
+
+        .modal-content {
+            background: white;
+            width: 100%; max-width: 560px;
+            padding: 2rem;
+            border-radius: 16px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.15);
+            max-height: 90vh;
+            overflow-y: auto;
+        }
+
+        .modal-content h2 {
+            margin-bottom: 1.5rem;
+            font-size: 1.2rem;
+        }
+
+        .form-group { margin-bottom: 1.1rem; }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 0.4rem;
+            font-weight: 600;
+            font-size: 0.85rem;
+        }
+
+        .form-group input,
+        .form-group textarea,
+        .form-group select {
+            width: 100%;
+            padding: 0.7rem 0.9rem;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            font-family: inherit;
+            font-size: 0.9rem;
+            transition: border-color 0.2s;
+        }
+
+        .form-group input:focus,
+        .form-group textarea:focus,
+        .form-group select:focus {
+            outline: none;
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px rgba(255,123,26,0.1);
+        }
+
+        .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+
+        .toggle-row {
+            display: flex; align-items: center; justify-content: space-between;
+            background: #f8fafc; padding: 0.75rem 1rem;
+            border-radius: 8px; border: 1px solid var(--border);
+        }
+
+        .toggle-row label { margin: 0; font-size: 0.9rem; }
+
+        .toggle {
+            position: relative; width: 40px; height: 22px;
+        }
+        .toggle input { opacity: 0; width: 0; height: 0; }
+        .toggle-slider {
+            position: absolute; inset: 0;
+            background: #cbd5e1; border-radius: 22px; cursor: pointer;
+            transition: background 0.2s;
+        }
+        .toggle-slider:before {
+            content: '';
+            position: absolute; width: 16px; height: 16px;
+            left: 3px; top: 3px;
+            background: white; border-radius: 50%;
+            transition: transform 0.2s;
+        }
+        .toggle input:checked + .toggle-slider { background: var(--success); }
+        .toggle input:checked + .toggle-slider:before { transform: translateX(18px); }
+
+        .modal-footer {
+            margin-top: 1.5rem;
+            display: flex; justify-content: flex-end; gap: 0.75rem;
+        }
+
+        /* ── Toast ── */
+        .toast {
+            position: fixed; top: 20px; right: 20px;
+            padding: 0.9rem 1.6rem;
+            border-radius: 10px; color: white;
+            font-weight: 600; font-size: 0.9rem;
+            z-index: 9999;
+            animation: slideIn 0.3s ease;
+        }
+        @keyframes slideIn {
+            from { transform: translateX(110%); opacity: 0; }
+            to   { transform: translateX(0);    opacity: 1; }
+        }
+    </style>
+</head>
+
+<body>
+    <div id="loading" class="loading-overlay">
+        <div style="font-size:1.5rem; color:var(--primary);">
+            <i class="fas fa-spinner fa-spin"></i>
+        </div>
+    </div>
+
+    <!-- Page Header -->
+    <div class="page-header">
+        <div>
+            <h1><i class="fas fa-book-open" style="color:var(--primary);"></i> Gestion des Cours</h1>
+            <p>Créez, modifiez et publiez les cours disponibles sur la plateforme</p>
+        </div>
+        <button class="btn btn-primary" onclick="openModal()">
+            <i class="fas fa-plus"></i> Nouveau Cours
+        </button>
+    </div>
+
+    <!-- Stats bar -->
+    <div class="stats-bar" id="statsBar">
+        <div class="stat-chip"><span class="num" id="totalCount">–</span> cours au total</div>
+        <div class="stat-chip"><span class="num" id="publishedCount">–</span> publiés</div>
+        <div class="stat-chip"><span class="num" id="draftCount">–</span> brouillons</div>
+        <div class="stat-chip"><span class="num" id="freeCount">–</span> gratuits</div>
+    </div>
+
+    <!-- Filters -->
+    <div class="filter-bar">
+        <input type="text" id="searchInput" placeholder="🔍 Rechercher un cours..." oninput="applyFilter()">
+        <select id="categoryFilter" onchange="applyFilter()">
+            <option value="">Toutes les catégories</option>
+            <option value="bac-info">Bac Informatique</option>
+            <option value="bac-math">Bac Mathématiques</option>
+            <option value="web-dev">Développement Web</option>
+            <option value="general">Général</option>
+        </select>
+        <select id="statusFilter" onchange="applyFilter()">
+            <option value="">Tous les statuts</option>
+            <option value="published">Publiés</option>
+            <option value="draft">Brouillons</option>
+        </select>
+    </div>
+
+    <!-- Courses table -->
+    <div class="table-wrap">
+        <table>
+            <thead>
+                <tr>
+                    <th>Aperçu</th>
+                    <th>Titre & Catégorie</th>
+                    <th>Niveau</th>
+                    <th>Prix</th>
+                    <th>Statut</th>
+                    <th>Créé le</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody id="coursesBody">
+                <tr>
+                    <td colspan="7">
+                        <div class="empty-state">
+                            <i class="fas fa-spinner fa-spin"></i>
+                            <p>Chargement des cours...</p>
+                        </div>
+                    </td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+
+    <!-- Modal Create / Edit -->
+    <div id="courseModal" class="modal">
+        <div class="modal-content">
+            <h2 id="modalTitle">Nouveau Cours</h2>
+            <form id="courseForm">
+                <input type="hidden" id="courseId">
+
+                <div class="form-group">
+                    <label>Titre du cours *</label>
+                    <input type="text" id="title" required placeholder="Ex: Algorithmique Bac Info">
+                </div>
+
+                <div class="form-group">
+                    <label>Description</label>
+                    <textarea id="description" rows="3" placeholder="Décrivez le contenu et les objectifs du cours..."></textarea>
+                </div>
+
+                <div class="grid-2">
+                    <div class="form-group">
+                        <label>Catégorie</label>
+                        <select id="category">
+                            <option value="">-- Choisir --</option>
+                            <option value="bac-info">Bac Informatique</option>
+                            <option value="bac-math">Bac Mathématiques</option>
+                            <option value="web-dev">Développement Web</option>
+                            <option value="general">Général</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Niveau</label>
+                        <select id="level">
+                            <option value="">-- Choisir --</option>
+                            <option value="beginner">Débutant</option>
+                            <option value="intermediate">Intermédiaire</option>
+                            <option value="advanced">Avancé</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="grid-2">
+                    <div class="form-group">
+                        <label>Prix (DT)</label>
+                        <input type="number" id="price" step="0.1" min="0" value="0" placeholder="0.00">
+                    </div>
+                    <div class="form-group">
+                        <label>URL Miniature</label>
+                        <input type="url" id="thumbnail_url" placeholder="https://...">
+                    </div>
+                </div>
+
+                <div style="display: flex; flex-direction: column; gap: 0.75rem; margin-bottom: 1.1rem;">
+                    <div class="toggle-row">
+                        <label for="is_free"><i class="fas fa-gift" style="color:var(--primary);"></i> Cours gratuit</label>
+                        <label class="toggle">
+                            <input type="checkbox" id="is_free" onchange="updatePriceVisibility()">
+                            <span class="toggle-slider"></span>
+                        </label>
+                    </div>
+                    <div class="toggle-row">
+                        <label for="is_published"><i class="fas fa-globe" style="color:var(--success);"></i> Publier le cours</label>
+                        <label class="toggle">
+                            <input type="checkbox" id="is_published">
+                            <span class="toggle-slider"></span>
+                        </label>
+                    </div>
+                </div>
+
+                <div class="modal-footer">
+                    <button type="button" class="btn" style="background:#e5e7eb;" onclick="closeModal()">Annuler</button>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-save"></i> Enregistrer
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script src="../../js/authentication.js"></script>
+    <script src="../js/admin-auth.js"></script>
+    <script>
+        let allCourses = [];
+
+        // ── Init ──────────────────────────────────────
+        document.addEventListener('DOMContentLoaded', async () => {
+            // Wait for admin-auth to check access
+            let attempts = 0;
+            while (!window.auth && attempts < 30) {
+                await new Promise(r => setTimeout(r, 100));
+                attempts++;
+            }
+            await loadCourses();
+        });
+
+        // ── Load courses from REST API ─────────────────
+        async function loadCourses() {
+            showLoader(true);
+            try {
+                const resp = await fetch('/api/admin/courses', { credentials: 'include' });
+                const data = await resp.json();
+                if (!data.success) throw new Error(data.error || 'Erreur serveur');
+                allCourses = data.data || [];
+                updateStats(allCourses);
+                renderCourses(allCourses);
+            } catch (err) {
+                console.error('Error loading courses:', err);
+                document.getElementById('coursesBody').innerHTML = `
+                    <tr><td colspan="7">
+                        <div class="empty-state">
+                            <i class="fas fa-exclamation-triangle" style="color:var(--danger);"></i>
+                            <p>Erreur lors du chargement: ${err.message}</p>
+                        </div>
+                    </td></tr>`;
+            } finally {
+                showLoader(false);
+            }
+        }
+
+        // ── Stats ──────────────────────────────────────
+        function updateStats(courses) {
+            document.getElementById('totalCount').textContent = courses.length;
+            document.getElementById('publishedCount').textContent = courses.filter(c => c.is_published).length;
+            document.getElementById('draftCount').textContent = courses.filter(c => !c.is_published).length;
+            document.getElementById('freeCount').textContent = courses.filter(c => c.is_free).length;
+        }
+
+        // ── Render table ───────────────────────────────
+        function renderCourses(courses) {
+            const tbody = document.getElementById('coursesBody');
+
+            if (courses.length === 0) {
+                tbody.innerHTML = `
+                    <tr><td colspan="7">
+                        <div class="empty-state">
+                            <i class="fas fa-book-open"></i>
+                            <p>Aucun cours trouvé. Créez votre premier cours.</p>
+                        </div>
+                    </td></tr>`;
+                return;
+            }
+
+            const categoryLabels = {
+                'bac-info': 'Bac Info',
+                'bac-math': 'Bac Math',
+                'web-dev': 'Web Dev',
+                'general': 'Général'
+            };
+
+            const levelLabels = {
+                'beginner': 'Débutant',
+                'intermediate': 'Intermédiaire',
+                'advanced': 'Avancé'
+            };
+
+            tbody.innerHTML = courses.map(course => {
+                const created = course.created_at
+                    ? new Date(course.created_at).toLocaleDateString('fr-FR')
+                    : '–';
+
+                const thumbHtml = course.thumbnail_url
+                    ? `<img src="${course.thumbnail_url}" class="course-thumb" alt="" onerror="this.style.display='none';this.nextElementSibling.style.display='flex';">
+                       <div class="course-thumb-placeholder" style="display:none;"><i class="fas fa-image"></i></div>`
+                    : `<div class="course-thumb-placeholder"><i class="fas fa-image"></i></div>`;
+
+                return `
+                    <tr>
+                        <td>${thumbHtml}</td>
+                        <td class="course-title-cell">
+                            <strong>${escHtml(course.title)}</strong>
+                            ${course.category ? `<span><span class="badge badge-category">${categoryLabels[course.category] || course.category}</span></span>` : ''}
+                        </td>
+                        <td>${levelLabels[course.level] || course.level || '–'}</td>
+                        <td>
+                            ${course.is_free
+                                ? '<span class="badge badge-free">Gratuit</span>'
+                                : `<strong>${parseFloat(course.price || 0).toFixed(2)} DT</strong>`
+                            }
+                        </td>
+                        <td>
+                            <span class="badge ${course.is_published ? 'badge-published' : 'badge-draft'}">
+                                ${course.is_published ? '✓ Publié' : '⏸ Brouillon'}
+                            </span>
+                        </td>
+                        <td style="color:var(--text-muted); font-size:0.85rem;">${created}</td>
+                        <td>
+                            <div class="actions">
+                                <button class="btn-icon" title="Modifier" onclick="editCourse('${course.id}')">
+                                    <i class="fas fa-edit" style="pointer-events:none;"></i>
+                                </button>
+                                <button class="btn-icon" title="${course.is_published ? 'Dépublier' : 'Publier'}" 
+                                    onclick="togglePublish('${course.id}', ${course.is_published})"
+                                    style="color:${course.is_published ? 'var(--warning)' : 'var(--success)'}; border-color:${course.is_published ? 'var(--warning)' : 'var(--success)'};">
+                                    <i class="fas ${course.is_published ? 'fa-eye-slash' : 'fa-eye'}" style="pointer-events:none;"></i>
+                                </button>
+                            </div>
+                        </td>
+                    </tr>
+                `;
+            }).join('');
+        }
+
+        // ── Filter ─────────────────────────────────────
+        function applyFilter() {
+            const q = document.getElementById('searchInput').value.toLowerCase();
+            const cat = document.getElementById('categoryFilter').value;
+            const status = document.getElementById('statusFilter').value;
+
+            const filtered = allCourses.filter(c => {
+                const matchSearch = !q || c.title.toLowerCase().includes(q) || (c.description || '').toLowerCase().includes(q);
+                const matchCat = !cat || c.category === cat;
+                const matchStatus = !status
+                    || (status === 'published' && c.is_published)
+                    || (status === 'draft' && !c.is_published);
+                return matchSearch && matchCat && matchStatus;
+            });
+
+            renderCourses(filtered);
+        }
+
+        // ── Toggle publish ─────────────────────────────
+        async function togglePublish(id, currentlyPublished) {
+            const course = allCourses.find(c => String(c.id) === String(id));
+            if (!course) return;
+
+            showLoader(true);
+            try {
+                const resp = await fetch('/api/admin/courses', {
+                    method: 'POST',
+                    credentials: 'include',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ ...course, is_published: !currentlyPublished })
+                });
+                const data = await resp.json();
+                if (!data.success) throw new Error(data.error || 'Erreur');
+                showToast(currentlyPublished ? 'Cours dépublié' : 'Cours publié !', 'success');
+                await loadCourses();
+            } catch (err) {
+                showToast('Erreur: ' + err.message, 'error');
+            } finally {
+                showLoader(false);
+            }
+        }
+
+        // ── Open modal (create) ────────────────────────
+        function openModal() {
+            document.getElementById('modalTitle').textContent = 'Nouveau Cours';
+            document.getElementById('courseForm').reset();
+            document.getElementById('courseId').value = '';
+            document.getElementById('courseModal').style.display = 'flex';
+        }
+
+        // ── Open modal (edit) ──────────────────────────
+        function editCourse(id) {
+            const course = allCourses.find(c => String(c.id) === String(id));
+            if (!course) { showToast('Cours introuvable', 'error'); return; }
+
+            document.getElementById('modalTitle').textContent = 'Modifier le cours';
+            document.getElementById('courseId').value = course.id;
+            document.getElementById('title').value = course.title || '';
+            document.getElementById('description').value = course.description || '';
+            document.getElementById('category').value = course.category || '';
+            document.getElementById('level').value = course.level || '';
+            document.getElementById('price').value = course.price || 0;
+            document.getElementById('thumbnail_url').value = course.thumbnail_url || '';
+            document.getElementById('is_free').checked = !!course.is_free;
+            document.getElementById('is_published').checked = !!course.is_published;
+
+            document.getElementById('courseModal').style.display = 'flex';
+        }
+
+        // ── Close modal ────────────────────────────────
+        function closeModal() {
+            document.getElementById('courseModal').style.display = 'none';
+        }
+
+        // Close modal on backdrop click
+        document.getElementById('courseModal').addEventListener('click', function(e) {
+            if (e.target === this) closeModal();
+        });
+
+        // ── Submit form ────────────────────────────────
+        document.getElementById('courseForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            showLoader(true);
+
+            const payload = {
+                id: document.getElementById('courseId').value || null,
+                title: document.getElementById('title').value.trim(),
+                description: document.getElementById('description').value.trim(),
+                category: document.getElementById('category').value,
+                level: document.getElementById('level').value,
+                price: parseFloat(document.getElementById('price').value) || 0,
+                thumbnail_url: document.getElementById('thumbnail_url').value.trim() || null,
+                is_free: document.getElementById('is_free').checked,
+                is_published: document.getElementById('is_published').checked,
+            };
+
+            try {
+                const resp = await fetch('/api/admin/courses', {
+                    method: 'POST',
+                    credentials: 'include',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+                const data = await resp.json();
+                if (!data.success) throw new Error(data.error || 'Erreur serveur');
+
+                closeModal();
+                showToast(payload.id ? 'Cours mis à jour !' : 'Cours créé !', 'success');
+                await loadCourses();
+            } catch (err) {
+                showToast('Erreur: ' + err.message, 'error');
+            } finally {
+                showLoader(false);
+            }
+        });
+
+        // ── Price visibility on free toggle ───────────
+        function updatePriceVisibility() {
+            const isFree = document.getElementById('is_free').checked;
+            const priceGroup = document.getElementById('price').closest('.form-group');
+            if (priceGroup) {
+                priceGroup.style.opacity = isFree ? '0.4' : '1';
+                priceGroup.style.pointerEvents = isFree ? 'none' : 'auto';
+            }
+        }
+
+        // ── Helpers ────────────────────────────────────
+        function showLoader(show) {
+            document.getElementById('loading').style.display = show ? 'flex' : 'none';
+        }
+
+        function showToast(message, type = 'info') {
+            const toast = document.createElement('div');
+            toast.className = 'toast';
+            toast.style.background = type === 'error' ? '#ef4444' : type === 'success' ? '#10b981' : '#ff7b1a';
+            toast.textContent = message;
+            document.body.appendChild(toast);
+            setTimeout(() => toast.remove(), 3200);
+        }
+
+        function escHtml(str) {
+            return (str || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+        }
+    </script>
+</body>
+
+</html>

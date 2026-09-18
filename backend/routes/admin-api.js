@@ -139,4 +139,58 @@ router.post("/api/admin/change-student-password", requireAdmin, async (req, res)
   }
 });
 
+/**
+ * GET /api/admin/courses — list all courses (no is_published filter)
+ */
+router.get("/api/admin/courses", requireAdmin, async (req, res) => {
+  try {
+    const result = await pool.query(
+      `SELECT id, title, description, category, level, price, is_free, is_published, thumbnail_url, created_at
+       FROM courses ORDER BY created_at DESC`
+    );
+    return res.json({ success: true, data: result.rows });
+  } catch (err) {
+    console.error("Error fetching courses:", err.message);
+    return res.status(500).json({ success: false, error: "Internal server error" });
+  }
+});
+
+/**
+ * POST /api/admin/courses — create or update a course
+ * Body: { id?, title, description, category, level, price, is_free, is_published, thumbnail_url }
+ */
+router.post("/api/admin/courses", requireAdmin, async (req, res) => {
+  try {
+    const { id, title, description, category, level, price, is_free, is_published, thumbnail_url } = req.body;
+
+    if (!title) {
+      return res.status(400).json({ success: false, error: "Le titre est requis" });
+    }
+
+    if (id) {
+      // Update existing course
+      await pool.query(
+        `UPDATE courses
+         SET title=$1, description=$2, category=$3, level=$4, price=$5,
+             is_free=$6, is_published=$7, thumbnail_url=$8
+         WHERE id=$9`,
+        [title, description, category, level, parseFloat(price) || 0, !!is_free, !!is_published, thumbnail_url, id]
+      );
+    } else {
+      // Create new course
+      await pool.query(
+        `INSERT INTO courses (title, description, category, level, price, is_free, is_published, thumbnail_url)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
+        [title, description, category, level, parseFloat(price) || 0, !!is_free, !!is_published, thumbnail_url]
+      );
+    }
+
+    return res.json({ success: true });
+  } catch (err) {
+    console.error("Error managing course:", err.message);
+    return res.status(500).json({ success: false, error: "Internal server error" });
+  }
+});
+
 export default router;
+

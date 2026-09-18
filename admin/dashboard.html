@@ -12,8 +12,8 @@
     <!-- Font Awesome -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <!-- CSS -->
-    <link rel="icon" href="../source/logoweb.png" type="image/x-icon">
-    <link rel="stylesheet" href="../css/user.css">
+    <link rel="icon" href="/source/logoweb.png" type="image/x-icon">
+    <link rel="stylesheet" href="/css/user.css">
     <style>
         /* Admin specific overrides */
         .sidebar {
@@ -87,7 +87,7 @@
                 <i class="fas fa-user-shield"></i>
             </div>
             <div class="dropdown-menu" id="profileDropdown">
-                <div class="dropdown-item" onclick="window.location.href='../user.html'">
+                <div class="dropdown-item" onclick="window.location.href='/dashboard'">
                     <i class="fas fa-user"></i>
                     <span>Vue Étudiant</span>
                 </div>
@@ -105,7 +105,7 @@
         <div class="sidebar" id="sidebar">
             <div class="logo">
                 <div class="logo-icon">
-                    <img src="../source/logosynta.png" alt="synta academy" width="55">
+                    <img src="/source/logosynta.png" alt="synta academy" width="55">
                 </div>
                 <span class="logo-text"> Synta Admin</span>
             </div>
@@ -117,6 +117,10 @@
                 <li><a href="#" onclick="loadAdminPage('offers')" id="nav-offers">
                         <div class="nav-icon"><i class="fas fa-tags"></i></div>
                         <span class="nav-text">Gestion des Offres</span>
+                    </a></li>
+                <li><a href="#" onclick="loadAdminPage('courses')" id="nav-courses">
+                        <div class="nav-icon"><i class="fas fa-book-open"></i></div>
+                        <span class="nav-text">Gestion des Cours</span>
                     </a></li>
                 <li><a href="#" onclick="loadAdminPage('sessions')" id="nav-sessions">
                         <div class="nav-icon"><i class="fas fa-video"></i></div>
@@ -144,7 +148,7 @@
     </div>
 
     <!-- Scripts -->
-    <script src="../authentication.js"></script>
+    <script src="/js/authentication.js"></script>
     <script src="js/admin-auth.js"></script>
     <script>
         // Check access immediately

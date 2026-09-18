@@ -1,123 +1,36 @@
-// Offers Page JS
+// Offers Page JS — REST API version (replaces Supabase direct calls)
 
 document.addEventListener('DOMContentLoaded', function () {
-    // Wait for authentication.js to finish setting up window.supabaseClient
-    // before calling initOffers, to avoid the race condition where
-    // supabaseClient is still null when this script runs.
-    if (window.supabaseClient) {
-        // Auth already ready (e.g. script loaded after authentication.js finished)
-        initOffers();
-    } else {
-        document.addEventListener('supabaseReady', function () {
-            initOffers();
-        }, { once: true });
-    }
+    initOffers();
 });
 
 async function initOffers() {
     const offersList = document.getElementById('offers-list');
+    if (!offersList) return;
 
     try {
         // Show loading state
         offersList.innerHTML = '<div class="loading">Chargement des offres...</div>';
 
-        // 1. Get current user session
-        const { data: { session } } = await window.supabaseClient.auth.getSession();
-        const user = session?.user;
+        // Fetch offers + user balance from the REST API (auth via HttpOnly cookie)
+        const response = await fetch('/api/offers', { credentials: 'include' });
 
-        let userProfile = null;
-        let purchasedOfferIds = [];
-
-        if (user) {
-            // 2. Fetch user profile targeting fields and balance
-            const { data: profile, error: profileError } = await window.supabaseClient
-                .from("Users")
-                .select("class, branch, balance")
-                .eq("id", user.id)
-                .single();
-
-            if (!profileError) {
-                userProfile = profile;
-            } else {
-                console.error("Error fetching user profile:", profileError);
-            }
-
-            // 3. Fetch user's existing payments/purchased offers
-            const { data: payments, error: paymentsError } = await window.supabaseClient
-                .from("payments")
-                .select("offer_id")
-                .eq("user_id", user.id);
-
-            if (!paymentsError && payments) {
-                purchasedOfferIds = payments.map(p => p.offer_id);
-            } else {
-                console.error("Error fetching user purchases:", paymentsError);
-            }
+        if (!response.ok) {
+            throw new Error(`HTTP ${response.status}`);
         }
 
-        // 4. Fetch active offers from Supabase
-        const { data: offers, error: offersError } = await window.supabaseClient
-            .from("offers")
-            .select(`
-                *,
-                courses:offer_courses(
-                    course:courses(*)
-                )
-            `)
-            .eq("is_active", true)
-            .order("created_at", { ascending: false });
-
-        if (offersError) throw offersError;
-
-        // 5. Filter offers based on targeting
-        let filteredOffers = offers || [];
-        if (userProfile) {
-            filteredOffers = (offers || []).filter(offer => {
-                const targetClasses = offer.target_classes || [];
-                const targetBranches = offer.target_branches || [];
-
-                // Match class if targeting is defined
-                const classMatch = targetClasses.length === 0 ||
-                    (userProfile.class && targetClasses.includes(userProfile.class));
-
-                // Match branch if targeting is defined
-                const branchMatch = targetBranches.length === 0 ||
-                    (userProfile.branch && targetBranches.includes(userProfile.branch));
-
-                return classMatch && branchMatch;
-            });
-        }
-
-        const userBalance = userProfile?.balance || 0;
-
-        // 6. Format offers
-        const formattedOffers = filteredOffers.map(offer => {
-            const price = parseFloat(offer.fixed_price || offer.price || 0);
-            const isPurchased = purchasedOfferIds.includes(offer.id);
-
-            // Clean up courses list
-            const coursesList = offer.courses
-                ? offer.courses.map(oc => oc.course).filter(Boolean)
-                : [];
-
-            return {
-                ...offer,
-                courses: coursesList,
-                is_purchased: isPurchased,
-                can_purchase: !isPurchased && userBalance >= price
-            };
-        });
+        const { offers, userBalance } = await response.json();
 
         // Update balance display
-        updateBalanceInUI(userBalance);
+        updateBalanceInUI(userBalance || 0);
 
-        if (!formattedOffers || formattedOffers.length === 0) {
+        if (!offers || offers.length === 0) {
             offersList.innerHTML = '<div class="no-courses">Aucune offre disponible pour le moment</div>';
             return;
         }
 
         // Render dynamic offers
-        offersList.innerHTML = formattedOffers.map(offer => {
+        offersList.innerHTML = offers.map(offer => {
             const isFeatured = offer.title.toLowerCase().includes('pro') || offer.title.toLowerCase().includes('integral') || offer.is_best_seller;
 
             const price = parseFloat(offer.fixed_price || offer.price || 0);
@@ -135,9 +48,9 @@ async function initOffers() {
                 ? `De ${formatDate(offer.valid_from)} Jusqu'à ${formatDate(offer.valid_until)}`
                 : 'Offre à durée limitée';
 
-            // NEW: Use the separate config file for features and images
+            // Use the separate config file for features and images
             let featureItems = [];
-            let offerImage = offer.image_url || '../../source/algo2.gif';
+            let offerImage = offer.image_url || '/source/algo2.gif';
 
             if (window.OFFERS_FEATURES_CONFIG) {
                 featureItems = window.OFFERS_FEATURES_CONFIG.getFeatures(offer);
@@ -187,7 +100,7 @@ async function initOffers() {
                             <div class="feature-item">
                                 <span class="feature-text">${item.text}</span>
                                 <div class="check-icon">
-                                    <img src="../../source/icons/${item.active ? 'true' : 'false'}.png" alt="icon" style="width: 100%; height: 100%; object-fit: contain;">
+                                    <img src="/source/icons/${item.active ? 'true' : 'false'}.png" alt="icon" style="width: 100%; height: 100%; object-fit: contain;">
                                 </div>
                             </div>
                         `).join('')}
@@ -216,23 +129,25 @@ async function initOffers() {
 }
 
 function updateBalanceInUI(balance) {
-    // Hidden as requested: remove the class="user-balance-summary" from page offres
+    // Update header balance element if present
+    const headerBalance = document.getElementById('userBalance');
+    if (headerBalance) headerBalance.textContent = parseFloat(balance).toFixed(2);
     console.log('Balance update received:', balance);
 }
 
 async function subscribeToOffer(offerId, title) {
     try {
-        if (!window.SyntaAPI) {
-            showMessage('Erreur: Système non initialisé', 'error');
+        // Get current user from the REST API
+        const userResp = await fetch('/api/user/me', { credentials: 'include' });
+        if (!userResp.ok) {
+            showMessage('Veuillez vous connecter pour acheter un plan', 'error');
+            setTimeout(() => { window.location.href = '/login'; }, 2000);
             return;
         }
-
-        const user = await window.SyntaAPI.getCurrentUser();
+        const { user } = await userResp.json();
         if (!user) {
             showMessage('Veuillez vous connecter pour acheter un plan', 'error');
-            setTimeout(() => {
-                window.location.href = '../auth/login.html';
-            }, 2000);
+            setTimeout(() => { window.location.href = '/login'; }, 2000);
             return;
         }
 
@@ -240,37 +155,36 @@ async function subscribeToOffer(offerId, title) {
         const confirmed = confirm(`Voulez-vous vraiment acheter l'offre "${title}" ? Le montant sera déduit de votre solde.`);
         if (!confirmed) return;
 
-        // Perform purchase via Supabase RPC
         showMessage('Traitement de votre achat...', 'info');
 
-        const { data, error } = await window.SyntaAPI.supabase.rpc('purchase_offer', {
-            p_user_id: user.id,
-            p_offer_id: offerId
+        const purchaseResp = await fetch('/api/purchase/offer', {
+            method: 'POST',
+            credentials: 'include',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ offerId, userId: user.id })
         });
 
-        if (error) {
-            console.error('Purchase error:', error);
-            showMessage('Erreur lors de l\'achat: ' + error.message, 'error');
+        const data = await purchaseResp.json();
+
+        if (!purchaseResp.ok) {
+            showMessage('Erreur lors de l\'achat: ' + (data.error || 'Erreur inconnue'), 'error');
             return;
         }
 
-        if (data && data.success) {
+        if (data.success) {
             // Trigger confetti effect
             handleConfetti();
 
-            // Update balance in UI if possible
-            if (data.new_balance !== undefined) {
-                updateBalanceInUI(data.new_balance);
-                // Also update global balance if available (for header)
-                const headerBalance = document.getElementById('userBalance');
-                if (headerBalance) headerBalance.textContent = parseFloat(data.new_balance).toFixed(2);
+            // Update balance in header if available
+            if (data.newBalance !== undefined) {
+                updateBalanceInUI(data.newBalance);
             }
 
             showMessage(data.message || 'Offre achetée avec succès!', 'success');
 
-            // Redirect to wallet to see the new payment in history after a short delay
+            // Redirect to wallet after a short delay
             setTimeout(() => {
-                window.location.href = `../paiement/paiement.html`;
+                window.location.href = '/app/paiement';
             }, 2500);
         } else {
             showMessage(data.message || 'Échec de l\'achat', 'error');
@@ -283,13 +197,10 @@ async function subscribeToOffer(offerId, title) {
 }
 
 function handleConfetti() {
-    // Check if confetti function exists (from library)
     if (typeof confetti !== 'function') return;
 
     const count = 200;
-    const defaults = {
-        origin: { y: 0.7 }
-    };
+    const defaults = { origin: { y: 0.7 } };
 
     function fire(particleRatio, opts) {
         confetti(Object.assign({}, defaults, opts, {
@@ -344,33 +255,6 @@ style.textContent = `
         font-size: 1.2rem;
         color: #64748b;
         grid-column: 1 / -1;
-    }
-    .user-balance-summary {
-        margin-bottom: 2rem;
-        display: flex;
-        justify-content: flex-end;
-    }
-    .balance-card {
-        background: rgba(255, 255, 255, 0.1);
-        backdrop-filter: blur(10px);
-        padding: 0.75rem 1.5rem;
-        border-radius: 12px;
-        border: 1px solid rgba(255, 255, 255, 0.2);
-        display: flex;
-        align-items: center;
-        gap: 10px;
-    }
-    .balance-label {
-        font-size: 0.9rem;
-        color: #94a3b8;
-    }
-    .balance-amount {
-        font-size: 1.1rem;
-        font-weight: 700;
-        color: #1E3448;
-    }
-    .offer-card.insufficient-balance {
-        opacity: 0.8;
     }
     .offer-btn:disabled {
         background: #94a3b8;
