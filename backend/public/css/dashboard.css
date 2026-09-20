@@ -1,4 +1,4 @@
-﻿/* =====================================================
+/* =====================================================
    DASHBOARD — Mobile-First CSS
    Primary target: 375-430px phones (students)
    Desktop: sidebar layout kicks in at 769px+
@@ -340,7 +340,7 @@
     }
 
     .pill-body {
-        text-align: right;
+        text-align: left;
     }
 
     .pill-body strong {

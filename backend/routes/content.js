@@ -18,7 +18,7 @@ router.get("/lesson/:lessonId", authApiMiddleware, async (req, res) => {
     const userId = req.user?.id;
 
     const lessonResult = await pool.query(
-      `SELECT id, title, type, video_key, pdf_key, duration, is_preview, module_id
+      `SELECT id, title, type, video_key, pdf_key, duration, is_preview, module_id, content
        FROM lessons WHERE id = $1`,
       [lessonId]
     );
@@ -47,20 +47,62 @@ router.get("/lesson/:lessonId", authApiMiddleware, async (req, res) => {
       type: lesson.type,
       duration: lesson.duration,
       isPreview: lesson.is_preview,
+      // Include full lesson object for quiz / content rendering
+      lesson: {
+        id: lesson.id,
+        title: lesson.title,
+        type: lesson.type,
+        duration: lesson.duration,
+        video_key: lesson.video_key,
+        pdf_key: lesson.pdf_key,
+        content: lesson.content,
+        is_preview: lesson.is_preview,
+      },
     };
 
-    if (lesson.video_key) response.videoUrl = await generateSignedUrl(lesson.video_key);
-    if (lesson.pdf_key) response.pdfUrl = await generateSignedUrl(lesson.pdf_key);
+    // ── Video URL ─────────────────────────────────────────────────
+    if (lesson.video_key) {
+      const vk = lesson.video_key;
+      try {
+        if (vk.startsWith("http://") || vk.startsWith("https://")) {
+          // Already a direct URL — return it as-is
+          response.videoUrl = vk;
+        } else {
+          // R2 key — generate a signed URL
+          response.videoUrl = await generateSignedUrl(vk);
+        }
+      } catch (urlErr) {
+        console.error("⚠️  Could not generate video URL for key:", vk, urlErr.message);
+        // Still return the response — without a video URL
+        response.videoError = "Video temporarily unavailable. Please try again.";
+      }
+    }
 
-    // Log access
+    // ── PDF URL ───────────────────────────────────────────────────
+    if (lesson.pdf_key) {
+      const pk = lesson.pdf_key;
+      try {
+        if (pk.startsWith("http://") || pk.startsWith("https://")) {
+          response.pdfUrl = pk;
+        } else {
+          response.pdfUrl = await generateSignedUrl(pk);
+        }
+      } catch (pdfErr) {
+        console.error("⚠️  Could not generate PDF URL for key:", pk, pdfErr.message);
+      }
+    }
+
+    // ── Log lesson access (best-effort — never fail the response) ──
     if (userId) {
-      await pool.query(
+      pool.query(
         `INSERT INTO lesson_progress (user_id, lesson_id, updated_at)
          VALUES ($1, $2, NOW())
          ON CONFLICT (user_id, lesson_id)
          DO UPDATE SET updated_at = NOW()`,
         [userId, lessonId]
-      );
+      ).catch((dbErr) => {
+        console.error("⚠️  Could not log lesson access:", dbErr.message);
+      });
     }
 
     res.json(response);

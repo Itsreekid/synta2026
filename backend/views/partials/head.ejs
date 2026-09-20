@@ -7,6 +7,15 @@
 <script>
   // Show progress bar after 100ms (not immediately — avoids flash on fast connections)
   Turbo.setProgressBarDelay(100);
+
+  // ── Direction reset fix ──────────────────────────────────────────────────────
+  // Turbo replaces <body> but NOT <html> attributes, so if one page sets
+  // dir="rtl" it sticks to every subsequent page. We force ltr on every visit.
+  document.addEventListener('turbo:render', function () {
+    const html = document.documentElement;
+    html.setAttribute('dir', 'ltr');
+    html.setAttribute('lang', 'fr');
+  });
 </script>
 <!-- Fonts -->
 <link rel="preconnect" href="https://fonts.googleapis.com">

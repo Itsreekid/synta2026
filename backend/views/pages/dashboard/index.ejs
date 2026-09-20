@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="ar" dir="rtl">
+<html lang="fr" dir="ltr">
 <head>
     <%- include('../../partials/head', { title: 'لوحة التحكم', css: 'dashboard' }) %>
 </head>
@@ -18,7 +18,7 @@
                     <div class="greeting-avatar" id="user-avatar">
                         <%= (typeof profile !== 'undefined' && profile) ? profile.initial : 'U' %>
                     </div>
-                    <div class="greeting-text">
+                    <div class="greeting-text" dir="rtl">
                         <div class="greeting-label">مرحباً 👋</div>
                         <h1 class="greeting-name" id="user-name">
                             <%= (typeof profile !== 'undefined' && profile && profile.full_name)
@@ -57,7 +57,7 @@
                 </div>
 
                 <!-- ══ QUICK ACTION GRID ══ -->
-                <div class="section-header">
+                <div class="section-header" dir="rtl">
                     <h2 class="section-title">⚡ الوصول السريع</h2>
                 </div>
                 <div class="shortcut-grid">
@@ -88,7 +88,7 @@
                 </div>
 
                 <!-- ══ UPCOMING EVENTS ══ -->
-                <div class="section-header">
+                <div class="section-header" dir="rtl">
                     <h2 class="section-title">📅 الجلسات القادمة</h2>
                     <a href="/app/calendar" class="see-all-link">عرض الكل</a>
                 </div>

@@ -239,17 +239,34 @@ function formatDuration(seconds) {
 async function playLesson(lessonId) {
     try {
         // Fetch lesson details + signed video URL via REST API
-        const contentData = await window.SyntaAPI.getContentUrl(lessonId);
+        let contentData;
+        try {
+            contentData = await window.SyntaAPI.getContentUrl(lessonId);
+        } catch (fetchErr) {
+            // 403 = not enrolled
+            if (fetchErr.message && fetchErr.message.includes('Access denied')) {
+                showError('Vous devez être inscrit à ce cours pour accéder à cette leçon.');
+                return;
+            }
+            throw fetchErr;
+        }
+
         const videoUrl = contentData.videoUrl;
         const lesson = contentData.lesson || { id: lessonId, title: 'Leçon', video_key: true };
 
+        // Server signalled video is unavailable (R2 error) but returned 200
+        if (contentData.videoError) {
+            showError(contentData.videoError);
+            return;
+        }
+
         if (videoUrl) {
-            // Mark lesson progress
-            await markLessonProgress(lessonId);
+            // Mark lesson progress (best-effort)
+            markLessonProgress(lessonId);
             // Show video in main content area
             await showVideoInMainArea(lesson, videoUrl);
         } else {
-            showError('Vidéo non disponible pour cette leçon');
+            showError('Vidéo non disponible pour cette leçon.');
         }
 
     } catch (error) {
