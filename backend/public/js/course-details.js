@@ -1101,7 +1101,8 @@ async function openQuizLesson(lessonId) {
             }
         }
 
-        console.error("Failed to complete lesson", err);
+    } catch (error) {
+        console.error('Error opening quiz:', error);
     }
 }
 
