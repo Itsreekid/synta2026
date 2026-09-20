@@ -264,7 +264,7 @@ async function playLesson(lessonId) {
             // Mark lesson progress (best-effort)
             markLessonProgress(lessonId);
             // Show video in main content area
-            await showVideoInMainArea(lesson, videoUrl);
+            await showVideoInMainArea(lesson, videoUrl, contentData.pdfUrl);
         } else {
             showError('Vidéo non disponible pour cette leçon.');
         }
@@ -305,7 +305,7 @@ async function updateCourseProgress(userId, courseId) {
 /**
  * Show video in main content area
  */
-async function showVideoInMainArea(lesson, videoUrl) {
+async function showVideoInMainArea(lesson, videoUrl, pdfUrl) {
     const courseMain = document.querySelector('.course-main');
     const courseSidebar = document.querySelector('.course-sidebar');
     const modulesContainer = document.getElementById('modules-container');
@@ -318,61 +318,13 @@ async function showVideoInMainArea(lesson, videoUrl) {
         courseSidebar.dataset.originalContent = courseSidebar.innerHTML;
     }
 
-    // Fetch PDF URLs if pdf_key exists
+    // Use the pdfUrl we already got from the server
     let pdfUrls = [];
-    if (lesson.pdf_key) {
-        try {
-            const response = await fetch(`${window.SyntaAPI.BACKEND_URL}/api/content/lesson/${lesson.id}`);
-            if (response.ok) {
-                const data = await response.json();
-
-                // Handle multiple PDFs - pdf_key can be:
-                // 1. A single string: "file.pdf"
-                // 2. Comma-separated: "file1.pdf,file2.pdf"
-                // 3. JSON array: ["file1.pdf", "file2.pdf"]
-                let pdfKeys = [];
-                if (typeof lesson.pdf_key === 'string') {
-                    if (lesson.pdf_key.startsWith('[')) {
-                        // JSON array
-                        try {
-                            pdfKeys = JSON.parse(lesson.pdf_key);
-                        } catch (e) {
-                            pdfKeys = [lesson.pdf_key];
-                        }
-                    } else if (lesson.pdf_key.includes(',')) {
-                        // Comma-separated
-                        pdfKeys = lesson.pdf_key.split(',').map(k => k.trim());
-                    } else {
-                        // Single file
-                        pdfKeys = [lesson.pdf_key];
-                    }
-                } else if (Array.isArray(lesson.pdf_key)) {
-                    pdfKeys = lesson.pdf_key;
-                }
-
-                // Fetch signed URLs for all PDFs
-                for (const pdfKey of pdfKeys) {
-                    if (pdfKey) {
-                        try {
-                            const pdfResponse = await fetch(`${window.SyntaAPI.BACKEND_URL}/api/content/lesson/${lesson.id}`);
-                            if (pdfResponse.ok) {
-                                const pdfData = await pdfResponse.json();
-                                if (pdfData.pdfUrl) {
-                                    pdfUrls.push({
-                                        url: pdfData.pdfUrl,
-                                        name: pdfKey.split('/').pop().replace('.pdf', '')
-                                    });
-                                }
-                            }
-                        } catch (err) {
-                            console.warn('Failed to fetch PDF:', pdfKey, err);
-                        }
-                    }
-                }
-            }
-        } catch (err) {
-            console.warn('Failed to fetch PDF URLs:', err);
-        }
+    if (pdfUrl) {
+        pdfUrls.push({
+            url: pdfUrl,
+            name: lesson.title ? \`Document: \${lesson.title}\` : 'Document PDF'
+        });
     }
 
     // Generate PDF buttons HTML
@@ -412,13 +364,15 @@ async function showVideoInMainArea(lesson, videoUrl) {
         <div style="flex: 1; display: flex; flex-direction: column; min-height: 0; align-items: flex-start;">
             <video id="current-lesson-video" controls autoplay controlsList="nodownload" oncontextmenu="return false;" style="
                 max-width: 100%;
-                width: auto;
+                width: 100%;
                 height: auto;
+                aspect-ratio: 16 / 9;
                 max-height: calc(100vh - 320px);
                 border-radius: 12px;
-                background: transparent;
+                background: #000;
                 box-shadow: 0 4px 20px rgba(0,0,0,0.15);
                 display: block;
+                object-fit: contain;
             ">
                 <source src="${videoUrl}" type="video/mp4">
                 Votre navigateur ne supporte pas la vidéo.
