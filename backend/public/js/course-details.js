@@ -25,28 +25,22 @@ document.addEventListener('DOMContentLoaded', async function () {
  */
 async function loadCourseDetails(courseId) {
     try {
-        // Fetch course details from courses table
-        const { data: course, error: courseError } = await window.SyntaAPI.supabase
-            .from('courses')
-            .select('*')
-            .eq('id', courseId)
-            .eq('is_published', true)
-            .single();
+        // Fetch course + modules + lessons via REST API (no Supabase)
+        const course = await window.SyntaAPI.fetchCourseDetails(courseId);
 
-        if (courseError) throw courseError;
         if (!course) {
             showError('Cours non trouvé');
-            setTimeout(() => window.location.href = 'courses.html', 2000);
+            setTimeout(() => window.location.href = '/app/courses', 2000);
             return;
         }
 
         currentCourse = course;
 
-        // Check enrollment status
+        // Check enrollment status via REST API
         const hasAccess = await checkUserAccess(courseId);
 
-        // Fetch modules and lessons from Supabase
-        const modulesWithLessons = await fetchModulesAndLessons(courseId);
+        // Modules & lessons are already nested in the course response
+        const modulesWithLessons = course.modules || [];
 
         // Count total lessons
         const totalLessons = modulesWithLessons.reduce((sum, module) => sum + (module.lessons?.length || 0), 0);
@@ -64,45 +58,14 @@ async function loadCourseDetails(courseId) {
 }
 
 /**
- * Fetch modules and lessons from Supabase
+ * Fetch modules and lessons via REST API
+ * Note: loadCourseDetails already receives modules nested in the course object.
+ * This function is kept for any direct callers but delegates to the API.
  */
 async function fetchModulesAndLessons(courseId) {
     try {
-        if (!window.SyntaAPI.supabase) {
-            throw new Error('Supabase non initialisé');
-        }
-
-        // Fetch modules for this course
-        const { data: modules, error: modulesError } = await window.SyntaAPI.supabase
-            .from('modules')
-            .select('*')
-            .eq('course_id', courseId)
-            .order('order_index', { ascending: true });
-
-        if (modulesError) throw modulesError;
-
-        if (!modules || modules.length === 0) {
-            return [];
-        }
-
-        // Fetch lessons for all modules
-        const moduleIds = modules.map(m => m.id);
-        const { data: lessons, error: lessonsError } = await window.SyntaAPI.supabase
-            .from('lessons')
-            .select('*')
-            .in('module_id', moduleIds)
-            .order('order_index', { ascending: true });
-
-        if (lessonsError) throw lessonsError;
-
-        // Combine modules with their lessons
-        const modulesWithLessons = modules.map(module => ({
-            ...module,
-            lessons: (lessons || []).filter(lesson => lesson.module_id === module.id)
-        }));
-
-        return modulesWithLessons;
-
+        const course = await window.SyntaAPI.fetchCourseDetails(courseId);
+        return course?.modules || [];
     } catch (error) {
         console.error('Erreur lors de la récupération des modules et leçons:', error);
         return [];
@@ -110,38 +73,11 @@ async function fetchModulesAndLessons(courseId) {
 }
 
 /**
- * Check if user has access to course (via enrollment)
+ * Check if user has access to course (via enrollment) — uses REST API
  */
 async function checkUserAccess(courseId) {
     try {
-        const authenticated = await window.SyntaAPI.isAuthenticated();
-        if (!authenticated) return false;
-
-        const user = await window.SyntaAPI.getCurrentUser();
-        if (!user) return false;
-
-        // Check enrollments table
-        const { data: enrollment, error } = await window.SyntaAPI.supabase
-            .from('enrollments')
-            .select('*')
-            .eq('user_id', user.id)
-            .eq('course_id', courseId)
-            .maybeSingle();
-
-        if (error && error.code !== 'PGRST116') {
-            console.error('Error checking enrollment:', error);
-            return false;
-        }
-
-        // Check if enrollment exists and is not expired
-        if (enrollment) {
-            currentEnrollment = enrollment;
-            if (!enrollment.expires_at || new Date(enrollment.expires_at) > new Date()) {
-                return true;
-            }
-        }
-
-        return false;
+        return await window.SyntaAPI.checkCourseAccess(courseId);
     } catch (error) {
         console.error('Error checking access:', error);
         return false;
@@ -302,62 +238,14 @@ function formatDuration(seconds) {
  */
 async function playLesson(lessonId) {
     try {
-        // Fetch lesson details
-        const { data: lesson, error } = await window.SyntaAPI.supabase
-            .from('lessons')
-            .select('*')
-            .eq('id', lessonId)
-            .single();
+        // Fetch lesson details + signed video URL via REST API
+        const contentData = await window.SyntaAPI.getContentUrl(lessonId);
+        const videoUrl = contentData.videoUrl;
+        const lesson = contentData.lesson || { id: lessonId, title: 'Leçon', video_key: true };
 
-        if (error) throw error;
-
-        if (lesson.video_key) {
-            let videoUrl;
-
-            try {
-                // Try to get signed URL from backend API
-                const contentData = await window.SyntaAPI.getContentUrl(lessonId);
-                videoUrl = contentData.videoUrl;
-
-                if (!videoUrl) {
-                    throw new Error('No video URL returned from backend');
-                }
-            } catch (err) {
-                console.error('Backend not available:', err);
-
-                // Try direct URL if configured
-                videoUrl = window.SyntaAPI.getDirectVideoUrl(lesson.video_key);
-
-                if (!videoUrl) {
-                    // Show helpful error message based on environment
-                    const isProduction = window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1';
-
-                    if (isProduction) {
-                        showError(`Pour lire les vidéos en production :<br><br>
-                            <strong>Option 1 :</strong> Configurez R2_PUBLIC_URL<br>
-                            Dans api-client.js, définissez votre URL publique R2<br><br>
-                            <strong>Option 2 :</strong> Déployez le backend<br>
-                            Déployez le backend sur un serveur et configurez BACKEND_URL<br><br>
-                            <strong>Vidéo de démo utilisée temporairement</strong>`);
-                    } else {
-                        showError(`Le backend n'est pas démarré.<br><br>
-                            <strong>Pour lire les vidéos :</strong><br>
-                            1. Ouvrez un terminal dans le dossier backend<br>
-                            2. Exécutez: npm install (première fois)<br>
-                            3. Exécutez: npm start<br>
-                            4. Accédez au site via http://localhost ou http://127.0.0.1<br><br>
-                            <strong>Vidéo de démo utilisée temporairement</strong>`);
-                    }
-
-                    // Use demo video as last resort
-                    videoUrl = 'https://www.w3schools.com/html/mov_bbb.mp4';
-                    console.log('🎬 Vidéo de démo utilisée. Clé vidéo:', lesson.video_key);
-                }
-            }
-
+        if (videoUrl) {
             // Mark lesson progress
             await markLessonProgress(lessonId);
-
             // Show video in main content area
             await showVideoInMainArea(lesson, videoUrl);
         } else {
@@ -366,56 +254,32 @@ async function playLesson(lessonId) {
 
     } catch (error) {
         console.error('Erreur lors de la lecture de la leçon:', error);
-        showError('Impossible de lire la vidéo');
+        showError('Impossible de lire la vidéo: ' + (error.message || 'Erreur inconnue'));
     }
 }
 
 /**
- * Mark lesson progress in database
+ * Mark lesson progress via REST API
  */
 async function markLessonProgress(lessonId) {
     try {
-        const user = await window.SyntaAPI.getCurrentUser();
-        if (!user) return;
-
-        // Insert or update lesson progress
-        const { error } = await window.SyntaAPI.supabase
-            .from('lesson_progress')
-            .upsert({
-                user_id: user.id,
-                lesson_id: lessonId,
-                progress_percentage: 100,
-                completed: true,
-                completed_at: new Date().toISOString(),
-                updated_at: new Date().toISOString()
-            }, {
-                onConflict: 'user_id,lesson_id'
-            });
-
-        if (error) console.error('Error updating progress:', error);
-
-        // Update course progress
-        if (currentCourse) {
-            await updateCourseProgress(user.id, currentCourse.id);
-        }
+        await window.SyntaAPI.markLessonComplete(lessonId, 100);
     } catch (error) {
         console.error('Error marking progress:', error);
     }
 }
 
 /**
- * Update overall course progress
+ * Update overall course progress via REST API
  */
 async function updateCourseProgress(userId, courseId) {
     try {
-        // Call the PostgreSQL function to update progress
-        const { error } = await window.SyntaAPI.supabase
-            .rpc('update_course_progress', {
-                p_user_id: userId,
-                p_course_id: courseId
-            });
-
-        if (error) console.error('Error updating course progress:', error);
+        await fetch(`/api/tracking/progress`, {
+            method: 'POST',
+            credentials: 'same-origin',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ courseId })
+        });
     } catch (error) {
         console.error('Error in updateCourseProgress:', error);
     }
@@ -646,53 +510,24 @@ async function enrollInCourse(courseId, isFree, hasAccess) {
         }
 
         if (isFree) {
-            // Create enrollment directly in database
-            const { error } = await window.SyntaAPI.supabase
-                .from('enrollments')
-                .insert({
-                    user_id: user.id,
-                    course_id: courseId,
-                    amount_paid: 0,
-                    enrolled_at: new Date().toISOString()
-                });
-
-            if (error) {
-                if (error.code === '23505') {
-                    showError('Vous êtes déjà inscrit à ce cours');
-                } else {
-                    throw error;
-                }
-                return;
-            }
-
+            // Free enrollment via REST API
+            await window.SyntaAPI.enrollFreeCourse(courseId);
             showSuccess('Inscription réussie au cours !');
-            setTimeout(() => {
-                location.reload();
-            }, 1500);
+            setTimeout(() => { location.reload(); }, 1500);
         } else {
-            // Get user balance
-            const { data: userData, error: balanceError } = await window.SyntaAPI.supabase
-                .from('Users')
-                .select('balance')
-                .eq('id', user.id)
-                .single();
+            // Get user balance via REST API
+            let balance = 0;
+            try {
+                const res = await fetch('/api/user/balance', { credentials: 'same-origin' });
+                if (res.ok) { const d = await res.json(); balance = d.balance || 0; }
+            } catch (_) {}
 
-            if (balanceError) {
-                console.error('Error fetching balance:', balanceError);
-                showError('Erreur lors de la vérification du solde');
-                return;
-            }
-
-            const balance = userData?.balance || 0;
             const price = currentCourse?.price || 0;
 
             // Check if balance is sufficient
             if (balance < price) {
-                // Insufficient balance, redirect to payment page
                 showError('Solde insuffisant. Redirection vers la page de paiement...');
-                setTimeout(() => {
-                    window.location.href = '../paiement/paiement.html';
-                }, 1500);
+                setTimeout(() => { window.location.href = '/app/paiement'; }, 1500);
                 return;
             }
 
@@ -701,7 +536,7 @@ async function enrollInCourse(courseId, isFree, hasAccess) {
         }
     } catch (error) {
         console.error('Erreur d\'inscription:', error);
-        showError('Une erreur s\'est produite lors de l\'inscription');
+        showError('Une erreur s\'est produite lors de l\'inscription: ' + (error.message || ''));
     }
 }
 
@@ -1125,13 +960,10 @@ function formatDuration(seconds) {
  */
 async function openQuizLesson(lessonId) {
     try {
-        const { data: lesson, error } = await window.SyntaAPI.supabase
-            .from('lessons')
-            .select('*')
-            .eq('id', lessonId)
-            .single();
+        const contentData = await window.SyntaAPI.getContentUrl(lessonId);
+        const lesson = contentData.lesson || {};
 
-        if (error || !lesson.content || !lesson.content.questions) {
+        if (!lesson.content || !lesson.content.questions) {
             window.SyntaAPI.showError('Quiz non disponible ou mal configuré');
             return;
         }
@@ -1259,8 +1091,8 @@ async function openQuizLesson(lessonId) {
 }
 
 async function getToken() {
-    const { data } = await window.supabaseClient.auth.getSession();
-    return data.session?.access_token;
+    // Auth is cookie-based — no client-side token needed
+    return null;
 }
 
 /**

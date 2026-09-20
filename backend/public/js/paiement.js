@@ -30,18 +30,6 @@ document.addEventListener('DOMContentLoaded', async function () {
         return;
     }
 
-    // Store globally for use in other functions
-    window.SyntaAPI = SyntaAPI;
-
-    console.log('Waiting for Supabase client initialization...');
-    try {
-        await window.SyntaAPI.waitForSupabase();
-        console.log('Supabase client initialized.');
-    } catch (error) {
-        console.error('Supabase initialization error:', error);
-        return;
-    }
-
     console.log('SyntaAPI loaded, loading user data and transactions');
     await loadUserData();
     await loadTransactions();
@@ -103,54 +91,18 @@ async function loadTransactions() {
 
         console.log('Loading transactions for user:', user.id);
 
-        // Fetch transactions from database
-        const { data: transactions, error: txError } = await window.SyntaAPI.supabase
-            .from('transactions')
-            .select('*')
-            .eq('user_id', user.id)
-            .order('created_at', { ascending: false });
+        // Fetch all wallet history from REST API (transactions + enrollments + payments)
+        const [txRes, enrollRes] = await Promise.allSettled([
+            fetch('/api/user/transactions', { credentials: 'same-origin' }).then(r => r.ok ? r.json() : []),
+            fetch('/api/enrollment/my-enrollments', { credentials: 'same-origin' }).then(r => r.ok ? r.json() : [])
+        ]);
 
-        if (txError) {
-            console.error('Transaction fetch error:', txError);
-            // Don't throw, continue with empty transactions
-        }
+        const transactions = txRes.status === 'fulfilled' ? (txRes.value || []) : [];
+        const enrollments  = enrollRes.status === 'fulfilled' ? (enrollRes.value || []) : [];
 
-        console.log('Transactions fetched:', transactions);
-
-        // Fetch enrollments/purchases from Supabase
-        const { data: enrollments, error } = await window.SyntaAPI.supabase
-            .from('enrollments')
-            .select(`
-                *,
-                course:courses (
-                    title,
-                    price
-                )
-            `)
-            .eq('user_id', user.id)
-            .order('enrolled_at', { ascending: false });
-
-        if (error) {
-            console.error('Enrollments fetch error:', error);
-            // Don't throw, continue with empty enrollments
-        }
-
-        console.log('Enrollments fetched:', enrollments);
-
-        // Fetch offer payments from Supabase
-        const { data: payments, error: paymentsError } = await window.SyntaAPI.supabase
-            .from('payments')
-            .select('*')
-            .eq('user_id', user.id)
-            .order('created_at', { ascending: false });
-
-        if (paymentsError) {
-            console.error('Payments fetch error:', paymentsError);
-        }
-
-        // Combine transactions, enrollments, and payments
+        // Combine and sort
         const allTransactions = [
-            ...(transactions || []).map(tx => ({
+            ...transactions.map(tx => ({
                 id: tx.transaction_code || tx.id,
                 type: tx.type,
                 amount: tx.amount,
@@ -159,31 +111,17 @@ async function loadTransactions() {
                 payment_method: tx.payment_method || 'N/A',
                 isTransaction: true
             })),
-            ...(payments || []).map(p => ({
-                id: p.id,
-                type: 'Achat de Plan',
-                amount: p.amount,
-                date: p.created_at,
-                status: 'completed',
-                payment_method: 'Solde Portefeuille',
+            ...enrollments.map(enrollment => ({
+                id: enrollment.id,
+                type: 'Accès Cours',
+                amount: enrollment.amount_paid || 0,
+                date: enrollment.enrolled_at,
+                status: 'approved',
+                payment_method: 'Cours',
                 isTransaction: false,
-                isPayment: true
-            })),
-            ...(enrollments || []).map(enrollment => {
-                // Skip enrollments that are already covered by payments (optional, but cleaner)
-                // For now, let's keep it simple and just show them both or filter appropriately
-                return {
-                    id: enrollment.id,
-                    type: 'Accès Cours',
-                    amount: enrollment.course?.price || 0,
-                    date: enrollment.enrolled_at,
-                    status: 'approved',
-                    payment_method: 'Cours',
-                    isTransaction: false,
-                    isEnrollment: true,
-                    enrollment: enrollment
-                };
-            })
+                isEnrollment: true,
+                enrollment: enrollment
+            }))
         ].sort((a, b) => new Date(b.date) - new Date(a.date));
 
         // Always show transactions (if any) plus the "Add" button
@@ -422,11 +360,12 @@ async function createPendingTransaction(amount) {
 
         const transactionCode = 'TXN-' + Date.now();
 
-        // Insert transaction into database
-        const { data, error } = await window.SyntaAPI.supabase
-            .from('transactions')
-            .insert({
-                user_id: user.id,
+        // Insert transaction via REST API
+        const res = await fetch('/api/user/transactions', {
+            method: 'POST',
+            credentials: 'same-origin',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
                 amount: parseFloat(amount),
                 type: 'deposit',
                 status: 'pending',
@@ -434,14 +373,14 @@ async function createPendingTransaction(amount) {
                 transaction_code: transactionCode,
                 description: 'Demande de dépôt'
             })
-            .select()
-            .single();
+        });
 
-        if (error) {
-            console.error('Database error:', error);
-            throw error;
+        if (!res.ok) {
+            const err = await res.json().catch(() => ({}));
+            throw new Error(err.error || 'Erreur serveur');
         }
 
+        const data = await res.json();
         console.log('Transaction created:', data);
 
         // Reload transactions to show the new one

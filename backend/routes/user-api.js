@@ -142,25 +142,51 @@ router.get("/api/user/transactions", authApiMiddleware, async (req, res) => {
   try {
     const userId = req.user.id;
 
-    const [txResult, enrollResult, payResult] = await Promise.all([
-      pool.query(`SELECT * FROM transactions WHERE user_id = $1 ORDER BY created_at DESC`, [userId]).catch(() => ({ rows: [] })),
-      pool.query(
-        `SELECT e.*, c.title as course_title, c.price as course_price
-         FROM enrollments e JOIN courses c ON c.id = e.course_id
-         WHERE e.user_id = $1 ORDER BY e.enrolled_at DESC`,
-        [userId]
-      ).catch(() => ({ rows: [] })),
-      pool.query(`SELECT * FROM payments WHERE user_id = $1 ORDER BY created_at DESC`, [userId]).catch(() => ({ rows: [] })),
-    ]);
+    const txResult = await pool.query(
+      `SELECT * FROM transactions WHERE user_id = $1 ORDER BY created_at DESC`,
+      [userId]
+    ).catch(() => ({ rows: [] }));
 
-    return res.json({
-      transactions: txResult.rows,
-      enrollments: enrollResult.rows,
-      payments: payResult.rows,
-    });
+    return res.json(txResult.rows);
   } catch (err) {
-    console.error("[user/transactions] Error:", err.message);
+    console.error("[user/transactions GET] Error:", err.message);
     return res.status(500).json({ error: "Failed to load transactions" });
+  }
+});
+
+/**
+ * POST /api/user/transactions
+ * Create a new pending deposit transaction
+ */
+router.post("/api/user/transactions", authApiMiddleware, async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const { amount, type, status, payment_method, transaction_code, description } = req.body;
+
+    if (!amount || isNaN(amount) || amount <= 0) {
+      return res.status(400).json({ error: "Invalid amount" });
+    }
+
+    const result = await pool.query(
+      `INSERT INTO transactions
+         (user_id, amount, type, status, payment_method, transaction_code, description, created_at)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, NOW())
+       RETURNING *`,
+      [
+        userId,
+        parseFloat(amount),
+        type || "deposit",
+        status || "pending",
+        payment_method || "En attente de confirmation",
+        transaction_code || ("TXN-" + Date.now()),
+        description || "Demande de dépôt",
+      ]
+    );
+
+    return res.json({ success: true, transaction: result.rows[0] });
+  } catch (err) {
+    console.error("[user/transactions POST] Error:", err.message);
+    return res.status(500).json({ error: "Failed to create transaction" });
   }
 });
 

@@ -8,8 +8,6 @@
   // Show progress bar after 100ms (not immediately — avoids flash on fast connections)
   Turbo.setProgressBarDelay(100);
 </script>
-<!-- Supabase -->
-<script src="https://unpkg.com/@supabase/supabase-js@2" defer></script>
 <!-- Fonts -->
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -28,19 +26,12 @@
 <%- (typeof extraHead !== 'undefined' && extraHead) ? extraHead : '' %>
 
 <!-- =====================================================
-     SERVER-INJECTED CONFIGURATION
-     Provides Supabase credentials and the server-resolved
-     user profile to the client without any async round-trip.
-     This eliminates the client-side auth race condition.
+     SERVER-INJECTED USER PROFILE
+     Pre-hydrates the global app state so client scripts
+     can read the profile immediately — no async fetch.
      ===================================================== -->
 <script id="__SYNTA_CONFIG__">
-  window.__SYNTA_CONFIG__ = {
-    supabaseUrl:     "<%- (typeof syntaConfig !== 'undefined' && syntaConfig.url)     ? syntaConfig.url     : '' %>",
-    supabaseAnonKey: "<%- (typeof syntaConfig !== 'undefined' && syntaConfig.anonKey) ? syntaConfig.anonKey : '' %>"
-  };
   <% if (typeof profile !== 'undefined' && profile) { %>
-  // Pre-hydrate the global app state with the server-resolved profile.
-  // Client scripts can read this immediately — no async fetch needed.
   window.__SYNTA_PROFILE__ = {
     id:          "<%- profile.id %>",
     email:       "<%- profile.email %>",

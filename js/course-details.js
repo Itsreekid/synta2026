@@ -25,8 +25,11 @@ document.addEventListener('DOMContentLoaded', async function () {
  */
 async function loadCourseDetails(courseId) {
     try {
+        // Wait for Supabase client to be ready (authentication.js initializes it async)
+        const supabase = await window.SyntaAPI.waitForSupabase();
+
         // Fetch course details from courses table
-        const { data: course, error: courseError } = await window.SyntaAPI.supabase
+        const { data: course, error: courseError } = await supabase
             .from('courses')
             .select('*')
             .eq('id', courseId)
@@ -68,12 +71,10 @@ async function loadCourseDetails(courseId) {
  */
 async function fetchModulesAndLessons(courseId) {
     try {
-        if (!window.SyntaAPI.supabase) {
-            throw new Error('Supabase non initialisé');
-        }
+        const supabase = window.SyntaAPI.supabase; // safe: waitForSupabase() already resolved
 
         // Fetch modules for this course
-        const { data: modules, error: modulesError } = await window.SyntaAPI.supabase
+        const { data: modules, error: modulesError } = await supabase
             .from('modules')
             .select('*')
             .eq('course_id', courseId)
@@ -87,7 +88,7 @@ async function fetchModulesAndLessons(courseId) {
 
         // Fetch lessons for all modules
         const moduleIds = modules.map(m => m.id);
-        const { data: lessons, error: lessonsError } = await window.SyntaAPI.supabase
+        const { data: lessons, error: lessonsError } = await supabase
             .from('lessons')
             .select('*')
             .in('module_id', moduleIds)
