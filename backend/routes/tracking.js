@@ -55,26 +55,34 @@ router.get("/weak-topics", authMiddleware, async (req, res) => {
 });
 
 /**
- * POST /api/tracking/lesson-complete
+ * POST /api/tracking/progress
  */
-router.post("/lesson-complete", authMiddleware, async (req, res) => {
+router.post("/progress", authMiddleware, async (req, res) => {
   try {
     if (!req.user) return res.status(401).json({ error: "Unauthorized" });
 
     const userId = req.user.id;
-    const { lessonId } = req.body;
+    const { lessonId, progress, courseId } = req.body;
 
-    await pool.query(
-      `INSERT INTO lesson_progress (user_id, lesson_id, completed, progress_percentage, updated_at)
-       VALUES ($1, $2, true, 100, NOW())
-       ON CONFLICT (user_id, lesson_id)
-       DO UPDATE SET completed = true, progress_percentage = 100, updated_at = NOW()`,
-      [userId, lessonId]
-    );
+    // Handle marking a specific lesson
+    if (lessonId) {
+      await pool.query(
+        `INSERT INTO lesson_progress (user_id, lesson_id, completed, progress_percentage, updated_at)
+         VALUES ($1, $2, true, $3, NOW())
+         ON CONFLICT (user_id, lesson_id)
+         DO UPDATE SET completed = true, progress_percentage = EXCLUDED.progress_percentage, updated_at = NOW()`,
+        [userId, lessonId, progress || 100]
+      );
+    }
+    
+    // Optionally handle course level marking if provided (fallback logic)
+    if (courseId && !lessonId) {
+        // Just acknowledging it for now, normally you'd update course progress in enrollments
+    }
 
     res.json({ success: true });
   } catch (error) {
-    console.error("Error marking lesson complete:", error);
+    console.error("Error marking lesson progress:", error);
     res.status(500).json({ error: "Internal server error" });
   }
 });

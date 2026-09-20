@@ -404,7 +404,6 @@ async function showVideoInMainArea(lesson, videoUrl, pdfUrl) {
                 controlsList="nodownload"
                 style="position: absolute; top: 0; left: 0; width: 100%; height: 100%;"
                 src="${videoUrl}"
-                poster="${posterUrl}"
             >
                 Votre navigateur ne supporte pas la lecture de vidéos.
             </video>
@@ -1102,10 +1101,11 @@ async function openQuizLesson(lessonId) {
             }
         }
 
-    } catch (error) {
-        console.error('Error opening quiz:', error);
+        console.error("Failed to complete lesson", err);
     }
 }
+
+/**
 
 async function getToken() {
     // Auth is cookie-based — no client-side token needed
@@ -1142,10 +1142,10 @@ function showError(message) {
 async function completeLessonAndNext(lessonId) {
     try {
         // Mark as complete in backend
-        await fetch('/api/tracking/lesson-complete', {
+        await fetch('/api/tracking/progress', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ lessonId })
+            body: JSON.stringify({ lessonId, progress: 100 })
         });
         
         // Find next lesson
