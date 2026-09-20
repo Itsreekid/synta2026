@@ -18,7 +18,7 @@ router.get("/lesson/:lessonId", authApiMiddleware, async (req, res) => {
     const userId = req.user?.id;
 
     const lessonResult = await pool.query(
-      `SELECT id, title, type, video_key, pdf_key, duration, is_preview, module_id, content
+      `SELECT id, title, type, video_key, pdf_key, duration, is_preview, module_id, description
        FROM lessons WHERE id = $1`,
       [lessonId]
     );
@@ -55,7 +55,7 @@ router.get("/lesson/:lessonId", authApiMiddleware, async (req, res) => {
         duration: lesson.duration,
         video_key: lesson.video_key,
         pdf_key: lesson.pdf_key,
-        content: lesson.content,
+        description: lesson.description,
         is_preview: lesson.is_preview,
       },
     };
