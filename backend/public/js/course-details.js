@@ -132,7 +132,9 @@ async function renderCourseInfo(course, totalLessons, hasAccess, courseProgress)
 
     // Update description
     const descSection = document.getElementById('course-description');
-    descSection.textContent = course.description || 'Aucune description disponible';
+    if (descSection) {
+        descSection.textContent = course.description || 'Aucune description disponible';
+    }
 
     // Inject Progress Bar if enrolled
     if (courseProgress) {
@@ -148,7 +150,9 @@ async function renderCourseInfo(course, totalLessons, hasAccess, courseProgress)
             </div>
         `;
         // Insert after description
-        descSection.insertAdjacentHTML('afterend', progressHtml);
+        if (descSection) {
+            descSection.insertAdjacentHTML('afterend', progressHtml);
+        }
     }
 
     // Update price
@@ -1149,16 +1153,20 @@ async function completeLessonAndNext(lessonId) {
             body: JSON.stringify({ lessonId, progress: 100 })
         });
         
-        // Find next lesson
+        // Find next lesson and check access
         if (!currentCourse || !currentCourse.modules) return;
+        
+        const hasAccess = await checkUserAccess(currentCourse.id);
         
         let foundCurrent = false;
         let nextLessonId = null;
+        let nextLessonIsLocked = false;
         
         for (const mod of currentCourse.modules) {
             for (const les of mod.lessons) {
                 if (foundCurrent) {
                     nextLessonId = les.id;
+                    nextLessonIsLocked = !hasAccess && !les.is_preview;
                     break;
                 }
                 if (les.id === lessonId) {
@@ -1171,11 +1179,11 @@ async function completeLessonAndNext(lessonId) {
         // Reload course details to refresh progress bar & icons
         await loadCourseDetails(currentCourse.id);
         
-        // Play next lesson if exists
-        if (nextLessonId) {
+        // Play next lesson if exists and accessible
+        if (nextLessonId && !nextLessonIsLocked) {
             playLesson(nextLessonId);
         } else {
-            // Reached the end of the course
+            // Reached the end of the course or next lesson is locked
             restoreCourseContent();
             window.scrollTo({ top: 0, behavior: 'smooth' });
         }

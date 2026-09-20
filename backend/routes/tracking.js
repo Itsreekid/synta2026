@@ -83,7 +83,7 @@ router.post("/progress", authMiddleware, async (req, res) => {
     res.json({ success: true });
   } catch (error) {
     console.error("Error marking lesson progress:", error);
-    res.status(500).json({ error: "Internal server error" });
+    res.status(500).json({ error: error.message || "Internal server error" });
   }
 });
 
