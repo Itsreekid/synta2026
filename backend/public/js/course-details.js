@@ -424,8 +424,17 @@ async function showVideoInMainArea(lesson, videoUrl, pdfUrl) {
         }
     }, 100);
 
-    // Scroll to top
-    window.scrollTo({ top: 0, behavior: 'smooth' });
+    // Ensure video player is ALWAYS on top on mobile layout
+    if (courseMain) {
+        courseMain.style.order = '-2';
+    }
+
+    // Smooth scroll directly to the video player
+    setTimeout(() => {
+        if (courseMain) {
+            courseMain.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+    }, 150);
 }
 
 /**
@@ -437,6 +446,7 @@ function restoreCourseContent() {
 
     if (courseMain.dataset.originalContent) {
         courseMain.innerHTML = courseMain.dataset.originalContent;
+        courseMain.style.order = ''; // Reset layout order
         delete courseMain.dataset.originalContent;
     }
 
