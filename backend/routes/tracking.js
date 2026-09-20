@@ -54,4 +54,88 @@ router.get("/weak-topics", authMiddleware, async (req, res) => {
   }
 });
 
+/**
+ * POST /api/tracking/lesson-complete
+ */
+router.post("/lesson-complete", authMiddleware, async (req, res) => {
+  try {
+    if (!req.user) return res.status(401).json({ error: "Unauthorized" });
+
+    const userId = req.user.id;
+    const { lessonId } = req.body;
+
+    await pool.query(
+      `INSERT INTO lesson_progress (user_id, lesson_id, completed, progress_percentage, updated_at)
+       VALUES ($1, $2, true, 100, NOW())
+       ON CONFLICT (user_id, lesson_id)
+       DO UPDATE SET completed = true, progress_percentage = 100, updated_at = NOW()`,
+      [userId, lessonId]
+    );
+
+    res.json({ success: true });
+  } catch (error) {
+    console.error("Error marking lesson complete:", error);
+    res.status(500).json({ error: "Internal server error" });
+  }
+});
+
+/**
+ * GET /api/tracking/course-progress/:courseId
+ */
+router.get("/course-progress/:courseId", authMiddleware, async (req, res) => {
+  try {
+    if (!req.user) return res.status(401).json({ error: "Unauthorized" });
+
+    const userId = req.user.id;
+    const { courseId } = req.params;
+
+    // Get total lessons in course vs completed lessons
+    const result = await pool.query(
+      `SELECT 
+         COUNT(l.id) as total_lessons,
+         COUNT(lp.id) FILTER (WHERE lp.completed = true) as completed_lessons,
+         json_agg(l.id) FILTER (WHERE lp.completed = true) as completed_lesson_ids
+       FROM lessons l
+       JOIN modules m ON l.module_id = m.id
+       LEFT JOIN lesson_progress lp ON lp.lesson_id = l.id AND lp.user_id = $1
+       WHERE m.course_id = $2`,
+      [userId, courseId]
+    );
+
+    const stats = result.rows[0];
+    const total = parseInt(stats.total_lessons) || 0;
+    const completed = parseInt(stats.completed_lessons) || 0;
+    const percentage = total === 0 ? 0 : Math.round((completed / total) * 100);
+    const completedIds = stats.completed_lesson_ids || [];
+
+    res.json({ total, completed, percentage, completedIds });
+  } catch (error) {
+    console.error("Error fetching course progress:", error);
+    res.status(500).json({ error: "Internal server error" });
+  }
+});
+
+/**
+ * POST /api/tracking/lesson-feedback
+ */
+router.post("/lesson-feedback", authMiddleware, async (req, res) => {
+  try {
+    if (!req.user) return res.status(401).json({ error: "Unauthorized" });
+
+    const userId = req.user.id;
+    const { lessonId, reason, additionalNotes } = req.body;
+
+    await pool.query(
+      `INSERT INTO lesson_feedback (user_id, lesson_id, reason, additional_notes)
+       VALUES ($1, $2, $3, $4)`,
+      [userId, lessonId, reason, additionalNotes || null]
+    );
+
+    res.json({ success: true });
+  } catch (error) {
+    console.error("Error submitting lesson feedback:", error);
+    res.status(500).json({ error: "Internal server error" });
+  }
+});
+
 export default router;

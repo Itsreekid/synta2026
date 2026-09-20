@@ -39,6 +39,16 @@ async function loadCourseDetails(courseId) {
         // Check enrollment status via REST API
         const hasAccess = await checkUserAccess(courseId);
 
+        let courseProgress = null;
+        if (hasAccess) {
+            try {
+                const progRes = await fetch(`/api/tracking/course-progress/${courseId}`, { credentials: 'include' });
+                if (progRes.ok) courseProgress = await progRes.json();
+            } catch (e) {
+                console.error("Progress fetch error", e);
+            }
+        }
+
         // Modules & lessons are already nested in the course response
         const modulesWithLessons = course.modules || [];
 
@@ -46,10 +56,10 @@ async function loadCourseDetails(courseId) {
         const totalLessons = modulesWithLessons.reduce((sum, module) => sum + (module.lessons?.length || 0), 0);
 
         // Render course information
-        await renderCourseInfo(course, totalLessons, hasAccess);
+        await renderCourseInfo(course, totalLessons, hasAccess, courseProgress);
 
         // Render modules and lessons
-        renderModulesAndLessons(modulesWithLessons, hasAccess);
+        renderModulesAndLessons(modulesWithLessons, hasAccess, courseProgress);
 
     } catch (error) {
         console.error('Erreur lors du chargement du cours:', error);
@@ -87,7 +97,7 @@ async function checkUserAccess(courseId) {
 /**
  * Render course information
  */
-async function renderCourseInfo(course, totalLessons, hasAccess) {
+async function renderCourseInfo(course, totalLessons, hasAccess, courseProgress) {
     // Update thumbnail
     const thumbnail = document.getElementById('course-thumbnail');
 
@@ -121,7 +131,25 @@ async function renderCourseInfo(course, totalLessons, hasAccess) {
     document.getElementById('course-title').textContent = course.title;
 
     // Update description
-    document.getElementById('course-description').textContent = course.description || 'Aucune description disponible';
+    const descSection = document.getElementById('course-description');
+    descSection.textContent = course.description || 'Aucune description disponible';
+
+    // Inject Progress Bar if enrolled
+    if (courseProgress) {
+        const progressHtml = `
+            <div class="course-progress-wrapper" style="margin-top: 1.5rem;">
+                <div class="course-progress-header">
+                    <span>${courseProgress.completed} / ${courseProgress.total} leçons terminées</span>
+                    <span>${courseProgress.percentage}%</span>
+                </div>
+                <div class="progress-track">
+                    <div class="progress-fill" style="width: ${courseProgress.percentage}%;"></div>
+                </div>
+            </div>
+        `;
+        // Insert after description
+        descSection.insertAdjacentHTML('afterend', progressHtml);
+    }
 
     // Update price
     const currentPrice = document.getElementById('current-price');
@@ -160,8 +188,9 @@ async function renderCourseInfo(course, totalLessons, hasAccess) {
 /**
  * Render modules and lessons
  */
-function renderModulesAndLessons(modules, hasAccess) {
+function renderModulesAndLessons(modules, hasAccess, courseProgress) {
     const container = document.getElementById('modules-container');
+    const completedIds = courseProgress ? courseProgress.completedIds : [];
 
     if (!modules || modules.length === 0) {
         container.innerHTML = '<p style="color: #64748b; text-align: center; padding: 2rem;">Aucun module disponible pour ce cours.</p>';
@@ -180,7 +209,17 @@ function renderModulesAndLessons(modules, hasAccess) {
                 <div class="lessons-list" id="lessons-${moduleIndex}">
                     ${lessons.length > 0 ? lessons.map(lesson => {
             const isLocked = !hasAccess && !lesson.is_preview;
+            const isCompleted = completedIds.includes(lesson.id);
             const duration = formatDuration(lesson.duration);
+            
+            let statusIcon = '<span class="play-icon">▶</span>';
+            if (isLocked) {
+                statusIcon = '<span class="lock-icon" style="color: #94a3b8;">🔒</span>';
+            } else if (isCompleted) {
+                statusIcon = '<span class="completed-icon" style="color: #10b981;">🟢</span>';
+            } else {
+                statusIcon = '<span class="current-icon" style="color: #3b82f6;">🟡</span>';
+            }
 
             return `
                             <div class="lesson-item ${isLocked ? 'locked' : ''}" ${!isLocked ? `onclick="playLesson('${lesson.id}')"` : ''} style="${!isLocked ? 'cursor: pointer;' : ''}">
@@ -192,10 +231,7 @@ function renderModulesAndLessons(modules, hasAccess) {
                                     </div>
                                 </div>
                                 <div class="lesson-status">
-                                    ${isLocked ?
-                    '<span class="lock-icon">🔒</span>' :
-                    '<span class="play-icon">▶</span>'
-                }
+                                    ${statusIcon}
                                 </div>
                             </div>
                         `;
@@ -359,35 +395,35 @@ async function showVideoInMainArea(lesson, videoUrl, pdfUrl) {
         `;
     }
 
-    // Replace main content with video player
+    // Replace main content with video player and action buttons
     courseMain.innerHTML = `
-        <div style="flex: 1; display: flex; flex-direction: column; min-height: 0; align-items: flex-start;">
-            <video id="current-lesson-video" controls autoplay controlsList="nodownload" oncontextmenu="return false;" style="
-                max-width: 100%;
-                width: 100%;
-                height: auto;
-                aspect-ratio: 16 / 9;
-                max-height: calc(100vh - 320px);
-                border-radius: 12px;
-                background: #000;
-                box-shadow: 0 4px 20px rgba(0,0,0,0.15);
-                display: block;
-                object-fit: contain;
-            ">
-                <source src="${videoUrl}" type="video/mp4">
-                Votre navigateur ne supporte pas la vidéo.
+        <div class="video-container" style="background: #000; border-radius: 12px; overflow: hidden; position: relative; aspect-ratio: 16/9; width: 100%;">
+            <video 
+                id="current-lesson-video"
+                controls 
+                controlsList="nodownload"
+                style="position: absolute; top: 0; left: 0; width: 100%; height: 100%;"
+                src="${videoUrl}"
+                poster="${posterUrl}"
+            >
+                Votre navigateur ne supporte pas la lecture de vidéos.
             </video>
         </div>
         
-        <div style="margin-top: 1rem; flex-shrink: 0;">
-            <h1 style="font-size: 1.5rem; color: #1e293b; margin-bottom: 0.5rem; font-weight: 700;">
-                ${lesson.title}
-            </h1>
-            ${lesson.description ? `
-                <p style="color: #64748b; line-height: 1.6; margin-bottom: 0.5rem; font-size: 0.95rem;">
-                    ${lesson.description}
-                </p>
-            ` : ''}
+        <div class="lesson-actions">
+            <button class="btn-complete-next" onclick="completeLessonAndNext('${lesson.id}')">
+                <span class="icon">✅</span> Terminer la leçon & Passer à la suivante
+            </button>
+            <button class="btn-feedback" onclick="openFeedbackModal('${lesson.id}')">
+                <span class="icon">🤔</span> Je n'ai pas compris
+            </button>
+        </div>
+        
+        <div class="lesson-details-content" style="margin-top: 2rem; padding: 1.5rem; background: white; border-radius: 12px; border: 1px solid #e2e8f0;">
+            <h2 style="margin-top: 0; font-size: 1.5rem; color: #1e293b;">${lesson.title}</h2>
+            <div style="color: #64748b; line-height: 1.6;">
+                ${lesson.description || 'Aucune description pour cette leçon.'}
+            </div>
             ${pdfButtonsHtml}
         </div>
     `;
@@ -1094,4 +1130,157 @@ function showError(message) {
     messageDiv.textContent = message;
     document.body.appendChild(messageDiv);
     setTimeout(() => messageDiv.remove(), 3000);
+}
+
+// ==========================================
+// PHASE 1: Course Progression Logic
+// ==========================================
+
+/**
+ * Mark a lesson as complete, and auto-navigate to the next available lesson
+ */
+async function completeLessonAndNext(lessonId) {
+    try {
+        // Mark as complete in backend
+        await fetch('/api/tracking/lesson-complete', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ lessonId })
+        });
+        
+        // Find next lesson
+        if (!currentCourse || !currentCourse.modules) return;
+        
+        let foundCurrent = false;
+        let nextLessonId = null;
+        
+        for (const mod of currentCourse.modules) {
+            for (const les of mod.lessons) {
+                if (foundCurrent) {
+                    nextLessonId = les.id;
+                    break;
+                }
+                if (les.id === lessonId) {
+                    foundCurrent = true;
+                }
+            }
+            if (nextLessonId) break;
+        }
+        
+        // Reload course details to refresh progress bar & icons
+        await loadCourseDetails(currentCourse.id);
+        
+        // Play next lesson if exists
+        if (nextLessonId) {
+            playLesson(nextLessonId);
+        } else {
+            // Reached the end of the course
+            restoreCourseContent();
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+        
+    } catch (err) {
+        console.error("Failed to complete lesson", err);
+    }
+}
+
+/**
+ * Open the feedback modal
+ */
+function openFeedbackModal(lessonId) {
+    let overlay = document.getElementById('feedback-modal-overlay');
+    if (!overlay) {
+        // Create modal if it doesn't exist
+        overlay = document.createElement('div');
+        overlay.id = 'feedback-modal-overlay';
+        overlay.className = 'feedback-modal-overlay';
+        overlay.innerHTML = `
+            <div class="feedback-modal">
+                <h3>Qu'est-ce qui t'a bloqué ? 🤔</h3>
+                <p style="color: #64748b; font-size: 0.9rem; margin-bottom: 1.5rem;">Ton retour nous aide à améliorer le cours pour tout le monde.</p>
+                
+                <div class="feedback-options">
+                    <div class="feedback-option" onclick="selectFeedbackOption(this, 'explication')">Je n'ai pas compris l'explication</div>
+                    <div class="feedback-option" onclick="selectFeedbackOption(this, 'exercice')">J'ai compris mais l'exercice est difficile</div>
+                    <div class="feedback-option" onclick="selectFeedbackOption(this, 'code')">Je ne comprends pas le code</div>
+                    <div class="feedback-option" onclick="selectFeedbackOption(this, 'autre')">Autre</div>
+                </div>
+                
+                <textarea id="feedback-notes" class="feedback-textarea" placeholder="Peux-tu nous en dire plus ? (Optionnel)"></textarea>
+                
+                <div class="feedback-actions">
+                    <button class="btn-cancel" onclick="closeFeedbackModal()">Annuler</button>
+                    <button class="btn-submit" onclick="submitFeedback()">Envoyer</button>
+                </div>
+            </div>
+        `;
+        document.body.appendChild(overlay);
+    }
+    
+    // Reset state
+    window.currentFeedbackLessonId = lessonId;
+    window.selectedFeedbackReason = null;
+    document.querySelectorAll('.feedback-option').forEach(el => el.classList.remove('selected'));
+    const notes = document.getElementById('feedback-notes');
+    if (notes) {
+        notes.value = '';
+        notes.style.display = 'none';
+    }
+    
+    // Show modal
+    setTimeout(() => overlay.classList.add('active'), 10);
+}
+
+function closeFeedbackModal() {
+    const overlay = document.getElementById('feedback-modal-overlay');
+    if (overlay) {
+        overlay.classList.remove('active');
+    }
+}
+
+function selectFeedbackOption(element, reason) {
+    document.querySelectorAll('.feedback-option').forEach(el => el.classList.remove('selected'));
+    element.classList.add('selected');
+    window.selectedFeedbackReason = element.textContent;
+    
+    const notes = document.getElementById('feedback-notes');
+    if (reason === 'autre') {
+        notes.style.display = 'block';
+        notes.focus();
+    } else {
+        notes.style.display = 'block';
+    }
+}
+
+async function submitFeedback() {
+    if (!window.selectedFeedbackReason) {
+        alert("Choisis une option d'abord");
+        return;
+    }
+    
+    const notes = document.getElementById('feedback-notes').value;
+    
+    try {
+        await fetch('/api/tracking/lesson-feedback', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ 
+                lessonId: window.currentFeedbackLessonId,
+                reason: window.selectedFeedbackReason,
+                additionalNotes: notes
+            })
+        });
+        
+        closeFeedbackModal();
+        
+        // Show subtle success toast
+        const toast = document.createElement('div');
+        toast.textContent = "Merci pour ton retour ! On va améliorer ça.";
+        toast.style.cssText = "position: fixed; bottom: 20px; right: 20px; background: #10b981; color: white; padding: 1rem 1.5rem; border-radius: 8px; font-weight: 600; box-shadow: 0 4px 15px rgba(0,0,0,0.2); z-index: 10000; animation: slideUp 0.3s ease-out;";
+        document.body.appendChild(toast);
+        setTimeout(() => toast.remove(), 3000);
+        
+    } catch (err) {
+        console.error("Feedback error", err);
+    }
 }
