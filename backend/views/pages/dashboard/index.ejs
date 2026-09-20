@@ -14,11 +14,11 @@
             <div class="dashboard-container">
 
                 <!-- ══ GREETING CARD ══ -->
-                <div class="greeting-card">
+                <div class="greeting-card" dir="rtl">
                     <div class="greeting-avatar" id="user-avatar">
                         <%= (typeof profile !== 'undefined' && profile) ? profile.initial : 'U' %>
                     </div>
-                    <div class="greeting-text" dir="rtl">
+                    <div class="greeting-text">
                         <div class="greeting-label">مرحباً 👋</div>
                         <h1 class="greeting-name" id="user-name">
                             <%= (typeof profile !== 'undefined' && profile && profile.full_name)
@@ -27,7 +27,7 @@
                                     ? user.email.split('@')[0]
                                     : 'Étudiant' %>
                         </h1>
-                        <div class="greeting-sub">استعد لجلسة تعلم رائعة!</div>
+                        <div class="greeting-sub">استعد لحصة تعلم رائعة!</div>
                     </div>
                 </div>
 

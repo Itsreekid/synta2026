@@ -323,7 +323,7 @@ async function showVideoInMainArea(lesson, videoUrl, pdfUrl) {
     if (pdfUrl) {
         pdfUrls.push({
             url: pdfUrl,
-            name: lesson.title ? \`Document: \${lesson.title}\` : 'Document PDF'
+            name: lesson.title ? `Document: ${lesson.title}` : 'Document PDF'
         });
     }
 
