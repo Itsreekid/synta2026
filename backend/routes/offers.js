@@ -50,12 +50,19 @@ router.get("/", authMiddleware, async (req, res) => {
       offers = offers.filter((offer) => {
         const targetClasses = offer.target_classes || [];
         const targetBranches = offer.target_branches || [];
+        
+        // If offer has no target, OR user has no class set, OR user's class matches (case-insensitive)
         const classMatch =
           targetClasses.length === 0 ||
-          (userProfile.class && targetClasses.includes(userProfile.class));
+          !userProfile.class ||
+          targetClasses.some(c => c.toLowerCase() === userProfile.class.toLowerCase());
+          
+        // Same for branch
         const branchMatch =
           targetBranches.length === 0 ||
-          (userProfile.branch && targetBranches.includes(userProfile.branch));
+          !userProfile.branch ||
+          targetBranches.some(b => b.toLowerCase() === userProfile.branch.toLowerCase());
+          
         return classMatch && branchMatch;
       });
     }
