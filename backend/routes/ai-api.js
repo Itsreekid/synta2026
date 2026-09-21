@@ -30,28 +30,35 @@ CRITICAL: You MUST speak ONLY in Tunisian Darja written in Arabic script (الد
         let attempt = 0;
 
         while (attempt < maxRetries) {
-            response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:generateContent?key=${process.env.GEMINI_API_KEY}`, {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                    contents: [{ parts: [{ text: userPrompt }] }],
-                    generationConfig: { temperature: 0.7, maxOutputTokens: 1024 }
-                })
-            });
+            try {
+                response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:generateContent?key=${process.env.GEMINI_API_KEY}`, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                        contents: [{ parts: [{ text: userPrompt }] }],
+                        generationConfig: { temperature: 0.7, maxOutputTokens: 1024 }
+                    }),
+                    signal: AbortSignal.timeout(15000)
+                });
 
-            if (response.ok || (response.status !== 503 && response.status !== 429)) {
-                break; // Success or un-retryable error
+                if (response.ok || (response.status !== 503 && response.status !== 429)) {
+                    break; // Success or un-retryable error
+                }
+            } catch (fetchErr) {
+                console.warn(`[AI] Fetch error on attempt ${attempt + 1}:`, fetchErr.message);
+                // Create a mock response so the retry logic triggers correctly
+                response = { ok: false, status: 503, text: async () => fetchErr.message };
             }
             
             attempt++;
             if (attempt < maxRetries) {
-                console.warn(`[AI] Gemini server busy (HTTP ${response.status}). Retrying in ${attempt * 2}s...`);
+                console.warn(`[AI] Gemini server busy or timeout. Retrying in ${attempt * 2}s...`);
                 await new Promise(res => setTimeout(res, attempt * 2000));
             }
         }
 
-        if (!response.ok) {
-            const errData = await response.text();
+        if (!response || !response.ok) {
+            const errData = response ? await response.text() : "Unknown error";
             console.error("[AI] Gemini API error after retries:", errData);
             
             // Return polite user-friendly message for high demand

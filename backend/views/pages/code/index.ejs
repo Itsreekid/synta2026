@@ -417,9 +417,10 @@
             background: #2d3250;
             color: #c8cce8;
             border-bottom-right-radius: 4px;
-            direction: ltr; /* User code is LTR */
-            font-family: 'Fira Code', monospace;
-            font-size: 13px;
+            direction: rtl;
+            font-family: 'Tajawal', sans-serif;
+            font-size: 14px;
+            text-align: right;
         }
         .ai-bubble.ai {
             align-self: flex-start;
@@ -1356,27 +1357,7 @@ function update() {
 // ----------------------------------------------------------------
 // BILINGUAL ERROR MESSAGES
 // ----------------------------------------------------------------
-function translateError(msg) {
-    const rules = [
-        { r: /NameError.*'(\w+)'/i,       fr: (m) => `Erreur de nom : '${m[1]}' n'est pas défini. Vérifiez l'orthographe ou définissez la variable.`, ar: (m) => `خطأ: '${m[1]}' غير معرّف. تحقق من الإملاء أو عرّف المتغير.` },
-        { r: /SyntaxError/i,              fr: () => `Erreur de syntaxe : vérifiez les deux-points ':' après if / for / while / def, et l'indentation.`, ar: () => `خطأ في الصياغة: تحقق من النقطتين ':' بعد if/for/while/def والمسافات البادئة.` },
-        { r: /IndentationError/i,         fr: () => `Erreur d'indentation : les lignes à l'intérieur d'une boucle ou condition doivent avoir 4 espaces.`, ar: () => `خطأ في المسافة البادئة: الأسطر داخل الحلقة أو الشرط يجب أن تبدأ بـ 4 مسافات.` },
-        { r: /TypeError.*unsupported.*'(\w+)'/i, fr: (m) => `Erreur de type : opération non supportée. Vérifiez que vous mélangez pas texte et nombre.`, ar: () => `خطأ في النوع: تأكد أنك لا تخلط بين النص والأرقام في نفس العملية.` },
-        { r: /ZeroDivisionError/i,        fr: () => `Erreur : division par zéro est interdite en mathématiques !`, ar: () => `خطأ: القسمة على صفر ممنوعة رياضياً!` },
-        { r: /IndexError/i,               fr: () => `Erreur d'index : vous essayez d'accéder à un élément qui n'existe pas dans la liste.`, ar: () => `خطأ في الفهرس: تحاول الوصول لعنصر غير موجود في القائمة.` },
-        { r: /KeyError.*'(\w+)'/i,        fr: (m) => `Erreur de clé : '${m[1]}' n'existe pas dans le dictionnaire.`, ar: (m) => `خطأ: المفتاح '${m[1]}' غير موجود في القاموس.` },
-        { r: /ValueError/i,               fr: () => `Erreur de valeur : la valeur fournie n'est pas du bon type ou format.`, ar: () => `خطأ في القيمة: القيمة المُعطاة ليست من النوع أو الصيغة الصحيحة.` },
-        { r: /RecursionError/i,           fr: () => `Erreur de récursion : votre fonction s'appelle elle-même à l'infini. Ajoutez une condition d'arrêt.`, ar: () => `خطأ في التكرار: الدالة تستدعي نفسها إلى ما لا نهاية. أضف شرط توقف.` },
-        { r: /AttributeError.*'(\w+)'/i,  fr: (m) => `Erreur d'attribut : '${m[1]}' n'existe pas. Vérifiez le type de votre variable.`, ar: (m) => `خطأ في الخاصية: '${m[1]}' غير موجودة. تحقق من نوع المتغير.` },
-    ];
-    for (const rule of rules) {
-        const m = msg.match(rule.r);
-        if (m) {
-            return { fr: rule.fr(m), ar: rule.ar(m) };
-        }
-    }
-    return { fr: `Erreur Python : ${msg}`, ar: `خطأ Python: ${msg}` };
-}
+
 
 // ----------------------------------------------------------------
 // MODE SWITCHING
@@ -1560,11 +1541,7 @@ function runPython() {
     function outf(text) { appendConsole('<span class="console-output">' + escapeHtml(text) + '</span>'); }
     function errf(err)  {
         const msg = err.toString();
-        const trans = translateError(msg);
-        appendConsole(
-            '<span class="console-error">❌ ' + escapeHtml(trans.fr) + '\n' +
-            '   ' + escapeHtml(trans.ar) + '</span>\n'
-        );
+        appendConsole('<span class="console-error">❌ ' + escapeHtml(msg) + '</span>\n');
     }
 
     Sk.configure({
@@ -1814,18 +1791,16 @@ async function askAiDebugger() {
     const historyEl = document.getElementById('ai-chat-history');
     
     // 1. Append User Message
+    const userMsg = document.createElement('div');
+    userMsg.className = 'ai-bubble user';
+    
     if (code !== lastAiCode) {
-        const userMsg = document.createElement('div');
-        userMsg.className = 'ai-bubble user';
-        userMsg.innerHTML = `<strong>الكود:</strong><br>${escapeHtml(code)}`;
-        historyEl.appendChild(userMsg);
+        userMsg.innerHTML = `مرحباً Bugi، ساعدني في إصلاح هذا الخطأ 🤖`;
         lastAiCode = code;
     } else {
-        const userMsg = document.createElement('div');
-        userMsg.className = 'ai-bubble user';
-        userMsg.innerHTML = `<em>نفس الكود (خطأ جديد):</em><br>${escapeHtml(errorText.substring(0, 100))}...`;
-        historyEl.appendChild(userMsg);
+        userMsg.innerHTML = `الخطأ لا يزال موجوداً، هل يمكنك مساعدتي مرة أخرى؟ 🤖`;
     }
+    historyEl.appendChild(userMsg);
 
     // 2. Append Loading Skeleton
     const typingId = 'loading-' + Date.now();
