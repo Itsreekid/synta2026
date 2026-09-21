@@ -23,18 +23,15 @@ Analyze the student's code and error message.
 Explain the exact mistake clearly, give them a hint on how to fix it without giving away the full solution directly.
 CRITICAL: You MUST speak ONLY in Tunisian Darja written in Arabic script (الدارجة التونسية بالحروف العربية). Maintain a warm and encouraging tone (e.g., 'مرحباً بك! ركز شوية في السطر...').`;
 
-        const userPrompt = `Code:\n\`\`\`python\n${code}\n\`\`\`\n\nError Message:\n${error || "Je veux juste une explication de ce code."}`;
+        const userPrompt = `${systemPrompt}\n\nHere is the student's context:\nCode:\n\`\`\`python\n${code}\n\`\`\`\n\nError Message:\n${error || "Je veux juste une explication de ce code."}`;
 
-        // Call the Gemini API via standard fetch
-        const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key=${process.env.GEMINI_API_KEY}`, {
+        // Call the Gemini API via standard fetch (Fallback to universally available gemini-pro)
+        const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=${process.env.GEMINI_API_KEY}`, {
             method: "POST",
             headers: {
                 "Content-Type": "application/json"
             },
             body: JSON.stringify({
-                system_instruction: {
-                    parts: [{ text: systemPrompt }]
-                },
                 contents: [{
                     parts: [{ text: userPrompt }]
                 }],
