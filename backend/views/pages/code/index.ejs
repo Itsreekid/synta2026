@@ -1098,22 +1098,7 @@
 <script src="/js/user.js"></script>
 
 <script>
-// ================================================================
-// EXPORT LOGIC
-// ================================================================
-function exportPythonCode() {
-    if (!pyEditor) return;
-    const code = pyEditor.getValue();
-    const blob = new Blob([code], { type: 'text/x-python;charset=utf-8' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = 'mon_code.py';
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
-}
+
 
 // ================================================================
 // CODE PRATIQUE — Main Controller
@@ -1364,10 +1349,7 @@ function update() {
     }
 };
 
-// ----------------------------------------------------------------
-        ar: 'صنف: عرّف __init__ كمنشئ. استخدم self للوصول إلى خصائص الكائن.'
-    }
-];
+
 
 // ----------------------------------------------------------------
 // BILINGUAL ERROR MESSAGES
