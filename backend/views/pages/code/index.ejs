@@ -1828,7 +1828,13 @@ async function askAiDebugger() {
         aiMsg.className = 'ai-bubble ai';
 
         if (!response.ok) {
-            aiMsg.innerHTML = `⚠️ خطأ: ${escapeHtml(data.error || 'Erreur inconnue')}`;
+            // Show friendly Darja error, not raw JSON
+            const isOverload = data.error && (data.error.includes('UNAVAILABLE') || data.error.includes('503') || data.error.includes('overload'));
+            if (isOverload) {
+                aiMsg.innerHTML = `⚠️ Bugi مشغول بارشا تو — حاول بعد شوية! 😅`;
+            } else {
+                aiMsg.innerHTML = `⚠️ باهی كان مزلت فما مشكلة حاول جرب خمم شوى وحدك . نتفاضى و نجيك 🔄`;
+            }
         } else {
             let htmlResponse = escapeHtml(data.explanation);
             htmlResponse = htmlResponse.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
