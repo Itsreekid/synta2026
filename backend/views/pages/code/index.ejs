@@ -310,9 +310,9 @@
            AI FLOATING DRAWER WIDGET
            ======================================================== */
         .ai-fab {
-            position: fixed;
-            bottom: 24px;
-            right: 24px;
+            position: absolute;
+            bottom: 0;
+            right: 0;
             z-index: 50;
             background: linear-gradient(135deg, #f97316, #f59e0b);
             color: white;
@@ -335,9 +335,9 @@
         }
 
         .ai-drawer {
-            position: fixed;
-            bottom: 90px;
-            right: 24px;
+            position: absolute;
+            bottom: 70px; /* Above the FAB */
+            right: 0;
             z-index: 50;
             width: 380px;
             max-width: calc(100vw - 48px);
@@ -413,20 +413,20 @@
             word-wrap: break-word;
         }
         .ai-bubble.user {
-            align-self: flex-start;
+            align-self: flex-end;
             background: #2d3250;
             color: #c8cce8;
-            border-bottom-left-radius: 4px;
+            border-bottom-right-radius: 4px;
             direction: ltr; /* User code is LTR */
             font-family: 'Fira Code', monospace;
             font-size: 13px;
         }
         .ai-bubble.ai {
-            align-self: flex-end;
+            align-self: flex-start;
             background: rgba(168, 85, 247, 0.15);
             border: 1px solid rgba(168, 85, 247, 0.3);
             color: #e9d5ff;
-            border-bottom-right-radius: 4px;
+            border-bottom-left-radius: 4px;
             direction: rtl;
             text-align: right;
         }
@@ -1073,22 +1073,24 @@
 <!-- ========================================================
      AI FLOATING DRAWER
      ======================================================== -->
-<button class="ai-fab" onclick="toggleAiDrawer()" title="مساعد سبرينتا الذكاء الاصطناعي">
-    <i class="fas fa-robot"></i>
-</button>
-
-<div class="ai-drawer" id="ai-drawer">
-    <div class="ai-drawer-header">
-        <div style="display:flex; align-items:center; gap:10px;">
-            <div class="ai-avatar"><i class="fas fa-robot"></i></div>
-            <strong>مساعد سبرينتا الذكاء الاصطناعي</strong>
+<div id="ai-wrapper-global" class="fixed bottom-6 right-6 z-50" style="position: fixed; bottom: 24px; right: 24px; z-index: 9999;">
+    <button class="ai-fab" onclick="toggleAiDrawer()" title="Bugi">
+        <i class="fas fa-robot"></i>
+    </button>
+    
+    <div class="ai-drawer" id="ai-drawer">
+        <div class="ai-drawer-header">
+            <div style="display:flex; align-items:center; gap:10px;">
+                <div class="ai-avatar"><i class="fas fa-robot"></i></div>
+                <strong>Bugi</strong>
+            </div>
+            <button onclick="toggleAiDrawer()" class="ai-close-btn" title="Fermer">&times;</button>
         </div>
-        <button onclick="toggleAiDrawer()" class="ai-close-btn" title="Fermer">&times;</button>
-    </div>
-    <div class="ai-chat-history" id="ai-chat-history">
-        <!-- Messages appended dynamically -->
-        <div style="text-align:center; color:#64748b; font-size:13px; margin-top:20px;">
-            مرحبا! أنا مساعدك الذكي. <br>إذا واجهت أي خطأ في الكود، اضغط على زر "إصلاح بالذكاء الاصطناعي".
+        <div class="ai-chat-history" id="ai-chat-history">
+            <!-- Messages appended dynamically -->
+            <div style="text-align:center; color:#64748b; font-size:13px; margin-top:20px;">
+                مرحبا! أنا مساعدك الذكي Bugi. <br>إذا واجهت أي خطأ في الكود، اضغط على زر "إصلاح بالذكاء الاصطناعي".
+            </div>
         </div>
     </div>
 </div>
@@ -1761,6 +1763,7 @@ function checkAndShowHint(code) {
 // AI DEBUGGER FLOATING DRAWER
 // ----------------------------------------------------------------
 let aiCooldown = false;
+let lastAiCode = null;
 
 function toggleAiDrawer(forceOpen = null) {
     const drawer = document.getElementById('ai-drawer');
@@ -1811,10 +1814,18 @@ async function askAiDebugger() {
     const historyEl = document.getElementById('ai-chat-history');
     
     // 1. Append User Message
-    const userMsg = document.createElement('div');
-    userMsg.className = 'ai-bubble user';
-    userMsg.innerHTML = `<strong>الكود:</strong><br>${escapeHtml(code)}`;
-    historyEl.appendChild(userMsg);
+    if (code !== lastAiCode) {
+        const userMsg = document.createElement('div');
+        userMsg.className = 'ai-bubble user';
+        userMsg.innerHTML = `<strong>الكود:</strong><br>${escapeHtml(code)}`;
+        historyEl.appendChild(userMsg);
+        lastAiCode = code;
+    } else {
+        const userMsg = document.createElement('div');
+        userMsg.className = 'ai-bubble user';
+        userMsg.innerHTML = `<em>نفس الكود (خطأ جديد):</em><br>${escapeHtml(errorText.substring(0, 100))}...`;
+        historyEl.appendChild(userMsg);
+    }
 
     // 2. Append Loading Skeleton
     const typingId = 'loading-' + Date.now();
@@ -1971,6 +1982,13 @@ function initEditors() {
 function boot() {
     // Guard: only run on the Code Pratique page
     if (!document.getElementById('py-editor-body')) return;
+
+    // Relocate AI wrapper to body root to prevent CSS clipping
+    const aiWrapper = document.getElementById('ai-wrapper-global');
+    if (aiWrapper && aiWrapper.parentNode !== document.body) {
+        document.body.appendChild(aiWrapper);
+    }
+
     pyEditor = null; webHtmlEditor = null; webCssEditor = null; webJsEditor = null;
     initEditors();
     clearConsole();
