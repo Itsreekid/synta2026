@@ -2,11 +2,11 @@ import express from "express";
 
 const router = express.Router();
 
-// Prioritized model fallback — modern standard IDs
+// Real supported Gemini model IDs (gemini-3.x does NOT exist)
 const MODEL_FALLBACK = [
-    'gemini-2.0-flash',
-    'gemini-1.5-flash',
-    'gemini-1.5-flash-8b',
+    'gemini-2.5-flash',       // Latest & fastest
+    'gemini-2.0-flash',       // Previous gen
+    'gemini-1.5-flash',       // Stable fallback
 ];
 
 const GEMINI_BASE = 'https://generativelanguage.googleapis.com/v1beta/models';
@@ -92,6 +92,30 @@ CRITICAL: You MUST speak ONLY in Tunisian Darja written in Arabic script (الد
     } catch (error) {
         console.error("[AI] Fatal Route Error:", error.stack || error.message);
         res.status(500).json({ success: false, error: error.message || "Erreur interne." });
+    }
+});
+
+// ----------------------------------------------------------------
+// DIAGNOSTIC: List available models for this API key
+// GET /api/ai/list-models
+// ----------------------------------------------------------------
+router.get("/list-models", async (req, res) => {
+    try {
+        if (!process.env.GEMINI_API_KEY) {
+            return res.status(500).json({ error: "GEMINI_API_KEY not set" });
+        }
+        const response = await fetch(
+            `https://generativelanguage.googleapis.com/v1beta/models?key=${process.env.GEMINI_API_KEY}`
+        );
+        const data = await response.json();
+        const models = (data.models || []).map(m => ({
+            name: m.name,
+            displayName: m.displayName,
+            supportedMethods: m.supportedGenerationMethods
+        }));
+        res.json({ total: models.length, models });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
     }
 });
 
