@@ -18,14 +18,14 @@
 
 /* ── Greeting Card ── */
 .greeting-card {
-    background: linear-gradient(135deg, #ff7b1a 0%, #f05a28 50%, #e03e1a 100%);
-    border-radius: 20px;
+    background: linear-gradient(135deg, var(--secondary-color) 0%, #f05a28 50%, #e03e1a 100%);
+    border-radius: var(--radius-lg);
     padding: 1.5rem;
     display: flex;
     align-items: center;
     gap: 1rem;
-    color: white;
-    box-shadow: 0 8px 25px rgba(255, 123, 26, 0.35);
+    color: var(--light-text);
+    box-shadow: 0 8px 25px rgba(246, 133, 31, 0.35);
     position: relative;
     overflow: hidden;
 }
@@ -102,15 +102,15 @@
 }
 
 .stat-pill {
-    background: white;
-    border-radius: 16px;
+    background: var(--surface-bg);
+    border-radius: var(--radius-md);
     padding: 1rem 0.75rem;
     display: flex;
     flex-direction: column;
     align-items: center;
     gap: 0.5rem;
-    box-shadow: 0 2px 12px rgba(0, 0, 0, 0.07);
-    border: 1px solid #f0f0f0;
+    box-shadow: var(--shadow-premium);
+    border: 1px solid var(--border-color);
     text-align: center;
     transition: transform 0.2s ease;
 }
@@ -133,7 +133,7 @@
 .pill-body strong {
     font-size: 1.3rem;
     font-weight: 800;
-    color: #ff7b1a;
+    color: var(--secondary-color);
     font-family: 'Tajawal', sans-serif;
     line-height: 1;
 }

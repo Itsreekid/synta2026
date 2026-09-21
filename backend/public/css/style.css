@@ -1,12 +1,34 @@
 /* ====== Global Styles ====== */
 :root {
+    /* Brand Colors */
     --primary-color: #013047;
-    --text-color: #219EBC;
     --secondary-color: #F6851F;
-    --light-bg: #f8f9fa;
-    --dark-text: #333;
-    --light-text: #fff;
-    --gray-text: #6c757d;
+    
+    /* Semantic Colors */
+    --color-success: #10b981;
+    --color-danger: #ef4444;
+    --color-warning: #f59e0b;
+    --color-info: #3b82f6;
+
+    /* Text & Surfaces */
+    --text-color: #219EBC;
+    --dark-text: #1e293b;
+    --gray-text: #64748b;
+    --light-text: #ffffff;
+    --light-bg: #f8fafc;
+    --surface-bg: #ffffff;
+    --border-color: #e2e8f0;
+
+    /* Radii */
+    --radius-sm: 8px;
+    --radius-md: 12px;
+    --radius-lg: 20px;
+    --radius-full: 9999px;
+
+    /* Shadows */
+    --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+    --shadow-premium: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -2px rgba(0, 0, 0, 0.05);
+    --shadow-hover: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
 }
 
 * {
@@ -1047,5 +1069,54 @@ footer {
         flex-direction: column;
         align-items: center; /* This centers the cards horizontally */
         padding: 0 1rem;
+    }
+}
+
+/* ====== Enterprise Responsive Utilities ====== */
+.table-responsive {
+    width: 100%;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+}
+.table-responsive table {
+    width: 100%;
+    min-width: 600px;
+}
+
+/* Enforce 44px minimum touch targets globally for mobile */
+@media (max-width: 768px) {
+    .btn, .nav-link, button, a {
+        min-height: 44px;
+    }
+    
+    /* Bottom Sheet Modals on Mobile */
+    .modal-content, .input-modal, .video-modal-content {
+        position: absolute;
+        bottom: 0;
+        left: 0;
+        width: 100%;
+        max-width: 100%;
+        border-radius: 24px 24px 0 0 !important;
+        margin: 0;
+        transform: translateY(100%);
+        transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        padding-bottom: max(1.5rem, env(safe-area-inset-bottom));
+    }
+    
+    .modal.active .modal-content, 
+    .input-modal-overlay.show .input-modal,
+    .video-modal-content {
+        transform: translateY(0);
+    }
+    
+    /* Drag handle indicator */
+    .modal-content::before, .input-modal::before {
+        content: '';
+        display: block;
+        width: 40px;
+        height: 4px;
+        background: var(--border-color);
+        border-radius: 2px;
+        margin: -10px auto 16px auto;
     }
 }

@@ -392,30 +392,30 @@
 }
 
 @media (max-width: 1024px) {
-    .profile-content {
-        grid-template-columns: 1fr;
+    .page-profile-wrapper .profile-content {
+        display: flex;
+        flex-direction: column;
+        gap: 1.5rem;
     }
     .profile-sidebar {
         order: -1;
-        margin-bottom: 2rem;
+        margin-bottom: 0;
     }
 }
 
 @media (max-width: 768px) {
-/* body styles stripped for SPA */
-    
     .profile-container {
         padding: 1rem;
         overflow-y: visible;
         height: auto;
     }
     
-    .profile-section {
-        padding: 1rem;
+    .page-profile-wrapper .profile-section {
+        padding: 1.25rem;
     }
     
-    .profile-section h2 {
-        font-size: 1.3rem;
+    .page-profile-wrapper .profile-section h2 {
+        font-size: 1.2rem;
     }
     
     .profile-sidebar {
@@ -431,7 +431,7 @@
     .profile-name {
         font-size: 1.3rem;
     }
-    
+
     .profile-email {
         font-size: 0.85rem;
     }

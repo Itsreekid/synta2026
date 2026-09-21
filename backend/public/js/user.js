@@ -143,21 +143,25 @@ async function loadNotificationEvents() {
 
 // Toggle mobile menu
 function toggleMobileMenu() {
-    const sidebar = document.getElementById('sidebar');
+    const sidebar = document.getElementById('app-sidebar');
     const menuToggle = document.querySelector('.mobile-menu-toggle');
+    const overlay = document.getElementById('sidebar-overlay');
 
-    sidebar.classList.toggle('active');
-    menuToggle.classList.toggle('active');
+    if(sidebar) sidebar.classList.toggle('active');
+    if(menuToggle) menuToggle.classList.toggle('active');
+    if(overlay) overlay.classList.toggle('active');
 }
 
 // Close mobile menu
 function closeMobileMenu() {
-    const sidebar = document.getElementById('sidebar');
+    const sidebar = document.getElementById('app-sidebar');
     const menuToggle = document.querySelector('.mobile-menu-toggle');
+    const overlay = document.getElementById('sidebar-overlay');
 
     if (sidebar && sidebar.classList.contains('active')) {
         sidebar.classList.remove('active');
-        menuToggle.classList.remove('active');
+        if(menuToggle) menuToggle.classList.remove('active');
+        if(overlay) overlay.classList.remove('active');
     }
 }
 

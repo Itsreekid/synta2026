@@ -630,40 +630,57 @@
         }
 
         /* ========== VISUALIZER ========== */
-        .vis-card {
-            background: #252840;
-            border: 1px solid #333550;
-            border-radius: 8px;
-            padding: 10px;
-            margin-bottom: 10px;
-            font-family: 'Fira Code', monospace;
+        .cp-visualizer {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 12px;
+            align-content: start;
+        }
+        .cp-visualizer-empty {
+            grid-column: 1 / -1;
+            text-align: center;
+            color: #64748b;
             font-size: 13px;
+            margin-top: 20px;
+        }
+        .vis-card {
+            background: transparent;
+            font-family: 'Fira Code', monospace;
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
         }
         .vis-header {
             display: flex;
             justify-content: space-between;
             align-items: center;
-            border-bottom: 1px solid #333550;
-            padding-bottom: 6px;
-            margin-bottom: 8px;
+            padding-left: 2px;
         }
         .vis-var-name {
             color: #ff7b1a;
-            font-weight: bold;
+            font-weight: 800;
+            font-size: 14px;
         }
         .vis-var-type {
             color: #64748b;
-            font-size: 11px;
+            font-size: 10px;
             text-transform: uppercase;
         }
         .vis-var-value {
-            color: #e2e8f0;
+            background: #ffffff;
+            color: #0f172a;
+            font-weight: bold;
+            border: 2px solid #10b981;
+            border-radius: 8px;
+            padding: 8px 10px;
+            box-shadow: 0 1px 2px rgba(0,0,0,0.05);
             word-break: break-all;
+            font-size: 13px;
         }
-        .vis-val-string { color: #a3be8c; }
-        .vis-val-number { color: #d08770; }
-        .vis-val-bool { color: #b48ead; }
-        .vis-val-list { color: #ebcb8b; }
+        .vis-val-string { color: #059669; }
+        .vis-val-number { color: #ea580c; }
+        .vis-val-bool { color: #7c3aed; }
+        .vis-val-list { color: #b45309; }
     </style>
 </head>
 <body>
@@ -1479,7 +1496,7 @@ function renderStateVisualizer(dict) {
 
     if (count === 0) {
         vis.innerHTML = `
-            <div style="text-align: center; color: #64748b; font-size: 13px; margin-top: 20px;">
+            <div class="cp-visualizer-empty">
                 <i class="fas fa-search" style="font-size: 24px; margin-bottom: 8px; opacity: 0.5;"></i><br>
                 Aucune variable en mémoire.
             </div>`;
@@ -1492,7 +1509,7 @@ function clearConsole() {
     const vis = document.getElementById('py-visualizer');
     if (vis) {
         vis.innerHTML = `
-            <div style="text-align: center; color: #64748b; font-size: 13px; margin-top: 20px;">
+            <div class="cp-visualizer-empty">
                 <i class="fas fa-search" style="font-size: 24px; margin-bottom: 8px; opacity: 0.5;"></i><br>
                 Aucune variable en mémoire. Exécutez le code pour visualiser.
             </div>`;
