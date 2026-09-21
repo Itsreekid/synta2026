@@ -25,26 +25,39 @@ CRITICAL: You MUST speak ONLY in Tunisian Darja written in Arabic script (الد
 
         const userPrompt = `${systemPrompt}\n\nHere is the student's context:\nCode:\n\`\`\`python\n${code}\n\`\`\`\n\nError Message:\n${error || "Je veux juste une explication de ce code."}`;
 
-        // Call the Gemini API via standard fetch (Fallback to universally available gemini-pro)
-        const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:generateContent?key=${process.env.GEMINI_API_KEY}`, {
-            method: "POST",
-            headers: {
-                "Content-Type": "application/json"
-            },
-            body: JSON.stringify({
-                contents: [{
-                    parts: [{ text: userPrompt }]
-                }],
-                generationConfig: {
-                    temperature: 0.7,
-                    maxOutputTokens: 1024,
-                }
-            })
-        });
+        const maxRetries = 3;
+        let response = null;
+        let attempt = 0;
+
+        while (attempt < maxRetries) {
+            response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:generateContent?key=${process.env.GEMINI_API_KEY}`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    contents: [{ parts: [{ text: userPrompt }] }],
+                    generationConfig: { temperature: 0.7, maxOutputTokens: 1024 }
+                })
+            });
+
+            if (response.ok || (response.status !== 503 && response.status !== 429)) {
+                break; // Success or un-retryable error
+            }
+            
+            attempt++;
+            if (attempt < maxRetries) {
+                console.warn(`[AI] Gemini server busy (HTTP ${response.status}). Retrying in ${attempt * 2}s...`);
+                await new Promise(res => setTimeout(res, attempt * 2000));
+            }
+        }
 
         if (!response.ok) {
             const errData = await response.text();
-            console.error("[AI] Gemini API error:", errData);
+            console.error("[AI] Gemini API error after retries:", errData);
+            
+            // Return polite user-friendly message for high demand
+            if (response.status === 503 || response.status === 429) {
+                return res.status(503).json({ error: "السيرفر مشغول حالياً، يرجى المحاولة بعد قليل" });
+            }
             return res.status(502).json({ error: "API Gemini a refusé la requête: " + errData });
         }
 
