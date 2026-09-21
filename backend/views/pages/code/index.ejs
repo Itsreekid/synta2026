@@ -136,15 +136,21 @@
             flex-shrink: 0;
         }
         .cp-select {
-            padding: 7px 12px;
-            border: 1.5px solid #ddd;
+            padding: 10px 16px;
+            border: 1px solid #e2e8f0;
             border-radius: 8px;
-            background: white;
-            color: #333;
-            font-size: 13px;
+            background: #f8fafc;
+            color: #1e293b;
+            font-size: 14px;
             cursor: pointer;
             font-family: 'Tajawal', sans-serif;
+            font-weight: 500;
             outline: none;
+            transition: all 0.2s;
+        }
+        .cp-select:focus {
+            border-color: #ff7b1a;
+            box-shadow: 0 0 0 3px rgba(255,123,26,0.15);
         }
         .cp-btn-toolbar {
             display: flex;
@@ -359,7 +365,7 @@
         }
 
         /* ========== MODE PANELS ========== */
-        .mode-panel { display: none; flex-direction: column; height: 100%; }
+        .mode-panel { display: none; flex-direction: row; height: 100%; }
         .mode-panel.active { display: flex; }
 
         /* ========== WEB EDITOR - 3 pane ========== */
@@ -447,8 +453,11 @@
             #mode-python  { flex-direction: column !important; gap: 10px; }
             #mode-web     { flex-direction: column !important; gap: 10px; }
 
+            .mobile-workspace-tabs { display: flex !important; }
+            .cp-panel.mobile-hidden { display: none !important; }
+
             /* Each panel: fixed height so code is visible + scrollable */
-            .cp-panel { min-height: 280px; max-height: 380px; }
+            .cp-panel { min-height: calc(100vh - 240px) !important; max-height: none !important; }
 
             /* Editor body fills panel */
             .cp-editor-body { flex: 1; min-height: 0; }
@@ -619,6 +628,42 @@
             margin-top: 8px;
             font-family: 'Tajawal', sans-serif;
         }
+
+        /* ========== VISUALIZER ========== */
+        .vis-card {
+            background: #252840;
+            border: 1px solid #333550;
+            border-radius: 8px;
+            padding: 10px;
+            margin-bottom: 10px;
+            font-family: 'Fira Code', monospace;
+            font-size: 13px;
+        }
+        .vis-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid #333550;
+            padding-bottom: 6px;
+            margin-bottom: 8px;
+        }
+        .vis-var-name {
+            color: #ff7b1a;
+            font-weight: bold;
+        }
+        .vis-var-type {
+            color: #64748b;
+            font-size: 11px;
+            text-transform: uppercase;
+        }
+        .vis-var-value {
+            color: #e2e8f0;
+            word-break: break-all;
+        }
+        .vis-val-string { color: #a3be8c; }
+        .vis-val-number { color: #d08770; }
+        .vis-val-bool { color: #b48ead; }
+        .vis-val-list { color: #ebcb8b; }
     </style>
 </head>
 <body>
@@ -649,50 +694,55 @@
     <section id="main-section" class="main-section" style="padding:0;overflow:hidden;">
     <div class="cp-page">
 
-        <!-- TOP BAR -->
-        <div class="cp-topbar">
-            <div class="cp-brand">
+        <!-- IDE RIBBON HEADER -->
+        <div class="ide-ribbon" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px; padding: 12px 16px; background: white; border-radius: 12px; border: 1px solid #e2e8f0; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05);">
+            
+            <div class="cp-brand" style="margin-right: auto;">
                 <div class="cp-brand-icon">&lt;/&gt;</div>
                 <div class="cp-brand-text">
-                    <h2 id="cp-title">Code Pratique</h2>
-                    <p id="cp-subtitle">Écrivez et exécutez du <a href="#">Python</a> directement dans votre navigateur – sans installation.</p>
+                    <h2 id="cp-title" style="margin: 0; font-size: 16px; color: #1e293b;">Code Pratique</h2>
+                    <p id="cp-subtitle" style="margin: 0; font-size: 12px; color: #64748b;">Éditeur interactif</p>
                 </div>
             </div>
 
-            <!-- Mode switch tabs -->
-            <div class="cp-mode-tabs">
+            <div class="cp-mode-tabs" style="background: #f1f5f9; padding: 4px; border-radius: 10px;">
                 <button class="cp-tab active" id="tab-python" onclick="switchMode('python')">
                     <span class="cp-tab-dot-python">🐍</span> Python
                 </button>
                 <button class="cp-tab" id="tab-web" onclick="switchMode('web')">
-                    <span class="cp-tab-dot-web">🌐</span> HTML / CSS / JS
+                    <span class="cp-tab-dot-web">🌐</span> Web
                 </button>
             </div>
 
-            <!-- Status -->
-            <div class="cp-status" id="cp-status">
-                <div class="cp-status-dot"></div>
-                <span id="cp-status-text">Python prêt</span>
+            <div class="cp-toolbar" style="gap: 8px;">
+                <select class="cp-select" id="examples-select" onchange="loadExample()">
+                    <option value="">Modèles...</option>
+                </select>
+                <button class="cp-btn-toolbar" onclick="clearEditor()"><i class="fas fa-trash"></i> Vider</button>
+                <button class="cp-btn-toolbar" onclick="copyCode()"><i class="fas fa-copy"></i> Copier</button>
             </div>
-        </div>
 
-        <!-- TOOLBAR -->
-        <div class="cp-toolbar">
-            <select class="cp-select" id="examples-select" onchange="loadExample()">
-                <option value="">Exemples de code...</option>
-            </select>
-            <button class="cp-btn-toolbar" onclick="clearEditor()"><i class="fas fa-trash"></i> Vider</button>
-            <button class="cp-btn-toolbar" onclick="copyCode()"><i class="fas fa-copy"></i> Copier</button>
+            <div class="cp-status" id="cp-status" style="margin-left: 8px;">
+                <div class="cp-status-dot"></div>
+                <span id="cp-status-text">Prêt</span>
+            </div>
         </div>
 
         <!-- WORKSPACE -->
         <div class="cp-workspace">
+            
+            <!-- MOBILE WORKSPACE TABS -->
+            <div class="mobile-workspace-tabs" style="display: none; width: 100%; gap: 10px; margin-bottom: 10px;">
+                <button class="mobile-tab-btn active" onclick="switchMobilePane('editor')" style="flex: 1; padding: 12px; background: #1e293b; color: white; border: none; border-radius: 8px; font-weight: 600; cursor: pointer;">📝 Éditeur</button>
+                <button class="mobile-tab-btn" onclick="switchMobilePane('console')" style="flex: 1; padding: 12px; background: white; color: #64748b; border: 1px solid #e2e8f0; border-radius: 8px; font-weight: 600; cursor: pointer;">💻 Console</button>
+                <button class="mobile-tab-btn" onclick="switchMobilePane('visualizer')" style="flex: 1; padding: 12px; background: white; color: #64748b; border: 1px solid #e2e8f0; border-radius: 8px; font-weight: 600; cursor: pointer;">🔍 Variables</button>
+            </div>
 
             <!-- ===== PYTHON MODE ===== -->
             <div class="mode-panel active" id="mode-python" style="flex:1;min-width:0;display:flex;gap:14px;">
 
                 <!-- Editor panel -->
-                <div class="cp-panel" style="flex:1;">
+                <div class="cp-panel" style="flex: 1 1 45%;">
                     <div class="cp-panel-header">
                         <div style="display:flex;align-items:center;gap:8px;">
                             <div class="cp-panel-dots">
@@ -724,7 +774,7 @@
                 </div>
 
                 <!-- Console panel -->
-                <div class="cp-panel" style="flex:1;">
+                <div class="cp-panel" style="flex: 1 1 27.5%;">
                     <div class="cp-panel-header">
                         <div style="display:flex;align-items:center;gap:8px;">
                             <div class="cp-panel-dots">
@@ -740,6 +790,26 @@
                         <span class="console-ready">Python 3.10 prêt !</span><br>
                         <span class="console-comment"># Écrivez du code et Cliquez Exécuter</span><br>
                         <span class="console-comment"># Raccourci : Ctrl + Enter</span><br>
+                    </div>
+                </div>
+                
+                <!-- Visualizer panel -->
+                <div class="cp-panel" style="flex: 1 1 27.5%;">
+                    <div class="cp-panel-header">
+                        <div style="display:flex;align-items:center;gap:8px;">
+                            <div class="cp-panel-dots">
+                                <span class="dot-red"></span>
+                                <span class="dot-yellow"></span>
+                                <span class="dot-green"></span>
+                            </div>
+                            <span class="cp-panel-filename">variables en mémoire</span>
+                        </div>
+                    </div>
+                    <div class="cp-visualizer" id="py-visualizer" style="flex: 1; background: #1e2030; padding: 12px; overflow-y: auto;">
+                        <div style="text-align: center; color: #64748b; font-size: 13px; margin-top: 20px;">
+                            <i class="fas fa-search" style="font-size: 24px; margin-bottom: 8px; opacity: 0.5;"></i><br>
+                            Aucune variable en mémoire. Exécutez le code pour visualiser.
+                        </div>
                     </div>
                 </div>
             </div>
@@ -1162,6 +1232,36 @@ function switchMode(mode) {
     }
 }
 
+// Mobile pane switching logic
+function switchMobilePane(pane) {
+    const tabs = document.querySelectorAll('.mobile-tab-btn');
+    tabs.forEach(t => t.classList.remove('active'));
+    
+    // Find panels in the active mode
+    const activeMode = document.querySelector('.mode-panel.active');
+    if(!activeMode) return;
+    
+    const panels = activeMode.querySelectorAll('.cp-panel');
+    if(panels.length < 2) return;
+    
+    if (pane === 'editor') {
+        event.target.classList.add('active');
+        panels[0].classList.remove('mobile-hidden');
+        panels[1].classList.add('mobile-hidden');
+    } else {
+        event.target.classList.add('active');
+        panels[0].classList.add('mobile-hidden');
+        panels[1].classList.remove('mobile-hidden');
+    }
+}
+
+// Ensure initial mobile state hides the console
+window.addEventListener('DOMContentLoaded', () => {
+    if (window.innerWidth <= 768) {
+        switchMobilePane('editor');
+    }
+});
+
 // ----------------------------------------------------------------
 // EXAMPLES DROPDOWN
 // ----------------------------------------------------------------
@@ -1315,9 +1415,12 @@ function runPython() {
     );
 
     promise.then(
-        () => {
+        (module) => {
             appendConsole('<span class="console-comment">\n✅ Programme terminé.</span>\n');
             statusEl.textContent = 'Python prêt';
+            if(module && module.$d) {
+                renderStateVisualizer(module.$d);
+            }
         },
         (err) => {
             errf(err);
@@ -1326,9 +1429,74 @@ function runPython() {
     );
 }
 
+function renderStateVisualizer(dict) {
+    const vis = document.getElementById('py-visualizer');
+    if (!vis) return;
+    vis.innerHTML = ''; 
+
+    const ignored = ['__name__', '__doc__', '__package__', '__loader__', '__spec__', '__annotations__', '__builtins__', '__file__', '__cached__'];
+    let count = 0;
+
+    for (const [key, pyObj] of Object.entries(dict)) {
+        if (ignored.includes(key)) continue;
+        if (typeof pyObj === 'function' || !pyObj || typeof pyObj.v === 'undefined') continue; 
+
+        count++;
+        let val = pyObj.v;
+        let typeStr = 'UNKNOWN';
+        let valClass = '';
+        let valStr = String(val);
+
+        if (typeof val === 'number') {
+            typeStr = 'NUMBER';
+            valClass = 'vis-val-number';
+        } else if (typeof val === 'string') {
+            typeStr = 'STRING';
+            valClass = 'vis-val-string';
+            valStr = `"${val}"`;
+        } else if (typeof val === 'boolean') {
+            typeStr = 'BOOLEAN';
+            valClass = 'vis-val-bool';
+        } else if (Array.isArray(val)) {
+            typeStr = 'LIST';
+            valClass = 'vis-val-list';
+            valStr = '[' + val.map(v => (v && typeof v.v !== 'undefined') ? v.v : String(v)).join(', ') + ']';
+        } else {
+            typeStr = 'OBJECT';
+        }
+
+        const card = document.createElement('div');
+        card.className = 'vis-card';
+        card.innerHTML = `
+            <div class="vis-header">
+                <span class="vis-var-name">${escapeHtml(key)}</span>
+                <span class="vis-var-type">${typeStr}</span>
+            </div>
+            <div class="vis-var-value ${valClass}">${escapeHtml(valStr)}</div>
+        `;
+        vis.appendChild(card);
+    }
+
+    if (count === 0) {
+        vis.innerHTML = `
+            <div style="text-align: center; color: #64748b; font-size: 13px; margin-top: 20px;">
+                <i class="fas fa-search" style="font-size: 24px; margin-bottom: 8px; opacity: 0.5;"></i><br>
+                Aucune variable en mémoire.
+            </div>`;
+    }
+}
+
 function clearConsole() {
     document.getElementById('py-console').innerHTML = '';
     document.getElementById('py-hint').classList.remove('show');
+    const vis = document.getElementById('py-visualizer');
+    if (vis) {
+        vis.innerHTML = `
+            <div style="text-align: center; color: #64748b; font-size: 13px; margin-top: 20px;">
+                <i class="fas fa-search" style="font-size: 24px; margin-bottom: 8px; opacity: 0.5;"></i><br>
+                Aucune variable en mémoire. Exécutez le code pour visualiser.
+            </div>`;
+    }
 }
 
 function showConsoleWelcome() {
