@@ -170,15 +170,20 @@ function loadUserStats() {
         contestsParticipated: 0
     };
     
-    // Update stats in the UI
-    document.getElementById('completed-courses').textContent = stats.completedCourses;
-    document.getElementById('active-courses').textContent = stats.activeCourses;
-    document.getElementById('learning-hours').textContent = stats.learningHours;
-    document.getElementById('achievements').textContent = stats.achievements;
-    document.getElementById('current-level').textContent = stats.currentLevel;
-    document.getElementById('earned-points').textContent = stats.earnedPoints;
-    document.getElementById('active-days').textContent = stats.activeDays;
-    document.getElementById('contests-participated').textContent = stats.contestsParticipated;
+    // Update stats in the UI safely
+    const setStat = (id, val) => {
+        const el = document.getElementById(id);
+        if (el) el.textContent = val;
+    };
+
+    setStat('completed-courses', stats.completedCourses);
+    setStat('active-courses', stats.activeCourses);
+    setStat('learning-hours', stats.learningHours);
+    setStat('achievements', stats.achievements);
+    setStat('current-level', stats.currentLevel);
+    setStat('earned-points', stats.earnedPoints);
+    setStat('active-days', stats.activeDays);
+    setStat('contests-participated', stats.contestsParticipated);
 }
 
 // Save profile changes
