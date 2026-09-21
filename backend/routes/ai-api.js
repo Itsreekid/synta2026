@@ -3,7 +3,7 @@ import { GoogleGenAI } from "@google/genai";
 
 const router = express.Router();
 
-// Prioritized model fallback list — tested & confirmed valid models
+// Prioritized model fallback list — confirmed valid models
 const MODEL_FALLBACK = [
     'gemini-1.5-flash',       // Primary: fast, widely available
     'gemini-1.5-flash-8b',    // Secondary: lightest, most available
@@ -15,7 +15,8 @@ router.post("/debug", async (req, res) => {
         const { code, error } = req.body;
 
         if (!process.env.GEMINI_API_KEY) {
-            throw new Error("GEMINI_API_KEY not configured.");
+            console.error("[AI] GEMINI_API_KEY is not set in environment variables!");
+            return res.status(500).json({ success: false, error: "GEMINI_API_KEY not configured." });
         }
 
         if (!code) {
@@ -58,34 +59,55 @@ CRITICAL: You MUST speak ONLY in Tunisian Darja written in Arabic script (الد
             } catch (modelErr) {
                 lastError = modelErr;
                 const errMsg = modelErr.message || '';
-                const isOverload = errMsg.includes('503') || errMsg.includes('UNAVAILABLE') || errMsg.includes('overloaded') || errMsg.includes('high demand');
 
-                if (isOverload) {
-                    console.warn(`[AI] Model ${model} is overloaded, trying next...`);
-                    continue; // Try the next model
+                // Log the FULL error so we can see it in Coolify logs
+                console.error(`[AI] Error with model ${model}:`, errMsg);
+
+                const isOverload = errMsg.includes('503')
+                    || errMsg.includes('UNAVAILABLE')
+                    || errMsg.includes('overloaded')
+                    || errMsg.includes('high demand')
+                    || errMsg.includes('RESOURCE_EXHAUSTED')
+                    || errMsg.includes('429');
+
+                const isAuthError = errMsg.includes('API key')
+                    || errMsg.includes('INVALID_ARGUMENT')
+                    || errMsg.includes('403')
+                    || errMsg.includes('401')
+                    || errMsg.includes('not valid');
+
+                if (isAuthError) {
+                    // Auth errors won't be fixed by retrying — fail immediately
+                    console.error(`[AI] ❌ Auth error — check GEMINI_API_KEY in Coolify env vars!`);
+                    return res.status(500).json({
+                        success: false,
+                        error: `Auth error: ${errMsg}`
+                    });
                 }
 
-                // Non-overload errors (auth, bad request, etc.) — fail immediately
-                console.error(`[AI] Fatal error with model ${model}:`, modelErr);
-                return res.status(500).json({ 
-                    success: false, 
-                    error: modelErr.message 
-                });
+                if (isOverload) {
+                    console.warn(`[AI] Model ${model} overloaded, trying next...`);
+                    continue; // Try next model
+                }
+
+                // Model not found or unknown — try next
+                console.warn(`[AI] Model ${model} failed with: ${errMsg}, trying next...`);
+                continue;
             }
         }
 
-        // All models failed (all were overloaded)
-        console.error("[AI] All models failed. Last error:", lastError);
-        return res.status(503).json({ 
-            success: false, 
-            error: "UNAVAILABLE: All models are currently under high demand." 
+        // All models failed
+        console.error("[AI] All models failed. Last error:", lastError?.message);
+        return res.status(503).json({
+            success: false,
+            error: "UNAVAILABLE: All models are currently under high demand."
         });
 
     } catch (error) {
-        console.error("AI Debug Route Error:", error);
-        res.status(500).json({ 
-            success: false, 
-            error: error.message || "Erreur interne." 
+        console.error("AI Debug Route Fatal Error:", error.stack || error.message);
+        res.status(500).json({
+            success: false,
+            error: error.message || "Erreur interne."
         });
     }
 });
