@@ -402,7 +402,52 @@
             display: flex;
             flex-direction: column;
             gap: 16px;
+            min-height: 0;
         }
+
+        /* ── Input bar ───────────────────────────────────── */
+        .ai-input-bar {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 12px 14px;
+            border-top: 1px solid #333550;
+            background: #1a1c2e;
+            flex-shrink: 0;
+        }
+        .ai-input-bar input {
+            flex: 1;
+            background: #252840;
+            border: 1px solid #333550;
+            border-radius: 20px;
+            padding: 10px 16px;
+            color: #e2e8f0;
+            font-family: 'Tajawal', sans-serif;
+            font-size: 14px;
+            direction: rtl;
+            outline: none;
+            transition: border-color 0.2s;
+        }
+        .ai-input-bar input::placeholder { color: #4a5380; }
+        .ai-input-bar input:focus { border-color: #a855f7; }
+        .ai-send-btn {
+            width: 38px;
+            height: 38px;
+            border-radius: 50%;
+            border: none;
+            background: linear-gradient(135deg, #a855f7, #8b5cf6);
+            color: white;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 15px;
+            flex-shrink: 0;
+            transition: transform 0.15s, opacity 0.15s;
+        }
+        .ai-send-btn:hover  { transform: scale(1.08); }
+        .ai-send-btn:active { transform: scale(0.95); }
+        .ai-send-btn:disabled { opacity: 0.4; cursor: not-allowed; transform: none; }
 
         .ai-bubble {
             max-width: 85%;
@@ -1093,6 +1138,18 @@
                 مرحبا! أنا مساعدك الذكي Bugi. <br>إذا واجهت أي خطأ في الكود، اضغط على زر "إصلاح بالذكاء الاصطناعي".
             </div>
         </div>
+        <!-- Input bar -->
+        <div class="ai-input-bar">
+            <button class="ai-send-btn" id="ai-send-btn" onclick="sendBugiMessage()" title="إرسال" disabled>
+                <i class="fas fa-paper-plane"></i>
+            </button>
+            <input
+                type="text"
+                id="ai-user-input"
+                placeholder="اسأل Bugi سؤالاً أو اطلب توضيحاً..."
+                maxlength="500"
+            />
+        </div>
     </div>
 </div>
 
@@ -1108,6 +1165,7 @@
 // ================================================================
 let pyEditor, webHtmlEditor, webCssEditor, webJsEditor;
 let currentMode = 'python';
+let bugiEnabled  = false; // unlocked once first code context is sent
 let currentWebTab = 'html';
 
 // ----------------------------------------------------------------
@@ -1736,6 +1794,96 @@ function checkAndShowHint(code) {
     hintEl.classList.remove('show');
 }
 
+// Enable input bar after first code context is loaded
+function enableBugiInput() {
+    const btn   = document.getElementById('ai-send-btn');
+    const input = document.getElementById('ai-user-input');
+    if (btn)   btn.disabled   = false;
+    if (input) input.disabled = false;
+
+    // Wire Enter key once
+    if (input && !input._bugiWired) {
+        input._bugiWired = true;
+        input.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendBugiMessage(); }
+        });
+    }
+}
+
+// Send a free-text follow-up message to Bugi
+async function sendBugiMessage() {
+    const input   = document.getElementById('ai-user-input');
+    const sendBtn = document.getElementById('ai-send-btn');
+    const historyEl = document.getElementById('ai-chat-history');
+    if (!input || !historyEl) return;
+
+    const text = input.value.trim();
+    if (!text) return;
+
+    // Get current code context for Bugi
+    const code = pyEditor ? pyEditor.getValue().trim() : '';
+
+    // Append student's message
+    const userBubble = document.createElement('div');
+    userBubble.className = 'ai-bubble user';
+    userBubble.textContent = text;
+    historyEl.appendChild(userBubble);
+    historyEl.scrollTop = historyEl.scrollHeight;
+
+    // Clear input and disable while waiting
+    input.value     = '';
+    input.disabled  = true;
+    sendBtn.disabled = true;
+
+    // Show typing indicator
+    const typingId  = 'typing-' + Date.now();
+    const typingEl  = document.createElement('div');
+    typingEl.className = 'ai-typing';
+    typingEl.id        = typingId;
+    typingEl.innerHTML = '<span></span><span></span><span></span>';
+    historyEl.appendChild(typingEl);
+    historyEl.scrollTop = historyEl.scrollHeight;
+
+    try {
+        const response = await fetch('/api/ai/debug', {
+            method:  'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body:    JSON.stringify({ code, error: text })
+        });
+        const data = await response.json();
+
+        document.getElementById(typingId)?.remove();
+
+        const aiMsg = document.createElement('div');
+        aiMsg.className = 'ai-bubble ai';
+
+        if (data.success && data.explanation) {
+            let html = escapeHtml(data.explanation);
+            html = html.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+            aiMsg.innerHTML = html;
+        } else if (data.message) {
+            aiMsg.textContent = data.message;
+        } else {
+            aiMsg.innerHTML = '⚠️ Bugi مشغول بارشا تو — حاول بعد شوية! 😅';
+        }
+
+        historyEl.appendChild(aiMsg);
+        historyEl.scrollTop = historyEl.scrollHeight;
+
+    } catch (err) {
+        document.getElementById(typingId)?.remove();
+        const aiMsg = document.createElement('div');
+        aiMsg.className = 'ai-bubble ai';
+        aiMsg.innerHTML = '⚠️ Bugi مشغول بارشا تو — حاول بعد شوية! 😅';
+        historyEl.appendChild(aiMsg);
+        historyEl.scrollTop = historyEl.scrollHeight;
+    } finally {
+        input.disabled   = false;
+        sendBtn.disabled = false;
+        input.focus();
+    }
+}
+
 // ----------------------------------------------------------------
 // AI DEBUGGER FLOATING DRAWER
 // ----------------------------------------------------------------
@@ -1775,8 +1923,9 @@ async function askAiDebugger() {
         }, 4000);
     }
 
-    // Open drawer
+    // Open drawer and unlock input bar
     toggleAiDrawer(true);
+    enableBugiInput();
 
     // Grab console context
     const consoleEl = document.getElementById('py-console');
