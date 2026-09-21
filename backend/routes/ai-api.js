@@ -1,21 +1,49 @@
 import express from "express";
-import { GoogleGenAI } from "@google/genai";
 
 const router = express.Router();
 
-// Prioritized model fallback list — confirmed valid models
+// Confirmed working model IDs via direct REST API
+// Format: used directly in the URL path
 const MODEL_FALLBACK = [
-    'gemini-1.5-flash',       // Primary: fast, widely available
-    'gemini-1.5-flash-8b',    // Secondary: lightest, most available
-    'gemini-1.0-pro',         // Last resort fallback
+    'gemini-1.5-flash-latest',
+    'gemini-1.5-flash-8b-latest',
+    'gemini-pro',
 ];
+
+const GEMINI_BASE = 'https://generativelanguage.googleapis.com/v1/models';
+
+async function callGemini(model, prompt, apiKey) {
+    const url = `${GEMINI_BASE}/${model}:generateContent?key=${apiKey}`;
+    const body = {
+        contents: [{ parts: [{ text: prompt }] }],
+        generationConfig: { temperature: 0.7, maxOutputTokens: 1024 }
+    };
+
+    const res = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+        signal: AbortSignal.timeout(15000)
+    });
+
+    const data = await res.json();
+
+    if (!res.ok) {
+        throw new Error(JSON.stringify(data));
+    }
+
+    const text = data?.candidates?.[0]?.content?.parts?.[0]?.text;
+    if (!text) throw new Error("Empty response from model.");
+
+    return text;
+}
 
 router.post("/debug", async (req, res) => {
     try {
         const { code, error } = req.body;
 
         if (!process.env.GEMINI_API_KEY) {
-            console.error("[AI] GEMINI_API_KEY is not set in environment variables!");
+            console.error("[AI] ❌ GEMINI_API_KEY is not set!");
             return res.status(500).json({ success: false, error: "GEMINI_API_KEY not configured." });
         }
 
@@ -23,92 +51,48 @@ router.post("/debug", async (req, res) => {
             return res.status(400).json({ success: false, error: "Aucun code fourni." });
         }
 
-        const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
-
         const systemPrompt = `You are a friendly, expert computer science teacher in Tunisia helping high school students (Bac Info / Bac Sciences) learn algorithms and Python.
 Analyze the student's code and error message.
 Explain the exact mistake clearly, give them a hint on how to fix it without giving away the full solution directly.
-CRITICAL: You MUST speak ONLY in Tunisian Darja written in Arabic script (الدارجة التونسية بالحروف العربية). Maintain a warm and encouraging tone (e.g., 'مرحباً بك! ركز شوية في السطر...').`;
+CRITICAL: You MUST speak ONLY in Tunisian Darja written in Arabic script (الدارجة التونسية بالحروف العربية). Maintain a warm and encouraging tone.`;
 
-        const userPrompt = `Here is the student's context:\nCode:\n\`\`\`python\n${code}\n\`\`\`\n\nError Message:\n${error || "No specific error — explain this code."}`;
+        const fullPrompt = `${systemPrompt}\n\nHere is the student's context:\nCode:\n\`\`\`python\n${code}\n\`\`\`\n\nError Message:\n${error || "No specific error — explain this code."}`;
 
         let lastError = null;
 
-        // Try each model in order until one succeeds
         for (const model of MODEL_FALLBACK) {
             try {
                 console.log(`[AI] Trying model: ${model}`);
-
-                const response = await ai.models.generateContent({
-                    model,
-                    contents: userPrompt,
-                    config: {
-                        systemInstruction: systemPrompt,
-                        temperature: 0.7,
-                        maxOutputTokens: 1024,
-                    }
-                });
-
-                if (!response.text) {
-                    throw new Error("Empty response from model.");
-                }
-
+                const text = await callGemini(model, fullPrompt, process.env.GEMINI_API_KEY);
                 console.log(`[AI] ✅ Success with model: ${model}`);
-                return res.json({ success: true, explanation: response.text });
+                return res.json({ success: true, explanation: text });
 
             } catch (modelErr) {
                 lastError = modelErr;
                 const errMsg = modelErr.message || '';
+                console.error(`[AI] ❌ Model ${model} failed:`, errMsg.substring(0, 200));
 
-                // Log the FULL error so we can see it in Coolify logs
-                console.error(`[AI] Error with model ${model}:`, errMsg);
-
-                const isOverload = errMsg.includes('503')
-                    || errMsg.includes('UNAVAILABLE')
-                    || errMsg.includes('overloaded')
-                    || errMsg.includes('high demand')
-                    || errMsg.includes('RESOURCE_EXHAUSTED')
-                    || errMsg.includes('429');
-
-                const isAuthError = errMsg.includes('API key')
-                    || errMsg.includes('INVALID_ARGUMENT')
-                    || errMsg.includes('403')
-                    || errMsg.includes('401')
-                    || errMsg.includes('not valid');
+                const isAuthError = errMsg.includes('"401"') || errMsg.includes('"403"')
+                    || errMsg.includes('API_KEY_INVALID') || errMsg.includes('not valid');
 
                 if (isAuthError) {
-                    // Auth errors won't be fixed by retrying — fail immediately
-                    console.error(`[AI] ❌ Auth error — check GEMINI_API_KEY in Coolify env vars!`);
-                    return res.status(500).json({
-                        success: false,
-                        error: `Auth error: ${errMsg}`
-                    });
+                    console.error("[AI] ❌ Auth error — check GEMINI_API_KEY in Coolify!");
+                    return res.status(500).json({ success: false, error: "Auth error: invalid API key." });
                 }
-
-                if (isOverload) {
-                    console.warn(`[AI] Model ${model} overloaded, trying next...`);
-                    continue; // Try next model
-                }
-
-                // Model not found or unknown — try next
-                console.warn(`[AI] Model ${model} failed with: ${errMsg}, trying next...`);
+                // Any other error (404, 503, etc.) — try next model
                 continue;
             }
         }
 
-        // All models failed
-        console.error("[AI] All models failed. Last error:", lastError?.message);
+        console.error("[AI] All models failed. Last:", lastError?.message?.substring(0, 200));
         return res.status(503).json({
             success: false,
-            error: "UNAVAILABLE: All models are currently under high demand."
+            error: "UNAVAILABLE: All models are currently unavailable."
         });
 
     } catch (error) {
-        console.error("AI Debug Route Fatal Error:", error.stack || error.message);
-        res.status(500).json({
-            success: false,
-            error: error.message || "Erreur interne."
-        });
+        console.error("[AI] Fatal Route Error:", error.stack || error.message);
+        res.status(500).json({ success: false, error: error.message || "Erreur interne." });
     }
 });
 
