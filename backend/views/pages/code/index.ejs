@@ -1171,7 +1171,10 @@
                 <div class="ai-avatar"><i class="fas fa-robot"></i></div>
                 <strong>Bugi</strong>
             </div>
-            <button onclick="toggleAiDrawer()" class="ai-close-btn" title="Fermer">&times;</button>
+            <div style="display:flex; align-items:center; gap:8px;">
+                <button onclick="clearBugiHistory()" class="ai-close-btn" style="font-size: 14px;" title="Vider l'historique"><i class="fas fa-trash"></i></button>
+                <button onclick="toggleAiDrawer()" class="ai-close-btn" title="Fermer">&times;</button>
+            </div>
         </div>
         <div class="ai-chat-history" id="ai-chat-history">
             <!-- Messages appended dynamically -->
@@ -1477,6 +1480,7 @@ function switchMode(mode) {
         statusText.textContent = 'Python prêt';
         subtitle.innerHTML = 'Écrivez et exécutez du <a href="#">Python</a> directement dans votre navigateur – sans installation.';
         populateExamples('python');
+        loadBugiHistory();
         if (pyEditor) pyEditor.refresh();
     } else {
         statusText.textContent = 'HTML/CSS/JS prêt';
@@ -1953,6 +1957,7 @@ async function sendBugiMessage() {
         input.disabled   = false;
         sendBtn.disabled = false;
         input.focus();
+        saveBugiHistory();
     }
 }
 
@@ -1970,6 +1975,46 @@ function toggleAiDrawer(forceOpen = null) {
         drawer.classList.remove('open');
     } else {
         drawer.classList.toggle('open');
+    }
+}
+
+// ----------------------------------------------------------------
+// AI LOCAL STORAGE HISTORY
+// ----------------------------------------------------------------
+const BUGI_STORAGE_KEY = 'cp_bugi_history';
+
+function saveBugiHistory() {
+    const historyEl = document.getElementById('ai-chat-history');
+    if (!historyEl) return;
+    
+    // Extract only actual bubbles (avoid typing indicators or default welcome)
+    const bubbles = Array.from(historyEl.querySelectorAll('.ai-bubble'));
+    const htmlToSave = bubbles.map(b => b.outerHTML).join('');
+    localStorage.setItem(BUGI_STORAGE_KEY, htmlToSave);
+}
+
+function loadBugiHistory() {
+    const saved = localStorage.getItem(BUGI_STORAGE_KEY);
+    if (saved) {
+        const historyEl = document.getElementById('ai-chat-history');
+        if (historyEl) {
+            historyEl.innerHTML += saved;
+            setTimeout(() => { historyEl.scrollTop = historyEl.scrollHeight; }, 100);
+        }
+    }
+}
+
+function clearBugiHistory() {
+    if(confirm('Es-tu sûr de vouloir effacer tout l\'historique avec Bugi ?')) {
+        localStorage.removeItem(BUGI_STORAGE_KEY);
+        const historyEl = document.getElementById('ai-chat-history');
+        if (historyEl) {
+            historyEl.innerHTML = `
+                <div style="text-align:center; color:#64748b; font-size:13px; margin-top:20px;">
+                    مرحبا! أنا مساعدك الذكي Bugi. <br>إذا واجهت أي خطأ في الكود، اضغط على زر "إصلاح بالذكاء الاصطناعي".
+                </div>
+            `;
+        }
     }
 }
 
@@ -2082,6 +2127,8 @@ async function askAiDebugger() {
         aiMsg.innerHTML = `⚠️ Bugi مشغول بارشا تو — حاول بعد شوية! 😅`;
         historyEl.appendChild(aiMsg);
         historyEl.scrollTop = historyEl.scrollHeight;
+    } finally {
+        saveBugiHistory();
     }
 }
 
