@@ -13,6 +13,7 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.17/mode/css/css.min.js" data-turbo-track="reload"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.17/addon/edit/matchbrackets.min.js" data-turbo-track="reload"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.17/addon/edit/closebrackets.min.js" data-turbo-track="reload"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.17/addon/display/placeholder.min.js" data-turbo-track="reload"></script>
     <!-- Skulpt (Python in browser) -->
     <script src="https://skulpt.org/js/skulpt.min.js" data-turbo-track="reload"></script>
     <script src="https://skulpt.org/js/skulpt-stdlib.js" data-turbo-track="reload"></script>
@@ -741,6 +742,9 @@
         .web-pane .CodeMirror-lines {
             padding-top: 0 !important;
         }
+        .CodeMirror-empty.CodeMirror-focused { color: #6272a4; }
+        .CodeMirror pre.CodeMirror-placeholder { color: #6272a4 !important; font-style: italic; }
+
         /* Make all hidden web panes show as flex so CodeMirror measures correctly */
         .web-pane {
             position: absolute;
@@ -2096,7 +2100,8 @@ function initEditors() {
 
     // ---- PYTHON editor ----
     pyEditor = CodeMirror(document.getElementById('py-editor-body'), {
-        value: '# Ecrivez votre code Python ici...',
+        value: '',
+        placeholder: '# Ecrivez votre code Python ici...',
         mode: 'python',
         theme: 'dracula',
         lineNumbers: true,
