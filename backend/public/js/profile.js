@@ -182,16 +182,17 @@ function loadUserStats() {
 }
 
 // Save profile changes
+let originalText = '';
 async function saveProfile() {
     try {
         // Get form values
-        const fullName = document.getElementById('full-name').value.trim();
-        const phone = document.getElementById('phone').value.trim();
-        const userClass = document.getElementById('user-class').value;
-        const userBranch = document.getElementById('user-branch').value;
-        const birthDate = document.getElementById('birth-date').value;
-        const country = document.getElementById('country').value;
-        const bio = document.getElementById('bio').value.trim();
+        const fullName = document.getElementById('full-name')?.value.trim() || '';
+        const phone = document.getElementById('phone')?.value.trim() || '';
+        const userClass = document.getElementById('user-class')?.value || '';
+        const userBranch = document.getElementById('user-branch')?.value || '';
+        const birthDate = document.getElementById('birth-date')?.value || null;
+        const country = document.getElementById('country')?.value || null;
+        const bio = document.getElementById('bio')?.value.trim() || null;
         
         // Validate required fields
         if (!fullName) {
@@ -211,10 +212,12 @@ async function saveProfile() {
         };
         
         // Show loading state
-        const saveBtn = document.querySelector('.save-btn');
-        const originalText = saveBtn.textContent;
-        saveBtn.textContent = 'Enregistrement...';
-        saveBtn.disabled = true;
+        const saveBtn = document.querySelector('.save-btn') || document.querySelector('button[onclick="saveProfile()"]');
+        if (saveBtn) {
+            originalText = saveBtn.textContent;
+            saveBtn.textContent = 'Enregistrement...';
+            saveBtn.disabled = true;
+        }
         
         // Update user profile
         if (window.auth) {
@@ -235,9 +238,11 @@ async function saveProfile() {
         showMessage('Erreur lors de l\'enregistrement des modifications', 'error');
     } finally {
         // Restore button state
-        const saveBtn = document.querySelector('.save-btn');
-        saveBtn.textContent = originalText;
-        saveBtn.disabled = false;
+        const saveBtn = document.querySelector('.save-btn') || document.querySelector('button[onclick="saveProfile()"]');
+        if (saveBtn) {
+            saveBtn.textContent = originalText || 'Enregistrer les modifications';
+            saveBtn.disabled = false;
+        }
     }
 }
 

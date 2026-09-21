@@ -129,7 +129,10 @@ async function renderCourseInfo(course, totalLessons, hasAccess, courseProgress)
     }
 
     // Update title
-    document.getElementById('course-title').textContent = course.title;
+    const titleEl = document.getElementById('course-title');
+    if (titleEl) {
+        titleEl.textContent = course.title;
+    }
 
     // Update description
     const descSection = document.getElementById('course-description');
