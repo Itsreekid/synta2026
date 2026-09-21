@@ -306,6 +306,154 @@
             font-size: 15px;
         }
 
+        /* ========================================================
+           AI FLOATING DRAWER WIDGET
+           ======================================================== */
+        .ai-fab {
+            position: fixed;
+            bottom: 24px;
+            right: 24px;
+            z-index: 50;
+            background: linear-gradient(135deg, #f97316, #f59e0b);
+            color: white;
+            border: none;
+            border-radius: 50px;
+            padding: 14px 20px;
+            box-shadow: 0 10px 25px rgba(249, 115, 22, 0.4);
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-family: 'Tajawal', sans-serif;
+            font-weight: bold;
+            font-size: 16px;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        .ai-fab:hover {
+            transform: translateY(-4px) scale(1.05);
+            box-shadow: 0 15px 30px rgba(249, 115, 22, 0.5);
+        }
+
+        .ai-drawer {
+            position: fixed;
+            bottom: 90px;
+            right: 24px;
+            z-index: 50;
+            width: 380px;
+            max-width: calc(100vw - 48px);
+            height: 500px;
+            max-height: calc(100vh - 120px);
+            background: #1e2030;
+            border: 1px solid #333550;
+            border-radius: 16px;
+            box-shadow: 0 15px 40px rgba(0,0,0,0.5);
+            display: flex;
+            flex-direction: column;
+            transform: translateY(20px);
+            opacity: 0;
+            pointer-events: none;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            overflow: hidden;
+            font-family: 'Tajawal', sans-serif;
+        }
+        .ai-drawer.open {
+            transform: translateY(0);
+            opacity: 1;
+            pointer-events: auto;
+        }
+
+        .ai-drawer-header {
+            background: #252840;
+            padding: 16px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid #333550;
+            color: white;
+            font-size: 16px;
+            direction: rtl;
+        }
+        .ai-drawer-header strong { font-weight: 700; }
+        .ai-close-btn {
+            background: transparent;
+            border: none;
+            color: #64748b;
+            font-size: 20px;
+            cursor: pointer;
+            transition: color 0.2s;
+        }
+        .ai-close-btn:hover { color: #f87171; }
+
+        .ai-avatar {
+            width: 36px;
+            height: 36px;
+            background: linear-gradient(135deg, #a855f7, #8b5cf6);
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 18px;
+        }
+
+        .ai-chat-history {
+            flex: 1;
+            padding: 16px;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+
+        .ai-bubble {
+            max-width: 85%;
+            padding: 12px 16px;
+            border-radius: 12px;
+            line-height: 1.6;
+            font-size: 15px;
+            word-wrap: break-word;
+        }
+        .ai-bubble.user {
+            align-self: flex-start;
+            background: #2d3250;
+            color: #c8cce8;
+            border-bottom-left-radius: 4px;
+            direction: ltr; /* User code is LTR */
+            font-family: 'Fira Code', monospace;
+            font-size: 13px;
+        }
+        .ai-bubble.ai {
+            align-self: flex-end;
+            background: rgba(168, 85, 247, 0.15);
+            border: 1px solid rgba(168, 85, 247, 0.3);
+            color: #e9d5ff;
+            border-bottom-right-radius: 4px;
+            direction: rtl;
+            text-align: right;
+        }
+        .ai-bubble.ai strong { color: #f97316; }
+
+        /* Typing skeleton */
+        .ai-typing {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            padding: 14px 16px;
+        }
+        .ai-typing span {
+            width: 8px;
+            height: 8px;
+            background: #a855f7;
+            border-radius: 50%;
+            animation: bounce 1.4s infinite ease-in-out both;
+        }
+        .ai-typing span:nth-child(1) { animation-delay: -0.32s; }
+        .ai-typing span:nth-child(2) { animation-delay: -0.16s; }
+        @keyframes bounce {
+            0%, 80%, 100% { transform: scale(0); }
+            40% { transform: scale(1); }
+        }
+
+
         /* Editor footer */
         .cp-editor-footer {
             display: flex;
@@ -922,6 +1070,29 @@
     </section>
 </div>
 
+<!-- ========================================================
+     AI FLOATING DRAWER
+     ======================================================== -->
+<button class="ai-fab" onclick="toggleAiDrawer()" title="مساعد سبرينتا الذكاء الاصطناعي">
+    <i class="fas fa-robot"></i>
+</button>
+
+<div class="ai-drawer" id="ai-drawer">
+    <div class="ai-drawer-header">
+        <div style="display:flex; align-items:center; gap:10px;">
+            <div class="ai-avatar"><i class="fas fa-robot"></i></div>
+            <strong>مساعد سبرينتا الذكاء الاصطناعي</strong>
+        </div>
+        <button onclick="toggleAiDrawer()" class="ai-close-btn" title="Fermer">&times;</button>
+    </div>
+    <div class="ai-chat-history" id="ai-chat-history">
+        <!-- Messages appended dynamically -->
+        <div style="text-align:center; color:#64748b; font-size:13px; margin-top:20px;">
+            مرحبا! أنا مساعدك الذكي. <br>إذا واجهت أي خطأ في الكود، اضغط على زر "إصلاح بالذكاء الاصطناعي".
+        </div>
+    </div>
+</div>
+
 <!-- Scripts -->
 <script src="/js/authentication.js"></script>
 <script src="/js/user.js"></script>
@@ -1194,32 +1365,6 @@ function update() {
 };
 
 // ----------------------------------------------------------------
-// SMART PYTHON HINTS (bilingual FR + AR)
-// ----------------------------------------------------------------
-const PYTHON_HINTS = [
-    {
-        trigger: /^\s*for\s+\w+\s+in\s+.+:\s*$/m,
-        fr: '🔁 <strong>Boucle for :</strong> Appuyez sur Entrée — le code suivant sera indenté automatiquement (4 espaces). Tout ce qui est indenté fait partie de la boucle.',
-        ar: 'حلقة for: اضغط Enter — سيتم المسافة البادئة تلقائياً. كل ما هو مبادر ينتمي للحلقة.'
-    },
-    {
-        trigger: /^\s*while\s+.+:\s*$/m,
-        fr: '🔄 <strong>Boucle while :</strong> N\'oubliez pas de modifier la variable de condition à l\'intérieur, sinon la boucle sera infinie !',
-        ar: 'حلقة while: لا تنسَ تغيير متغير الشرط داخل الحلقة وإلا ستكون لانهائية!'
-    },
-    {
-        trigger: /^\s*def\s+\w+/m,
-        fr: '⚙️ <strong>Fonction :</strong> Définissez vos paramètres entre les parenthèses, puis utilisez <code>return</code> pour renvoyer un résultat.',
-        ar: 'دالة: ضع المتغيرات بين القوسين، واستخدم return لإعادة النتيجة.'
-    },
-    {
-        trigger: /^\s*if\s+.+:\s*$/m,
-        fr: '❓ <strong>Condition if :</strong> Ajoutez <code>elif</code> pour d\'autres cas, et <code>else</code> pour le cas par défaut.',
-        ar: 'شرط if: أضف elif لحالات أخرى، وelse للحالة الافتراضية.'
-    },
-    {
-        trigger: /^\s*class\s+\w+/m,
-        fr: '🏗️ <strong>Classe :</strong> Définissez <code>__init__(self, ...)</code> comme constructeur. Utilisez <code>self</code> pour accéder aux attributs de l\'objet.',
         ar: 'صنف: عرّف __init__ كمنشئ. استخدم self للوصول إلى خصائص الكائن.'
     }
 ];
@@ -1436,11 +1581,6 @@ function runPython() {
             '<span class="console-error">❌ ' + escapeHtml(trans.fr) + '\n' +
             '   ' + escapeHtml(trans.ar) + '</span>\n'
         );
-        const hintEl = document.getElementById('py-hint');
-        if (/SyntaxError/i.test(msg) || /IndentationError/i.test(msg)) {
-            hintEl.innerHTML = '💡 Conseil : <strong>Vérifiez les deux-points</strong> à la fin des instructions <code>if</code>, <code>for</code>, <code>while</code>, <code>def</code> et assurez-vous d\'utiliser exactement 4 espaces pour l\'indentation.';
-            hintEl.classList.add('show');
-        }
     }
 
     Sk.configure({
@@ -1636,9 +1776,20 @@ function checkAndShowHint(code) {
 }
 
 // ----------------------------------------------------------------
-// AI DEBUGGER
+// AI DEBUGGER FLOATING DRAWER
 // ----------------------------------------------------------------
 let aiCooldown = false;
+
+function toggleAiDrawer(forceOpen = null) {
+    const drawer = document.getElementById('ai-drawer');
+    if (forceOpen === true) {
+        drawer.classList.add('open');
+    } else if (forceOpen === false) {
+        drawer.classList.remove('open');
+    } else {
+        drawer.classList.toggle('open');
+    }
+}
 
 async function askAiDebugger() {
     if (!pyEditor) return;
@@ -1662,19 +1813,36 @@ async function askAiDebugger() {
         }, 4000);
     }
 
-    // Grab the latest error text from the console, or all text if no explicit error
+    // Open drawer
+    toggleAiDrawer(true);
+
+    // Grab console context
     const consoleEl = document.getElementById('py-console');
     const errorSpans = consoleEl.querySelectorAll('.console-error');
     let errorText = "";
     if (errorSpans.length > 0) {
         errorSpans.forEach(s => errorText += s.textContent + "\n");
     } else {
-        errorText = consoleEl.textContent.trim().substring(0, 500); // just grab recent context
+        errorText = consoleEl.textContent.trim().substring(0, 500); 
     }
 
-    const hintEl = document.getElementById('py-hint');
-    hintEl.className = 'cp-hint show ai-rtl';
-    hintEl.innerHTML = '<i class="fas fa-spinner fa-spin"></i> جاري تحليل الكود...';
+    const historyEl = document.getElementById('ai-chat-history');
+    
+    // 1. Append User Message
+    const userMsg = document.createElement('div');
+    userMsg.className = 'ai-bubble user';
+    userMsg.innerHTML = `<strong>الكود:</strong><br>${escapeHtml(code)}`;
+    historyEl.appendChild(userMsg);
+
+    // 2. Append Loading Skeleton
+    const typingId = 'loading-' + Date.now();
+    const loadingEl = document.createElement('div');
+    loadingEl.className = 'ai-typing';
+    loadingEl.id = typingId;
+    loadingEl.innerHTML = `<span></span><span></span><span></span>`;
+    historyEl.appendChild(loadingEl);
+    
+    historyEl.scrollTop = historyEl.scrollHeight;
 
     try {
         const response = await fetch('/api/ai/debug', {
@@ -1685,22 +1853,31 @@ async function askAiDebugger() {
 
         const data = await response.json();
         
+        // Remove typing indicator
+        document.getElementById(typingId)?.remove();
+
+        const aiMsg = document.createElement('div');
+        aiMsg.className = 'ai-bubble ai';
+
         if (!response.ok) {
-            hintEl.className = 'cp-hint show';
-            hintEl.innerHTML = `⚠️ Erreur AI: ${escapeHtml(data.error || 'Erreur inconnue')}`;
-            return;
+            aiMsg.innerHTML = `⚠️ خطأ: ${escapeHtml(data.error || 'Erreur inconnue')}`;
+        } else {
+            let htmlResponse = escapeHtml(data.explanation);
+            htmlResponse = htmlResponse.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+            aiMsg.innerHTML = htmlResponse;
         }
 
-        // Basic markdown parser for bold
-        let htmlResponse = escapeHtml(data.explanation);
-        htmlResponse = htmlResponse.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
-        
-        hintEl.innerHTML = `💡 ${htmlResponse}`;
+        historyEl.appendChild(aiMsg);
+        historyEl.scrollTop = historyEl.scrollHeight;
 
     } catch (err) {
         console.error(err);
-        hintEl.className = 'cp-hint show';
-        hintEl.innerHTML = `⚠️ Impossible de joindre l'IA.`;
+        document.getElementById(typingId)?.remove();
+        const aiMsg = document.createElement('div');
+        aiMsg.className = 'ai-bubble ai';
+        aiMsg.innerHTML = `⚠️ السيرفر مشغول، يرجى المحاولة بعد قليل.`;
+        historyEl.appendChild(aiMsg);
+        historyEl.scrollTop = historyEl.scrollHeight;
     }
 }
 
@@ -1741,11 +1918,6 @@ function initEditors() {
                 } else {
                     cm.execCommand('newlineAndIndent');
                 }
-            }
-        }
-    });
-    pyEditor.on('change', function() { checkAndShowHint(pyEditor.getValue()); });
-
     // ---- WEB editors — initialize ALL even if hidden so CodeMirror has correct size ----
     // We force them visible temporarily, init, then hide again
     var htmlPane = document.getElementById('web-pane-html');
