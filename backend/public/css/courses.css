@@ -552,4 +552,49 @@
     justify-content: center;
     width: 24px;
     height: 24px;
+}
+
+/* ===================================================== */
+/* MOBILE OVERHAUL FOR COURSE DETAILS & VIDEO PLAYER     */
+/* ===================================================== */
+@media (max-width: 768px) {
+    .course-details-layout {
+        display: flex;
+        flex-direction: column;
+        gap: 1rem;
+    }
+    
+    .course-main {
+        width: 100%;
+        padding: 0;
+    }
+    
+    .course-sidebar {
+        width: 100%;
+        position: static;
+        margin-top: 1rem;
+    }
+    
+    .video-section-wrapper {
+        padding: 0.5rem;
+    }
+    
+    .lesson-actions {
+        flex-direction: column;
+        gap: 0.5rem;
+    }
+    
+    .btn-complete-next, .btn-feedback {
+        width: 100%;
+        padding: 1.25rem !important; /* Larger touch target */
+    }
+    
+    .lesson-details-content {
+        padding: 1rem !important;
+        margin-top: 0.5rem !important;
+    }
+    
+    .course-title-section h1 {
+        font-size: 1.5rem !important;
+    }
 } 

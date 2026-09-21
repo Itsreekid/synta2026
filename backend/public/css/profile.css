@@ -68,38 +68,42 @@
 .page-profile-wrapper .profile-form select,
 .page-profile-wrapper .profile-form textarea {
     width: 100%;
-    padding: 0.7rem 1rem;
-    border: 1px solid #e0e0e0;
-    border-radius: 8px;
+    padding: 0.85rem 1rem;
+    border: 1px solid #e2e8f0;
+    border-radius: 12px;
     font-family: 'Tajawal', sans-serif;
     font-size: 1rem;
-    background: #fff;
-    color: #333;
-    transition: border 0.2s;
+    background: #f8fafc;
+    color: #1e293b;
+    transition: all 0.3s ease;
 }
 
 .page-profile-wrapper .profile-form input:focus,
 .page-profile-wrapper .profile-form select:focus,
 .page-profile-wrapper .profile-form textarea:focus {
-    border-color: #ff7b1a;
     outline: none;
+    border-color: #ff9a00;
+    box-shadow: 0 0 0 3px rgba(255, 154, 0, 0.15);
+    background: white;
 }
 
 .page-profile-wrapper .save-btn {
-    background: linear-gradient(45deg, #ff7b1a, #ffa500);
-    color: #fff;
+    background: linear-gradient(135deg, #ff9a00 0%, #e68a00 100%);
+    color: white;
     border: none;
-    padding: 0.7rem 2rem;
-    border-radius: 25px;
-    font-family: 'Tajawal', sans-serif;
-    font-weight: 700;
-    font-size: 1.1rem;
+    padding: 1rem 2rem;
+    border-radius: 12px;
+    font-size: 1.05rem;
+    font-weight: 600;
     cursor: pointer;
-    transition: background 0.3s;
+    transition: all 0.3s ease;
+    width: max-content;
+    box-shadow: 0 4px 15px rgba(255, 154, 0, 0.3);
 }
 
 .page-profile-wrapper .save-btn:hover {
-    background: linear-gradient(45deg, #ffa500, #ff7b1a);
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(255, 154, 0, 0.4);
 }
 
 .page-profile-wrapper .progress-overview {
@@ -436,4 +440,19 @@
         font-size: 0.9rem;
     }
     
-    .form-group input,\n    .form-group select,\n    .form-group textarea {\n        padding: 0.75rem;\n        font-size: 0.9rem;\n    }\n    \n    .save-btn {\n        padding: 0.8rem 1.5rem;\n        font-size: 0.95rem;\n    }\n} 
+    .form-group input,
+    .form-group select,
+    .form-group textarea {
+        padding: 0.85rem;
+        font-size: 1rem;
+    }
+    
+    .page-profile-wrapper .save-btn {
+        width: 100%;
+        padding: 1rem;
+        font-size: 1.05rem;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+    }
+} 

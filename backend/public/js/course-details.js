@@ -163,34 +163,39 @@ async function renderCourseInfo(course, totalLessons, hasAccess, courseProgress)
     const currentPrice = document.getElementById('current-price');
     const originalPrice = document.getElementById('original-price');
 
-    if (course.is_free) {
-        currentPrice.textContent = 'Gratuit';
-        originalPrice.style.display = 'none';
-    } else {
-        currentPrice.innerHTML = `<img src="../../source/dt.png" alt="DT" class="dt-currency-icon-large"> ${course.price}`;
-        // Show original price if there's a discount (example)
-        if (course.original_price && course.original_price > course.price) {
-            originalPrice.innerHTML = `<img src="../../source/dt.png" alt="DT" class="dt-currency-icon-small"> ${course.original_price}`;
-            originalPrice.style.display = 'block';
+    if (currentPrice) {
+        if (course.is_free) {
+            currentPrice.textContent = 'Gratuit';
+            if (originalPrice) originalPrice.style.display = 'none';
+        } else {
+            currentPrice.innerHTML = `<img src="../../source/dt.png" alt="DT" class="dt-currency-icon-large"> ${course.price}`;
+            // Show original price if there's a discount (example)
+            if (originalPrice && course.original_price && course.original_price > course.price) {
+                originalPrice.innerHTML = `<img src="../../source/dt.png" alt="DT" class="dt-currency-icon-small"> ${course.original_price}`;
+                originalPrice.style.display = 'block';
+            }
         }
     }
 
     // Update lessons count
-    document.getElementById('lessons-count').textContent = totalLessons;
+    const lessonsCount = document.getElementById('lessons-count');
+    if (lessonsCount) lessonsCount.textContent = totalLessons;
 
     // Update language (default to Arabe)
-    document.getElementById('course-language').textContent = 'Arabe';
+    const courseLang = document.getElementById('course-language');
+    if (courseLang) courseLang.textContent = 'Arabe';
 
     // Update buy button
     const buyButton = document.getElementById('buy-button');
-    if (hasAccess) {
-        buyButton.textContent = 'Continuer le cours';
-        buyButton.style.background = 'linear-gradient(135deg, #10b981 0%, #059669 100%)';
-    } else {
-        buyButton.textContent = course.is_free ? 'S\'inscrire gratuitement' : 'Acheter maintenant';
+    if (buyButton) {
+        if (hasAccess) {
+            buyButton.textContent = 'Continuer le cours';
+            buyButton.style.background = 'linear-gradient(135deg, #10b981 0%, #059669 100%)';
+        } else {
+            buyButton.textContent = course.is_free ? 'S\'inscrire gratuitement' : 'Acheter maintenant';
+        }
+        buyButton.onclick = () => enrollInCourse(course.id, course.is_free, hasAccess);
     }
-
-    buyButton.onclick = () => enrollInCourse(course.id, course.is_free, hasAccess);
 }
 
 /**
@@ -405,33 +410,35 @@ async function showVideoInMainArea(lesson, videoUrl, pdfUrl) {
 
     // Replace main content with video player and action buttons
     courseMain.innerHTML = `
-        <div class="video-container" style="background: #000; border-radius: 12px; overflow: hidden; position: relative; aspect-ratio: 16/9; width: 100%;">
-            <video 
-                id="current-lesson-video"
-                controls 
-                controlsList="nodownload"
-                style="position: absolute; top: 0; left: 0; width: 100%; height: 100%;"
-                src="${videoUrl}"
-            >
-                Votre navigateur ne supporte pas la lecture de vidéos.
-            </video>
-        </div>
-        
-        <div class="lesson-actions">
-            <button class="btn-complete-next" onclick="completeLessonAndNext('${lesson.id}')">
-                <span class="icon">✅</span> Terminer la leçon & Passer à la suivante
-            </button>
-            <button class="btn-feedback" onclick="openFeedbackModal('${lesson.id}')">
-                <span class="icon">🤔</span> Je n'ai pas compris
-            </button>
-        </div>
-        
-        <div class="lesson-details-content" style="margin-top: 2rem; padding: 1.5rem; background: white; border-radius: 12px; border: 1px solid #e2e8f0;">
-            <h2 style="margin-top: 0; font-size: 1.5rem; color: #1e293b;">${lesson.title}</h2>
-            <div style="color: #64748b; line-height: 1.6;">
-                ${lesson.description || 'Aucune description pour cette leçon.'}
+        <div class="video-section-wrapper" style="width: 100%; display: flex; flex-direction: column; gap: 1rem;">
+            <div class="video-container" style="background: #000; border-radius: 12px; overflow: hidden; position: relative; aspect-ratio: 16/9; width: 100%; box-shadow: 0 15px 35px rgba(0,0,0,0.2);">
+                <video 
+                    id="current-lesson-video"
+                    controls 
+                    controlsList="nodownload"
+                    style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; object-fit: cover;"
+                    src="${videoUrl}"
+                >
+                    Votre navigateur ne supporte pas la lecture de vidéos.
+                </video>
             </div>
-            ${pdfButtonsHtml}
+            
+            <div class="lesson-actions" style="display: flex; gap: 1rem; width: 100%;">
+                <button class="btn-complete-next" onclick="completeLessonAndNext('${lesson.id}')" style="flex: 1; padding: 1rem; background: linear-gradient(135deg, #10b981 0%, #059669 100%); color: white; border: none; border-radius: 12px; font-weight: 600; font-size: 1rem; cursor: pointer; transition: all 0.3s ease; box-shadow: 0 4px 15px rgba(16, 185, 129, 0.3); display: flex; align-items: center; justify-content: center; gap: 0.5rem;">
+                    <span class="icon">✅</span> Terminer & Suivante
+                </button>
+                <button class="btn-feedback" onclick="openFeedbackModal('${lesson.id}')" style="padding: 1rem; background: white; color: #64748b; border: 1px solid #e2e8f0; border-radius: 12px; font-weight: 600; cursor: pointer; transition: all 0.2s ease; display: flex; align-items: center; justify-content: center; gap: 0.5rem;">
+                    <span class="icon">🤔</span> Aide
+                </button>
+            </div>
+            
+            <div class="lesson-details-content" style="padding: 1.5rem; background: white; border-radius: 12px; border: 1px solid #e2e8f0; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05);">
+                <h2 style="margin-top: 0; font-size: 1.5rem; color: #1e293b; font-weight: 700;">${lesson.title}</h2>
+                <div style="color: #64748b; line-height: 1.6; font-size: 1.05rem;">
+                    ${lesson.description || 'Aucune description pour cette leçon.'}
+                </div>
+                ${pdfButtonsHtml}
+            </div>
         </div>
     `;
 
