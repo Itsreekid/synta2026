@@ -70,62 +70,66 @@
         }
         .cp-brand-text p a { color: #ff7b1a; text-decoration: none; }
 
-        /* Mode Tabs */
+        /* Mode Tabs Segmented Control */
         .cp-mode-tabs {
             display: flex;
-            background: #e2e4ea;
+            background: #e2e8f0;
             border-radius: 8px;
-            padding: 3px;
-            gap: 3px;
-            margin-left: auto;
+            padding: 4px;
+            gap: 4px;
+            box-shadow: inset 0 2px 4px rgba(0,0,0,0.05);
         }
         .cp-tab {
-            padding: 7px 18px;
+            padding: 8px 24px;
             border-radius: 6px;
             border: none;
             background: transparent;
-            color: #666;
-            font-weight: 600;
+            color: #64748b;
+            font-weight: 700;
             font-size: 13px;
             cursor: pointer;
-            transition: all 0.2s;
+            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
             font-family: 'Tajawal', sans-serif;
             display: flex;
             align-items: center;
-            gap: 6px;
+            gap: 8px;
         }
+        .cp-tab:hover:not(.active) { color: #334155; background: rgba(255,255,255,0.5); }
         .cp-tab.active {
             background: white;
-            color: #1a1a2e;
-            box-shadow: 0 2px 6px rgba(0,0,0,0.12);
+            color: #0f172a;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
         }
-        .cp-tab-dot-python { color: #3776ab; }
-        .cp-tab-dot-web { color: #e44d26; }
+        .cp-tab-dot-python { color: #f59e0b; font-size: 14px; }
+        .cp-tab-dot-web { color: #3b82f6; font-size: 14px; }
 
         /* Status badge */
         .cp-status {
             display: flex;
             align-items: center;
-            gap: 6px;
-            border: 1.5px solid #22c55e;
+            gap: 8px;
+            background: #f0fdf4;
+            border: 1px solid #bbf7d0;
             border-radius: 20px;
-            padding: 5px 12px;
-            font-size: 12px;
-            color: #16a34a;
-            font-weight: 600;
+            padding: 6px 14px;
+            font-size: 13px;
+            color: #15803d;
+            font-weight: 700;
             font-family: 'Tajawal', sans-serif;
             flex-shrink: 0;
+            transition: all 0.3s;
         }
         .cp-status-dot {
             width: 8px;
             height: 8px;
             background: #22c55e;
             border-radius: 50%;
+            box-shadow: 0 0 8px rgba(34, 197, 94, 0.6);
             animation: pulse-dot 2s infinite;
         }
         @keyframes pulse-dot {
-            0%, 100% { opacity: 1; }
-            50% { opacity: 0.4; }
+            0%, 100% { opacity: 1; transform: scale(1); }
+            50% { opacity: 0.6; transform: scale(0.9); }
         }
 
         /* ========== TOOLBAR ========== */
@@ -182,11 +186,17 @@
             flex: 1;
             display: flex;
             flex-direction: column;
-            border-radius: 12px;
+            border-radius: 14px;
             overflow: hidden;
             background: #1e2030;
-            box-shadow: 0 4px 20px rgba(0,0,0,0.2);
+            border: 1px solid #333550;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.15);
             min-width: 0;
+            transition: border-color 0.3s;
+        }
+        .cp-panel:focus-within {
+            border-color: #ff7b1a;
+            box-shadow: 0 8px 32px rgba(255,123,26,0.1);
         }
         .cp-panel-header {
             display: flex;
@@ -450,12 +460,13 @@
         .ai-send-btn:disabled { opacity: 0.4; cursor: not-allowed; transform: none; }
 
         .ai-bubble {
-            max-width: 85%;
-            padding: 12px 16px;
-            border-radius: 12px;
+            max-width: 88%;
+            padding: 14px 18px;
+            border-radius: 14px;
             line-height: 1.6;
             font-size: 15px;
             word-wrap: break-word;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
         }
         .ai-bubble.user {
             align-self: flex-end;
@@ -469,14 +480,35 @@
         }
         .ai-bubble.ai {
             align-self: flex-start;
-            background: rgba(168, 85, 247, 0.15);
-            border: 1px solid rgba(168, 85, 247, 0.3);
-            color: #e9d5ff;
+            background: rgba(168, 85, 247, 0.1);
+            border: 1px solid rgba(168, 85, 247, 0.2);
+            color: #e2e8f0;
             border-bottom-left-radius: 4px;
             direction: rtl;
             text-align: right;
         }
-        .ai-bubble.ai strong { color: #f97316; }
+        .ai-bubble.ai strong { color: #f59e0b; }
+        .ai-bubble.ai pre {
+            background: #1a1c2e;
+            padding: 12px;
+            border-radius: 8px;
+            border: 1px solid #333550;
+            direction: ltr;
+            text-align: left;
+            font-family: 'Fira Code', monospace;
+            font-size: 13.5px;
+            color: #10b981;
+            overflow-x: auto;
+            margin: 8px 0;
+        }
+        .ai-bubble.ai code {
+            font-family: 'Fira Code', monospace;
+            background: #1a1c2e;
+            color: #a855f7;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-size: 13.5px;
+        }
 
         /* Typing skeleton */
         .ai-typing {
@@ -843,62 +875,65 @@
         /* ========== VISUALIZER ========== */
         .cp-visualizer {
             display: flex;
-            flex-wrap: wrap;
-            gap: 16px;
+            flex-direction: column;
+            gap: 12px;
             align-content: start;
         }
         .cp-visualizer-empty {
-            grid-column: 1 / -1;
             text-align: center;
             color: #64748b;
-            font-size: 13px;
-            margin-top: 20px;
+            font-size: 14px;
+            margin-top: 40px;
+            font-family: 'Tajawal', sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 12px;
         }
         .vis-card {
-            background: transparent;
+            background: #252840;
+            border: 1px solid #333550;
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 12px 16px;
             font-family: 'Fira Code', monospace;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            gap: 4px;
-            width: 80px; /* Force consistent card width */
+            animation: fadeIn 0.3s ease-out;
         }
-        .vis-header {
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
+        
+        .vis-info {
             display: flex;
             flex-direction: column;
-            align-items: center;
-            text-align: center;
+            gap: 2px;
         }
         .vis-var-name {
-            color: #ff7b1a;
-            font-weight: 800;
-            font-size: 16px;
+            color: #c8cce8;
+            font-weight: 700;
+            font-size: 15px;
         }
         .vis-var-type {
             color: #64748b;
-            font-size: 10px;
-            text-transform: uppercase;
+            font-size: 11px;
+            font-family: 'Tajawal', sans-serif;
         }
         .vis-var-value {
-            background: #ffffff;
-            color: #0f172a;
-            font-weight: 800;
-            border: 2px solid #10b981;
-            border-radius: 12px;
-            width: 56px;
-            height: 56px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
-            font-size: 18px;
+            color: #10b981;
+            font-weight: 700;
+            font-size: 15px;
+            background: rgba(16, 185, 129, 0.1);
+            padding: 4px 10px;
+            border-radius: 6px;
+            max-width: 120px;
             overflow: hidden;
             text-overflow: ellipsis;
+            white-space: nowrap;
         }
-        .vis-val-string { color: #059669; }
-        .vis-val-number { color: #ea580c; }
-        .vis-val-bool { color: #7c3aed; }
-        .vis-val-list { color: #b45309; }
+        .vis-val-string { color: #10b981; background: rgba(16, 185, 129, 0.1); }
+        .vis-val-number { color: #ff7b1a; background: rgba(255, 123, 26, 0.1); }
+        .vis-val-bool { color: #a855f7; background: rgba(168, 85, 247, 0.1); }
+        .vis-val-list { color: #3b82f6; background: rgba(59, 130, 246, 0.1); }
     </style>
 </head>
 <body>
@@ -930,17 +965,17 @@
     <div class="cp-page">
 
         <!-- IDE RIBBON HEADER -->
-        <div class="ide-ribbon" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px; padding: 12px 16px; background: white; border-radius: 12px; border: 1px solid #e2e8f0; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05);">
+        <div class="ide-ribbon" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 16px; padding: 14px 20px; background: white; border-radius: 12px; border: 1px solid #e2e8f0; box-shadow: 0 2px 10px rgba(0,0,0,0.03);">
             
-            <div class="cp-brand" style="margin-right: auto;">
+            <div class="cp-brand">
                 <div class="cp-brand-icon">&lt;/&gt;</div>
                 <div class="cp-brand-text">
-                    <h2 id="cp-title" style="margin: 0; font-size: 16px; color: #1e293b;">Code Pratique</h2>
-                    <p id="cp-subtitle" style="margin: 0; font-size: 12px; color: #64748b;">Éditeur interactif</p>
+                    <h2 id="cp-title" style="margin: 0; font-size: 18px; color: #0f172a;">Code Pratique</h2>
+                    <p id="cp-subtitle" style="margin: 0; font-size: 13px; color: #64748b; font-weight: 500;">Éditeur interactif</p>
                 </div>
             </div>
 
-            <div class="cp-mode-tabs" style="background: #f1f5f9; padding: 4px; border-radius: 10px;">
+            <div class="cp-mode-tabs" style="margin: 0 auto;">
                 <button class="cp-tab active" id="tab-python" onclick="switchMode('python')">
                     <span class="cp-tab-dot-python">🐍</span> Python
                 </button>
@@ -949,17 +984,19 @@
                 </button>
             </div>
 
-            <div class="cp-toolbar" style="gap: 8px;">
-                <select class="cp-select" id="examples-select" onchange="loadExample()">
-                    <option value="">Modèles...</option>
-                </select>
-                <button class="cp-btn-toolbar" onclick="clearEditor()"><i class="fas fa-trash"></i> Vider</button>
-                <button class="cp-btn-toolbar" onclick="copyCode()"><i class="fas fa-copy"></i> Copier</button>
-            </div>
+            <div style="display: flex; align-items: center; gap: 16px;">
+                <div class="cp-status" id="cp-status">
+                    <div class="cp-status-dot"></div>
+                    <span id="cp-status-text">Python prêt</span>
+                </div>
 
-            <div class="cp-status" id="cp-status" style="margin-left: 8px;">
-                <div class="cp-status-dot"></div>
-                <span id="cp-status-text">Prêt</span>
+                <div class="cp-toolbar" style="border-left: 1px solid #e2e8f0; padding-left: 16px;">
+                    <select class="cp-select" id="examples-select" onchange="loadExample()">
+                        <option value="">Exemples...</option>
+                    </select>
+                    <button class="cp-btn-toolbar" onclick="clearEditor()" title="Vider l'éditeur"><i class="fas fa-eraser"></i></button>
+                    <button class="cp-btn-toolbar" onclick="copyCode()" title="Copier le code"><i class="fas fa-copy"></i></button>
+                </div>
             </div>
         </div>
 
@@ -977,7 +1014,7 @@
             <div class="mode-panel active" id="mode-python" style="flex:1;min-width:0;display:flex;gap:14px;">
 
                 <!-- Editor panel -->
-                <div class="cp-panel" style="flex: 1 1 45%;">
+                <div class="cp-panel" style="flex: 1 1 50%;">
                     <div class="cp-panel-header">
                         <div style="display:flex;align-items:center;gap:8px;">
                             <div class="cp-panel-dots">
@@ -1009,7 +1046,7 @@
                 </div>
 
                 <!-- Console panel -->
-                <div class="cp-panel" style="flex: 1 1 27.5%;">
+                <div class="cp-panel" style="flex: 1 1 25%;">
                     <div class="cp-panel-header">
                         <div style="display:flex;align-items:center;gap:8px;">
                             <div class="cp-panel-dots">
@@ -1034,7 +1071,7 @@
                 </div>
                 
                 <!-- Visualizer panel -->
-                <div class="cp-panel" style="flex: 1 1 27.5%;">
+                <div class="cp-panel" style="flex: 1 1 25%;">
                     <div class="cp-panel-header">
                         <div style="display:flex;align-items:center;gap:8px;">
                             <div class="cp-panel-dots">
@@ -1045,10 +1082,10 @@
                             <span class="cp-panel-filename">variables en mémoire</span>
                         </div>
                     </div>
-                    <div class="cp-visualizer" id="py-visualizer" style="flex: 1; background: #1e2030; padding: 12px; overflow-y: auto;">
-                        <div style="text-align: center; color: #64748b; font-size: 13px; margin-top: 20px;">
-                            <i class="fas fa-search" style="font-size: 24px; margin-bottom: 8px; opacity: 0.5;"></i><br>
-                            Aucune variable en mémoire. Exécutez le code pour visualiser.
+                    <div class="cp-visualizer" id="py-visualizer" style="flex: 1; background: #1e2030; padding: 16px; overflow-y: auto;">
+                        <div class="cp-visualizer-empty">
+                            <span style="font-size: 32px; opacity: 0.8;">◇</span>
+                            <span>Aucune variable.<br><br><span style="color:#4a5380;font-size:12px;">Exécute ton code pour voir les variables apparaître ici.</span></span>
                         </div>
                     </div>
                 </div>
@@ -1591,7 +1628,13 @@ function runPython() {
     if (!code) return;
 
     clearConsole();
-    appendConsole('<span class="console-comment">▶ Exécution en cours...</span>\n');
+    
+    const runBtn = document.getElementById('run-btn');
+    const originalBtnHTML = runBtn.innerHTML;
+    const originalBtnBg = runBtn.style.background || '';
+    
+    runBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Exécution...';
+    runBtn.style.opacity = '0.8';
 
     const statusEl = document.getElementById('cp-status-text');
     statusEl.textContent = '⏳ Exécution...';
@@ -1599,7 +1642,22 @@ function runPython() {
     function outf(text) { appendConsole('<span class="console-output">' + escapeHtml(text) + '</span>'); }
     function errf(err)  {
         const msg = err.toString();
-        appendConsole('<span class="console-error">❌ ' + escapeHtml(msg) + '</span>\n');
+        // Add structured error output to console with a manual Bugi action button
+        const bugiBtnHTML = `<button onclick="askAiDebugger()" style="margin-top:12px; padding:6px 12px; border:none; border-radius:6px; background:#a855f7; color:white; font-family:'Tajawal',sans-serif; cursor:pointer; font-size:13px; font-weight:600;"><i class="fas fa-magic"></i> 🐞 Voir l'explication de Bugi</button>`;
+        
+        appendConsole('\n<span class="console-error" style="display:block; padding:8px; border-left:3px solid #ef4444; background:rgba(239,68,68,0.1); border-radius:0 4px 4px 0; margin-top:8px;">❌ <strong>Erreur :</strong><br>' + escapeHtml(msg) + '<br>' + bugiBtnHTML + '</span>\n');
+        
+        runBtn.innerHTML = '<i class="fas fa-exclamation-triangle"></i> Erreur';
+        runBtn.style.background = '#ef4444';
+        runBtn.style.opacity = '1';
+        
+        // Highlight Bugi button but do not interrupt the student automatically
+        triggerBugiError();
+        
+        setTimeout(() => {
+            runBtn.innerHTML = originalBtnHTML;
+            runBtn.style.background = originalBtnBg;
+        }, 2500);
     }
 
     Sk.configure({
@@ -1621,8 +1679,18 @@ function runPython() {
 
     promise.then(
         (module) => {
-            appendConsole('<span class="console-comment">\n✅ Programme terminé.</span>\n');
+            appendConsole('\n<span class="console-comment" style="color:#10b981; font-weight:bold;">✓ Exécution réussie</span>\n');
             statusEl.textContent = 'Python prêt';
+            
+            runBtn.innerHTML = '<i class="fas fa-check"></i> Exécuté';
+            runBtn.style.background = '#10b981';
+            runBtn.style.opacity = '1';
+            
+            setTimeout(() => {
+                runBtn.innerHTML = originalBtnHTML;
+                runBtn.style.background = originalBtnBg;
+            }, 2000);
+            
             if(module && module.$d) {
                 renderStateVisualizer(module.$d);
             }
@@ -1674,11 +1742,11 @@ function renderStateVisualizer(dict) {
         const card = document.createElement('div');
         card.className = 'vis-card';
         card.innerHTML = `
-            <div class="vis-header">
+            <div class="vis-info">
                 <span class="vis-var-name">${escapeHtml(key)}</span>
                 <span class="vis-var-type">${typeStr}</span>
             </div>
-            <div class="vis-var-value ${valClass}">${escapeHtml(valStr)}</div>
+            <div class="vis-var-value ${valClass}" title="${escapeHtml(valStr)}">${escapeHtml(valStr)}</div>
         `;
         vis.appendChild(card);
     }
@@ -1686,8 +1754,8 @@ function renderStateVisualizer(dict) {
     if (count === 0) {
         vis.innerHTML = `
             <div class="cp-visualizer-empty">
-                <i class="fas fa-search" style="font-size: 24px; margin-bottom: 8px; opacity: 0.5;"></i><br>
-                Aucune variable en mémoire.
+                <span style="font-size: 32px; opacity: 0.8;">◇</span>
+                <span>Aucune variable.<br><br><span style="color:#4a5380;font-size:12px;">Exécute ton code pour voir les variables apparaître ici.</span></span>
             </div>`;
     }
 }
@@ -1699,8 +1767,8 @@ function clearConsole() {
     if (vis) {
         vis.innerHTML = `
             <div class="cp-visualizer-empty">
-                <i class="fas fa-search" style="font-size: 24px; margin-bottom: 8px; opacity: 0.5;"></i><br>
-                Aucune variable en mémoire. Exécutez le code pour visualiser.
+                <span style="font-size: 32px; opacity: 0.8;">◇</span>
+                <span>Aucune variable.<br><br><span style="color:#4a5380;font-size:12px;">Exécute ton code pour voir les variables apparaître ici.</span></span>
             </div>`;
     }
 }
@@ -1898,6 +1966,15 @@ function toggleAiDrawer(forceOpen = null) {
         drawer.classList.remove('open');
     } else {
         drawer.classList.toggle('open');
+    }
+}
+
+function triggerBugiError() {
+    // Highlight the AI button to draw attention contextually
+    const aiBtn = document.querySelector('.cp-ai-btn');
+    if (aiBtn) {
+        aiBtn.style.animation = 'pulse-dot 1.5s infinite';
+        setTimeout(() => { aiBtn.style.animation = ''; }, 4500);
     }
 }
 
