@@ -2,15 +2,14 @@ import express from "express";
 
 const router = express.Router();
 
-// Confirmed working model IDs via direct REST API
-// Format: used directly in the URL path
+// Prioritized model fallback — modern standard IDs
 const MODEL_FALLBACK = [
-    'gemini-1.5-flash-latest',
-    'gemini-1.5-flash-8b-latest',
-    'gemini-pro',
+    'gemini-2.0-flash',
+    'gemini-1.5-flash',
+    'gemini-1.5-flash-8b',
 ];
 
-const GEMINI_BASE = 'https://generativelanguage.googleapis.com/v1/models';
+const GEMINI_BASE = 'https://generativelanguage.googleapis.com/v1beta/models';
 
 async function callGemini(model, prompt, apiKey) {
     const url = `${GEMINI_BASE}/${model}:generateContent?key=${apiKey}`;
