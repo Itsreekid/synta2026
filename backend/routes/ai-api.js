@@ -48,7 +48,7 @@ CRITICAL: You MUST speak ONLY in Tunisian Darja written in Arabic script (الد
         if (!response.ok) {
             const errData = await response.text();
             console.error("[AI] Gemini API error:", errData);
-            return res.status(502).json({ error: "Erreur de communication avec l'IA." });
+            return res.status(502).json({ error: "API Gemini a refusé la requête: " + errData });
         }
 
         const data = await response.json();
