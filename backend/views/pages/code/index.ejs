@@ -1918,6 +1918,10 @@ function initEditors() {
                 } else {
                     cm.execCommand('newlineAndIndent');
                 }
+            }
+        }
+    });
+
     // ---- WEB editors — initialize ALL even if hidden so CodeMirror has correct size ----
     // We force them visible temporarily, init, then hide again
     var htmlPane = document.getElementById('web-pane-html');
