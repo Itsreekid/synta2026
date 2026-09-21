@@ -280,19 +280,31 @@
 
         /* Hint/Autocomplete bubble */
         .cp-hint {
+            display: none;
             background: #2d3250;
             border: 1px solid #ff7b1a;
             border-radius: 8px;
             padding: 8px 12px;
             margin: 4px 16px;
-            font-size: 12.5px;
-            color: #fbbf24;
+            color: #c8cce8;
+            font-size: 13px;
             font-family: 'Tajawal', sans-serif;
-            display: none;
             flex-shrink: 0;
+            white-space: pre-wrap;
         }
         .cp-hint.show { display: block; }
         .cp-hint strong { color: #f97316; }
+
+        /* AI Debugger RTL styles */
+        .cp-hint.ai-rtl {
+            direction: rtl;
+            text-align: right;
+            background: rgba(168, 85, 247, 0.1);
+            border: 1px solid #a855f7;
+            color: #d8b4fe;
+            line-height: 1.6;
+            font-size: 15px;
+        }
 
         /* Editor footer */
         .cp-editor-footer {
@@ -813,7 +825,12 @@
                             </div>
                             <span class="cp-panel-filename">console</span>
                         </div>
-                        <button class="cp-clear-btn" onclick="clearConsole()">clear</button>
+                        <div style="display:flex; gap:8px;">
+                            <button class="cp-ai-btn" onclick="askAiDebugger()" title="Demander de l'aide à l'IA" style="background: linear-gradient(135deg, #a855f7, #8b5cf6); color: white; border: none; padding: 4px 10px; border-radius: 6px; font-size: 12px; cursor: pointer; font-weight: bold; display: flex; align-items: center; gap: 4px; transition: opacity 0.2s;">
+                                💡 إصلاح بالذكاء الاصطناعي
+                            </button>
+                            <button class="cp-clear-btn" onclick="clearConsole()">clear</button>
+                        </div>
                     </div>
                     <div class="cp-console" id="py-console">
                         <span class="console-ready">Python 3.10 prêt !</span><br>
@@ -1616,6 +1633,56 @@ function checkAndShowHint(code) {
         }
     }
     hintEl.classList.remove('show');
+}
+
+// ----------------------------------------------------------------
+// AI DEBUGGER
+// ----------------------------------------------------------------
+async function askAiDebugger() {
+    if (!pyEditor) return;
+    const code = pyEditor.getValue().trim();
+    if (!code) return;
+
+    // Grab the latest error text from the console, or all text if no explicit error
+    const consoleEl = document.getElementById('py-console');
+    const errorSpans = consoleEl.querySelectorAll('.console-error');
+    let errorText = "";
+    if (errorSpans.length > 0) {
+        errorSpans.forEach(s => errorText += s.textContent + "\n");
+    } else {
+        errorText = consoleEl.textContent.trim().substring(0, 500); // just grab recent context
+    }
+
+    const hintEl = document.getElementById('py-hint');
+    hintEl.className = 'cp-hint show ai-rtl';
+    hintEl.innerHTML = '<i class="fas fa-spinner fa-spin"></i> جاري تحليل الكود...';
+
+    try {
+        const response = await fetch('/api/ai/debug', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ code, error: errorText })
+        });
+
+        const data = await response.json();
+        
+        if (!response.ok) {
+            hintEl.className = 'cp-hint show';
+            hintEl.innerHTML = `⚠️ Erreur AI: ${escapeHtml(data.error || 'Erreur inconnue')}`;
+            return;
+        }
+
+        // Basic markdown parser for bold
+        let htmlResponse = escapeHtml(data.explanation);
+        htmlResponse = htmlResponse.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+        
+        hintEl.innerHTML = `💡 ${htmlResponse}`;
+
+    } catch (err) {
+        console.error(err);
+        hintEl.className = 'cp-hint show';
+        hintEl.innerHTML = `⚠️ Impossible de joindre l'IA.`;
+    }
 }
 
 // ----------------------------------------------------------------

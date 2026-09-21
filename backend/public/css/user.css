@@ -1,3 +1,35 @@
+:root {
+    /* Brand Colors */
+    --primary-color: #013047;
+    --secondary-color: #F6851F;
+    
+    /* Semantic Colors */
+    --color-success: #10b981;
+    --color-danger: #ef4444;
+    --color-warning: #f59e0b;
+    --color-info: #3b82f6;
+
+    /* Text & Surfaces */
+    --text-color: #219EBC;
+    --dark-text: #1e293b;
+    --gray-text: #64748b;
+    --light-text: #ffffff;
+    --light-bg: #f8fafc;
+    --surface-bg: #ffffff;
+    --border-color: #e2e8f0;
+
+    /* Radii */
+    --radius-sm: 8px;
+    --radius-md: 12px;
+    --radius-lg: 20px;
+    --radius-full: 9999px;
+
+    /* Shadows */
+    --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+    --shadow-premium: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -2px rgba(0, 0, 0, 0.05);
+    --shadow-hover: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+}
+
 /* User Page Styles */
 * {
     margin: 0;

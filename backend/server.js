@@ -25,6 +25,7 @@ import userApiRoutes from "./routes/user-api.js";
 import pageRoutes from "./routes/pages.js";
 import sessionRoutes from "./routes/session.js";
 import adminApiRoutes from "./routes/admin-api.js";
+import aiApiRoutes from "./routes/ai-api.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -176,6 +177,7 @@ app.use("/api/purchase", purchaseRoutes);
 app.use("/api/offers", offersRoutes);
 app.use("/api/live", liveRoutes);
 app.use("/api/tracking", trackingRoutes);
+app.use("/api/ai", aiApiRoutes);
 
 // Admin routes
 app.use(adminApiRoutes);
