@@ -1638,10 +1638,29 @@ function checkAndShowHint(code) {
 // ----------------------------------------------------------------
 // AI DEBUGGER
 // ----------------------------------------------------------------
+let aiCooldown = false;
+
 async function askAiDebugger() {
     if (!pyEditor) return;
+    if (aiCooldown) return;
+    
     const code = pyEditor.getValue().trim();
     if (!code) return;
+
+    // Apply 4-second cooldown to prevent spam
+    aiCooldown = true;
+    const aiBtn = document.querySelector('.cp-ai-btn');
+    if (aiBtn) {
+        aiBtn.style.opacity = '0.5';
+        aiBtn.style.cursor = 'not-allowed';
+        setTimeout(() => {
+            aiCooldown = false;
+            if (aiBtn) {
+                aiBtn.style.opacity = '1';
+                aiBtn.style.cursor = 'pointer';
+            }
+        }, 4000);
+    }
 
     // Grab the latest error text from the console, or all text if no explicit error
     const consoleEl = document.getElementById('py-console');
