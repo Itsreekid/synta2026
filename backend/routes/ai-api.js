@@ -26,7 +26,7 @@ CRITICAL: You MUST speak ONLY in Tunisian Darja written in Arabic script (الد
         const userPrompt = `${systemPrompt}\n\nHere is the student's context:\nCode:\n\`\`\`python\n${code}\n\`\`\`\n\nError Message:\n${error || "Je veux juste une explication de ce code."}`;
 
         // Call the Gemini API via standard fetch (Fallback to universally available gemini-pro)
-        const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=${process.env.GEMINI_API_KEY}`, {
+        const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:generateContent?key=${process.env.GEMINI_API_KEY}`, {
             method: "POST",
             headers: {
                 "Content-Type": "application/json"
