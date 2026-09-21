@@ -15,6 +15,12 @@
     box-sizing: border-box;
 }
 
+*:focus-visible {
+    outline: none;
+    box-shadow: 0 0 0 3px rgba(246, 133, 31, 0.3);
+    border-radius: inherit;
+}
+
 html {
     scroll-behavior: smooth;
 }
@@ -22,6 +28,26 @@ section {
     display: block; /* Makes the section a block element (default for <section>) */
     overflow: visible; /* Allow child content to be visible - each page manages its own overflow */
     width: 100%; /* Ensures full width */
+}
+
+/* ====== Enterprise UI Tokens ====== */
+.skeleton {
+    background: linear-gradient(90deg, #f1f5f9 25%, #e2e8f0 50%, #f1f5f9 75%);
+    background-size: 200% 100%;
+    animation: shimmer 1.5s infinite;
+    border-radius: 8px;
+}
+
+@keyframes shimmer {
+    0% { background-position: -200% 0; }
+    100% { background-position: 200% 0; }
+}
+
+.card-premium {
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -2px rgba(0, 0, 0, 0.05);
+    background: white;
+    border: 1px solid #e2e8f0;
+    border-radius: 12px;
 }
 
 iframe {
