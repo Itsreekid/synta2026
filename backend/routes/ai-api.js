@@ -2,11 +2,8 @@ import express from "express";
 
 const router = express.Router();
 
-// Real supported Gemini model IDs (gemini-3.x does NOT exist)
 const MODEL_FALLBACK = [
-    'gemini-2.5-flash',       // Latest & fastest
-    'gemini-2.0-flash',       // Previous gen
-    'gemini-1.5-flash',       // Stable fallback
+    'gemini-3.6-flash',
 ];
 
 const GEMINI_BASE = 'https://generativelanguage.googleapis.com/v1beta/models';
