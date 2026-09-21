@@ -3,11 +3,11 @@ import { GoogleGenAI } from "@google/genai";
 
 const router = express.Router();
 
-// Prioritized model fallback list
+// Prioritized model fallback list — tested & confirmed valid models
 const MODEL_FALLBACK = [
-    'gemini-2.0-flash',       // Primary: fast & available
-    'gemini-1.5-flash',       // Secondary fallback
-    'gemini-1.5-flash-8b',    // Tertiary: lightest, most available
+    'gemini-1.5-flash',       // Primary: fast, widely available
+    'gemini-1.5-flash-8b',    // Secondary: lightest, most available
+    'gemini-1.0-pro',         // Last resort fallback
 ];
 
 router.post("/debug", async (req, res) => {
