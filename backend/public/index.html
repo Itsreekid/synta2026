@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="ar" dir="rtl">
 <head>
     <meta charset="UTF-8">
@@ -206,6 +206,15 @@
 
     <script>
         (function () {
+            // Optimization: Do not run heavy canvas/particle animations on mobile screens
+            // or for users who prefer reduced motion.
+            const isMobile = window.innerWidth < 768;
+            const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+            
+            if (isMobile || prefersReducedMotion) {
+                return; // Exit early, skipping particle generation
+            }
+
             const container = document.getElementById('particles-container');
             if (!container) return;
             let mouseX = 0, mouseY = 0;

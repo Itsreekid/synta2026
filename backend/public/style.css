@@ -24,7 +24,7 @@ section {
     width: 100%; /* Ensures full width */
 }
 
-iframe {
+.course-viewer-iframe {
     width: 100%; /* Full width of its container */
     height: 100vh; /* Full viewport height (adjust as needed) */
     border: none; /* Removes default iframe border */

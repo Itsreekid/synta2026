@@ -83,3 +83,17 @@
     #global-hydration-overlay { display: none; }
     @keyframes spin { 100% { transform: rotate(360deg); } }
 </style>
+
+<!-- Fallback: Ensure users are not trapped on a loading spinner -->
+<noscript>
+    <style>#global-hydration-overlay { display: none !important; }</style>
+</noscript>
+<script>
+    // Fail-safe to remove the overlay after 5 seconds if initialization hangs
+    setTimeout(function() {
+        var overlay = document.getElementById('global-hydration-overlay');
+        if (overlay) {
+            overlay.style.display = 'none';
+        }
+    }, 5000);
+</script>
