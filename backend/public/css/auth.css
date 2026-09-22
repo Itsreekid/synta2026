@@ -943,3 +943,13 @@ body {
     padding: 0;
     line-height: 1.4;
 }
+
+/* Register form: pad the bottom so the last element (Google note) clears the scroll boundary */
+.auth-container--register .auth-form {
+    padding-bottom: 2rem;
+}
+
+/* When content fits without scroll, center it */
+.auth-form--centered {
+    justify-content: center !important;
+}

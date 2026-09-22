@@ -48,7 +48,9 @@
                         </div>
                     </div>
                 </div>
-                <div class="auth-form">
+
+                <!-- Login form: centered vertically (small content) -->
+                <div class="auth-form auth-form--centered">
                     <h2>تسجيل الدخول</h2>
                     <p>ليس لديك حساب؟ <a href="/register">إنشاء حساب جديد</a></p>
 
@@ -75,7 +77,7 @@
                         <span>أو</span>
                     </div>
 
-                    <!-- Google Sign-In Button -->
+                    <!-- Google Sign-In Button (custom styled; GIS overlay activates on click) -->
                     <div id="google-signin-container" class="google-signin-container">
                         <button type="button" id="googleSignInBtn" class="btn google-btn btn-block">
                             <svg class="google-icon" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
@@ -86,6 +88,8 @@
                             </svg>
                             <span id="googleBtnText">تسجيل الدخول بـ Google</span>
                             <span id="googleBtnSpinner" class="google-btn-spinner" style="display:none;"></span>
+                            <!-- Transparent GIS button overlay (injected by google-auth.js) -->
+                            <div id="__gis_overlay__" class="gis-overlay" aria-hidden="true"></div>
                         </button>
                     </div>
                 </div>
