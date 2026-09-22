@@ -84,11 +84,6 @@ router.post("/api/auth/register", async (req, res) => {
 
     const user = result.rows[0];
 
-    // Set session cookies so the user is logged in right away
-    const access_token  = signAccessToken(user);
-    const refresh_token = signRefreshToken(user.id);
-    setSessionCookies(res, { access_token, refresh_token });
-
     // Send the verification email — non-blocking: failure is logged, not fatal
     sendVerificationEmail(user.email, user.name, verificationToken).catch((err) => {
       console.error("[auth/register] Could not send verification email:", err.message);
@@ -130,7 +125,11 @@ router.post("/api/auth/login", async (req, res) => {
     const valid = await bcrypt.compare(password, user.password_hash);
 
     if (!valid) {
-      return res.status(401).json({ error: "Invalid email or password" });
+      return res.status(401).json({ error: "البريد الإلكتروني أو كلمة المرور غير صحيحة" });
+    }
+
+    if (!user.email_verified) {
+      return res.status(403).json({ error: "يرجى التحقق من بريدك الإلكتروني لتفعيل حسابك قبل تسجيل الدخول." });
     }
 
     const access_token  = signAccessToken(user);
@@ -154,6 +153,60 @@ router.post("/api/auth/login", async (req, res) => {
 router.post("/api/auth/logout", (req, res) => {
   clearSessionCookies(res);
   return res.json({ success: true });
+});
+
+/**
+ * POST /api/auth/resend-verification
+ * Resends the verification email for an unverified account.
+ */
+router.post("/api/auth/resend-verification", async (req, res) => {
+  try {
+    const { email } = req.body;
+    if (!email) {
+      return res.status(400).json({ error: "البريد الإلكتروني مطلوب" });
+    }
+
+    // 1. Look up user
+    const result = await pool.query(
+      "SELECT id, email, name, email_verified FROM users WHERE email = $1",
+      [email.toLowerCase().trim()]
+    );
+
+    if (result.rowCount === 0) {
+      return res.status(400).json({ error: "لم يتم العثور على حساب بهذا البريد الإلكتروني" });
+    }
+
+    const user = result.rows[0];
+
+    // 2. Check if already verified
+    if (user.email_verified) {
+      return res.status(400).json({ error: "الحساب مفعل بالفعل، يمكنك تسجيل الدخول" });
+    }
+
+    // 3. Generate a new token
+    const { token: verificationToken, expiresAt: tokenExpiresAt } = generateVerificationToken();
+
+    // 4. Update the DB
+    await pool.query(
+      `UPDATE users 
+       SET verification_token = $1, token_expires_at = $2 
+       WHERE id = $3`,
+      [verificationToken, tokenExpiresAt, user.id]
+    );
+
+    // 5. Send the new email
+    try {
+      await sendVerificationEmail(user.email, user.name, verificationToken);
+    } catch (err) {
+      console.error("[auth/resend] Resend error:", err.message);
+      return res.status(500).json({ error: "تعذر إرسال البريد الإلكتروني. يرجى المحاولة لاحقاً." });
+    }
+
+    return res.json({ success: true, message: "تم إعادة إرسال بريد التفعيل" });
+  } catch (err) {
+    console.error("[auth/resend] Error:", err.message);
+    return res.status(500).json({ error: "خطأ داخلي في الخادم" });
+  }
 });
 
 export default router;

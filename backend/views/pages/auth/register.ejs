@@ -138,6 +138,32 @@
                         </button>
                         <p class="google-register-note">سيتم إنشاء حسابك تلقائياً باستخدام بريد Google الإلكتروني.</p>
                     </div>
+                    </div>
+                </div>
+
+                <!-- Registration Success State (Hidden by default) -->
+                <div id="registerSuccessState" class="auth-form" style="display: none; text-align: center;">
+                    <div style="font-size: 3rem; color: #10b981; margin-bottom: 1rem;">
+                        <i class="fas fa-envelope-open-text"></i>
+                    </div>
+                    <h2 style="color: #013047; margin-bottom: 1rem;">تم إنشاء الحساب بنجاح! 🎉</h2>
+                    <p style="color: #64748b; font-size: 1.05rem; line-height: 1.6; margin-bottom: 1.5rem;">
+                        لقد أرسلنا رابط التفعيل إلى بريدك الإلكتروني:<br>
+                        <strong id="registeredEmailDisplay" style="color: #013047; display: block; margin-top: 0.5rem; font-size: 1.1rem;"></strong>
+                    </p>
+                    <p style="color: #64748b; font-size: 0.95rem; margin-bottom: 2rem;">
+                        يرجى التحقق من صندوق الوارد (أو قسم الرسائل غير المرغوب فيها Spam) لتفعيل حسابك.
+                    </p>
+                    
+                    <button type="button" id="resendVerificationBtn" class="btn primary-btn btn-block" style="background: #f8fafc; color: #013047; border: 2px solid #e2e8f0; box-shadow: none;">
+                        <i class="fas fa-redo" style="margin-left: 0.5rem;"></i>
+                        إعادة إرسال بريد التفعيل
+                    </button>
+                    <p id="resendMessage" style="margin-top: 1rem; font-size: 0.9rem; font-weight: bold; display: none;"></p>
+
+                    <div style="margin-top: 2rem; border-top: 1px solid #e2e8f0; padding-top: 1.5rem;">
+                        <a href="/login" style="color: #F6851F; font-weight: bold; text-decoration: none;">&rarr; العودة لتسجيل الدخول</a>
+                    </div>
                 </div>
             </div>
         </div>

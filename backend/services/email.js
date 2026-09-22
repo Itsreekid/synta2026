@@ -46,7 +46,7 @@ function buildVerificationEmailHtml(name, verifyUrl) {
           <!-- Header -->
           <tr>
             <td align="center" style="background-color: #013047; padding: 30px 20px;">
-              <img src="https://syntaacademy.tn/source/logo.png" alt="Synta Academy" style="width: 120px; height: auto; display: block;">
+              <img src="https://syntaacademy.tn/source/whiteorangeweb.png" alt="Synta Academy" style="width: 120px; height: auto; display: block;">
             </td>
           </tr>
 

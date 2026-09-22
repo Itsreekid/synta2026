@@ -119,8 +119,8 @@ router.post("/api/auth/google", async (req, res) => {
       const displayName = name || email.split("@")[0];
 
       const insert = await pool.query(
-        `INSERT INTO users (email, name, google_id, role, password_hash)
-         VALUES ($1, $2, $3, 'user', NULL)
+        `INSERT INTO users (email, name, google_id, role, password_hash, email_verified)
+         VALUES ($1, $2, $3, 'user', NULL, true)
          RETURNING id, email, name, role`,
         [email.toLowerCase().trim(), displayName, googleId]
       );

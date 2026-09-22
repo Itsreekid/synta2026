@@ -214,15 +214,61 @@ async function handleRegister(e) {
                 });
             }
 
-            // The backend already set session cookies on /api/auth/register,
-            // so the user is fully logged in. Show a brief success message
-            // then redirect straight to the dashboard — no manual login needed.
-            showMessage('تم إنشاء الحساب بنجاح! جاري التحويل إلى لوحة التحكم...', 'success');
-            e.target.reset();
-
-            setTimeout(() => {
-                window.location.href = '/dashboard';
-            }, 1500);
+            // Registration is successful, but the user is NOT logged in yet.
+            // Hide the registration form and show the success state
+            const authForm = e.target.closest('.auth-form');
+            const successState = document.getElementById('registerSuccessState');
+            const emailDisplay = document.getElementById('registeredEmailDisplay');
+            
+            if (authForm && successState && emailDisplay) {
+                authForm.style.display = 'none';
+                emailDisplay.textContent = email;
+                successState.style.display = 'block';
+                
+                // Wire up the resend button
+                const resendBtn = document.getElementById('resendVerificationBtn');
+                const resendMsg = document.getElementById('resendMessage');
+                
+                if (resendBtn) {
+                    resendBtn.onclick = async () => {
+                        resendBtn.disabled = true;
+                        resendBtn.innerHTML = '<i class="fas fa-spinner fa-spin" style="margin-left: 0.5rem;"></i> جاري الإرسال...';
+                        resendMsg.style.display = 'none';
+                        
+                        try {
+                            const res = await fetch('/api/auth/resend-verification', {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({ email })
+                            });
+                            
+                            const data = await res.json();
+                            
+                            resendMsg.style.display = 'block';
+                            if (res.ok) {
+                                resendMsg.textContent = 'تم إرسال بريد التفعيل بنجاح! يرجى التحقق من بريدك.';
+                                resendMsg.style.color = '#10b981';
+                                // Keep button disabled to prevent spamming
+                            } else {
+                                resendMsg.textContent = data.error || 'حدث خطأ. يرجى المحاولة مرة أخرى.';
+                                resendMsg.style.color = '#ef4444';
+                                resendBtn.disabled = false;
+                                resendBtn.innerHTML = '<i class="fas fa-redo" style="margin-left: 0.5rem;"></i> إعادة إرسال بريد التفعيل';
+                            }
+                        } catch (err) {
+                            resendMsg.style.display = 'block';
+                            resendMsg.textContent = 'خطأ في الاتصال بالخادم.';
+                            resendMsg.style.color = '#ef4444';
+                            resendBtn.disabled = false;
+                            resendBtn.innerHTML = '<i class="fas fa-redo" style="margin-left: 0.5rem;"></i> إعادة إرسال بريد التفعيل';
+                        }
+                    };
+                }
+            } else {
+                // Fallback if elements are missing
+                showMessage('تم إنشاء الحساب بنجاح! يرجى التحقق من بريدك الإلكتروني لتفعيل حسابك.', 'success');
+                e.target.reset();
+            }
         } else {
             showMessage(result.message, 'error');
         }
