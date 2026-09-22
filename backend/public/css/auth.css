@@ -57,6 +57,12 @@ body {
     max-height: 800px;
 }
 
+/* Register page needs extra height to fit all fields */
+.auth-container.auth-container--register {
+    height: 92vh;
+    max-height: 900px;
+}
+
 .auth-image {
     flex: 1.2;
     background: linear-gradient(160deg, #fff7ed 0%, #ffedd5 35%, #fed7aa 70%, #fdba74 100%);
@@ -525,10 +531,10 @@ body {
 }
 .auth-form {
     flex: 1;
-    padding: 3rem 4rem;
+    padding: 2rem 3.5rem;
     display: flex;
     flex-direction: column;
-    justify-content: center;
+    justify-content: flex-start;  /* start from top so overflow scrolls down, not clips */
     overflow-y: auto;
     background: #ffffff;
     -ms-overflow-style: none;
@@ -541,16 +547,22 @@ body {
     display: none;
 }
 
+/* Center the form vertically only when the content fits (login/password-reset) */
+.auth-form--centered {
+    justify-content: center;
+}
+
 .auth-form h2 {
     color: var(--primary-color);
-    font-size: 2.2rem;
-    margin-bottom: 0.5rem;
+    font-size: 2rem;
+    margin-bottom: 0.4rem;
     font-weight: 700;
+    padding-top: 1.5rem;  /* breathing room from top on scroll */
 }
 
 .auth-form p {
     color: var(--gray-text);
-    margin-bottom: 2rem;
+    margin-bottom: 1.4rem;
     font-size: 1rem;
 }
 
@@ -577,7 +589,7 @@ body {
 }
 
 .form-group {
-    margin-bottom: 1rem;
+    margin-bottom: 0.75rem;
 }
 
 .form-group label {
@@ -644,7 +656,7 @@ body {
 .terms {
     display: flex;
     align-items: center;
-    margin: 1.5rem 0;
+    margin: 1rem 0;
 }
 
 .terms input {
