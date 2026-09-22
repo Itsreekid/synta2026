@@ -93,6 +93,31 @@
                         </button>
                     </div>
                 </div>
+
+                <!-- Unverified Account State (Hidden by default) -->
+                <div id="unverifiedState" class="auth-form auth-form--centered" style="display: none; text-align: center;">
+                    <div style="font-size: 3rem; color: #F6851F; margin-bottom: 1rem;">
+                        <i class="fas fa-exclamation-circle"></i>
+                    </div>
+                    <h2 style="color: #013047; margin-bottom: 1rem;">حساب غير مفعل</h2>
+                    <p style="color: #64748b; font-size: 1.05rem; line-height: 1.6; margin-bottom: 1.5rem;">
+                        لقد أرسلنا رابط التفعيل إلى بريدك الإلكتروني:<br>
+                        <strong id="unverifiedEmailDisplay" style="color: #013047; display: block; margin-top: 0.5rem; font-size: 1.1rem;"></strong>
+                    </p>
+                    <p style="color: #64748b; font-size: 0.95rem; margin-bottom: 2rem;">
+                        يرجى التحقق من صندوق الوارد (أو قسم الرسائل غير المرغوب فيها Spam) لتفعيل حسابك قبل تسجيل الدخول.
+                    </p>
+                    
+                    <button type="button" id="resendVerificationBtnLogin" class="btn primary-btn btn-block" style="background: #f8fafc; color: #013047; border: 2px solid #e2e8f0; box-shadow: none;">
+                        <i class="fas fa-redo" style="margin-left: 0.5rem;"></i>
+                        إعادة إرسال بريد التفعيل
+                    </button>
+                    <p id="resendMessageLogin" style="margin-top: 1rem; font-size: 0.9rem; font-weight: bold; display: none;"></p>
+
+                    <div style="margin-top: 2rem; border-top: 1px solid #e2e8f0; padding-top: 1.5rem;">
+                        <a href="/login" style="color: #F6851F; font-weight: bold; text-decoration: none;">&rarr; العودة لتسجيل الدخول</a>
+                    </div>
+                </div>
             </div>
         </div>
     </section>

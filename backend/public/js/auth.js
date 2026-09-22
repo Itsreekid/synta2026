@@ -115,6 +115,58 @@ async function handleLogin(e) {
             setTimeout(() => {
                 window.location.href = '/dashboard';
             }, 1500);
+        } else if (result.unverified) {
+            // Hide login form and show unverified state
+            const authForm = e.target.closest('.auth-form');
+            const unverifiedState = document.getElementById('unverifiedState');
+            const emailDisplay = document.getElementById('unverifiedEmailDisplay');
+            
+            if (authForm && unverifiedState && emailDisplay) {
+                authForm.style.display = 'none';
+                emailDisplay.textContent = email;
+                unverifiedState.style.display = 'block';
+                
+                // Wire up the resend button
+                const resendBtn = document.getElementById('resendVerificationBtnLogin');
+                const resendMsg = document.getElementById('resendMessageLogin');
+                
+                if (resendBtn) {
+                    resendBtn.onclick = async () => {
+                        resendBtn.disabled = true;
+                        resendBtn.innerHTML = '<i class="fas fa-spinner fa-spin" style="margin-left: 0.5rem;"></i> جاري الإرسال...';
+                        resendMsg.style.display = 'none';
+                        
+                        try {
+                            const res = await fetch('/api/auth/resend-verification', {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({ email })
+                            });
+                            
+                            const data = await res.json();
+                            
+                            resendMsg.style.display = 'block';
+                            if (res.ok) {
+                                resendMsg.textContent = 'تم إرسال بريد التفعيل بنجاح! يرجى التحقق من بريدك.';
+                                resendMsg.style.color = '#10b981';
+                            } else {
+                                resendMsg.textContent = data.error || 'حدث خطأ. يرجى المحاولة مرة أخرى.';
+                                resendMsg.style.color = '#ef4444';
+                                resendBtn.disabled = false;
+                                resendBtn.innerHTML = '<i class="fas fa-redo" style="margin-left: 0.5rem;"></i> إعادة إرسال بريد التفعيل';
+                            }
+                        } catch (err) {
+                            resendMsg.style.display = 'block';
+                            resendMsg.textContent = 'خطأ في الاتصال بالخادم.';
+                            resendMsg.style.color = '#ef4444';
+                            resendBtn.disabled = false;
+                            resendBtn.innerHTML = '<i class="fas fa-redo" style="margin-left: 0.5rem;"></i> إعادة إرسال بريد التفعيل';
+                        }
+                    };
+                }
+            } else {
+                showMessage(result.message, 'error');
+            }
         } else {
             showMessage(result.message, 'error');
         }

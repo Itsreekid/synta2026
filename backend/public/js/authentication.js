@@ -83,7 +83,7 @@
             const data = await response.json();
 
             if (!response.ok) {
-                return { success: false, error: 'INVALID_CREDENTIALS', message: data.error || 'البريد الإلكتروني أو كلمة المرور غير صحيحة.' };
+                return { success: false, error: 'INVALID_CREDENTIALS', message: data.error || 'البريد الإلكتروني أو كلمة المرور غير صحيحة.', unverified: data.unverified };
             }
 
             return { success: true, user: data.user, message: 'تم تسجيل الدخول بنجاح!' };

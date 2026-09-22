@@ -129,7 +129,7 @@ router.post("/api/auth/login", async (req, res) => {
     }
 
     if (!user.email_verified) {
-      return res.status(403).json({ error: "يرجى التحقق من بريدك الإلكتروني لتفعيل حسابك قبل تسجيل الدخول." });
+      return res.status(403).json({ error: "يرجى التحقق من بريدك الإلكتروني لتفعيل حسابك قبل تسجيل الدخول.", unverified: true });
     }
 
     const access_token  = signAccessToken(user);
