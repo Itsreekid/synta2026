@@ -162,6 +162,49 @@ router.get("/auth/complete-profile", requireAuth, async (req, res) => {
   }
 });
 
+/**
+ * GET /auth/verify-email
+ * Validates the email verification token and marks the account as verified.
+ */
+router.get("/auth/verify-email", async (req, res) => {
+  const token = req.query.token;
+
+  if (!token) {
+    return renderPage(res, "pages/auth/verify-email", { status: "error", message: "رابط التحقق مفقود." });
+  }
+
+  try {
+    const result = await pool.query(
+      `SELECT id, email_verified, token_expires_at FROM users WHERE verification_token = $1`,
+      [token]
+    );
+
+    if (result.rowCount === 0) {
+      return renderPage(res, "pages/auth/verify-email", { status: "error", message: "رابط التحقق غير صالح." });
+    }
+
+    const user = result.rows[0];
+
+    if (user.email_verified) {
+      return renderPage(res, "pages/auth/verify-email", { status: "success", message: "تم تأكيد بريدك الإلكتروني مسبقاً!" });
+    }
+
+    if (new Date() > new Date(user.token_expires_at)) {
+      return renderPage(res, "pages/auth/verify-email", { status: "error", message: "انتهت صلاحية رابط التحقق. يرجى طلب رابط جديد." });
+    }
+
+    await pool.query(
+      `UPDATE users SET email_verified = true, verification_token = NULL, token_expires_at = NULL WHERE id = $1`,
+      [user.id]
+    );
+
+    return renderPage(res, "pages/auth/verify-email", { status: "success", message: "تم تأكيد بريدك الإلكتروني بنجاح!" });
+  } catch (err) {
+    console.error("[verify-email] Route error:", err.message);
+    return renderPage(res, "pages/auth/verify-email", { status: "error", message: "حدث خطأ غير متوقع. يرجى المحاولة مرة أخرى." });
+  }
+});
+
 
 // --------------------------------------------------
 // PROTECTED APP ROUTES
