@@ -1,0 +1,306 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Synta Academy - إكمال الملف الشخصي</title>
+    <meta name="description" content="أكمل بيانات حسابك للوصول إلى لوحة التحكم الخاصة بك في Synta Academy.">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;900&display=swap" rel="stylesheet">
+    <link rel="icon" href="/source/logoweb.png" type="image/x-icon">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <link rel="stylesheet" href="/css/auth.css">
+    <link rel="stylesheet" href="/css/complete-profile.css">
+</head>
+<body class="onboarding-body">
+
+    <section class="onboarding-section">
+        <div class="onboarding-wrapper">
+
+            <!-- ── Left: animated branding panel ─────────────────────────── -->
+            <div class="onboarding-brand">
+                <div class="brand-bg">
+                    <!-- Floating orbs -->
+                    <div class="orb orb-1"></div>
+                    <div class="orb orb-2"></div>
+                    <div class="orb orb-3"></div>
+                    <!-- Speed streaks -->
+                    <div class="brand-streak brand-streak-1"></div>
+                    <div class="brand-streak brand-streak-2"></div>
+                    <div class="brand-streak brand-streak-3"></div>
+                    <div class="brand-streak brand-streak-4"></div>
+                </div>
+
+                <!-- Logo -->
+                <div class="brand-logo-wrap">
+                    <img src="/source/logo.png" alt="Synta Academy" class="brand-logo">
+                </div>
+
+                <!-- Progress steps sidebar -->
+                <div class="brand-steps">
+                    <div class="step-item step-done">
+                        <div class="step-circle">
+                            <i class="fas fa-check"></i>
+                        </div>
+                        <span>تسجيل الدخول بـ Google</span>
+                    </div>
+                    <div class="step-connector step-connector--done"></div>
+                    <div class="step-item step-active">
+                        <div class="step-circle">
+                            <span>2</span>
+                        </div>
+                        <span>إكمال الملف الشخصي</span>
+                    </div>
+                    <div class="step-connector"></div>
+                    <div class="step-item step-pending">
+                        <div class="step-circle">
+                            <span>3</span>
+                        </div>
+                        <span>الوصول إلى لوحة التحكم</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ── Right: the form ─────────────────────────────────────────── -->
+            <div class="onboarding-form-wrap">
+
+                <!-- Google account badge -->
+                <div class="google-account-badge">
+                    <svg class="google-badge-icon" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
+                        <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
+                        <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05"/>
+                        <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/>
+                    </svg>
+                    <div class="badge-text">
+                        <span class="badge-label">تم تسجيل الدخول بـ Google</span>
+                        <span class="badge-email"><%= user.email %></span>
+                    </div>
+                    <div class="badge-check"><i class="fas fa-check-circle"></i></div>
+                </div>
+
+                <!-- Heading -->
+                <div class="form-heading">
+                    <h1>أهلاً بك، <%= user.name.split(' ')[0] %>! 👋</h1>
+                    <p>لإكمال تسجيلك في Synta Academy، يرجى تعبئة البيانات التالية. لن يستغرق ذلك سوى دقيقة.</p>
+                </div>
+
+                <!-- Message area (errors / success) -->
+                <div id="profileMessage" class="profile-message" style="display:none;" role="alert"></div>
+
+                <!-- The form -->
+                <form id="completeProfileForm" novalidate>
+
+                    <!-- Phone -->
+                    <div class="oform-group">
+                        <label for="phone" class="oform-label">
+                            <i class="fas fa-phone-alt oform-label-icon"></i>
+                            رقم الهاتف
+                            <span class="oform-required">*</span>
+                        </label>
+                        <div class="oform-input-wrap">
+                            <span class="oform-prefix">+216</span>
+                            <input
+                                type="tel"
+                                id="phone"
+                                name="phone"
+                                class="oform-input oform-input--prefixed"
+                                placeholder="XX XXX XXX"
+                                maxlength="8"
+                                inputmode="numeric"
+                                pattern="^[24579][0-9]{7}$"
+                                required
+                                autocomplete="tel"
+                            >
+                        </div>
+                        <span class="oform-hint">رقم هاتف تونسي من 8 أرقام (يبدأ بـ 2، 4، 5، 7، أو 9)</span>
+                        <span class="oform-field-error" id="phoneError"></span>
+                    </div>
+
+                    <!-- Academic level + Branch (side by side) -->
+                    <div class="oform-row">
+                        <div class="oform-group">
+                            <label for="userClass" class="oform-label">
+                                <i class="fas fa-graduation-cap oform-label-icon"></i>
+                                المستوى الدراسي
+                                <span class="oform-required">*</span>
+                            </label>
+                            <div class="oform-select-wrap">
+                                <select id="userClass" name="user_class" class="oform-select" required>
+                                    <option value="" disabled selected>اختر المستوى</option>
+                                    <option value="1ere">1ère année</option>
+                                    <option value="2eme">2ème année</option>
+                                    <option value="3eme">3ème année</option>
+                                    <option value="bac">Bac</option>
+                                    <option value="other">أخرى</option>
+                                </select>
+                                <i class="fas fa-chevron-down oform-select-arrow"></i>
+                            </div>
+                            <span class="oform-field-error" id="classError"></span>
+                        </div>
+
+                        <div class="oform-group">
+                            <label for="userBranch" class="oform-label">
+                                <i class="fas fa-code-branch oform-label-icon"></i>
+                                الفرع / الشعبة
+                                <span class="oform-required">*</span>
+                            </label>
+                            <div class="oform-select-wrap">
+                                <select id="userBranch" name="user_branch" class="oform-select" required>
+                                    <option value="" disabled selected>اختر الشعبة</option>
+                                    <option value="lettres">شعبة الآداب</option>
+                                    <option value="mathematiques">شعبة الرياضيات</option>
+                                    <option value="informatique">شعبة الإعلامية</option>
+                                    <option value="sciences">شعبة العلوم التجريبية</option>
+                                    <option value="technique">شعبة العلوم التقنية</option>
+                                    <option value="economie">شعبة الاقتصاد والتصرف</option>
+                                    <option value="other">أخرى</option>
+                                </select>
+                                <i class="fas fa-chevron-down oform-select-arrow"></i>
+                            </div>
+                            <span class="oform-field-error" id="branchError"></span>
+                        </div>
+                    </div>
+
+                    <!-- Submit -->
+                    <button type="submit" id="submitProfileBtn" class="oform-submit-btn">
+                        <span id="submitBtnText">
+                            <i class="fas fa-arrow-left" style="margin-right:0.5rem;"></i>
+                            إكمال التسجيل والدخول
+                        </span>
+                        <span id="submitBtnSpinner" style="display:none;">
+                            <span class="oform-spinner"></span>
+                            جاري الحفظ…
+                        </span>
+                    </button>
+
+                    <p class="oform-privacy">
+                        <i class="fas fa-lock" style="margin-left:0.4rem; color:var(--secondary-color);"></i>
+                        بياناتك آمنة ومشفرة ولن تُشارك مع أي طرف ثالث.
+                    </p>
+                </form>
+            </div>
+        </div>
+    </section>
+
+    <script>
+    (function () {
+        'use strict';
+
+        const form        = document.getElementById('completeProfileForm');
+        const submitBtn   = document.getElementById('submitProfileBtn');
+        const btnText     = document.getElementById('submitBtnText');
+        const btnSpinner  = document.getElementById('submitBtnSpinner');
+        const msgBox      = document.getElementById('profileMessage');
+
+        // ── Show / hide feedback message ──────────────────────────────────────
+        function showMsg(text, type /* 'success' | 'error' */) {
+            msgBox.textContent = text;
+            msgBox.className   = 'profile-message profile-message--' + type;
+            msgBox.style.display = 'flex';
+            msgBox.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        }
+
+        function hideMsg() {
+            msgBox.style.display = 'none';
+        }
+
+        // ── Field-level error helpers ─────────────────────────────────────────
+        function fieldErr(id, msg) {
+            const el = document.getElementById(id);
+            if (el) { el.textContent = msg; el.style.display = msg ? 'block' : 'none'; }
+        }
+
+        function clearFieldErrors() {
+            ['phoneError', 'classError', 'branchError'].forEach(id => fieldErr(id, ''));
+        }
+
+        // ── Mark a field invalid / valid ──────────────────────────────────────
+        function markInvalid(inputId, errId, msg) {
+            const input = document.getElementById(inputId);
+            if (input) input.classList.add('oform-input--invalid');
+            fieldErr(errId, msg);
+        }
+
+        function clearInvalid(inputId) {
+            const input = document.getElementById(inputId);
+            if (input) input.classList.remove('oform-input--invalid');
+        }
+
+        // ── Loading state ─────────────────────────────────────────────────────
+        function setLoading(on) {
+            submitBtn.disabled   = on;
+            btnText.style.display   = on ? 'none'   : 'inline-flex';
+            btnSpinner.style.display = on ? 'inline-flex' : 'none';
+        }
+
+        // ── Live phone formatting (digits only, max 8) ────────────────────────
+        const phoneInput = document.getElementById('phone');
+        phoneInput.addEventListener('input', function () {
+            this.value = this.value.replace(/[^0-9]/g, '').slice(0, 8);
+            clearInvalid('phone');
+            fieldErr('phoneError', '');
+        });
+
+        // ── Live clear on select change ───────────────────────────────────────
+        document.getElementById('userClass').addEventListener('change',  () => clearInvalid('userClass'));
+        document.getElementById('userBranch').addEventListener('change', () => clearInvalid('userBranch'));
+
+        // ── Form submit ───────────────────────────────────────────────────────
+        form.addEventListener('submit', async function (e) {
+            e.preventDefault();
+            hideMsg();
+            clearFieldErrors();
+
+            const phone      = phoneInput.value.trim();
+            const user_class = document.getElementById('userClass').value;
+            const user_branch= document.getElementById('userBranch').value;
+
+            // --- Client-side validation ---
+            let hasError = false;
+
+            if (!phone || phone.length < 8 || !/^[24579][0-9]{7}$/.test(phone)) {
+                markInvalid('phone', 'phoneError', 'يرجى إدخال رقم هاتف تونسي صحيح من 8 أرقام');
+                hasError = true;
+            }
+            if (!user_class) {
+                markInvalid('userClass', 'classError', 'يرجى اختيار المستوى الدراسي');
+                hasError = true;
+            }
+            if (!user_branch) {
+                markInvalid('userBranch', 'branchError', 'يرجى اختيار الشعبة / الفرع');
+                hasError = true;
+            }
+
+            if (hasError) return;
+
+            setLoading(true);
+
+            try {
+                const res  = await fetch('/api/auth/complete-profile', {
+                    method:      'POST',
+                    headers:     { 'Content-Type': 'application/json' },
+                    body:        JSON.stringify({ phone, user_class, user_branch }),
+                    credentials: 'include',
+                });
+                const data = await res.json();
+
+                if (!res.ok) {
+                    showMsg(data.error || 'حدث خطأ. يرجى المحاولة مرة أخرى.', 'error');
+                    return;
+                }
+
+                showMsg('🎉 تم حفظ بياناتك بنجاح! جاري الانتقال إلى لوحة التحكم…', 'success');
+                setTimeout(() => { window.location.href = '/dashboard'; }, 1400);
+            } catch (err) {
+                console.error('[complete-profile] fetch error:', err);
+                showMsg('خطأ في الاتصال. يرجى التحقق من الاتصال بالإنترنت والمحاولة مرة أخرى.', 'error');
+            } finally {
+                setLoading(false);
+            }
+        });
+    })();
+    </script>
+</body>
+</html>

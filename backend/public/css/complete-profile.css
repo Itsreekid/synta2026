@@ -1,0 +1,566 @@
+/* =====================================================
+   COMPLETE PROFILE — Onboarding Page Styles
+   Synta Academy · complete-profile.css
+   ===================================================== */
+
+:root {
+    --primary:    #013047;
+    --secondary:  #F6851F;
+    --accent:     #219EBC;
+    --gray:       #6c757d;
+    --light-gray: #f4f7f6;
+    --white:      #ffffff;
+    --radius:     14px;
+    --shadow-sm:  0 2px 10px rgba(0,0,0,.06);
+    --shadow-md:  0 8px 32px rgba(0,0,0,.10);
+    --shadow-lg:  0 20px 60px rgba(0,0,0,.14);
+}
+
+/* ── Reset / base ─────────────────────────────────── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+.onboarding-body {
+    font-family: 'Tajawal', sans-serif;
+    background: var(--light-gray);
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 1rem;
+    direction: rtl;
+    overflow-x: hidden;
+}
+
+/* ── Outer wrapper ─────────────────────────────────── */
+.onboarding-section {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.onboarding-wrapper {
+    display: flex;
+    width: 100%;
+    max-width: 1060px;
+    min-height: 600px;
+    background: var(--white);
+    border-radius: 24px;
+    box-shadow: var(--shadow-lg);
+    overflow: hidden;
+}
+
+/* ══════════════════════════════════════════════════════
+   LEFT BRANDING PANEL
+   ══════════════════════════════════════════════════════ */
+.onboarding-brand {
+    flex: 0 0 320px;
+    position: relative;
+    background: linear-gradient(160deg, #024a6e 0%, #013047 40%, #012538 70%, #001a2b 100%);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: space-between;
+    padding: 3rem 2.5rem;
+    overflow: hidden;
+}
+
+/* Animated background layer */
+.brand-bg {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+}
+
+/* Floating orbs */
+.orb {
+    position: absolute;
+    border-radius: 50%;
+    animation: orbFloat 8s ease-in-out infinite alternate;
+}
+
+.orb-1 {
+    width: 300px; height: 300px;
+    background: radial-gradient(circle, rgba(33,158,188,.25) 0%, transparent 70%);
+    top: -80px; left: -80px;
+    animation-duration: 9s;
+}
+.orb-2 {
+    width: 220px; height: 220px;
+    background: radial-gradient(circle, rgba(246,133,31,.18) 0%, transparent 70%);
+    bottom: 60px; right: -60px;
+    animation-duration: 11s;
+    animation-delay: -3s;
+}
+.orb-3 {
+    width: 160px; height: 160px;
+    background: radial-gradient(circle, rgba(255,255,255,.12) 0%, transparent 70%);
+    top: 50%; left: 50%;
+    transform: translate(-50%, -50%);
+    animation-duration: 7s;
+    animation-delay: -1.5s;
+}
+
+@keyframes orbFloat {
+    0%   { transform: translate(0, 0) scale(1);    }
+    100% { transform: translate(12px, -18px) scale(1.06); }
+}
+
+/* Speed streaks */
+.brand-streak {
+    position: absolute;
+    border-radius: 100px;
+    opacity: 0;
+    transform: rotate(-35deg);
+    animation: streakFlyBrand 3.5s ease-out infinite;
+}
+
+.brand-streak-1 { width:130px; height:2px; background:linear-gradient(to left, rgba(246,133,31,.6), transparent); top:18%; right:5%; animation-delay:.4s; }
+.brand-streak-2 { width: 90px; height:2px; background:linear-gradient(to left, rgba(255,255,255,.5), transparent); top:35%; right:18%; animation-delay:1.6s; animation-duration:2.8s; }
+.brand-streak-3 { width:160px; height:2px; background:linear-gradient(to left, rgba(246,133,31,.4), transparent); top:62%; right:-4%; animation-delay:2.2s; animation-duration:4s; }
+.brand-streak-4 { width: 70px; height:2px; background:linear-gradient(to left, rgba(255,255,255,.45),transparent); top:80%; right:22%; animation-delay:.9s; animation-duration:2.5s; }
+
+@keyframes streakFlyBrand {
+    0%   { opacity:0; transform:rotate(-35deg) translateX(0); }
+    15%  { opacity:.7; }
+    100% { opacity:0; transform:rotate(-35deg) translateX(-260px); }
+}
+
+/* Logo */
+.brand-logo-wrap {
+    position: relative;
+    z-index: 2;
+    text-align: center;
+}
+
+.brand-logo {
+    width: 110px;
+    height: auto;
+    filter: drop-shadow(0 4px 16px rgba(0,0,0,.4));
+    animation: logoFloat 6s ease-in-out infinite alternate;
+}
+
+@keyframes logoFloat {
+    0%   { transform: translateY(0) rotate(0deg); }
+    100% { transform: translateY(-6px) rotate(2deg); }
+}
+
+/* Progress steps */
+.brand-steps {
+    position: relative;
+    z-index: 2;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0;
+    width: 100%;
+}
+
+.step-item {
+    display: flex;
+    align-items: center;
+    gap: .85rem;
+}
+
+.step-item span {
+    font-size: .88rem;
+    font-weight: 600;
+    color: rgba(255,255,255,.55);
+    transition: color .3s;
+}
+
+.step-circle {
+    width: 36px; height: 36px;
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-weight: 700; font-size: .85rem;
+    flex-shrink: 0;
+    transition: all .3s;
+}
+
+/* Done */
+.step-done .step-circle {
+    background: var(--secondary);
+    color: #fff;
+    box-shadow: 0 0 0 4px rgba(246,133,31,.25);
+}
+.step-done span { color: rgba(255,255,255,.8); }
+
+/* Active */
+.step-active .step-circle {
+    background: var(--white);
+    color: var(--primary);
+    box-shadow: 0 0 0 4px rgba(255,255,255,.25);
+    animation: pulseStep 2s ease-in-out infinite;
+}
+.step-active > span { color: #fff; }
+
+@keyframes pulseStep {
+    0%, 100% { box-shadow: 0 0 0 4px rgba(255,255,255,.2); }
+    50%       { box-shadow: 0 0 0 8px rgba(255,255,255,.08); }
+}
+
+/* Pending */
+.step-pending .step-circle {
+    background: rgba(255,255,255,.1);
+    color: rgba(255,255,255,.4);
+    border: 2px solid rgba(255,255,255,.15);
+}
+
+/* Connector line */
+.step-connector {
+    width: 2px;
+    height: 36px;
+    background: rgba(255,255,255,.15);
+    margin-right: 17px; /* align under circle center */
+    border-radius: 2px;
+}
+.step-connector--done {
+    background: var(--secondary);
+}
+
+/* ══════════════════════════════════════════════════════
+   RIGHT FORM PANEL
+   ══════════════════════════════════════════════════════ */
+.onboarding-form-wrap {
+    flex: 1;
+    padding: 3rem 3.5rem;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    overflow-y: auto;
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+}
+.onboarding-form-wrap::-webkit-scrollbar { display: none; }
+
+/* Google account badge */
+.google-account-badge {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    background: #f8fbff;
+    border: 1.5px solid #d1e3f8;
+    border-radius: 12px;
+    padding: .8rem 1.2rem;
+    margin-bottom: 2rem;
+}
+
+.google-badge-icon {
+    width: 28px; height: 28px; flex-shrink: 0;
+}
+
+.badge-text {
+    flex: 1;
+    display: flex; flex-direction: column; gap: .1rem;
+}
+
+.badge-label {
+    font-size: .78rem;
+    color: var(--gray);
+    font-weight: 600;
+}
+
+.badge-email {
+    font-size: .95rem;
+    color: var(--primary);
+    font-weight: 700;
+    word-break: break-all;
+}
+
+.badge-check { color: #34A853; font-size: 1.3rem; flex-shrink: 0; }
+
+/* Form heading */
+.form-heading {
+    margin-bottom: 1.8rem;
+}
+
+.form-heading h1 {
+    font-size: 1.9rem;
+    font-weight: 900;
+    color: var(--primary);
+    margin-bottom: .4rem;
+    line-height: 1.2;
+}
+
+.form-heading p {
+    font-size: .95rem;
+    color: var(--gray);
+    line-height: 1.6;
+}
+
+/* ── Feedback message ─────────────────────────────── */
+.profile-message {
+    display: flex;
+    align-items: flex-start;
+    gap: .75rem;
+    padding: .9rem 1.2rem;
+    border-radius: 10px;
+    font-size: .93rem;
+    font-weight: 600;
+    margin-bottom: 1.4rem;
+    line-height: 1.5;
+}
+
+.profile-message--success {
+    background: #ecfdf5;
+    border: 1.5px solid #6ee7b7;
+    color: #065f46;
+}
+
+.profile-message--error {
+    background: #fff1f2;
+    border: 1.5px solid #fca5a5;
+    color: #9b1c1c;
+}
+
+/* ── Form elements ────────────────────────────────── */
+.oform-group {
+    margin-bottom: 1.2rem;
+}
+
+.oform-row {
+    display: flex;
+    gap: 1.2rem;
+    margin-bottom: 0; /* groups inside manage their own bottom margin */
+}
+.oform-row .oform-group { flex: 1; }
+
+.oform-label {
+    display: block;
+    font-size: .9rem;
+    font-weight: 700;
+    color: var(--primary);
+    margin-bottom: .5rem;
+}
+
+.oform-label-icon {
+    color: var(--secondary);
+    margin-left: .45rem;
+    font-size: .85rem;
+}
+
+.oform-required { color: var(--secondary); margin-right: .15rem; }
+
+/* Phone input with +216 prefix */
+.oform-input-wrap {
+    display: flex;
+    align-items: center;
+    border: 2px solid #e9ecef;
+    border-radius: 10px;
+    background: #f8f9fa;
+    transition: border-color .25s, box-shadow .25s;
+    overflow: hidden;
+}
+
+.oform-input-wrap:focus-within {
+    border-color: var(--secondary);
+    box-shadow: 0 0 0 4px rgba(246,133,31,.12);
+    background: #fff;
+}
+
+.oform-prefix {
+    padding: 0 .85rem;
+    font-size: .9rem;
+    font-weight: 700;
+    color: var(--gray);
+    background: #eef0f2;
+    border-left: 2px solid #e9ecef;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    white-space: nowrap;
+    direction: ltr;
+}
+
+.oform-input--prefixed {
+    border: none !important;
+    background: transparent !important;
+    box-shadow: none !important;
+    padding: .82rem .95rem;
+    font-family: 'Tajawal', sans-serif;
+    font-size: 1rem;
+    color: #333;
+    direction: ltr;
+    text-align: left;
+    width: 100%;
+    outline: none;
+}
+
+/* Regular inputs (no prefix) */
+.oform-input {
+    width: 100%;
+    padding: .82rem 1rem;
+    border: 2px solid #e9ecef;
+    border-radius: 10px;
+    background: #f8f9fa;
+    font-family: 'Tajawal', sans-serif;
+    font-size: 1rem;
+    color: #333;
+    transition: border-color .25s, box-shadow .25s;
+    outline: none;
+}
+
+.oform-input:focus {
+    border-color: var(--secondary);
+    box-shadow: 0 0 0 4px rgba(246,133,31,.12);
+    background: #fff;
+}
+
+.oform-input--invalid,
+.oform-input-wrap:has(.oform-input--invalid) {
+    border-color: #f87171 !important;
+    box-shadow: 0 0 0 3px rgba(248,113,113,.15) !important;
+}
+
+/* Select */
+.oform-select-wrap {
+    position: relative;
+}
+
+.oform-select {
+    appearance: none;
+    -webkit-appearance: none;
+    width: 100%;
+    padding: .82rem 2.4rem .82rem 1rem;
+    border: 2px solid #e9ecef;
+    border-radius: 10px;
+    background: #f8f9fa;
+    font-family: 'Tajawal', sans-serif;
+    font-size: .95rem;
+    color: #333;
+    cursor: pointer;
+    transition: border-color .25s, box-shadow .25s;
+    outline: none;
+}
+
+.oform-select:focus {
+    border-color: var(--secondary);
+    box-shadow: 0 0 0 4px rgba(246,133,31,.12);
+    background: #fff;
+}
+
+.oform-select-arrow {
+    position: absolute;
+    left: .9rem;
+    top: 50%;
+    transform: translateY(-50%);
+    color: var(--gray);
+    font-size: .8rem;
+    pointer-events: none;
+}
+
+/* Hints and field errors */
+.oform-hint {
+    display: block;
+    font-size: .8rem;
+    color: var(--gray);
+    margin-top: .35rem;
+}
+
+.oform-field-error {
+    display: none;
+    font-size: .82rem;
+    color: #dc2626;
+    font-weight: 600;
+    margin-top: .3rem;
+}
+
+/* ── Submit button ─────────────────────────────────── */
+.oform-submit-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: .6rem;
+    width: 100%;
+    padding: 1rem 2rem;
+    background: linear-gradient(135deg, var(--secondary) 0%, #e0720e 100%);
+    color: #fff;
+    border: none;
+    border-radius: 12px;
+    font-family: 'Tajawal', sans-serif;
+    font-size: 1.05rem;
+    font-weight: 700;
+    cursor: pointer;
+    margin-top: 1.6rem;
+    transition: transform .15s, box-shadow .2s, opacity .2s;
+    box-shadow: 0 4px 18px rgba(246,133,31,.4);
+    position: relative;
+    overflow: hidden;
+}
+
+.oform-submit-btn::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: rgba(255,255,255,.12);
+    opacity: 0;
+    transition: opacity .2s;
+}
+.oform-submit-btn:hover:not(:disabled)::before { opacity: 1; }
+.oform-submit-btn:hover:not(:disabled) {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 28px rgba(246,133,31,.45);
+}
+.oform-submit-btn:active:not(:disabled) { transform: translateY(0); }
+.oform-submit-btn:disabled { opacity: .7; cursor: not-allowed; }
+
+/* Spinner inside the button */
+.oform-spinner {
+    display: inline-block;
+    width: 18px; height: 18px;
+    border: 2.5px solid rgba(255,255,255,.4);
+    border-top-color: #fff;
+    border-radius: 50%;
+    animation: oSpin .65s linear infinite;
+    margin-left: .5rem;
+}
+
+@keyframes oSpin { to { transform: rotate(360deg); } }
+
+/* Privacy note */
+.oform-privacy {
+    font-size: .8rem;
+    color: var(--gray);
+    text-align: center;
+    margin-top: .9rem;
+    line-height: 1.5;
+}
+
+/* ── Responsive ─────────────────────────────────────── */
+@media (max-width: 780px) {
+    .onboarding-wrapper {
+        flex-direction: column;
+        border-radius: 16px;
+    }
+
+    .onboarding-brand {
+        flex: none;
+        padding: 2rem 1.5rem;
+        min-height: auto;
+    }
+
+    .brand-logo { width: 80px; }
+    .brand-steps { flex-direction: row; justify-content: center; gap: 0; }
+    .step-connector { width: 40px; height: 2px; margin: 0; margin-top: 17px; }
+    .step-item { flex-direction: column; align-items: center; gap: .4rem; }
+    .step-item span { font-size: .72rem; text-align: center; max-width: 70px; }
+
+    .onboarding-form-wrap {
+        padding: 2rem 1.4rem;
+    }
+
+    .oform-row {
+        flex-direction: column;
+        gap: 0;
+    }
+
+    .form-heading h1 { font-size: 1.5rem; }
+}
+
+@media (max-width: 480px) {
+    .onboarding-body { padding: .5rem; }
+    .onboarding-wrapper { border-radius: 10px; }
+    .onboarding-form-wrap { padding: 1.5rem 1rem; }
+    .google-account-badge { flex-wrap: wrap; }
+}

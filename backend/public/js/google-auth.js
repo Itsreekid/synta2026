@@ -77,9 +77,16 @@
         setLoading(true);
 
         try {
-            await sendCredentialToBackend(response.credential);
-            showMsg('تم تسجيل الدخول بـ Google بنجاح!', 'success');
-            setTimeout(() => { window.location.href = '/dashboard'; }, 1200);
+            const data = await sendCredentialToBackend(response.credential);
+
+            if (data.needsOnboarding) {
+                // New Google user: redirect to profile completion before dashboard
+                showMsg('مرحباً! يرجى إكمال بياناتك للمتابعة.', 'success');
+                setTimeout(() => { window.location.href = '/auth/complete-profile'; }, 1000);
+            } else {
+                showMsg('تم تسجيل الدخول بـ Google بنجاح!', 'success');
+                setTimeout(() => { window.location.href = '/dashboard'; }, 1200);
+            }
         } catch (err) {
             console.error('[google-auth] Backend error:', err);
             showMsg(err.message || 'حدث خطأ أثناء تسجيل الدخول بـ Google.', 'error');

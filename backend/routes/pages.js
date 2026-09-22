@@ -129,6 +129,40 @@ router.get("/password-reset", (req, res) => {
   renderPage(res, "pages/auth/password-reset");
 });
 
+/**
+ * GET /auth/complete-profile
+ * Onboarding page for Google users who haven't filled phone/class/branch yet.
+ * - Requires a valid JWT session (requireAuth).
+ * - Redirects to /dashboard if the profile is already complete.
+ */
+router.get("/auth/complete-profile", requireAuth, async (req, res) => {
+  try {
+    const result = await pool.query(
+      "SELECT phone, class, branch, name, email FROM users WHERE id = $1",
+      [req.user.id]
+    );
+    const u = result.rows[0];
+
+    // If the user already completed onboarding, send them to the dashboard
+    if (u && u.phone && u.class && u.branch) {
+      return res.redirect("/dashboard");
+    }
+
+    renderPage(res, "pages/auth/complete-profile", {
+      user: {
+        name:  u?.name  || req.user.name  || "",
+        email: u?.email || req.user.email || "",
+      },
+    });
+  } catch (err) {
+    console.error("[complete-profile] Route error:", err.message);
+    renderPage(res, "pages/auth/complete-profile", {
+      user: { name: req.user.name || "", email: req.user.email || "" },
+    });
+  }
+});
+
+
 // --------------------------------------------------
 // PROTECTED APP ROUTES
 // --------------------------------------------------

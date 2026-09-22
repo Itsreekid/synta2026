@@ -84,7 +84,7 @@ router.post("/api/auth/google", async (req, res) => {
 
     // 1. Try to find by google_id first (returning visitor via Google).
     const byGoogleId = await pool.query(
-      "SELECT id, email, name, role FROM users WHERE google_id = $1",
+      "SELECT id, email, name, role, phone, class, branch FROM users WHERE google_id = $1",
       [googleId]
     );
     if (byGoogleId.rowCount > 0) {
@@ -105,6 +105,12 @@ router.post("/api/auth/google", async (req, res) => {
           googleId,
           user.id,
         ]);
+        // Re-fetch with all profile fields
+        const reloaded = await pool.query(
+          "SELECT id, email, name, role, phone, class, branch FROM users WHERE id = $1",
+          [user.id]
+        );
+        if (reloaded.rowCount > 0) user = reloaded.rows[0];
       }
     }
 
@@ -129,8 +135,13 @@ router.post("/api/auth/google", async (req, res) => {
     const refresh_token = signRefreshToken(user.id);
     setSessionCookies(res, { access_token, refresh_token });
 
+    // Check if required onboarding fields are missing.
+    // Google users skip the registration form, so phone/class/branch may be null.
+    const needsOnboarding = !user.phone || !user.class || !user.branch;
+
     return res.json({
       success: true,
+      needsOnboarding,
       user: { id: user.id, email: user.email, name: user.name, role: user.role },
     });
   } catch (err) {

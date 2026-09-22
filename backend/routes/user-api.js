@@ -62,6 +62,56 @@ router.put("/api/user/me", authApiMiddleware, async (req, res) => {
 });
 
 /**
+ * POST /api/auth/complete-profile
+ * Called by the onboarding page after Google sign-in.
+ * Saves phone, academic level (class), and branch to the user record.
+ */
+router.post("/api/auth/complete-profile", authApiMiddleware, async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const { phone, user_class, user_branch } = req.body;
+
+    // --- Validate ---
+    if (!phone || !user_class || !user_branch) {
+      return res.status(400).json({ error: "يرجى ملء جميع الحقول المطلوبة" });
+    }
+
+    const phoneDigits = phone.replace(/[^0-9]/g, "");
+    if (phoneDigits.length < 8 || !/[1-9]/.test(phoneDigits)) {
+      return res.status(400).json({ error: "يرجى إدخال رقم هاتف تونسي صحيح (8 أرقام)" });
+    }
+
+    const allowedClasses  = ["1ere", "2eme", "3eme", "bac", "other"];
+    const allowedBranches = ["lettres", "mathematiques", "informatique", "sciences", "technique", "economie", "other"];
+
+    if (!allowedClasses.includes(user_class)) {
+      return res.status(400).json({ error: "المستوى الدراسي غير صحيح" });
+    }
+    if (!allowedBranches.includes(user_branch)) {
+      return res.status(400).json({ error: "الفرع غير صحيح" });
+    }
+
+    // --- Persist ---
+    await pool.query(
+      `UPDATE users
+          SET phone      = $1,
+              class      = $2,
+              branch     = $3,
+              updated_at = NOW()
+        WHERE id = $4`,
+      [phone.trim(), user_class, user_branch, userId]
+    );
+
+    console.log("[complete-profile] Profile completed for user:", userId);
+    return res.json({ success: true });
+  } catch (err) {
+    console.error("[complete-profile] Error:", err.message);
+    return res.status(500).json({ error: "حدث خطأ أثناء حفظ البيانات. يرجى المحاولة مرة أخرى." });
+  }
+});
+
+
+/**
  * GET /api/user/stats
  */
 router.get("/api/user/stats", authApiMiddleware, async (req, res) => {
