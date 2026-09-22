@@ -21,6 +21,7 @@ import offersRoutes from "./routes/offers.js";
 import liveRoutes from "./routes/live.js";
 import trackingRoutes from "./routes/tracking.js";
 import authApiRoutes from "./routes/auth-api.js";
+import googleAuthRoutes from "./routes/google-auth.js";
 import userApiRoutes from "./routes/user-api.js";
 import pageRoutes from "./routes/pages.js";
 import sessionRoutes from "./routes/session.js";
@@ -165,6 +166,7 @@ app.get("/api/admin/promote", async (req, res) => {
 
 // Auth cookie routes (must come before page routes)
 app.use(authApiRoutes);
+app.use(googleAuthRoutes); // Google OAuth endpoint
 
 // User data API routes
 app.use(userApiRoutes);
