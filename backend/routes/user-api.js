@@ -146,22 +146,45 @@ router.get("/api/user/stats", authApiMiddleware, async (req, res) => {
     const userId = req.user.id;
 
     const result = await pool.query(
-      `SELECT completed, progress FROM enrollments WHERE user_id = $1`,
+      `SELECT e.id, e.completed,
+              COALESCE(
+                (SELECT COUNT(lp.id) FILTER (WHERE lp.completed = true)
+                 FROM lessons l2
+                 JOIN modules m2 ON l2.module_id = m2.id
+                 LEFT JOIN lesson_progress lp ON lp.lesson_id = l2.id AND lp.user_id = $1
+                 WHERE m2.course_id = e.course_id), 0
+              ) as dynamic_completed,
+              COALESCE(
+                (SELECT COUNT(l2.id)
+                 FROM lessons l2
+                 JOIN modules m2 ON l2.module_id = m2.id
+                 WHERE m2.course_id = e.course_id), 0
+              ) as total_lessons
+       FROM enrollments e WHERE user_id = $1`,
       [userId]
     );
 
     const enrollments = result.rows;
-    const completed = enrollments.filter((e) => e.completed === true).length;
-    const active = enrollments.filter((e) => !e.completed).length;
+    let completedCourses = 0;
+    let totalProgressSum = 0;
 
-    const totalProgress = enrollments.reduce((sum, e) => sum + (parseFloat(e.progress) || 0), 0);
-    const overallProgress = enrollments.length > 0 ? Math.round(totalProgress / enrollments.length) : 0;
+    enrollments.forEach(e => {
+      const total = parseInt(e.total_lessons) || 0;
+      const completed = parseInt(e.dynamic_completed) || 0;
+      const progress = total === 0 ? 0 : Math.round((completed / total) * 100);
+      
+      if (progress === 100) completedCourses++;
+      totalProgressSum += progress;
+    });
+
+    const activeCourses = enrollments.length - completedCourses;
+    const overallProgress = enrollments.length > 0 ? Math.round(totalProgressSum / enrollments.length) : 0;
 
     return res.json({
-      completedCourses: completed,
-      activeCourses: active,
+      completedCourses: completedCourses,
+      activeCourses: activeCourses,
       overallProgress: overallProgress,
-      achievements: completed,
+      achievements: completedCourses,
     });
   } catch (err) {
     console.error("[user/stats] Error:", err.message);

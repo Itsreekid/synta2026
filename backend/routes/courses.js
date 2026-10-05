@@ -130,7 +130,20 @@ router.get("/user/my-courses", authMiddleware, async (req, res) => {
     if (!userId) return res.status(401).json({ error: "Unauthorized" });
 
     const result = await pool.query(
-      `SELECT e.*, c.id as course_id, c.title, c.description, c.category, c.level, c.thumbnail_url
+      `SELECT e.*, c.id as course_id, c.title, c.description, c.category, c.level, c.thumbnail_url,
+              COALESCE(
+                (SELECT COUNT(lp.id) FILTER (WHERE lp.completed = true)
+                 FROM lessons l2
+                 JOIN modules m2 ON l2.module_id = m2.id
+                 LEFT JOIN lesson_progress lp ON lp.lesson_id = l2.id AND lp.user_id = $1
+                 WHERE m2.course_id = c.id), 0
+              ) as dynamic_completed,
+              COALESCE(
+                (SELECT COUNT(l2.id)
+                 FROM lessons l2
+                 JOIN modules m2 ON l2.module_id = m2.id
+                 WHERE m2.course_id = c.id), 0
+              ) as total_lessons
        FROM enrollments e
        JOIN courses c ON c.id = e.course_id
        WHERE e.user_id = $1
@@ -138,7 +151,15 @@ router.get("/user/my-courses", authMiddleware, async (req, res) => {
       [userId]
     );
 
-    res.json(result.rows);
+    const rows = result.rows.map(row => {
+      const total = parseInt(row.total_lessons) || 0;
+      const completed = parseInt(row.dynamic_completed) || 0;
+      row.progress = total === 0 ? 0 : Math.round((completed / total) * 100);
+      row.completed_lessons = completed;
+      return row;
+    });
+
+    res.json(rows);
   } catch (error) {
     console.error("Error fetching user courses:", error);
     res.status(500).json({ error: "Internal server error" });

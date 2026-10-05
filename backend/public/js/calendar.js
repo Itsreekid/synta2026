@@ -37,6 +37,19 @@ async function initializeCalendar() {
             currentWeekStart = getWeekStart(new Date());
         }
 
+        // Fetch events from the server
+        try {
+            const res = await fetch('/api/live/upcoming', { credentials: 'include' });
+            if (res.ok) {
+                window.upcomingEvents = await res.json();
+            } else {
+                window.upcomingEvents = [];
+            }
+        } catch (e) {
+            console.error('Failed to load events', e);
+            window.upcomingEvents = [];
+        }
+
         // Render the calendar
         renderCalendar();
 

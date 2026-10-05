@@ -107,9 +107,10 @@ async function initOffers() {
                     </div>
 
                     <div class="purchase-section">
-                        <button class="acheter-btn" 
+                        <button class="acheter-btn ${offer.is_purchased ? 'purchased-btn' : ''}" 
                             ${!offer.can_purchase || offer.is_purchased ? 'disabled' : ''} 
-                            onclick="subscribeToOffer('${offer.id}', '${offer.title}')">
+                            onclick="subscribeToOffer('${offer.id}', '${offer.title}')"
+                            ${offer.is_purchased ? 'style="background-color: #10b981; color: white;"' : ''}>
                             ${offer.is_purchased ? 'Déjà possédé' : (offer.can_purchase ? 'Acheter' : 'Solde insuffisant')}
                         </button>
                     </div>

@@ -24,7 +24,7 @@ router.get("/", authMiddleware, async (req, res) => {
       userProfile = profileResult.rows[0] || null;
 
       const payResult = await pool.query(
-        `SELECT offer_id FROM payments WHERE user_id = $1`,
+        `SELECT DISTINCT offer_id FROM enrollments WHERE user_id = $1 AND offer_id IS NOT NULL`,
         [userId]
       );
       purchasedOfferIds = payResult.rows.map((p) => p.offer_id).filter(Boolean);
