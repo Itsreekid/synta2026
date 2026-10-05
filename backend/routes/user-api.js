@@ -8,6 +8,32 @@ import { authApiMiddleware } from "../middleware/requireAuth.js";
 const router = express.Router();
 
 /**
+ * The Postgres `transactions` table (schema_postgres.sql) was created without
+ * the columns the deposit flow writes (carried over from the old Supabase table).
+ * Add them idempotently, once per process, before the first insert.
+ */
+let transactionsSchemaReady = null;
+function ensureTransactionsSchema() {
+  if (!transactionsSchemaReady) {
+    transactionsSchemaReady = pool
+      .query(
+        `ALTER TABLE transactions
+           ADD COLUMN IF NOT EXISTS status           TEXT NOT NULL DEFAULT 'pending',
+           ADD COLUMN IF NOT EXISTS payment_method   TEXT,
+           ADD COLUMN IF NOT EXISTS transaction_code TEXT,
+           ADD COLUMN IF NOT EXISTS is_confirmed     BOOLEAN NOT NULL DEFAULT false,
+           ADD COLUMN IF NOT EXISTS processed_at     TIMESTAMPTZ`
+      )
+      .then(() => console.log("[transactions] schema verified"))
+      .catch((err) => {
+        transactionsSchemaReady = null; // retry on next request
+        throw err;
+      });
+  }
+  return transactionsSchemaReady;
+}
+
+/**
  * GET /api/user/me
  */
 router.get("/api/user/me", authApiMiddleware, async (req, res) => {
@@ -217,6 +243,8 @@ router.post("/api/user/transactions", authApiMiddleware, async (req, res) => {
       return res.status(400).json({ error: "Invalid amount" });
     }
 
+    await ensureTransactionsSchema();
+
     const result = await pool.query(
       `INSERT INTO transactions
          (user_id, amount, type, status, payment_method, transaction_code, description, created_at)
@@ -235,7 +263,7 @@ router.post("/api/user/transactions", authApiMiddleware, async (req, res) => {
 
     return res.json({ success: true, transaction: result.rows[0] });
   } catch (err) {
-    console.error("[user/transactions POST] Error:", err.message);
+    console.error("[user/transactions POST] Error:", err.code, err.message, err.detail || "");
     return res.status(500).json({ error: "Failed to create transaction" });
   }
 });

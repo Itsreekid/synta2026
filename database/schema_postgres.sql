@@ -127,12 +127,17 @@ CREATE TABLE IF NOT EXISTS payments (
 
 -- ─── TRANSACTIONS (balance ledger) ────────────────────
 CREATE TABLE IF NOT EXISTS transactions (
-  id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  user_id     UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-  amount      NUMERIC(10, 2) NOT NULL,
-  type        TEXT NOT NULL,   -- 'credit' | 'debit'
-  description TEXT,
-  created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
+  id               UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id          UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  amount           NUMERIC(10, 2) NOT NULL,
+  type             TEXT NOT NULL,   -- 'deposit' | 'purchase' | 'refund' | 'withdrawal'
+  status           TEXT NOT NULL DEFAULT 'pending',  -- 'pending' | 'completed' | 'rejected'
+  payment_method   TEXT,
+  transaction_code TEXT,
+  description      TEXT,
+  is_confirmed     BOOLEAN NOT NULL DEFAULT false,
+  processed_at     TIMESTAMPTZ,
+  created_at       TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
 -- ─── LESSON PROGRESS ──────────────────────────────────
