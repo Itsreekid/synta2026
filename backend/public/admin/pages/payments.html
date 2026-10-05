@@ -233,7 +233,7 @@
         }
 
         async function confirmPayment(id) {
-            if (!confirm('Êtes-vous sûr de vouloir confirmer ce paiement ? Le solde de l\\'étudiant sera crédité.')) return;
+            if (!confirm("Êtes-vous sûr de vouloir confirmer ce paiement ? Le solde de l'étudiant sera crédité.")) return;
             
             try {
                 const response = await fetch(`/api/admin/payments/${id}/confirm`, {
