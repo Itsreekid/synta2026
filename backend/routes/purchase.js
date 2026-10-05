@@ -70,8 +70,8 @@ router.post("/course", async (req, res) => {
     await client.query(`UPDATE users SET balance = balance - $1 WHERE id = $2`, [price, userId]);
 
     await client.query(
-      `INSERT INTO transactions (user_id, amount, type, description, created_at)
-       VALUES ($1, $2, 'debit', $3, NOW())`,
+      `INSERT INTO transactions (user_id, amount, type, status, description, created_at)
+       VALUES ($1, $2, 'purchase', 'completed', $3, NOW())`,
       [userId, price, `Course purchase: ${course.title}`]
     );
 
@@ -137,8 +137,8 @@ router.post("/offer", async (req, res) => {
     await client.query(`UPDATE users SET balance = balance - $1 WHERE id = $2`, [price, userId]);
 
     await client.query(
-      `INSERT INTO transactions (user_id, amount, type, description, created_at)
-       VALUES ($1, $2, 'debit', $3, NOW())`,
+      `INSERT INTO transactions (user_id, amount, type, status, description, created_at)
+       VALUES ($1, $2, 'purchase', 'completed', $3, NOW())`,
       [userId, price, `Offer purchase: ${offer.title}`]
     );
 
