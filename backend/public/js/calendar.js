@@ -41,7 +41,18 @@ async function initializeCalendar() {
         try {
             const res = await fetch('/api/live/upcoming', { credentials: 'include' });
             if (res.ok) {
-                window.upcomingEvents = await res.json();
+                const apiEvents = await res.json();
+                window.upcomingEvents = apiEvents.map(ev => {
+                    const d = new Date(ev.scheduled_at);
+                    const localDate = new Date(d.getTime() - d.getTimezoneOffset() * 60000);
+                    return {
+                        ...ev,
+                        date: localDate.toISOString().split('T')[0],
+                        time: d.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }),
+                        description: ev.course_title || ev.description || '',
+                        zoomLink: ev.zoom_join_url || ''
+                    };
+                });
             } else {
                 window.upcomingEvents = [];
             }

@@ -47,10 +47,10 @@ async function loadUserData(user) {
 
 async function loadDashboardData() {
     try {
-        // Stats (completed-courses, overall-progress, achievements) are
-        // pre-populated server-side via profile data — nothing to fetch here.
-        // Only load live upcoming events from the API.
-        await loadEvents();
+        await Promise.all([
+            loadStats(),
+            loadEvents()
+        ]);
     } catch (error) {
         console.error('Error loading dashboard data:', error);
     }
@@ -58,13 +58,9 @@ async function loadDashboardData() {
 
 async function loadStats() {
     try {
-        // Simulate loading stats from database
-        const stats = {
-            completedCourses: 0,
-            overallProgress: 0,
-            achievements: 0,
-            activeDays: 0
-        };
+        const res = await fetch('/api/user/stats', { credentials: 'include' });
+        if (!res.ok) return;
+        const stats = await res.json();
 
         const completedEl = document.getElementById('completed-courses');
         if (completedEl) {
