@@ -82,8 +82,8 @@ async function loadCourses(filters = {}) {
                         <p class="course-description">${course.description || 'Description du cours'}</p>
                         
                         <div class="course-meta">
-                            <span class="course-category">${formatCategory(course.category)}</span>
-                            <span class="course-level">${formatLevel(course.level)}</span>
+                            ${course.category ? `<span class="course-category">${formatCategory(course.category)}</span>` : ''}
+                            ${course.level ? `<span class="course-level">${formatLevel(course.level)}</span>` : ''}
                         </div>
                         
                         ${isEnrolled ? `

@@ -58,7 +58,7 @@ async function loadDashboardData() {
 
 async function loadStats() {
     try {
-        const res = await fetch('/api/user/stats', { credentials: 'include' });
+        const res = await fetch(`/api/user/stats?t=${Date.now()}`, { credentials: 'include' });
         if (!res.ok) return;
         const stats = await res.json();
 
@@ -174,7 +174,7 @@ async function loadEvents() {
     try {
         eventsList.innerHTML = '<div class="loading">Chargement des événements...</div>';
 
-        const res = await fetch('/api/live/upcoming', { credentials: 'include' });
+        const res = await fetch(`/api/live/upcoming?t=${Date.now()}`, { credentials: 'include' });
 
         if (!res.ok) {
             eventsList.innerHTML = '<div class="event-item">Aucun événement à venir</div>';
