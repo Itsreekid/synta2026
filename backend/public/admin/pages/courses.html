@@ -422,6 +422,13 @@
                     </div>
                 </div>
 
+                <div class="form-group">
+                    <label>Offres Associées (Maintenez Ctrl pour plusieurs)</label>
+                    <select id="offers_ids" multiple style="height: 100px;">
+                        <!-- Injected via JS -->
+                    </select>
+                </div>
+
                 <div style="display: flex; flex-direction: column; gap: 0.75rem; margin-bottom: 1.1rem;">
                     <div class="toggle-row">
                         <label for="is_free"><i class="fas fa-gift" style="color:var(--primary);"></i> Cours gratuit</label>
@@ -454,6 +461,7 @@
     <script src="../js/admin-auth.js"></script>
     <script>
         let allCourses = [];
+        let allOffers = [];
 
         // ── Init ──────────────────────────────────────
         document.addEventListener('DOMContentLoaded', async () => {
@@ -463,8 +471,22 @@
                 await new Promise(r => setTimeout(r, 100));
                 attempts++;
             }
+            await loadOffers();
             await loadCourses();
         });
+
+        // ── Load offers ──────────────────────────────
+        async function loadOffers() {
+            try {
+                const resp = await fetch('/api/admin/offers', { credentials: 'include' });
+                const data = await resp.json();
+                if (data.success) {
+                    allOffers = data.data || [];
+                }
+            } catch (err) {
+                console.error('Error loading offers:', err);
+            }
+        }
 
         // ── Load courses from REST API ─────────────────
         async function loadCourses() {
@@ -620,6 +642,10 @@
             document.getElementById('modalTitle').textContent = 'Nouveau Cours';
             document.getElementById('courseForm').reset();
             document.getElementById('courseId').value = '';
+
+            const offersSelect = document.getElementById('offers_ids');
+            offersSelect.innerHTML = allOffers.map(o => `<option value="${o.id}">${escHtml(o.title)}</option>`).join('');
+
             document.getElementById('courseModal').style.display = 'flex';
         }
 
@@ -638,6 +664,13 @@
             document.getElementById('thumbnail_url').value = course.thumbnail_url || '';
             document.getElementById('is_free').checked = !!course.is_free;
             document.getElementById('is_published').checked = !!course.is_published;
+
+            const offersSelect = document.getElementById('offers_ids');
+            offersSelect.innerHTML = allOffers.map(o => `
+                <option value="${o.id}" ${(course.offers_ids || []).includes(o.id) ? 'selected' : ''}>
+                    ${escHtml(o.title)}
+                </option>
+            `).join('');
 
             document.getElementById('courseModal').style.display = 'flex';
         }
@@ -667,6 +700,7 @@
                 thumbnail_url: document.getElementById('thumbnail_url').value.trim() || null,
                 is_free: document.getElementById('is_free').checked,
                 is_published: document.getElementById('is_published').checked,
+                offers_ids: Array.from(document.getElementById('offers_ids').selectedOptions).map(o => o.value)
             };
 
             try {
