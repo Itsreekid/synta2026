@@ -267,6 +267,51 @@ router.get("/api/admin/payments", requireAdmin, async (req, res) => {
 });
 
 /**
+ * GET /api/admin/payments/:id/receipt
+ * Proxies the receipt image from R2 so the bucket can remain private.
+ */
+router.get("/api/admin/payments/:id/receipt", requireAdmin, async (req, res) => {
+  try {
+    const txRes = await pool.query(`SELECT receipt_url FROM transactions WHERE id = $1`, [req.params.id]);
+    const receipt_url = txRes.rows[0]?.receipt_url;
+    
+    if (!receipt_url) {
+      return res.status(404).send("Receipt not found");
+    }
+
+    // If it's a data URI (base64 fallback), just return the base64 string directly
+    if (receipt_url.startsWith("data:image/")) {
+      const matches = receipt_url.match(/^data:(.+);base64,(.+)$/);
+      if (matches) {
+        const img = Buffer.from(matches[2], "base64");
+        res.writeHead(200, { "Content-Type": matches[1], "Content-Length": img.length });
+        return res.end(img);
+      }
+    }
+
+    // Otherwise, extract the key from the stored URL
+    // Stored as: https://pub-db0...r2.dev/receipts/user-timestamp.png
+    let key = receipt_url;
+    if (receipt_url.includes("/receipts/")) {
+      key = "receipts/" + receipt_url.split("/receipts/")[1];
+    }
+
+    const { GetObjectCommand } = await import("@aws-sdk/client-s3");
+    const { r2Client, R2_BUCKET } = await import("../config/r2.js");
+
+    const command = new GetObjectCommand({ Bucket: R2_BUCKET, Key: key });
+    const s3Item = await r2Client.send(command);
+
+    res.set("Content-Type", s3Item.ContentType);
+    res.set("Content-Length", s3Item.ContentLength);
+    s3Item.Body.pipe(res);
+  } catch (err) {
+    console.error("Error fetching receipt:", err);
+    return res.status(500).send("Error fetching receipt");
+  }
+});
+
+/**
  * POST /api/admin/payments/:id/confirm
  * Marks a pending deposit as completed and credits the student's balance.
  * Runs in a single DB transaction with row locks so a double-click can never
