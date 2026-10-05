@@ -146,7 +146,7 @@ router.get("/api/user/stats", authApiMiddleware, async (req, res) => {
     const userId = req.user.id;
 
     const result = await pool.query(
-      `SELECT completed FROM enrollments WHERE user_id = $1`,
+      `SELECT completed, progress FROM enrollments WHERE user_id = $1`,
       [userId]
     );
 
@@ -154,13 +154,13 @@ router.get("/api/user/stats", authApiMiddleware, async (req, res) => {
     const completed = enrollments.filter((e) => e.completed === true).length;
     const active = enrollments.filter((e) => !e.completed).length;
 
+    const totalProgress = enrollments.reduce((sum, e) => sum + (parseFloat(e.progress) || 0), 0);
+    const overallProgress = enrollments.length > 0 ? Math.round(totalProgress / enrollments.length) : 0;
+
     return res.json({
       completedCourses: completed,
       activeCourses: active,
-      overallProgress:
-        enrollments.length > 0
-          ? Math.round((completed / enrollments.length) * 100)
-          : 0,
+      overallProgress: overallProgress,
       achievements: completed,
     });
   } catch (err) {

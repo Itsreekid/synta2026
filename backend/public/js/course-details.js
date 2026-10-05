@@ -225,13 +225,13 @@ function renderModulesAndLessons(modules, hasAccess, courseProgress) {
             const isCompleted = completedIds.includes(lesson.id);
             const duration = formatDuration(lesson.duration);
             
-            let statusIcon = '<span class="play-icon">▶</span>';
+            let statusIcon = '<i class="fas fa-play" style="color: #94a3b8;"></i>';
             if (isLocked) {
-                statusIcon = '<span class="lock-icon" style="color: #94a3b8;">🔒</span>';
+                statusIcon = '<i class="fas fa-lock" style="color: #94a3b8;"></i>';
             } else if (isCompleted) {
-                statusIcon = '<span class="completed-icon" style="color: #10b981;">🟢</span>';
+                statusIcon = '<i class="fas fa-check-circle" style="color: #10b981;"></i>';
             } else {
-                statusIcon = '<span class="current-icon" style="color: #3b82f6;">🟡</span>';
+                statusIcon = '<i class="fas fa-play-circle" style="color: #f97316;"></i>';
             }
 
             return `
@@ -863,15 +863,15 @@ function renderCourseContent(course, hasAccess, progress) {
                             </div>
                             
                             <div class="lesson-actions">
-                                ${isCompleted ? '<span class="completed-badge">✅ مكتمل</span>' : ''}
-                                ${lesson.is_preview ? '<span class="preview-badge">👁️ معاينة مجانية</span>' : ''}
+                                ${isCompleted ? '<span class="completed-badge"><i class="fas fa-check"></i> مكتمل</span>' : ''}
+                                ${lesson.is_preview ? '<span class="preview-badge"><i class="fas fa-eye"></i> معاينة مجانية</span>' : ''}
                                 ${canAccess ? `
                                     <button class="lesson-btn" onclick="openLesson('${lesson.id}', '${lesson.type}')">
                                         ${lesson.type === 'video' ? 'مشاهدة' : 'فتح'}
                                     </button>
                                 ` : `
                                     <button class="lesson-btn locked" disabled>
-                                        🔒 مقفل
+                                        <i class="fas fa-lock"></i> مقفل
                                     </button>
                                 `}
                             </div>

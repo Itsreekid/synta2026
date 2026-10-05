@@ -73,13 +73,36 @@ router.post("/progress", authMiddleware, async (req, res) => {
          DO UPDATE SET completed = true, progress_percentage = EXCLUDED.progress_percentage, updated_at = NOW()`,
         [userId, lessonId, progress || 100]
       );
+
+      // Recalculate and update enrollments table
+      const result = await pool.query(
+        `SELECT 
+           COUNT(l.id) as total_lessons,
+           COUNT(lp.id) FILTER (WHERE lp.completed = true) as completed_lessons,
+           m.course_id
+         FROM lessons l
+         JOIN modules m ON l.module_id = m.id
+         LEFT JOIN lesson_progress lp ON lp.lesson_id = l.id AND lp.user_id = $1
+         WHERE m.course_id = (SELECT m2.course_id FROM modules m2 JOIN lessons l2 ON l2.module_id = m2.id WHERE l2.id = $2)
+         GROUP BY m.course_id`,
+        [userId, lessonId]
+      );
+
+      if (result.rowCount > 0) {
+        const stats = result.rows[0];
+        const total = parseInt(stats.total_lessons) || 0;
+        const completed = parseInt(stats.completed_lessons) || 0;
+        const percentage = total === 0 ? 0 : Math.round((completed / total) * 100);
+        
+        await pool.query(
+          `UPDATE enrollments
+           SET progress = $1, completed_lessons = $2, completed = $3, last_accessed = NOW()
+           WHERE user_id = $4 AND course_id = $5`,
+          [percentage, completed, percentage === 100, userId, stats.course_id]
+        );
+      }
     }
     
-    // Optionally handle course level marking if provided (fallback logic)
-    if (courseId && !lessonId) {
-        // Just acknowledging it for now, normally you'd update course progress in enrollments
-    }
-
     res.json({ success: true });
   } catch (error) {
     console.error("Error marking lesson progress:", error);
