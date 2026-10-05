@@ -169,8 +169,12 @@ router.post("/api/admin/change-student-password", requireAdmin, async (req, res)
 router.get("/api/admin/courses", requireAdmin, async (req, res) => {
   try {
     const result = await pool.query(
-      `SELECT id, title, description, category, level, price, is_free, is_published, thumbnail_url, created_at
-       FROM courses ORDER BY created_at DESC`
+      `SELECT c.id, c.title, c.description, c.category, c.level, c.price, c.is_free, c.is_published, c.thumbnail_url, c.created_at,
+              COALESCE(array_agg(oc.offer_id) FILTER (WHERE oc.offer_id IS NOT NULL), '{}') AS offers_ids
+       FROM courses c
+       LEFT JOIN offer_courses oc ON oc.course_id = c.id
+       GROUP BY c.id
+       ORDER BY c.created_at DESC`
     );
     return res.json({ success: true, data: result.rows });
   } catch (err) {
@@ -181,15 +185,17 @@ router.get("/api/admin/courses", requireAdmin, async (req, res) => {
 
 /**
  * POST /api/admin/courses — create or update a course
- * Body: { id?, title, description, category, level, price, is_free, is_published, thumbnail_url }
+ * Body: { id?, title, description, category, level, price, is_free, is_published, thumbnail_url, offers_ids }
  */
 router.post("/api/admin/courses", requireAdmin, async (req, res) => {
   try {
-    const { id, title, description, category, level, price, is_free, is_published, thumbnail_url } = req.body;
+    const { id, title, description, category, level, price, is_free, is_published, thumbnail_url, offers_ids } = req.body;
 
     if (!title) {
       return res.status(400).json({ success: false, error: "Le titre est requis" });
     }
+
+    let courseId = id;
 
     if (id) {
       // Update existing course
@@ -202,11 +208,24 @@ router.post("/api/admin/courses", requireAdmin, async (req, res) => {
       );
     } else {
       // Create new course
-      await pool.query(
+      const result = await pool.query(
         `INSERT INTO courses (title, description, category, level, price, is_free, is_published, thumbnail_url)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING id`,
         [title, description, category, level, parseFloat(price) || 0, !!is_free, !!is_published, thumbnail_url]
       );
+      courseId = result.rows[0].id;
+    }
+
+    // Update associated offers
+    if (Array.isArray(offers_ids)) {
+      await pool.query(`DELETE FROM offer_courses WHERE course_id = $1`, [courseId]);
+      for (const oid of offers_ids) {
+        if (!oid) continue;
+        await pool.query(
+          `INSERT INTO offer_courses (offer_id, course_id) VALUES ($1, $2) ON CONFLICT DO NOTHING`,
+          [oid, courseId]
+        );
+      }
     }
 
     return res.json({ success: true });
