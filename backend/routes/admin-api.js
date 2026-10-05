@@ -43,21 +43,45 @@ router.get("/api/admin/offers", requireAdmin, async (req, res) => {
 /**
  * POST /api/admin/offers
  */
+let offersSchemaReady = false;
+async function ensureOffersSchema() {
+  if (!offersSchemaReady) {
+    try {
+      await pool.query(`
+        ALTER TABLE offers
+        ADD COLUMN IF NOT EXISTS discount_percentage NUMERIC(5, 2),
+        ADD COLUMN IF NOT EXISTS valid_from TIMESTAMPTZ
+      `);
+      offersSchemaReady = true;
+    } catch (err) {
+      console.error("Error updating offers schema", err);
+    }
+  }
+}
+
 router.post("/api/admin/offers", requireAdmin, async (req, res) => {
   try {
     const { id, title, description, fixed_price, discount_percentage, is_active, target_classes, target_branches, valid_from, valid_until } = req.body;
     
+    await ensureOffersSchema();
+    
+    const parsedDiscount = discount_percentage ? parseFloat(discount_percentage) : null;
+    const parsedValidFrom = valid_from ? new Date(valid_from) : null;
+    const parsedValidUntil = valid_until ? new Date(valid_until) : null;
+    const classesArray = Array.isArray(target_classes) ? target_classes : [];
+    const branchesArray = Array.isArray(target_branches) ? target_branches : [];
+
     if (id) {
       // Update
       await pool.query(
         `UPDATE offers SET title=$1, description=$2, fixed_price=$3, discount_percentage=$4, is_active=$5, target_classes=$6, target_branches=$7, valid_from=$8, valid_until=$9 WHERE id=$10`,
-        [title, description, fixed_price, discount_percentage, is_active, JSON.stringify(target_classes || []), JSON.stringify(target_branches || []), valid_from, valid_until, id]
+        [title, description, fixed_price, parsedDiscount, is_active, classesArray, branchesArray, parsedValidFrom, parsedValidUntil, id]
       );
     } else {
       // Insert
       await pool.query(
         `INSERT INTO offers (title, description, fixed_price, discount_percentage, is_active, target_classes, target_branches, valid_from, valid_until) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
-        [title, description, fixed_price, discount_percentage, is_active, JSON.stringify(target_classes || []), JSON.stringify(target_branches || []), valid_from, valid_until]
+        [title, description, fixed_price, parsedDiscount, is_active, classesArray, branchesArray, parsedValidFrom, parsedValidUntil]
       );
     }
     return res.json({ success: true });

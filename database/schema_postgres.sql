@@ -68,16 +68,18 @@ CREATE TABLE IF NOT EXISTS lessons (
 
 -- ─── OFFERS ───────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS offers (
-  id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  title           TEXT NOT NULL,
-  description     TEXT,
-  fixed_price     NUMERIC(10, 2),
-  price           NUMERIC(10, 2),
-  is_active       BOOLEAN NOT NULL DEFAULT true,
-  valid_until     TIMESTAMPTZ,
-  target_classes  TEXT[],
-  target_branches TEXT[],
-  created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW()
+  id                  UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  title               TEXT NOT NULL,
+  description         TEXT,
+  fixed_price         NUMERIC(10, 2),
+  price               NUMERIC(10, 2),
+  discount_percentage NUMERIC(5, 2),
+  is_active           BOOLEAN NOT NULL DEFAULT true,
+  valid_from          TIMESTAMPTZ,
+  valid_until         TIMESTAMPTZ,
+  target_classes      TEXT[],
+  target_branches     TEXT[],
+  created_at          TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
 CREATE TABLE IF NOT EXISTS offer_courses (
