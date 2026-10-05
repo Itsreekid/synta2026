@@ -428,6 +428,58 @@ main {
     max-width: 105%;
 }
 
+/* ====== Hero — large desktop screens (1200px+, e.g. 1920×1080) ======
+   Fills the viewport and scales type/image fluidly instead of
+   staying capped at the small fixed sizes used for laptops. */
+@media (min-width: 1200px) {
+    .hero {
+        min-height: 100vh;
+        padding: 80px 0 0; /* clear the fixed 80px header */
+        display: flex;
+        align-items: center;
+    }
+
+    .hero .container {
+        max-width: 1700px;
+        gap: 4rem;
+    }
+
+    .hero-content {
+        flex: 1.1;
+        margin-top: 0;
+    }
+
+    .hero-content h1 {
+        font-size: clamp(3.2rem, 3.6vw, 4.75rem);
+        margin-bottom: 1.75rem;
+    }
+
+    .hero-content p {
+        font-size: clamp(1.4rem, 1.35vw, 1.85rem);
+        max-width: 38ch;
+        margin-bottom: 2.75rem;
+    }
+
+    .hero-buttons .btn {
+        padding: 1rem 2.25rem;
+        font-size: clamp(1.1rem, 1vw, 1.35rem);
+        border-radius: 10px;
+    }
+
+    .hero-image {
+        flex: 1;
+        display: flex;
+        justify-content: center;
+    }
+
+    /* The <img width="500"> attribute caps it at 500px — override it */
+    .hero-image img {
+        width: 100%;
+        max-width: min(780px, 42vw);
+        height: auto;
+    }
+}
+
 /* ====== Courses Section ====== */
 .courses {
     padding: 80px 0;
