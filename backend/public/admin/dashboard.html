@@ -80,6 +80,13 @@
             <span></span>
         </button>
 
+        <div class="header-actions" style="display: flex; align-items: center; margin-right: 15px;">
+            <div class="notifications" id="notification-bell" style="position: relative; cursor: pointer; color: #1e3448; margin-right: 15px;">
+                <i class="fas fa-bell" style="font-size: 1.2rem;"></i>
+                <span id="notification-badge" style="display: none; position: absolute; top: -8px; right: -8px; background: #e53e3e; color: white; font-size: 0.65rem; font-weight: bold; padding: 2px 5px; border-radius: 50%;">0</span>
+            </div>
+        </div>
+
         <div class="admin-badge">ADMINISTRATEUR</div>
 
         <div class="profile-dropdown">
@@ -130,6 +137,10 @@
                         <div class="nav-icon"><i class="fas fa-users"></i></div>
                         <span class="nav-text">Liste des Étudiants</span>
                     </a></li>
+                <li><a href="#" onclick="loadAdminPage('payments')" id="nav-payments">
+                        <div class="nav-icon"><i class="fas fa-money-bill-wave"></i></div>
+                        <span class="nav-text">Paiements</span>
+                    </a></li>
                 <li><a href="#" onclick="loadAdminPage('settings')" id="nav-settings">
                         <div class="nav-icon"><i class="fas fa-cog"></i></div>
                         <span class="nav-text">Configuration</span>
@@ -156,8 +167,36 @@
             const admin = await checkAdminAccess();
             if (admin) {
                 console.log('Admin session active');
+                startNotificationPolling();
             }
         });
+
+        async function fetchNotifications() {
+            try {
+                const response = await fetch('/api/admin/notifications');
+                if (response.ok) {
+                    const data = await response.json();
+                    updateNotificationBadge(data.pendingPayments);
+                }
+            } catch (error) {
+                console.error('Error fetching notifications:', error);
+            }
+        }
+
+        function updateNotificationBadge(count) {
+            const badge = document.getElementById('notification-badge');
+            if (count > 0) {
+                badge.textContent = count;
+                badge.style.display = 'block';
+            } else {
+                badge.style.display = 'none';
+            }
+        }
+
+        function startNotificationPolling() {
+            fetchNotifications(); // Initial fetch
+            setInterval(fetchNotifications, 60000); // Poll every 60 seconds
+        }
 
         function loadAdminPage(page) {
             const iframe = document.getElementById('adminIframe');
