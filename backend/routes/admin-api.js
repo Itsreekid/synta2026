@@ -225,6 +225,16 @@ router.post("/api/admin/courses", requireAdmin, async (req, res) => {
           `INSERT INTO offer_courses (offer_id, course_id) VALUES ($1, $2) ON CONFLICT DO NOTHING`,
           [oid, courseId]
         );
+
+        // Retroactively enroll users who bought this offer
+        await pool.query(
+          `INSERT INTO enrollments (user_id, course_id, amount_paid, offer_id, enrolled_at)
+           SELECT DISTINCT user_id, $1, 0, $2, NOW()
+           FROM enrollments
+           WHERE offer_id = $2
+           ON CONFLICT (user_id, course_id) DO NOTHING`,
+          [courseId, oid]
+        );
       }
     }
 
