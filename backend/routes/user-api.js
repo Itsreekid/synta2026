@@ -22,7 +22,8 @@ function ensureTransactionsSchema() {
            ADD COLUMN IF NOT EXISTS payment_method   TEXT,
            ADD COLUMN IF NOT EXISTS transaction_code TEXT,
            ADD COLUMN IF NOT EXISTS is_confirmed     BOOLEAN NOT NULL DEFAULT false,
-           ADD COLUMN IF NOT EXISTS processed_at     TIMESTAMPTZ`
+           ADD COLUMN IF NOT EXISTS processed_at     TIMESTAMPTZ,
+           ADD COLUMN IF NOT EXISTS receipt_url      TEXT`
       )
       .then(() => console.log("[transactions] schema verified"))
       .catch((err) => {
@@ -237,18 +238,50 @@ router.get("/api/user/transactions", authApiMiddleware, async (req, res) => {
 router.post("/api/user/transactions", authApiMiddleware, async (req, res) => {
   try {
     const userId = req.user.id;
-    const { amount, type, status, payment_method, transaction_code, description } = req.body;
+    const { amount, type, status, payment_method, transaction_code, description, receipt_url } = req.body;
 
     if (!amount || isNaN(amount) || amount <= 0) {
       return res.status(400).json({ error: "Invalid amount" });
+    }
+
+    let finalReceiptUrl = null;
+    if (receipt_url && receipt_url.startsWith("data:image/")) {
+      try {
+        const { PutObjectCommand } = await import("@aws-sdk/client-s3");
+        const { r2Client, R2_BUCKET } = await import("../config/r2.js");
+        
+        const matches = receipt_url.match(/^data:([a-zA-Z0-9]+\/[a-zA-Z0-9-.+]+);base64,(.+)$/);
+        if (matches && matches.length === 3) {
+          const contentType = matches[1];
+          const buffer = Buffer.from(matches[2], "base64");
+          const extension = contentType.split("/")[1] || "png";
+          const fileName = `receipts/${userId}-${Date.now()}.${extension}`;
+          
+          await r2Client.send(new PutObjectCommand({
+            Bucket: R2_BUCKET,
+            Key: fileName,
+            Body: buffer,
+            ContentType: contentType
+          }));
+          
+          const domain = process.env.R2_PUBLIC_DOMAIN || `pub-${process.env.CLOUDFLARE_ACCOUNT_ID}.r2.dev`;
+          finalReceiptUrl = `https://${domain}/${fileName}`;
+        }
+      } catch (err) {
+        console.error("Failed to upload receipt to R2:", err);
+        // Fallback to storing base64 if R2 fails
+        finalReceiptUrl = receipt_url;
+      }
+    } else if (receipt_url) {
+      finalReceiptUrl = receipt_url;
     }
 
     await ensureTransactionsSchema();
 
     const result = await pool.query(
       `INSERT INTO transactions
-         (user_id, amount, type, status, payment_method, transaction_code, description, created_at)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, NOW())
+         (user_id, amount, type, status, payment_method, transaction_code, description, created_at, receipt_url)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, NOW(), $8)
        RETURNING *`,
       [
         userId,
@@ -258,6 +291,7 @@ router.post("/api/user/transactions", authApiMiddleware, async (req, res) => {
         payment_method || "En attente de confirmation",
         transaction_code || ("TXN-" + Date.now()),
         description || "Demande de dépôt",
+        finalReceiptUrl
       ]
     );
 

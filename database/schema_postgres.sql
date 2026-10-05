@@ -137,6 +137,7 @@ CREATE TABLE IF NOT EXISTS transactions (
   description      TEXT,
   is_confirmed     BOOLEAN NOT NULL DEFAULT false,
   processed_at     TIMESTAMPTZ,
+  receipt_url      TEXT,
   created_at       TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 

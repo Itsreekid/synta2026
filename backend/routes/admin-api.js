@@ -231,9 +231,9 @@ router.get("/api/admin/payments", requireAdmin, async (req, res) => {
     const [rows, count, summary] = await Promise.all([
       pool.query(
         `SELECT t.id, t.amount, t.type, t.status, t.payment_method, t.transaction_code,
-                t.description, t.created_at, t.processed_at,
+                t.description, t.created_at, t.processed_at, t.receipt_url,
                 u.id AS user_id, u.name AS user_name, u.email AS user_email,
-                u.phone AS user_phone, u.balance AS user_balance
+                u.phone AS user_phone, u.balance AS user_balance, u.class AS user_class, u.branch AS user_branch
            FROM transactions t
            JOIN users u ON u.id = t.user_id
            ${whereSql}

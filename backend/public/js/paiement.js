@@ -282,6 +282,24 @@ window.showAddTransactionPopup = function () {
                     " onfocus="this.style.borderColor='#667eea'" onblur="this.style.borderColor='#e2e8f0'">
                 </div>
             </div>
+
+            <div style="margin-bottom: 1.5rem;">
+                <label for="transaction-receipt" style="
+                    display: block;
+                    color: #475569;
+                    font-weight: 600;
+                    margin-bottom: 0.5rem;
+                    font-size: 0.9rem;
+                ">Photo du reçu (Optionnel)</label>
+                <input type="file" id="transaction-receipt" accept="image/*" style="
+                    width: 100%;
+                    padding: 0.5rem;
+                    border: 2px dashed #e2e8f0;
+                    border-radius: 10px;
+                    font-family: 'Inter', sans-serif;
+                    background: #f8fafc;
+                ">
+            </div>
             
             <div style="display: flex; gap: 1rem; flex-wrap: wrap;">
                 <button id="confirmTransactionBtn" style="
@@ -331,8 +349,29 @@ window.showAddTransactionPopup = function () {
             alert('Veuillez entrer un montant valide');
             return;
         }
-        popup.remove();
-        await createPendingTransaction(amount);
+
+        const btn = document.getElementById('confirmTransactionBtn');
+        btn.disabled = true;
+        btn.textContent = 'En cours...';
+
+        const fileInput = document.getElementById('transaction-receipt');
+        let receiptBase64 = null;
+
+        if (fileInput.files && fileInput.files[0]) {
+            const file = fileInput.files[0];
+            const reader = new FileReader();
+            
+            reader.onload = async (e) => {
+                receiptBase64 = e.target.result;
+                popup.remove();
+                await createPendingTransaction(amount, receiptBase64);
+            };
+            
+            reader.readAsDataURL(file);
+        } else {
+            popup.remove();
+            await createPendingTransaction(amount, null);
+        }
     };
 
     document.getElementById('cancelTransactionBtn').onclick = () => {
@@ -350,7 +389,7 @@ window.showAddTransactionPopup = function () {
 /**
  * Create a pending transaction
  */
-async function createPendingTransaction(amount) {
+async function createPendingTransaction(amount, receiptBase64 = null) {
     try {
         const user = await window.SyntaAPI.getCurrentUser();
         if (!user) {
@@ -371,7 +410,8 @@ async function createPendingTransaction(amount) {
                 status: 'pending',
                 payment_method: 'En attente de confirmation',
                 transaction_code: transactionCode,
-                description: 'Demande de dépôt'
+                description: 'Demande de dépôt',
+                receipt_url: receiptBase64
             })
         });
 
