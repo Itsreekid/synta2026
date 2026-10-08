@@ -2,6 +2,7 @@ import express from "express";
 import pool from "../config/db.js";
 import { requireAdmin } from "../middleware/requireAdmin.js";
 import bcrypt from "bcrypt";
+import jwt from "jsonwebtoken";
 
 const router = express.Router();
 const SALT_ROUNDS = 12;
@@ -157,7 +158,11 @@ router.post("/api/admin/change-student-password", requireAdmin, async (req, res)
     const hash = await bcrypt.hash(newPassword, SALT_ROUNDS);
     await pool.query(`UPDATE users SET password_hash = $1 WHERE id = $2 AND role = 'user'`, [hash, studentId]);
     return res.json({ success: true });
-import jwt from "jsonwebtoken";
+  } catch (err) {
+    console.error("Error changing password:", err.message);
+    return res.status(500).json({ success: false, error: "Internal server error" });
+  }
+});
 
 let usersSchemaReady = false;
 async function ensureUsersSchema() {
