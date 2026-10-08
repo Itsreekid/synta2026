@@ -219,14 +219,14 @@ function renderModulesAndLessons(modules, hasAccess, courseProgress) {
             const duration = formatDuration(lesson.duration);
             
             let iconClass = 'active';
-            let iconHtml = '<i class="fas fa-play-circle"></i>';
+            let iconHtml = '<i class="fas fa-play" style="margin-left: 2px;"></i>';
             
             if (isLocked) {
                 iconClass = 'locked';
                 iconHtml = '<i class="fas fa-lock"></i>';
             } else if (isCompleted) {
                 iconClass = 'completed';
-                iconHtml = '<i class="fas fa-check-circle"></i>';
+                iconHtml = '<i class="fas fa-check"></i>';
             }
 
             return `
