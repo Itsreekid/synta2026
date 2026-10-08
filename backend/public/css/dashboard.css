@@ -483,6 +483,22 @@
     #session-section { grid-area: session; }
     #path-section { grid-area: path; }
     #quick-section { grid-area: quick; }
+
+    .dashboard-container.locked-mode {
+        grid-template-areas:
+            "greeting stats"
+            "continue session"
+            "continue quick";
+    }
+    
+    .dashboard-container.locked-mode #continue-section {
+        display: flex;
+        flex-direction: column;
+    }
+    .dashboard-container.locked-mode #continue-content-container {
+        flex: 1;
+        display: flex;
+    }
 }
 
 /* ── Responsive adjustments ── */

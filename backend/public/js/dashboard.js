@@ -95,9 +95,29 @@ function loadStats() {
 function loadCoursePath() {
     fetchWithSWR(`/api/courses/user/my-courses?t=${Date.now()}`, 'swr_courses', async (courses) => {
         if (!courses || courses.length === 0) {
-            document.getElementById('continue-section').style.display = 'none';
-            document.getElementById('path-section').style.display = 'none';
             document.querySelector('.level-info span').textContent = "Débutant";
+            
+            const continueSection = document.getElementById('continue-content-container');
+            if (continueSection) {
+                document.querySelector('.dashboard-container').classList.add('locked-mode');
+                
+                continueSection.innerHTML = `
+                    <div class="locked-state" style="display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; gap: 1.5rem; background: #fff7ed; padding: 2rem; border-radius: var(--radius-lg); border: 2px dashed #fdba74; cursor: pointer; transition: all 0.3s ease; flex: 1; height: 100%; min-height: 250px;" onclick="window.location.href='/app/offers'" onmouseover="this.style.transform='translateY(-3px)'; this.style.boxShadow='0 8px 25px rgba(249, 115, 22, 0.15)';" onmouseout="this.style.transform='none'; this.style.boxShadow='none';">
+                        <div style="width: 80px; height: 80px; background: white; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 2.5rem; color: var(--orange-primary); box-shadow: 0 4px 15px rgba(249, 115, 22, 0.15);">
+                            🔒
+                        </div>
+                        <div>
+                            <h4 style="margin: 0 0 0.5rem; color: #1e293b; font-size: 1.3rem; font-weight: 800;">Programme Verrouillé</h4>
+                            <p style="margin: 0; color: var(--text-muted); font-size: 1rem; max-width: 300px;">Tu n'as pas encore d'offre active. Débloque ton plein potentiel dès maintenant !</p>
+                        </div>
+                        <button class="btn-primary" style="padding: 0.75rem 1.5rem; font-size: 1rem; margin-top: 0.5rem;">Découvrir les offres &rarr;</button>
+                    </div>
+                `;
+            }
+            
+            const pathSection = document.getElementById('path-section');
+            if (pathSection) pathSection.style.display = 'none';
+            
             return;
         }
         
