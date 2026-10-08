@@ -146,7 +146,7 @@ router.get("/api/user/stats", authApiMiddleware, async (req, res) => {
     const userId = req.user.id;
 
     const result = await pool.query(
-      `SELECT e.id, e.completed,
+      `SELECT e.id,
               COALESCE(
                 (SELECT COUNT(lp.id) FILTER (WHERE lp.completed = true)
                  FROM lessons l2
