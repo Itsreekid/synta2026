@@ -64,7 +64,7 @@ async function loadCourses(filters = {}) {
         // Render courses
         coursesList.innerHTML = courses.map(course => {
             const enrollment = enrollments.find(e => e.course_id === course.id);
-            const isEnrolled = !!enrollment;
+            const isEnrolled = enrollment ? enrollment.is_enrolled : false;
             const progress = enrollment ? (enrollment.progress || 0) : 0;
 
             let imgSrc = course.thumbnail_url && course.thumbnail_url.startsWith('http')
@@ -95,7 +95,7 @@ async function loadCourses(filters = {}) {
                         <p style="margin: 0 0 1.5rem; color: #64748b; font-size: 0.9rem; line-height: 1.5; flex: 1; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;">${course.description || 'Apprends les concepts fondamentaux et mets-les en pratique.'}</p>
                         
                         <!-- Progress -->
-                        ${isEnrolled ? `
+                        ${progress > 0 || isEnrolled ? `
                         <div style="margin-bottom: 1.5rem;">
                             <div style="display: flex; justify-content: flex-end; margin-bottom: 0.3rem;">
                                 <span style="font-size: 0.8rem; color: #64748b; font-weight: 600;">${progress}% terminé</span>
