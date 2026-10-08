@@ -95,14 +95,16 @@ async function loadCourses(filters = {}) {
                         <p style="margin: 0 0 1.5rem; color: #64748b; font-size: 0.9rem; line-height: 1.5; flex: 1; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;">${course.description || 'Apprends les concepts fondamentaux et mets-les en pratique.'}</p>
                         
                         <!-- Progress -->
+                        ${isEnrolled ? `
                         <div style="margin-bottom: 1.5rem;">
                             <div style="display: flex; justify-content: flex-end; margin-bottom: 0.3rem;">
                                 <span style="font-size: 0.8rem; color: #64748b; font-weight: 600;">${progress}% terminé</span>
                             </div>
                             <div style="height: 6px; background: #e2e8f0; border-radius: 10px; overflow: hidden;">
-                                <div style="height: 100%; background: #f97316; width: ${progress}%; border-radius: 10px;"></div>
+                                <div style="height: 100%; background: #f97316; width: 0%; border-radius: 10px; animation: fillBar 1s ease-out forwards; --target-width: ${progress}%;"></div>
                             </div>
                         </div>
+                        ` : ''}
                         
                         <!-- Stats Row -->
                         <div style="display: flex; justify-content: space-between; padding-top: 1rem; border-top: 1px solid #f1f5f9; margin-bottom: 1.5rem;">
@@ -444,6 +446,10 @@ style.textContent = `
     @keyframes slideUp {
         from { transform: translateY(20px); opacity: 0; }
         to { transform: translateY(0); opacity: 1; }
+    }
+    @keyframes fillBar {
+        from { width: 0%; }
+        to { width: var(--target-width); }
     }
 `;
 document.head.appendChild(style);
