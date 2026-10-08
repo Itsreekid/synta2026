@@ -691,3 +691,8 @@
     }
 }
 
+
+/* --- Expanded Card Responsive Fix --- */
+.expanded-card { display: none; margin-top: 20px; }
+@media (max-width: 768px) { .calendar-grid > .day-column .day-events { display: none; } .expanded-card { display: block; } }
+

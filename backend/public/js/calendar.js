@@ -86,6 +86,12 @@ function renderCalendar() {
     // Clear the grid
     calendarGrid.innerHTML = '';
 
+    // Remove any existing expanded card outside the grid
+    const existingExpandedCard = document.getElementById('expanded-card');
+    if (existingExpandedCard) {
+        existingExpandedCard.remove();
+    }
+
     // Calculate week end date
     const weekEnd = new Date(currentWeekStart);
     weekEnd.setDate(weekEnd.getDate() + 6);
@@ -230,7 +236,7 @@ function renderCalendar() {
         }
 
         expandedCard.appendChild(cardEventsContainer);
-        calendarGrid.appendChild(expandedCard);
+        calendarGrid.parentNode.appendChild(expandedCard);
     }
 
     // Update event count
