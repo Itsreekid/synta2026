@@ -157,20 +157,27 @@ router.post("/api/admin/change-student-password", requireAdmin, async (req, res)
     const hash = await bcrypt.hash(newPassword, SALT_ROUNDS);
     await pool.query(`UPDATE users SET password_hash = $1 WHERE id = $2 AND role = 'user'`, [hash, studentId]);
     return res.json({ success: true });
-  } catch (err) {
-    console.error("Error changing password:", err.message);
-    return res.status(500).json({ success: false, error: "Internal server error" });
-  }
-});
-
 import jwt from "jsonwebtoken";
+
+let usersSchemaReady = false;
+async function ensureUsersSchema() {
+  if (!usersSchemaReady) {
+    try {
+      await pool.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS debt NUMERIC(10,2) DEFAULT 0`);
+      usersSchemaReady = true;
+    } catch (err) {
+      console.error("Error updating users schema", err);
+    }
+  }
+}
 
 /**
  * GET /api/admin/student/:id
  */
 router.get("/api/admin/student/:id", requireAdmin, async (req, res) => {
   try {
-    const studentRes = await pool.query(`SELECT id, name, email, phone, class, branch, balance, created_at FROM users WHERE id = $1 AND role = 'user'`, [req.params.id]);
+    await ensureUsersSchema();
+    const studentRes = await pool.query(`SELECT id, name, email, phone, class, branch, balance, debt, created_at FROM users WHERE id = $1 AND role = 'user'`, [req.params.id]);
     if (studentRes.rowCount === 0) return res.status(404).json({ success: false, error: "Student not found" });
 
     const offersRes = await pool.query(
@@ -219,6 +226,143 @@ router.post("/api/admin/student/:id/generate-token", requireAdmin, async (req, r
   } catch (err) {
     console.error("Error generating token:", err.message);
     return res.status(500).json({ success: false, error: "Internal server error" });
+  }
+});
+
+/**
+ * GET /api/admin/active-offers
+ */
+router.get("/api/admin/active-offers", requireAdmin, async (req, res) => {
+  try {
+    const result = await pool.query(`SELECT id, title, fixed_price FROM offers WHERE is_active = true ORDER BY created_at DESC`);
+    return res.json({ success: true, offers: result.rows });
+  } catch (err) {
+    return res.status(500).json({ success: false, error: "Internal server error" });
+  }
+});
+
+/**
+ * POST /api/admin/student/:id/enroll-partial
+ */
+router.post("/api/admin/student/:id/enroll-partial", requireAdmin, async (req, res) => {
+  const client = await pool.connect();
+  try {
+    await ensureUsersSchema();
+    const { offerId, amountPaid } = req.body;
+    const userId = req.params.id;
+
+    if (!offerId || amountPaid === undefined) {
+      return res.status(400).json({ success: false, error: "Missing fields" });
+    }
+
+    await client.query("BEGIN");
+
+    const offerResult = await client.query(
+      `SELECT o.*, array_agg(oc.course_id) AS course_ids FROM offers o LEFT JOIN offer_courses oc ON oc.offer_id = o.id WHERE o.id = $1 GROUP BY o.id`,
+      [offerId]
+    );
+
+    if (offerResult.rowCount === 0) {
+      await client.query("ROLLBACK");
+      return res.status(404).json({ success: false, error: "Offer not found" });
+    }
+
+    const offer = offerResult.rows[0];
+    const price = parseFloat(offer.fixed_price || 0);
+    const paid = parseFloat(amountPaid);
+
+    if (paid < 0 || paid > price) {
+      await client.query("ROLLBACK");
+      return res.status(400).json({ success: false, error: "Invalid amount paid" });
+    }
+
+    const userResult = await client.query(`SELECT balance FROM users WHERE id = $1 FOR UPDATE`, [userId]);
+    const balance = parseFloat(userResult.rows[0].balance || 0);
+
+    if (balance < paid) {
+      await client.query("ROLLBACK");
+      return res.status(400).json({ success: false, error: "Insufficient balance for this tranche" });
+    }
+
+    const debtAmount = price - paid;
+
+    await client.query(`UPDATE users SET balance = balance - $1, debt = COALESCE(debt, 0) + $2 WHERE id = $3`, [paid, debtAmount, userId]);
+
+    await client.query(
+      `INSERT INTO transactions (user_id, amount, type, status, description, created_at) VALUES ($1, $2, 'purchase', 'completed', $3, NOW())`,
+      [userId, paid, `Paiement partiel (Tranche) pour l'offre: ${offer.title}`]
+    );
+
+    const courseIds = (offer.course_ids || []).filter(Boolean);
+    for (const courseId of courseIds) {
+      await client.query(
+        `INSERT INTO enrollments (user_id, course_id, amount_paid, offer_id, enrolled_at) VALUES ($1, $2, 0, $3, NOW()) ON CONFLICT (user_id, course_id) DO NOTHING`,
+        [userId, courseId, offerId]
+      );
+    }
+
+    await client.query("COMMIT");
+    return res.json({ success: true, newDebt: debtAmount });
+  } catch (err) {
+    await client.query("ROLLBACK");
+    console.error("Enroll partial error:", err);
+    return res.status(500).json({ success: false, error: "Internal server error" });
+  } finally {
+    client.release();
+  }
+});
+
+/**
+ * POST /api/admin/student/:id/pay-debt
+ */
+router.post("/api/admin/student/:id/pay-debt", requireAdmin, async (req, res) => {
+  const client = await pool.connect();
+  try {
+    await ensureUsersSchema();
+    const { amount } = req.body;
+    const userId = req.params.id;
+
+    if (!amount || amount <= 0) {
+      return res.status(400).json({ success: false, error: "Invalid amount" });
+    }
+
+    await client.query("BEGIN");
+    
+    const userResult = await client.query(`SELECT balance, debt FROM users WHERE id = $1 FOR UPDATE`, [userId]);
+    if (userResult.rowCount === 0) {
+      await client.query("ROLLBACK");
+      return res.status(404).json({ success: false, error: "User not found" });
+    }
+
+    const balance = parseFloat(userResult.rows[0].balance || 0);
+    const debt = parseFloat(userResult.rows[0].debt || 0);
+    const paid = parseFloat(amount);
+
+    if (balance < paid) {
+      await client.query("ROLLBACK");
+      return res.status(400).json({ success: false, error: "Insufficient balance" });
+    }
+
+    if (paid > debt) {
+      await client.query("ROLLBACK");
+      return res.status(400).json({ success: false, error: "Amount exceeds debt" });
+    }
+
+    await client.query(`UPDATE users SET balance = balance - $1, debt = debt - $1 WHERE id = $2`, [paid, userId]);
+
+    await client.query(
+      `INSERT INTO transactions (user_id, amount, type, status, description, created_at) VALUES ($1, $2, 'purchase', 'completed', $3, NOW())`,
+      [userId, paid, `Paiement du reste de la dette`]
+    );
+
+    await client.query("COMMIT");
+    return res.json({ success: true });
+  } catch (err) {
+    await client.query("ROLLBACK");
+    console.error("Pay debt error:", err);
+    return res.status(500).json({ success: false, error: "Internal server error" });
+  } finally {
+    client.release();
   }
 });
 

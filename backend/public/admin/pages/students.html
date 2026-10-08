@@ -554,6 +554,9 @@
             deleteBtn.onclick = null;
             tokenBtn.onclick = null;
 
+            const offersRes = await window.AdminDashboard.getActiveOffers();
+            const activeOffers = offersRes.success ? offersRes.offers : [];
+
             const res = await window.AdminDashboard.getStudentDetails(id);
             if (!res.success) {
                 content.innerHTML = '<p style="color: red;">Erreur de chargement</p>';
@@ -567,6 +570,12 @@
                 ? offers.map(o => `<span class="badge" style="background: #e0e7ff; color: #3730a3; margin-right: 0.5rem;">${o.title}</span>`).join('')
                 : '<span style="color: #64748b; font-style: italic;">Aucune offre active</span>';
 
+            const debt = parseFloat(s.debt || 0);
+            let optionsHtml = '';
+            if (activeOffers.length > 0) {
+                optionsHtml = activeOffers.map(o => `<option value="${o.id}">${o.title} (${o.fixed_price} DT)</option>`).join('');
+            }
+
             content.innerHTML = `
                 <div style="margin-bottom: 1rem;">
                     <strong>Nom:</strong> ${s.name || s.fullname || '-'}
@@ -575,23 +584,44 @@
                     <strong>Email:</strong> ${s.email}
                 </div>
                 <div style="margin-bottom: 1rem;">
-                    <strong>Numéro:</strong> ${s.phone || s.number || '-'}
+                    <strong>Solde actuel:</strong> ${s.balance || '0.00'} DT
                 </div>
                 <div style="margin-bottom: 1rem;">
-                    <strong>Classe:</strong> ${s.class || '-'}
-                </div>
-                <div style="margin-bottom: 1rem;">
-                    <strong>Branche:</strong> ${s.branch || '-'}
-                </div>
-                <div style="margin-bottom: 1rem;">
-                    <strong>Solde:</strong> ${s.balance || '0.00'} DT
-                </div>
-                <div style="margin-bottom: 1rem;">
-                    <strong>Date d'inscription:</strong> ${new Date(s.created_at).toLocaleDateString('fr-FR')}
+                    <strong>Dette (Tranches non payées):</strong> 
+                    <span style="color: ${debt > 0 ? '#ef4444' : '#22c55e'}; font-weight: bold;">${debt.toFixed(2)} DT</span>
                 </div>
                 <div style="margin-bottom: 1rem;">
                     <strong>Offres / Abonnements:</strong> <br>
                     <div style="margin-top: 0.5rem;">${offersHtml}</div>
+                </div>
+
+                <hr style="margin: 1.5rem 0; border: 0; border-top: 1px solid #e2e8f0;">
+
+                <div style="background: #f8fafc; padding: 1rem; border-radius: 8px;">
+                    <h3 style="margin-top: 0; margin-bottom: 1rem; font-size: 1rem;">Gestion des Tranches</h3>
+                    
+                    ${debt > 0 ? `
+                        <div style="margin-bottom: 1rem;">
+                            <label>Payer le reste de la dette (déduit du solde)</label>
+                            <div style="display: flex; gap: 0.5rem; margin-top: 0.5rem;">
+                                <input type="number" id="payDebtAmount" max="${debt}" step="0.1" value="${debt}" style="width: 120px; padding: 0.5rem; border: 1px solid #ccc; border-radius: 4px;">
+                                <button class="btn btn-primary" onclick="handlePayDebt('${s.id}')">Payer</button>
+                            </div>
+                        </div>
+                    ` : `
+                        <div style="margin-bottom: 1rem;">
+                            <label>Inscrire à une offre (Paiement partiel)</label>
+                            <select id="trancheOffer" style="width: 100%; padding: 0.5rem; margin-top: 0.5rem; border-radius: 4px; border: 1px solid #ccc;">
+                                <option value="">Sélectionner une offre</option>
+                                ${optionsHtml}
+                            </select>
+                            <div style="display: flex; gap: 0.5rem; margin-top: 0.5rem; align-items: center;">
+                                <input type="number" id="trancheAmount" step="0.1" placeholder="Montant payé (Ex: 50)" style="flex: 1; padding: 0.5rem; border: 1px solid #ccc; border-radius: 4px;">
+                                <button class="btn btn-primary" onclick="handleEnrollPartial('${s.id}')">Inscrire</button>
+                            </div>
+                            <small style="color: #64748b; margin-top: 0.5rem; display: block;">Le montant payé sera déduit du solde de l'étudiant. Le reste deviendra sa dette.</small>
+                        </div>
+                    `}
                 </div>
             `;
 
@@ -618,6 +648,43 @@
                 }
             };
         }
+
+        window.handleEnrollPartial = async (studentId) => {
+            const offerId = document.getElementById('trancheOffer').value;
+            const amount = parseFloat(document.getElementById('trancheAmount').value);
+            if(!offerId || isNaN(amount) || amount < 0) {
+                alert("Veuillez sélectionner une offre et entrer un montant valide.");
+                return;
+            }
+            if(confirm("Confirmer l'inscription avec paiement partiel ? Le montant sera déduit de son solde, et le reste sera sa dette.")) {
+                const res = await window.AdminDashboard.enrollStudentPartial(studentId, offerId, amount);
+                if(res.success) {
+                    alert("Inscription réussie ! Dette mise à jour.");
+                    openStudentDetailsModal(studentId);
+                    fetchAndRenderStudents();
+                } else {
+                    alert("Erreur: " + res.error);
+                }
+            }
+        };
+
+        window.handlePayDebt = async (studentId) => {
+            const amount = parseFloat(document.getElementById('payDebtAmount').value);
+            if(isNaN(amount) || amount <= 0) {
+                alert("Montant invalide.");
+                return;
+            }
+            if(confirm(`Déduire ${amount} DT du solde de l'étudiant pour payer la dette ?`)) {
+                const res = await window.AdminDashboard.payStudentDebt(studentId, amount);
+                if(res.success) {
+                    alert("Dette payée avec succès !");
+                    openStudentDetailsModal(studentId);
+                    fetchAndRenderStudents();
+                } else {
+                    alert("Erreur: " + res.error);
+                }
+            }
+        };
 
         function closeStudentDetailsModal() {
             document.getElementById('studentDetailsModal').style.display = 'none';

@@ -114,6 +114,45 @@ const AdminDashboard = {
             console.error(error);
             return { success: false, error: error.message };
         }
+    },
+
+    async getActiveOffers() {
+        try {
+            const response = await fetch(`/api/admin/active-offers`);
+            if (!response.ok) throw new Error('Failed to fetch active offers');
+            return await response.json();
+        } catch (error) {
+            console.error(error);
+            return { success: false, error: error.message };
+        }
+    },
+
+    async enrollStudentPartial(studentId, offerId, amountPaid) {
+        try {
+            const response = await fetch(`/api/admin/student/${studentId}/enroll-partial`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ offerId, amountPaid })
+            });
+            return await response.json();
+        } catch (error) {
+            console.error(error);
+            return { success: false, error: error.message };
+        }
+    },
+
+    async payStudentDebt(studentId, amount) {
+        try {
+            const response = await fetch(`/api/admin/student/${studentId}/pay-debt`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ amount })
+            });
+            return await response.json();
+        } catch (error) {
+            console.error(error);
+            return { success: false, error: error.message };
+        }
     }
 };
 
