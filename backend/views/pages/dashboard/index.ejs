@@ -14,86 +14,94 @@
             <div class="dashboard-container">
 
                 <!-- ══ GREETING CARD ══ -->
-                <div class="greeting-card" dir="rtl">
-                    <div class="greeting-avatar" id="user-avatar">
-                        <%= (typeof profile !== 'undefined' && profile) ? profile.initial : 'U' %>
-                    </div>
-                    <div class="greeting-text">
-                        <div class="greeting-label">مرحباً 👋</div>
-                        <h1 class="greeting-name" id="user-name">
-                            <%= (typeof profile !== 'undefined' && profile && profile.full_name)
-                                ? profile.full_name.split(' ')[0]
-                                : (typeof user !== 'undefined' && user && user.email)
-                                    ? user.email.split('@')[0]
-                                    : 'Étudiant' %>
-                        </h1>
-                        <div class="greeting-sub">استعد لحصة تعلم رائعة!</div>
+                <div class="dashboard-area-greeting">
+                    <div class="greeting-card" dir="rtl">
+                        <div class="greeting-avatar" id="user-avatar">
+                            <%= (typeof profile !== 'undefined' && profile) ? profile.initial : 'U' %>
+                        </div>
+                        <div class="greeting-text">
+                            <div class="greeting-label">مرحباً 👋</div>
+                            <h1 class="greeting-name" id="user-name">
+                                <%= (typeof profile !== 'undefined' && profile && profile.full_name)
+                                    ? profile.full_name.split(' ')[0]
+                                    : (typeof user !== 'undefined' && user && user.email)
+                                        ? user.email.split('@')[0]
+                                        : 'Étudiant' %>
+                            </h1>
+                            <div class="greeting-sub">استعد لحصة تعلم رائعة!</div>
+                        </div>
                     </div>
                 </div>
 
                 <!-- ══ STAT PILLS ══ -->
-                <div class="stat-pills">
-                    <div class="stat-pill">
-                        <span class="pill-icon">📚</span>
-                        <div class="pill-body">
-                            <strong id="completed-courses">0</strong>
-                            <span>دروس</span>
+                <div class="dashboard-area-stats">
+                    <div class="stat-pills">
+                        <div class="stat-pill">
+                            <span class="pill-icon">📚</span>
+                            <div class="pill-body">
+                                <strong id="completed-courses">0</strong>
+                                <span>دروس</span>
+                            </div>
                         </div>
-                    </div>
-                    <div class="stat-pill">
-                        <span class="pill-icon">📈</span>
-                        <div class="pill-body">
-                            <strong id="overall-progress">0%</strong>
-                            <span>تقدم</span>
+                        <div class="stat-pill">
+                            <span class="pill-icon">📈</span>
+                            <div class="pill-body">
+                                <strong id="overall-progress">0%</strong>
+                                <span>تقدم</span>
+                            </div>
                         </div>
-                    </div>
-                    <div class="stat-pill">
-                        <span class="pill-icon">🏆</span>
-                        <div class="pill-body">
-                            <strong id="achievements">0</strong>
-                            <span>إنجازات</span>
+                        <div class="stat-pill">
+                            <span class="pill-icon">🏆</span>
+                            <div class="pill-body">
+                                <strong id="achievements">0</strong>
+                                <span>إنجازات</span>
+                            </div>
                         </div>
                     </div>
                 </div>
 
                 <!-- ══ QUICK ACTION GRID ══ -->
-                <div class="section-header" dir="rtl">
-                    <h2 class="section-title">⚡ الوصول السريع</h2>
-                </div>
-                <div class="shortcut-grid">
-                    <a href="/app/courses" class="shortcut-card" data-turbo="true">
-                        <div class="shortcut-icon" style="background:linear-gradient(135deg,#6c63ff,#4a42d6)">📚</div>
-                        <span>الدروس</span>
-                    </a>
-                    <a href="/app/calendar" class="shortcut-card" data-turbo="true">
-                        <div class="shortcut-icon" style="background:linear-gradient(135deg,#f7941d,#f05a28)">📅</div>
-                        <span>التقويم</span>
-                    </a>
-                    <a href="/app/paiement" class="shortcut-card" data-turbo="true">
-                        <div class="shortcut-icon" style="background:linear-gradient(135deg,#28c76f,#1a9e53)">💳</div>
-                        <span>المحفظة</span>
-                    </a>
-                    <a href="/app/offers" class="shortcut-card" data-turbo="true">
-                        <div class="shortcut-icon" style="background:linear-gradient(135deg,#ff6584,#e0405f)">🎁</div>
-                        <span>العروض</span>
-                    </a>
-                    <a href="/app/code-pratique" class="shortcut-card" data-turbo="true">
-                        <div class="shortcut-icon" style="background:linear-gradient(135deg,#00b4d8,#0077b6)">💻</div>
-                        <span>Code</span>
-                    </a>
-                    <a href="/app/profile" class="shortcut-card" data-turbo="true">
-                        <div class="shortcut-icon" style="background:linear-gradient(135deg,#9b59b6,#6c3483)">👤</div>
-                        <span>ملفي</span>
-                    </a>
+                <div class="dashboard-area-actions">
+                    <div class="section-header" dir="rtl">
+                        <h2 class="section-title">⚡ الوصول السريع</h2>
+                    </div>
+                    <div class="shortcut-grid">
+                        <a href="/app/courses" class="shortcut-card" data-turbo="true">
+                            <div class="shortcut-icon" style="background:linear-gradient(135deg,#6c63ff,#4a42d6)">📚</div>
+                            <span>الدروس</span>
+                        </a>
+                        <a href="/app/calendar" class="shortcut-card" data-turbo="true">
+                            <div class="shortcut-icon" style="background:linear-gradient(135deg,#f7941d,#f05a28)">📅</div>
+                            <span>التقويم</span>
+                        </a>
+                        <a href="/app/paiement" class="shortcut-card" data-turbo="true">
+                            <div class="shortcut-icon" style="background:linear-gradient(135deg,#28c76f,#1a9e53)">💳</div>
+                            <span>المحفظة</span>
+                        </a>
+                        <a href="/app/offers" class="shortcut-card" data-turbo="true">
+                            <div class="shortcut-icon" style="background:linear-gradient(135deg,#ff6584,#e0405f)">🎁</div>
+                            <span>العروض</span>
+                        </a>
+                        <a href="/app/code-pratique" class="shortcut-card" data-turbo="true">
+                            <div class="shortcut-icon" style="background:linear-gradient(135deg,#00b4d8,#0077b6)">💻</div>
+                            <span>Code</span>
+                        </a>
+                        <a href="/app/profile" class="shortcut-card" data-turbo="true">
+                            <div class="shortcut-icon" style="background:linear-gradient(135deg,#9b59b6,#6c3483)">👤</div>
+                            <span>ملفي</span>
+                        </a>
+                    </div>
                 </div>
 
                 <!-- ══ UPCOMING EVENTS ══ -->
-                <div class="section-header" dir="rtl">
-                    <h2 class="section-title">📅 الجلسات القادمة</h2>
-                    <a href="/app/calendar" class="see-all-link">عرض الكل</a>
-                </div>
-                <div class="events-card" id="events-list">
-                    <div class="loading-state">جاري التحميل...</div>
+                <div class="dashboard-area-events">
+                    <div class="section-header" dir="rtl">
+                        <h2 class="section-title">📅 الجلسات القادمة</h2>
+                        <a href="/app/calendar" class="see-all-link">عرض الكل</a>
+                    </div>
+                    <div class="events-card" id="events-list">
+                        <div class="loading-state">جاري التحميل...</div>
+                    </div>
                 </div>
 
             </div>

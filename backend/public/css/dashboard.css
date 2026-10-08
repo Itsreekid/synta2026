@@ -311,9 +311,32 @@
 /* ── Desktop overrides (769px+) ── */
 @media (min-width: 769px) {
     .dashboard-container {
-        max-width: 900px;
+        max-width: 1100px;
         padding: 2rem;
+        display: grid;
+        grid-template-columns: 2fr 1fr;
+        grid-template-areas:
+            "greeting events"
+            "stats    events"
+            "actions  events";
         gap: 1.75rem;
+        align-items: start;
+    }
+
+    /* Assign grid areas */
+    .dashboard-area-greeting { grid-area: greeting; }
+    .dashboard-area-stats    { grid-area: stats; }
+    .dashboard-area-actions  { grid-area: actions; }
+    .dashboard-area-events   { grid-area: events; }
+
+    /* If RTL implies "events" on the right, we reverse the columns */
+    [dir="rtl"] .dashboard-container,
+    .dashboard-container {
+        grid-template-columns: 2.2fr 1fr;
+        grid-template-areas:
+            "events greeting"
+            "events stats"
+            "events actions";
     }
 
     .greeting-name {
