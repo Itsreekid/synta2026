@@ -219,14 +219,14 @@ function renderModulesAndLessons(modules, hasAccess, courseProgress) {
             const duration = formatDuration(lesson.duration);
             
             let iconClass = 'active';
-            let iconHtml = '<i class="fas fa-play"></i>';
+            let iconHtml = '<i class="fas fa-play-circle"></i>';
             
             if (isLocked) {
                 iconClass = 'locked';
                 iconHtml = '<i class="fas fa-lock"></i>';
             } else if (isCompleted) {
                 iconClass = 'completed';
-                iconHtml = '<i class="fas fa-check"></i>';
+                iconHtml = '<i class="fas fa-check-circle"></i>';
             }
 
             return `
@@ -237,7 +237,7 @@ function renderModulesAndLessons(modules, hasAccess, courseProgress) {
                                     </div>
                                     <div class="lesson-details">
                                         <div class="lesson-title">${lesson.title}</div>
-                                        ${lesson.duration && lesson.duration > 0 ? `<div class="lesson-duration">${duration}</div>` : ''}
+                                        ${lesson.duration && lesson.duration > 0 ? `<div class="lesson-duration"><i class="far fa-clock"></i> ${duration}</div>` : ''}
                                     </div>
                                 </div>
                             </div>
@@ -247,21 +247,23 @@ function renderModulesAndLessons(modules, hasAccess, courseProgress) {
             </div>
         `;
     }).join('');
+    
+    // Open first module by default
+    if (modules.length > 0) {
+        setTimeout(() => toggleModule(0), 100);
+    }
 }
 
 /**
  * Toggle module visibility
  */
 function toggleModule(index) {
-    const lessonsList = document.getElementById(`lessons-${index}`);
-    const toggle = document.getElementById(`toggle-${index}`);
+    const card = document.getElementById(`lessons-${index}`).closest('.module-card');
 
-    if (lessonsList.classList.contains('open')) {
-        lessonsList.classList.remove('open');
-        toggle.classList.remove('open');
+    if (card.classList.contains('open')) {
+        card.classList.remove('open');
     } else {
-        lessonsList.classList.add('open');
-        toggle.classList.add('open');
+        card.classList.add('open');
     }
 }
 
