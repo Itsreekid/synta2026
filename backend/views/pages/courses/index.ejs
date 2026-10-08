@@ -11,13 +11,38 @@
     <div class="content-wrapper">
         <%- include('../../partials/sidebar', { active: 'courses' }) %>
 
-        <section id="main-section" class="main-section">
-            <div class="courses-container">
-                <div class="courses-header">
-                    <h1>📚 Tous les Cours</h1>
-                    <p>Explorez tous les cours disponibles à l'académie</p>
+        <section id="main-section" class="main-section" style="background-color: #f8fafc; padding: 1.5rem;">
+            <div class="courses-container" style="max-width: 1200px; margin: 0 auto; display: flex; flex-direction: column; gap: 1.5rem;">
+                
+                <!-- ══ MAIN BANNER ══ -->
+                <div class="courses-banner" style="background: linear-gradient(135deg, #fff7ed, #ffedd5); border-radius: 24px; padding: 2.5rem; position: relative; overflow: hidden; border: 1px solid #fed7aa; box-shadow: 0 4px 20px rgba(249, 115, 22, 0.05);">
+                    <div style="position: relative; z-index: 2; max-width: 60%;">
+                        <span style="background: white; color: var(--orange-primary); font-size: 0.8rem; font-weight: 700; padding: 0.4rem 1rem; border-radius: 20px; display: inline-block; margin-bottom: 1rem; box-shadow: 0 2px 10px rgba(0,0,0,0.05);">Bienvenue sur Synta Academy 👋</span>
+                        <h1 style="font-size: 2.2rem; font-weight: 800; color: #1e293b; margin: 0 0 1rem; line-height: 1.2;">Explore nos cours et<br><span style="color: var(--orange-primary);">progresse à ton rythme</span></h1>
+                        <p style="color: #475569; font-size: 1rem; line-height: 1.5; margin: 0;">Des cours clairs, des vidéos courtes, des lives et plein de ressources pour t'aider à réussir ton bac en informatique.</p>
+                    </div>
+                    <div style="position: absolute; right: 2rem; bottom: 0; z-index: 1; font-size: 10rem; line-height: 1; opacity: 0.9; transform: translateY(10px);">
+                        🐝
+                    </div>
                 </div>
-                <div class="courses-list" id="courses-list">
+
+                <!-- ══ FILTERS ══ -->
+                <div class="filters-container" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem;">
+                    <div class="filter-chips" style="display: flex; gap: 0.5rem; flex-wrap: wrap; flex: 1;">
+                        <button class="chip active" onclick="applyCategoryFilter('')" style="background: var(--orange-primary); color: white; border: none; padding: 0.5rem 1.2rem; border-radius: 20px; font-weight: 600; cursor: pointer; transition: all 0.2s;">Tous les cours</button>
+                        <button class="chip" onclick="applyCategoryFilter('Programmation')" style="background: white; color: #64748b; border: 1px solid #e2e8f0; padding: 0.5rem 1.2rem; border-radius: 20px; font-weight: 600; cursor: pointer; transition: all 0.2s;">Programmation</button>
+                        <button class="chip" onclick="applyCategoryFilter('Bases de données')" style="background: white; color: #64748b; border: 1px solid #e2e8f0; padding: 0.5rem 1.2rem; border-radius: 20px; font-weight: 600; cursor: pointer; transition: all 0.2s;">Bases de données</button>
+                        <button class="chip" onclick="applyCategoryFilter('Web')" style="background: white; color: #64748b; border: 1px solid #e2e8f0; padding: 0.5rem 1.2rem; border-radius: 20px; font-weight: 600; cursor: pointer; transition: all 0.2s;">Développement Web</button>
+                    </div>
+                    
+                    <div class="search-bar" style="position: relative; width: 300px;">
+                        <i class="fas fa-search" style="position: absolute; left: 1rem; top: 50%; transform: translateY(-50%); color: #94a3b8;"></i>
+                        <input type="text" id="search-courses" placeholder="Rechercher un cours..." style="width: 100%; padding: 0.6rem 1rem 0.6rem 2.5rem; border-radius: 20px; border: 1px solid #e2e8f0; outline: none; font-family: inherit;">
+                    </div>
+                </div>
+
+                <!-- ══ COURSE GRID ══ -->
+                <div class="courses-list" id="courses-list" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 1.5rem; margin-top: 1rem;">
                     <!-- Courses loaded by courses.js -->
                 </div>
             </div>

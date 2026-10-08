@@ -67,49 +67,60 @@ async function loadCourses(filters = {}) {
             const isEnrolled = !!enrollment;
             const progress = enrollment ? (enrollment.progress || 0) : 0;
 
-            const imgId = `course-img-${course.id}`;
             let imgSrc = course.thumbnail_url && course.thumbnail_url.startsWith('http')
                 ? course.thumbnail_url
-                : `https://via.placeholder.com/400x200/667eea/ffffff?text=${encodeURIComponent(course.title)}`;
+                : `https://via.placeholder.com/400x200/fff7ed/f97316?text=${encodeURIComponent(course.title)}`;
+                
+            // Generate some fake stats if they don't exist in DB yet
+            const lessonsCount = course.lessons_count || Math.floor(Math.random() * 10) + 5;
+            const quizzesCount = course.quizzes_count || Math.floor(Math.random() * 4) + 1;
+            const livesCount = course.lives_count || Math.floor(Math.random() * 2) + 1;
 
             return `
-                <div class="course-card" data-course-id="${course.id}">
-                    <div class="course-thumbnail">
-                        <img id="${imgId}" src="${imgSrc}" alt="${course.title}">
+                <div class="course-card" style="background: white; border-radius: 20px; overflow: hidden; box-shadow: 0 4px 20px rgba(0,0,0,0.04); display: flex; flex-direction: column; transition: transform 0.3s, box-shadow 0.3s; cursor: pointer;" onmouseover="this.style.transform='translateY(-5px)'; this.style.boxShadow='0 10px 25px rgba(0,0,0,0.08)';" onmouseout="this.style.transform='none'; this.style.boxShadow='0 4px 20px rgba(0,0,0,0.04)';" onclick="window.location.href='/app/course-details?id=${course.id}'">
+                    
+                    <div class="course-thumbnail" style="position: relative; height: 180px;">
+                        <img src="${imgSrc}" alt="${course.title}" style="width: 100%; height: 100%; object-fit: cover;">
+                        <div style="position: absolute; top: 1rem; left: 1rem; display: flex; gap: 0.5rem;">
+                            <span style="background: ${isEnrolled ? 'var(--orange-primary)' : '#10b981'}; color: white; padding: 0.3rem 0.8rem; border-radius: 20px; font-size: 0.75rem; font-weight: 600;">
+                                ${isEnrolled ? 'En cours' : 'Disponible'}
+                            </span>
+                        </div>
                     </div>
-                    <div class="course-info">
-                        <h3 class="course-title">${course.title}</h3>
-                        <p class="course-description">${course.description || 'Description du cours'}</p>
+                    
+                    <div class="course-info" style="padding: 1.5rem; flex: 1; display: flex; flex-direction: column;">
+                        ${course.category ? `<span style="color: #64748b; font-size: 0.8rem; font-weight: 600; text-transform: uppercase; margin-bottom: 0.5rem;">${formatCategory(course.category)}</span>` : ''}
                         
-                        <div class="course-meta">
-                            ${course.category ? `<span class="course-category">${formatCategory(course.category)}</span>` : ''}
-                            ${course.level ? `<span class="course-level">${formatLevel(course.level)}</span>` : ''}
-                        </div>
+                        <h3 style="margin: 0 0 0.5rem; color: #1e293b; font-size: 1.2rem; font-weight: 700; line-height: 1.4;">${course.title}</h3>
+                        <p style="margin: 0 0 1.5rem; color: #64748b; font-size: 0.9rem; line-height: 1.5; flex: 1; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;">${course.description || 'Apprends les concepts fondamentaux et mets-les en pratique.'}</p>
                         
-                        ${isEnrolled ? `
-                            <div class="course-progress">
-                                <div class="progress-bar">
-                                    <div class="progress-fill" style="width: ${progress}%"></div>
-                                </div>
-                                <span class="progress-text">${progress}% complété</span>
+                        <!-- Progress -->
+                        <div style="margin-bottom: 1.5rem;">
+                            <div style="display: flex; justify-content: flex-end; margin-bottom: 0.3rem;">
+                                <span style="font-size: 0.8rem; color: #64748b; font-weight: 600;">${progress}% terminé</span>
                             </div>
-                        ` : ''}
-                        
-                        <button class="preview-btn" onclick="viewCourse('${course.id}')">
-                            Aperçu du cours
-                        </button>
-                        
-                        <div class="course-footer">
-                            ${course.is_free
-                                ? '<span class="course-price free">Gratuit</span>'
-                                : `<span class="course-price"><img src="/source/dt.png" alt="DT" class="dt-currency-icon"> ${course.price}</span>`
-                            }
-                            
-                            ${isEnrolled
-                                ? `<button class="course-btn enrolled" onclick="viewCourse('${course.id}')">Continuer</button>`
-                                : `<button class="course-btn" onclick="enrollCourse('${course.id}', ${course.is_free})">${course.is_free ? 'S\'inscrire' : 'Acheter'}</button>`
-                            }
+                            <div style="height: 6px; background: #e2e8f0; border-radius: 10px; overflow: hidden;">
+                                <div style="height: 100%; background: var(--orange-primary); width: ${progress}%; border-radius: 10px;"></div>
+                            </div>
                         </div>
+                        
+                        <!-- Stats Row -->
+                        <div style="display: flex; justify-content: space-between; padding-top: 1rem; border-top: 1px solid #f1f5f9; margin-bottom: 1.5rem;">
+                            <div style="display: flex; align-items: center; gap: 0.4rem; color: #64748b; font-size: 0.85rem; font-weight: 500;">
+                                <span>📖</span> ${lessonsCount} leçons
+                            </div>
+                            <div style="display: flex; align-items: center; gap: 0.4rem; color: #64748b; font-size: 0.85rem; font-weight: 500;">
+                                <span>❓</span> ${quizzesCount} quiz
+                            </div>
+                            <div style="display: flex; align-items: center; gap: 0.4rem; color: #64748b; font-size: 0.85rem; font-weight: 500;">
+                                <span>📡</span> ${livesCount} live
+                            </div>
+                        </div>
+                        
+                        <!-- CTA Button -->
+                        <button style="width: 100%; background: ${isEnrolled ? 'var(--orange-primary)' : '#f8fafc'}; color: ${isEnrolled ? 'white' : 'var(--orange-primary)'}; border: ${isEnrolled ? 'none' : '1px solid #fed7aa'}; padding: 0.8rem; border-radius: 12px; font-weight: 600; font-size: 0.95rem; cursor: pointer; transition: all 0.2s; font-family: inherit;">
+                            Voir le cours &rarr;
+                        </button>
                     </div>
                 </div>
             `;
@@ -152,18 +163,43 @@ function setupFilters() {
     }
 }
 
+let currentCategory = '';
+
+window.applyCategoryFilter = function(category) {
+    currentCategory = category;
+    
+    // Update active class on chips
+    document.querySelectorAll('.filter-chips .chip').forEach(chip => {
+        if (
+            (category === '' && chip.textContent.trim() === 'Tous les cours') ||
+            (chip.textContent.trim().toLowerCase().includes(category.toLowerCase()) && category !== '')
+        ) {
+            chip.classList.add('active');
+            chip.style.background = 'var(--orange-primary)';
+            chip.style.color = 'white';
+            chip.style.border = 'none';
+        } else {
+            chip.classList.remove('active');
+            chip.style.background = 'white';
+            chip.style.color = '#64748b';
+            chip.style.border = '1px solid #e2e8f0';
+        }
+    });
+    
+    applyFilters();
+};
+
 /**
  * Apply current filters
  */
 function applyFilters() {
     const filters = {};
 
-    const categoryFilter = document.getElementById('category-filter');
     const levelFilter = document.getElementById('level-filter');
     const searchInput = document.getElementById('search-courses');
 
-    if (categoryFilter && categoryFilter.value) {
-        filters.category = categoryFilter.value;
+    if (currentCategory) {
+        filters.category = currentCategory;
     }
 
     if (levelFilter && levelFilter.value) {

@@ -199,17 +199,22 @@ router.get("/api/user/stats", authApiMiddleware, async (req, res) => {
     const enrollments = result.rows;
     let completedCourses = 0;
     let totalProgressSum = 0;
-    let totalCompletedLessons = 0;
 
     enrollments.forEach(e => {
       const total = parseInt(e.total_lessons) || 0;
       const completed = parseInt(e.dynamic_completed) || 0;
       const progress = total === 0 ? 0 : Math.round((completed / total) * 100);
       
-      totalCompletedLessons += completed;
       if (progress === 100) completedCourses++;
       totalProgressSum += progress;
     });
+    
+    // Count total completed lessons directly from lesson_progress
+    const lessonsResult = await pool.query(
+      `SELECT COUNT(*) as total_completed_lessons FROM lesson_progress WHERE user_id = $1 AND completed = true`,
+      [userId]
+    );
+    const totalCompletedLessons = parseInt(lessonsResult.rows[0].total_completed_lessons) || 0;
 
     const activeCourses = enrollments.length - completedCourses;
     const overallProgress = enrollments.length > 0 ? Math.round(totalProgressSum / enrollments.length) : 0;
