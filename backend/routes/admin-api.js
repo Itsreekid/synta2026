@@ -163,6 +163,65 @@ router.post("/api/admin/change-student-password", requireAdmin, async (req, res)
   }
 });
 
+import jwt from "jsonwebtoken";
+
+/**
+ * GET /api/admin/student/:id
+ */
+router.get("/api/admin/student/:id", requireAdmin, async (req, res) => {
+  try {
+    const studentRes = await pool.query(`SELECT id, name, email, phone, class, branch, balance, created_at FROM users WHERE id = $1 AND role = 'user'`, [req.params.id]);
+    if (studentRes.rowCount === 0) return res.status(404).json({ success: false, error: "Student not found" });
+
+    const offersRes = await pool.query(
+      `SELECT o.id, o.title, e.enrolled_at 
+       FROM enrollments e 
+       JOIN offers o ON e.offer_id = o.id 
+       WHERE e.user_id = $1`, 
+      [req.params.id]
+    );
+
+    return res.json({ success: true, student: studentRes.rows[0], offers: offersRes.rows });
+  } catch (err) {
+    console.error("Error fetching student details:", err.message);
+    return res.status(500).json({ success: false, error: "Internal server error" });
+  }
+});
+
+/**
+ * DELETE /api/admin/student/:id
+ */
+router.delete("/api/admin/student/:id", requireAdmin, async (req, res) => {
+  try {
+    await pool.query(`DELETE FROM users WHERE id = $1 AND role = 'user'`, [req.params.id]);
+    return res.json({ success: true });
+  } catch (err) {
+    console.error("Error deleting student:", err.message);
+    return res.status(500).json({ success: false, error: "Internal server error" });
+  }
+});
+
+/**
+ * POST /api/admin/student/:id/generate-token
+ */
+router.post("/api/admin/student/:id/generate-token", requireAdmin, async (req, res) => {
+  try {
+    const studentRes = await pool.query(`SELECT id, role FROM users WHERE id = $1 AND role = 'user'`, [req.params.id]);
+    if (studentRes.rowCount === 0) return res.status(404).json({ success: false, error: "Student not found" });
+
+    const token = jwt.sign(
+      { id: req.params.id, magic: true },
+      process.env.JWT_SECRET,
+      { expiresIn: '5m' }
+    );
+
+    return res.json({ success: true, url: `/api/auth/magic-login?token=${token}` });
+  } catch (err) {
+    console.error("Error generating token:", err.message);
+    return res.status(500).json({ success: false, error: "Internal server error" });
+  }
+});
+
 /**
  * GET /api/admin/courses — list all courses (no is_published filter)
  */

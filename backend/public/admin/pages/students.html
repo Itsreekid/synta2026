@@ -372,6 +372,26 @@
         </div>
     </div>
 
+    <!-- Student Details Modal -->
+    <div id="studentDetailsModal" class="modal">
+        <div class="modal-content" style="max-width: 600px;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+                <h2>Détails de l'étudiant</h2>
+                <button class="btn-icon" onclick="closeStudentDetailsModal()"><i class="fas fa-times"></i></button>
+            </div>
+            <div id="studentDetailsContent">
+                <div style="text-align: center; padding: 2rem;"><div class="spinner" style="margin: 0 auto;"></div></div>
+            </div>
+            <div class="modal-footer" style="justify-content: space-between;">
+                <button type="button" class="btn" style="background: #ef4444; color: white;" id="deleteUserBtn">Supprimer l'utilisateur</button>
+                <div style="display: flex; gap: 1rem;">
+                    <button type="button" class="btn btn-primary" id="generateTokenBtn">Lien de connexion (5min)</button>
+                    <button type="button" class="btn" onclick="closeStudentDetailsModal()">Fermer</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- Supabase Client Library -->
     <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
     <script src="/js/authentication.js"></script>
@@ -455,7 +475,10 @@
                     <td><span class="badge badge-branch">${student.branch || '-'}</span></td>
                     <td>${new Date(student.created_at).toLocaleDateString('fr-FR')}</td>
                     <td><strong>${student.balance || '0.00'} DT</strong></td>
-                    <td>
+                    <td style="display: flex; gap: 0.5rem;">
+                        <button class="btn-icon" onclick="openStudentDetailsModal('${student.id}')" title="Détails de l'étudiant">
+                            <i class="fas fa-eye"></i>
+                        </button>
                         <button class="btn-icon" onclick="openPassModal('${student.id}', '${student.email}')" title="Changer le mot de passe">
                             <i class="fas fa-key"></i>
                         </button>
@@ -517,6 +540,87 @@
                 currentPage = 1;
                 fetchAndRenderStudents();
             }, 300);
+        }
+
+        async function openStudentDetailsModal(id) {
+            const modal = document.getElementById('studentDetailsModal');
+            const content = document.getElementById('studentDetailsContent');
+            const deleteBtn = document.getElementById('deleteUserBtn');
+            const tokenBtn = document.getElementById('generateTokenBtn');
+            
+            modal.style.display = 'flex';
+            content.innerHTML = '<div style="text-align: center; padding: 2rem;"><div class="spinner" style="margin: 0 auto;"></div></div>';
+            
+            deleteBtn.onclick = null;
+            tokenBtn.onclick = null;
+
+            const res = await window.AdminDashboard.getStudentDetails(id);
+            if (!res.success) {
+                content.innerHTML = '<p style="color: red;">Erreur de chargement</p>';
+                return;
+            }
+
+            const s = res.student;
+            const offers = res.offers || [];
+            
+            let offersHtml = offers.length > 0 
+                ? offers.map(o => `<span class="badge" style="background: #e0e7ff; color: #3730a3; margin-right: 0.5rem;">${o.title}</span>`).join('')
+                : '<span style="color: #64748b; font-style: italic;">Aucune offre active</span>';
+
+            content.innerHTML = `
+                <div style="margin-bottom: 1rem;">
+                    <strong>Nom:</strong> ${s.name || s.fullname || '-'}
+                </div>
+                <div style="margin-bottom: 1rem;">
+                    <strong>Email:</strong> ${s.email}
+                </div>
+                <div style="margin-bottom: 1rem;">
+                    <strong>Numéro:</strong> ${s.phone || s.number || '-'}
+                </div>
+                <div style="margin-bottom: 1rem;">
+                    <strong>Classe:</strong> ${s.class || '-'}
+                </div>
+                <div style="margin-bottom: 1rem;">
+                    <strong>Branche:</strong> ${s.branch || '-'}
+                </div>
+                <div style="margin-bottom: 1rem;">
+                    <strong>Solde:</strong> ${s.balance || '0.00'} DT
+                </div>
+                <div style="margin-bottom: 1rem;">
+                    <strong>Date d'inscription:</strong> ${new Date(s.created_at).toLocaleDateString('fr-FR')}
+                </div>
+                <div style="margin-bottom: 1rem;">
+                    <strong>Offres / Abonnements:</strong> <br>
+                    <div style="margin-top: 0.5rem;">${offersHtml}</div>
+                </div>
+            `;
+
+            deleteBtn.onclick = async () => {
+                if(confirm("Voulez-vous vraiment supprimer cet étudiant ? Cette action est irréversible.")) {
+                    const delRes = await window.AdminDashboard.deleteStudent(id);
+                    if(delRes.success) {
+                        alert("Étudiant supprimé avec succès.");
+                        closeStudentDetailsModal();
+                        fetchAndRenderStudents();
+                    } else {
+                        alert("Erreur lors de la suppression.");
+                    }
+                }
+            };
+
+            tokenBtn.onclick = async () => {
+                const tokRes = await window.AdminDashboard.generateLoginToken(id);
+                if(tokRes.success) {
+                    const loginUrl = window.location.origin + tokRes.url;
+                    prompt("Lien de connexion (copiez-le) :", loginUrl);
+                } else {
+                    alert("Erreur lors de la génération du lien.");
+                }
+            };
+        }
+
+        function closeStudentDetailsModal() {
+            document.getElementById('studentDetailsModal').style.display = 'none';
         }
     </script>
 </body>

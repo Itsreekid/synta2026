@@ -81,6 +81,39 @@ const AdminDashboard = {
             console.error('Error changing student password:', error);
             return { success: false, error: error.message };
         }
+    },
+
+    async getStudentDetails(id) {
+        try {
+            const response = await fetch(`/api/admin/student/${id}`);
+            if (!response.ok) throw new Error('Failed to fetch details');
+            return await response.json();
+        } catch (error) {
+            console.error(error);
+            return { success: false, error: error.message };
+        }
+    },
+
+    async deleteStudent(id) {
+        try {
+            const response = await fetch(`/api/admin/student/${id}`, { method: 'DELETE' });
+            if (!response.ok) throw new Error('Failed to delete student');
+            return await response.json();
+        } catch (error) {
+            console.error(error);
+            return { success: false, error: error.message };
+        }
+    },
+
+    async generateLoginToken(id) {
+        try {
+            const response = await fetch(`/api/admin/student/${id}/generate-token`, { method: 'POST' });
+            if (!response.ok) throw new Error('Failed to generate token');
+            return await response.json();
+        } catch (error) {
+            console.error(error);
+            return { success: false, error: error.message };
+        }
     }
 };
 

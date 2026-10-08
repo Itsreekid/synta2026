@@ -209,4 +209,39 @@ router.post("/api/auth/resend-verification", async (req, res) => {
   }
 });
 
+/**
+ * GET /api/auth/magic-login
+ * Used by admin to login as a user via a generated 5-minute token
+ */
+router.get("/api/auth/magic-login", async (req, res) => {
+  try {
+    const { token } = req.query;
+    if (!token) return res.status(400).send("Token missing");
+
+    const decoded = jwt.verify(token, JWT_SECRET);
+    if (!decoded.magic || !decoded.id) {
+      return res.status(400).send("Invalid token");
+    }
+
+    const result = await pool.query(
+      "SELECT id, email, name, role FROM users WHERE id = $1",
+      [decoded.id]
+    );
+
+    if (result.rowCount === 0) {
+      return res.status(404).send("User not found");
+    }
+
+    const user = result.rows[0];
+    const access_token = signAccessToken(user);
+    const refresh_token = signRefreshToken(user.id);
+    setSessionCookies(res, { access_token, refresh_token });
+
+    res.redirect("/user/dashboard");
+  } catch (err) {
+    console.error("[auth/magic-login] Error:", err.message);
+    return res.status(401).send("Token expired or invalid");
+  }
+});
+
 export default router;
