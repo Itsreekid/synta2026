@@ -35,6 +35,38 @@ function ensureTransactionsSchema() {
 }
 
 /**
+ * GET /api/user/notifications
+ */
+router.get("/api/user/notifications", authApiMiddleware, async (req, res) => {
+  try {
+    const result = await pool.query(
+      `SELECT * FROM notifications WHERE user_id = $1 ORDER BY created_at DESC LIMIT 50`,
+      [req.user.id]
+    );
+    res.json({ notifications: result.rows });
+  } catch (error) {
+    console.error("Error fetching notifications:", error);
+    res.status(500).json({ error: "Internal server error" });
+  }
+});
+
+/**
+ * POST /api/user/notifications/:id/read
+ */
+router.post("/api/user/notifications/:id/read", authApiMiddleware, async (req, res) => {
+  try {
+    await pool.query(
+      `UPDATE notifications SET is_read = true WHERE id = $1 AND user_id = $2`,
+      [req.params.id, req.user.id]
+    );
+    res.json({ success: true });
+  } catch (error) {
+    console.error("Error marking notification read:", error);
+    res.status(500).json({ error: "Internal server error" });
+  }
+});
+
+/**
  * GET /api/user/me
  */
 router.get("/api/user/me", authApiMiddleware, async (req, res) => {

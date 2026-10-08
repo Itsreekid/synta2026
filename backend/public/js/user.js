@@ -63,82 +63,82 @@ function toggleNotifications() {
 
         // Load events if dropdown is being opened
         if (dropdown.classList.contains('active')) {
-            loadNotificationEvents();
+            loadUserNotifications();
         }
     }
 }
 
-// Update notification badge with event count
+// Fetch and update unread notification badge
 async function updateNotificationBadge() {
     const badge = document.getElementById('notificationCount');
     if (!badge) return;
 
-    const events = await getFilteredEvents();
-    const eventCount = events.length;
-    badge.textContent = eventCount;
-    badge.style.display = eventCount > 0 ? 'flex' : 'none';
-}
-
-// Helper to filter events based on user targeting
-async function getFilteredEvents() {
-    if (typeof upcomingEvents === 'undefined' || !Array.isArray(upcomingEvents)) return [];
-
-    // Get user from auth if available
-    let userClass = null;
-    let userBranch = null;
-
-    if (window.auth) {
-        try {
-            const result = await window.auth.getCurrentUser();
-            if (result.success && result.user) {
-                userClass = result.user.user_metadata?.user_class;
-                userBranch = result.user.user_metadata?.user_branch;
-            }
-        } catch (error) {
-            console.error('Error getting user for filtering:', error);
-        }
+    try {
+        const res = await fetch('/api/user/notifications', { credentials: 'include' });
+        if (!res.ok) return;
+        const data = await res.json();
+        const unreadCount = data.notifications.filter(n => !n.is_read).length;
+        
+        badge.textContent = unreadCount;
+        badge.style.display = unreadCount > 0 ? 'flex' : 'none';
+    } catch (error) {
+        console.error('Error fetching unread notifications:', error);
     }
-
-    return upcomingEvents.filter(event => {
-        const matchesClass = !event.target_classes ||
-            event.target_classes.length === 0 ||
-            event.target_classes.includes('all') ||
-            (userClass && event.target_classes.includes(userClass));
-
-        const matchesBranch = !event.target_branches ||
-            event.target_branches.length === 0 ||
-            event.target_branches.includes('all') ||
-            (userBranch && event.target_branches.includes(userBranch));
-
-        return matchesClass && matchesBranch;
-    });
 }
 
-// Load events into notification dropdown
-async function loadNotificationEvents() {
+// Load notifications into dropdown
+async function loadUserNotifications() {
     const eventsList = document.getElementById('notificationEventsList');
     if (!eventsList) return;
 
-    const events = await getFilteredEvents();
+    eventsList.innerHTML = '<div class="loading" style="padding: 1rem; text-align: center;">Chargement...</div>';
 
-    // Check if events are available
-    if (events.length === 0) {
-        eventsList.innerHTML = '<div class="no-events">Aucun événement à venir</div>';
-        return;
-    }
+    try {
+        const res = await fetch('/api/user/notifications', { credentials: 'include' });
+        if (!res.ok) throw new Error('Network error');
+        const data = await res.json();
+        const notifications = data.notifications;
 
-    // Generate event items
-    eventsList.innerHTML = events.map(event => {
-        return `
-            <div class="notification-event-item">
-                <div class="event-icon">${event.icon || '📅'}</div>
-                <div class="event-info">
-                    <div class="event-title">${event.title}</div>
-                    <div class="event-time">${event.time}</div>
+        if (notifications.length === 0) {
+            eventsList.innerHTML = '<div style="padding: 1rem; text-align: center; color: #64748b;">Aucune notification</div>';
+            return;
+        }
+
+        eventsList.innerHTML = notifications.map(notif => {
+            const date = new Date(notif.created_at);
+            const timeStr = date.toLocaleDateString() + ' à ' + date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+            const isUnread = !notif.is_read;
+            const bgClass = isUnread ? 'style="background: #fff7ed;"' : '';
+            
+            return `
+                <div class="notification-event-item" ${bgClass} onclick="markNotificationRead('${notif.id}', '${notif.link || ''}')">
+                    <div class="event-icon">${notif.type === 'success' ? '🎉' : notif.type === 'warning' ? '⚠️' : '💡'}</div>
+                    <div class="event-info">
+                        <div class="event-title" style="font-weight: ${isUnread ? '700' : '500'}; color: #1e293b;">${notif.title}</div>
+                        <div class="event-time" style="font-size: 0.8rem; color: #64748b; margin-top: 2px;">${notif.message}</div>
+                        <div class="event-time" style="font-size: 0.7rem; color: #94a3b8; margin-top: 4px;">${timeStr}</div>
+                    </div>
+                    ${isUnread ? '<div style="width:8px;height:8px;border-radius:50%;background:#f97316;"></div>' : ''}
                 </div>
-            </div>
-        `;
-    }).join('');
+            `;
+        }).join('');
+    } catch (error) {
+        eventsList.innerHTML = '<div style="padding: 1rem; text-align: center; color: #ef4444;">Erreur de chargement</div>';
+    }
+}
+
+async function markNotificationRead(id, link) {
+    try {
+        await fetch(`/api/user/notifications/${id}/read`, { method: 'POST', credentials: 'include' });
+        updateNotificationBadge();
+        if (link && link !== 'null' && link !== '') {
+            window.location.href = link;
+        } else {
+            loadUserNotifications();
+        }
+    } catch (err) {
+        console.error(err);
+    }
 }
 
 // Toggle mobile menu
