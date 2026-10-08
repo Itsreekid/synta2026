@@ -167,12 +167,14 @@ router.get("/api/user/stats", authApiMiddleware, async (req, res) => {
     const enrollments = result.rows;
     let completedCourses = 0;
     let totalProgressSum = 0;
+    let totalCompletedLessons = 0;
 
     enrollments.forEach(e => {
       const total = parseInt(e.total_lessons) || 0;
       const completed = parseInt(e.dynamic_completed) || 0;
       const progress = total === 0 ? 0 : Math.round((completed / total) * 100);
       
+      totalCompletedLessons += completed;
       if (progress === 100) completedCourses++;
       totalProgressSum += progress;
     });
@@ -185,6 +187,7 @@ router.get("/api/user/stats", authApiMiddleware, async (req, res) => {
       activeCourses: activeCourses,
       overallProgress: overallProgress,
       achievements: completedCourses,
+      totalCompletedLessons: totalCompletedLessons
     });
   } catch (err) {
     console.error("[user/stats] Error:", err.message);

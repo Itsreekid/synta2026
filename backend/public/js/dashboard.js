@@ -78,10 +78,11 @@ async function loadStats() {
             achievementsEl.textContent = stats.achievements;
         }
 
-        // Calculate Level (100 XP per completed course, 10 XP per active course progress point)
-        const xp = (stats.completedCourses * 500) + (stats.overallProgress * 10);
-        const level = Math.floor(xp / 1000) + 1;
-        const currentLevelXp = xp % 1000;
+        // Calculate XP (10 XP per completed lesson/quiz/code practice)
+        // 100 XP = 1 Level
+        const xp = (stats.totalCompletedLessons || 0) * 10;
+        const level = Math.floor(xp / 100) + 1;
+        const currentLevelXp = xp % 100;
         
         const levelIcon = document.querySelector('.level-icon');
         const levelStrong = document.querySelector('.level-info strong');
@@ -90,8 +91,8 @@ async function loadStats() {
         
         if (levelIcon) levelIcon.textContent = level;
         if (levelStrong) levelStrong.textContent = `Niveau ${level}`;
-        if (levelXpLabel) levelXpLabel.textContent = `${currentLevelXp} / 1000 XP`;
-        if (levelProgressBar) levelProgressBar.style.width = `${(currentLevelXp / 1000) * 100}%`;
+        if (levelXpLabel) levelXpLabel.textContent = `${currentLevelXp} / 100 XP`;
+        if (levelProgressBar) levelProgressBar.style.width = `${(currentLevelXp / 100) * 100}%`;
 
     } catch (error) {
         console.error('Error loading stats:', error);
