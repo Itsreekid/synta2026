@@ -82,7 +82,7 @@ async function loadCourses(filters = {}) {
                     <div class="course-thumbnail" style="position: relative; height: 180px;">
                         <img src="${imgSrc}" alt="${course.title}" style="width: 100%; height: 100%; object-fit: cover;">
                         <div style="position: absolute; top: 1rem; left: 1rem; display: flex; gap: 0.5rem;">
-                            <span style="background: ${isEnrolled ? 'var(--orange-primary)' : '#10b981'}; color: white; padding: 0.3rem 0.8rem; border-radius: 20px; font-size: 0.75rem; font-weight: 600;">
+                            <span style="background: ${isEnrolled ? '#f97316' : '#10b981'}; color: white; padding: 0.3rem 0.8rem; border-radius: 20px; font-size: 0.75rem; font-weight: 600;">
                                 ${isEnrolled ? 'En cours' : 'Disponible'}
                             </span>
                         </div>
@@ -100,7 +100,7 @@ async function loadCourses(filters = {}) {
                                 <span style="font-size: 0.8rem; color: #64748b; font-weight: 600;">${progress}% terminé</span>
                             </div>
                             <div style="height: 6px; background: #e2e8f0; border-radius: 10px; overflow: hidden;">
-                                <div style="height: 100%; background: var(--orange-primary); width: ${progress}%; border-radius: 10px;"></div>
+                                <div style="height: 100%; background: #f97316; width: ${progress}%; border-radius: 10px;"></div>
                             </div>
                         </div>
                         
@@ -118,7 +118,7 @@ async function loadCourses(filters = {}) {
                         </div>
                         
                         <!-- CTA Button -->
-                        <button style="width: 100%; background: ${isEnrolled ? 'var(--orange-primary)' : '#f8fafc'}; color: ${isEnrolled ? 'white' : 'var(--orange-primary)'}; border: ${isEnrolled ? 'none' : '1px solid #fed7aa'}; padding: 0.8rem; border-radius: 12px; font-weight: 600; font-size: 0.95rem; cursor: pointer; transition: all 0.2s; font-family: inherit;">
+                        <button style="width: 100%; background: ${isEnrolled ? '#f97316' : '#f8fafc'}; color: ${isEnrolled ? 'white' : '#f97316'}; border: ${isEnrolled ? 'none' : '1px solid #fed7aa'}; padding: 0.8rem; border-radius: 12px; font-weight: 600; font-size: 0.95rem; cursor: pointer; transition: all 0.2s; font-family: inherit;">
                             Voir le cours &rarr;
                         </button>
                     </div>
@@ -175,7 +175,7 @@ window.applyCategoryFilter = function(category) {
             (chip.textContent.trim().toLowerCase().includes(category.toLowerCase()) && category !== '')
         ) {
             chip.classList.add('active');
-            chip.style.background = 'var(--orange-primary)';
+            chip.style.background = '#f97316';
             chip.style.color = 'white';
             chip.style.border = 'none';
         } else {
