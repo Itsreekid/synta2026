@@ -97,6 +97,7 @@ async function checkUserAccess(courseId) {
 /**
  * Render course information
  */
+async function renderCourseInfo(course, totalLessons, hasAccess, courseProgress) {
     // Update thumbnail in sidebar AND hero
     const thumbnailSidebar = document.getElementById('course-thumbnail');
     const thumbnailHero = document.getElementById('course-thumbnail-hero');
