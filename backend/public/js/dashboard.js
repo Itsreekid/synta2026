@@ -3,89 +3,73 @@ document.addEventListener('DOMContentLoaded', function () {
     initializeDashboard();
 });
 
-async function initializeDashboard() {
+async function fetchWithSWR(url, cacheKey, callback) {
+    // 1. Instantly return from cache if available
+    const cached = sessionStorage.getItem(cacheKey);
+    if (cached) {
+        try { callback(JSON.parse(cached)); } catch(e){}
+    }
+    
+    // 2. Fetch fresh data in the background
     try {
-        // NOTE: Server-side requireAuth already guards this page.
-        // If the user is not logged in, Express redirects to /login
-        // before this JS ever runs. No client-side auth check needed.
+        const res = await fetch(url, { credentials: 'include' });
+        if (!res.ok) return;
+        const fresh = await res.json();
+        
+        // 3. Update DOM only if data changed
+        const freshStr = JSON.stringify(fresh);
+        if (freshStr !== cached) {
+            sessionStorage.setItem(cacheKey, freshStr);
+            callback(fresh);
+        }
+    } catch (e) {
+        console.error("SWR Error for", url, e);
+    }
+}
 
-        // Load dashboard data
-        await loadDashboardData();
-
+function initializeDashboard() {
+    try {
+        // Load dashboard data immediately in parallel without blocking
+        loadUserData();
+        loadStats();
+        loadEvents();
+        loadCoursePath();
     } catch (error) {
         console.error('Error initializing dashboard:', error);
         showMessage('Une erreur est survenue lors du chargement des données', 'error');
     }
 }
 
-async function loadUserData() {
-    try {
-        const res = await fetch('/api/user/me');
-        if (!res.ok) return;
-        const data = await res.json();
+function loadUserData() {
+    fetchWithSWR('/api/user/me', 'swr_user', (data) => {
         const user = data.user;
+        if (!user) return;
 
-        // Update user info
         const userName = user.user_metadata?.full_name || user.name || user.email?.split('@')[0] || 'Utilisateur';
         const userEmail = user.email || 'Non disponible';
 
         const userNameEl = document.getElementById('user-name');
-        if (userNameEl) {
-            userNameEl.textContent = userName;
-        }
+        if (userNameEl) userNameEl.textContent = userName;
 
         const userEmailEl = document.getElementById('user-email');
-        if (userEmailEl) {
-            userEmailEl.textContent = userEmail;
-        }
+        if (userEmailEl) userEmailEl.textContent = userEmail;
 
-        // Update avatar
         const avatar = document.getElementById('user-avatar');
-        if (avatar && userName && userName.length > 0) {
-            avatar.textContent = userName.charAt(0).toUpperCase();
-        }
-
-    } catch (error) {
-        console.error('Error loading user data:', error);
-    }
+        if (avatar && userName) avatar.textContent = userName.charAt(0).toUpperCase();
+    });
 }
 
-async function loadDashboardData() {
-    try {
-        await Promise.all([
-            loadUserData(),
-            loadStats(),
-            loadEvents(),
-            loadCoursePath()
-        ]);
-    } catch (error) {
-        console.error('Error loading dashboard data:', error);
-    }
-}
-
-async function loadStats() {
-    try {
-        const res = await fetch(`/api/user/stats?t=${Date.now()}`, { credentials: 'include' });
-        if (!res.ok) return;
-        const stats = await res.json();
-
+function loadStats() {
+    fetchWithSWR(`/api/user/stats?t=${Date.now()}`, 'swr_stats', (stats) => {
         const completedEl = document.getElementById('completed-courses');
-        if (completedEl) {
-            completedEl.textContent = stats.totalCompletedLessons || 0;
-        }
+        if (completedEl) completedEl.textContent = stats.totalCompletedLessons || 0;
 
         const progressEl = document.getElementById('overall-progress');
-        if (progressEl) {
-            progressEl.textContent = stats.overallProgress + '%';
-        }
+        if (progressEl) progressEl.textContent = stats.overallProgress + '%';
 
         const achievementsEl = document.getElementById('achievements');
-        if (achievementsEl) {
-            achievementsEl.textContent = stats.achievements;
-        }
+        if (achievementsEl) achievementsEl.textContent = stats.achievements;
 
-        // Calculate XP (10 XP per completed lesson/quiz/code practice)
-        // 100 XP = 1 Level
         const xp = (stats.totalCompletedLessons || 0) * 10;
         const level = Math.floor(xp / 100) + 1;
         const currentLevelXp = xp % 100;
@@ -99,18 +83,11 @@ async function loadStats() {
         if (levelStrong) levelStrong.textContent = `Niveau ${level}`;
         if (levelXpLabel) levelXpLabel.textContent = `${currentLevelXp} / 100 XP`;
         if (levelProgressBar) levelProgressBar.style.width = `${(currentLevelXp / 100) * 100}%`;
-
-    } catch (error) {
-        console.error('Error loading stats:', error);
-    }
+    });
 }
 
-async function loadCoursePath() {
-    try {
-        const res = await fetch(`/api/courses/user/my-courses?t=${Date.now()}`, { credentials: 'include' });
-        if (!res.ok) return;
-        const courses = await res.json();
-        
+function loadCoursePath() {
+    fetchWithSWR(`/api/courses/user/my-courses?t=${Date.now()}`, 'swr_courses', async (courses) => {
         if (!courses || courses.length === 0) {
             document.getElementById('continue-section').style.display = 'none';
             document.getElementById('path-section').style.display = 'none';
@@ -118,13 +95,10 @@ async function loadCoursePath() {
             return;
         }
         
-        // Get most recent active course
         const activeCourse = courses.find(c => c.progress < 100) || courses[0];
         document.querySelector('.level-info span').textContent = activeCourse.title || "Apprenti";
         
-        // UPDATE CONTINUE CARD
         const continueSection = document.getElementById('continue-content-container');
-        
         const emojiMap = { 'informatique': '💻', 'algorithmique': '🧭', 'python': '🐍', 'math': '📐' };
         const cat = (activeCourse.category || '').toLowerCase();
         let icon = '📚';
@@ -146,73 +120,47 @@ async function loadCoursePath() {
             <button class="btn-primary" onclick="window.location.href='/app/course-details?id=${activeCourse.course_id}'">Continuer &rarr;</button>
         `;
 
-        // FETCH MODULES FOR PATH
-        const modRes = await fetch(`/api/courses/${activeCourse.course_id}?t=${Date.now()}`);
-        if (!modRes.ok) return;
-        const courseDetails = await modRes.json();
-        
-        const pathSection = document.getElementById('path-section');
-        pathSection.querySelector('.path-title').textContent = activeCourse.title;
-        pathSection.querySelector('.path-progress-text').textContent = `${activeCourse.progress}% complété`;
-        
-        // Calculate module completions based on progress ratio
-        const modules = courseDetails.modules || [];
-        if (modules.length === 0) return;
-        
-        const totalModules = modules.length;
-        const completedIndex = Math.floor((activeCourse.progress / 100) * totalModules);
-        
-        const stepperTrack = pathSection.querySelector('.stepper-track');
-        let html = `<div class="stepper-line"><div class="stepper-line-fill" style="width: ${activeCourse.progress}%;"></div></div>`;
-        
-        modules.forEach((mod, index) => {
-            let statusClass = '';
-            let iconHtml = '';
-            if (index < completedIndex) {
-                statusClass = 'completed';
-                iconHtml = '✓';
-            } else if (index === completedIndex) {
-                statusClass = 'current';
-                iconHtml = '📍';
-            } else {
-                iconHtml = index + 1;
-            }
+        fetchWithSWR(`/api/courses/${activeCourse.course_id}?t=${Date.now()}`, `swr_course_${activeCourse.course_id}`, (courseDetails) => {
+            const pathSection = document.getElementById('path-section');
+            pathSection.querySelector('.path-title').textContent = activeCourse.title;
+            pathSection.querySelector('.path-progress-text').textContent = `${activeCourse.progress}% complété`;
             
-            // Extract a short name for the step
-            let shortName = mod.title;
-            if (shortName.length > 15) shortName = shortName.substring(0, 12) + '...';
+            const modules = courseDetails.modules || [];
+            if (modules.length === 0) return;
             
-            html += `
-                <div class="step ${statusClass}">
-                    <div class="step-circle">${iconHtml}</div>
-                    <span>${shortName}</span>
-                </div>
-            `;
+            const totalModules = modules.length;
+            const completedIndex = Math.floor((activeCourse.progress / 100) * totalModules);
+            
+            const stepperTrack = pathSection.querySelector('.stepper-track');
+            let html = `<div class="stepper-line"><div class="stepper-line-fill" style="width: ${activeCourse.progress}%;"></div></div>`;
+            
+            modules.forEach((mod, index) => {
+                let statusClass = '';
+                let iconHtml = index < completedIndex ? '✓' : index === completedIndex ? '📍' : (index + 1);
+                if (index < completedIndex) statusClass = 'completed';
+                else if (index === completedIndex) statusClass = 'current';
+                
+                let shortName = mod.title;
+                if (shortName.length > 15) shortName = shortName.substring(0, 12) + '...';
+                
+                html += `
+                    <div class="step ${statusClass}">
+                        <div class="step-circle">${iconHtml}</div>
+                        <span>${shortName}</span>
+                    </div>
+                `;
+            });
+            
+            stepperTrack.innerHTML = html;
         });
-        
-        stepperTrack.innerHTML = html;
-
-    } catch (error) {
-        console.error('Error loading course path:', error);
-    }
+    });
 }
 
-async function loadEvents() {
+function loadEvents() {
     const eventsList = document.getElementById('events-list');
     if (!eventsList) return;
 
-    try {
-        eventsList.innerHTML = '<div class="loading">Chargement des événements...</div>';
-
-        const res = await fetch(`/api/live/upcoming?t=${Date.now()}`, { credentials: 'include' });
-
-        if (!res.ok) {
-            eventsList.innerHTML = '<div class="event-item">Aucun événement à venir</div>';
-            return;
-        }
-
-        const events = await res.json();
-
+    fetchWithSWR(`/api/live/upcoming?t=${Date.now()}`, 'swr_events', (events) => {
         if (!Array.isArray(events) || events.length === 0) {
             eventsList.innerHTML = '<div class="event-item">Aucun événement à venir</div>';
             return;
@@ -248,11 +196,7 @@ async function loadEvents() {
                 </div>
             `;
         }).join('');
-
-    } catch (error) {
-        console.error('Error loading events:', error);
-        eventsList.innerHTML = '<div class="event-item">Aucun événement à venir</div>';
-    }
+    });
 }
 
 
