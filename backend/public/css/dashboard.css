@@ -440,6 +440,7 @@
             "greeting stats"
             "continue session"
             "path quick";
+        align-items: start;
     }
     #greeting-section { grid-area: greeting; }
     #stats-section { grid-area: stats; }
