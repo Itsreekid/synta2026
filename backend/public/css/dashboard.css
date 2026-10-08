@@ -41,6 +41,12 @@
     border: 1px solid rgba(0, 0, 0, 0.03);
     position: relative;
     overflow: hidden;
+    transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.dash-card:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 12px 30px rgba(0, 0, 0, 0.08);
 }
 
 .card-header {
@@ -134,6 +140,12 @@
     align-items: center;
     justify-content: center;
     clip-path: polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%);
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+.level-badge-container:hover .level-icon {
+    transform: scale(1.1) rotate(5deg);
+    box-shadow: 0 0 15px rgba(249, 115, 22, 0.4);
 }
 
 .level-info {
@@ -166,6 +178,7 @@
     height: 100%;
     background: var(--orange-primary);
     border-radius: 4px;
+    transition: width 1s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .greeting-illustration {
@@ -191,6 +204,11 @@
     align-items: center;
     text-align: center;
     gap: 0.5rem;
+    transition: transform 0.2s ease;
+}
+
+.stat-item:hover {
+    transform: translateY(-3px) scale(1.05);
 }
 .stat-icon { font-size: 1.8rem; }
 .stat-info strong {
@@ -261,9 +279,14 @@
     border-radius: 24px;
     font-weight: 600;
     cursor: pointer;
-    transition: background 0.2s;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    box-shadow: 0 4px 14px rgba(249, 115, 22, 0.3);
 }
-.btn-primary:hover { background: #ea580c; }
+.btn-primary:hover { 
+    background: #ea580c; 
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(249, 115, 22, 0.4);
+}
 
 /* ── Session Card ── */
 #events-list {
@@ -320,6 +343,13 @@
     border-radius: 20px;
     font-size: 0.85rem;
     font-weight: 600;
+    transition: all 0.3s ease;
+}
+
+.event-item:hover .event-action {
+    background: var(--orange-primary);
+    color: white;
+    box-shadow: 0 4px 12px rgba(249, 115, 22, 0.2);
 }
 
 @keyframes pulse {
@@ -426,6 +456,11 @@
     font-size: 1.8rem;
     color: white;
     box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+    transition: box-shadow 0.3s ease, transform 0.3s ease;
+}
+
+.quick-btn:hover .quick-icon {
+    box-shadow: 0 8px 24px rgba(0,0,0,0.15);
 }
 .bg-orange { background: var(--orange-gradient); }
 .bg-dark { background: #1e293b; }
