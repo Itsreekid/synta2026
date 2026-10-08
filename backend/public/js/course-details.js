@@ -451,12 +451,13 @@ async function showVideoInMainArea(lesson, videoUrl, pdfUrl) {
             allLessons.forEach(lessonItem => {
                 // Remove previous active state
                 lessonItem.style.background = '';
+                lessonItem.style.borderLeft = '';
 
                 // Check if this is the current lesson by comparing onclick attribute
                 const onclickAttr = lessonItem.getAttribute('onclick');
                 if (onclickAttr && onclickAttr.includes(`'${lesson.id}'`)) {
-                    lessonItem.style.background = '#c3f3ff';
-                    lessonItem.style.borderLeft = '4px solid #667eea';
+                    lessonItem.style.background = '#fff7ed';
+                    lessonItem.style.borderLeft = '4px solid #f97316';
                 }
             });
         }, 100);
