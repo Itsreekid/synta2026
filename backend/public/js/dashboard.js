@@ -18,10 +18,15 @@ async function initializeDashboard() {
     }
 }
 
-async function loadUserData(user) {
+async function loadUserData() {
     try {
+        const res = await fetch('/api/user/me');
+        if (!res.ok) return;
+        const data = await res.json();
+        const user = data.user;
+
         // Update user info
-        const userName = user.user_metadata?.full_name || user.email?.split('@')[0] || 'Utilisateur';
+        const userName = user.user_metadata?.full_name || user.name || user.email?.split('@')[0] || 'Utilisateur';
         const userEmail = user.email || 'Non disponible';
 
         const userNameEl = document.getElementById('user-name');
@@ -48,6 +53,7 @@ async function loadUserData(user) {
 async function loadDashboardData() {
     try {
         await Promise.all([
+            loadUserData(),
             loadStats(),
             loadEvents(),
             loadCoursePath()
