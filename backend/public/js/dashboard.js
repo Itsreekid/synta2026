@@ -71,7 +71,7 @@ async function loadStats() {
 
         const completedEl = document.getElementById('completed-courses');
         if (completedEl) {
-            completedEl.textContent = stats.completedCourses;
+            completedEl.textContent = stats.totalCompletedLessons || 0;
         }
 
         const progressEl = document.getElementById('overall-progress');
