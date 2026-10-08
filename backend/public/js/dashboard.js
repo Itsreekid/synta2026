@@ -3,20 +3,25 @@ document.addEventListener('DOMContentLoaded', function () {
     initializeDashboard();
 });
 
-async function fetchWithSWR(url, cacheKey, callback) {
-    // 1. Instantly return from cache if available
+async function fetchWithSWR(url, cacheKey, callback, errorCallback) {
     const cached = sessionStorage.getItem(cacheKey);
+    let hasReturnedCached = false;
+    
     if (cached) {
-        try { callback(JSON.parse(cached)); } catch(e){}
+        try { 
+            callback(JSON.parse(cached)); 
+            hasReturnedCached = true;
+        } catch(e){}
     }
     
-    // 2. Fetch fresh data in the background
     try {
         const res = await fetch(url, { credentials: 'include' });
-        if (!res.ok) return;
+        if (!res.ok) {
+            if (!hasReturnedCached && errorCallback) errorCallback(`HTTP Error: ${res.status}`);
+            return;
+        }
         const fresh = await res.json();
         
-        // 3. Update DOM only if data changed
         const freshStr = JSON.stringify(fresh);
         if (freshStr !== cached) {
             sessionStorage.setItem(cacheKey, freshStr);
@@ -24,6 +29,7 @@ async function fetchWithSWR(url, cacheKey, callback) {
         }
     } catch (e) {
         console.error("SWR Error for", url, e);
+        if (!hasReturnedCached && errorCallback) errorCallback(e.message);
     }
 }
 
@@ -152,7 +158,17 @@ function loadCoursePath() {
             });
             
             stepperTrack.innerHTML = html;
+        }, (err) => {
+            document.querySelector('.stepper-track').innerHTML = `<div style="color:#ef4444; font-size:0.8rem;">Erreur de chargement. <a href="#" onclick="loadCoursePath(); return false;">Réessayer</a></div>`;
         });
+    }, (err) => {
+        const continueSection = document.getElementById('continue-content-container');
+        continueSection.innerHTML = `
+            <div style="padding:1rem; text-align:center; color:#ef4444; background:#fef2f2; border-radius:12px; width:100%;">
+                <p style="margin-bottom:0.5rem; font-weight:600;">Connexion impossible</p>
+                <button class="btn-primary" style="padding: 0.4rem 0.8rem; font-size: 0.8rem; background: #ef4444;" onclick="loadCoursePath()">Réessayer</button>
+            </div>
+        `;
     });
 }
 
@@ -196,6 +212,15 @@ function loadEvents() {
                 </div>
             `;
         }).join('');
+    }, (errorMsg) => {
+        eventsList.innerHTML = `
+            <div class="event-item" style="border: 1px solid #fecaca; background: #fef2f2;">
+                <div class="event-item-info">
+                    <h4 class="event-title" style="color: #ef4444;">Connexion impossible</h4>
+                    <div class="event-time" style="color: #b91c1c;">Veuillez vérifier votre connexion internet et réessayer.</div>
+                </div>
+                <button class="btn-primary" style="padding: 0.4rem 0.8rem; font-size: 0.8rem; background: #ef4444;" onclick="loadEvents()">Réessayer</button>
+            </div>`;
     });
 }
 
