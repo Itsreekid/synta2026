@@ -253,7 +253,7 @@ router.post("/api/admin/student/:id/enroll-partial", requireAdmin, async (req, r
   const client = await pool.connect();
   try {
     await ensureUsersSchema();
-    const { offerId, amountPaid } = req.body;
+    const { offerId, amountPaid, isExternal } = req.body;
     const userId = req.params.id;
 
     if (!offerId || amountPaid === undefined) {
@@ -284,18 +284,21 @@ router.post("/api/admin/student/:id/enroll-partial", requireAdmin, async (req, r
     const userResult = await client.query(`SELECT balance FROM users WHERE id = $1 FOR UPDATE`, [userId]);
     const balance = parseFloat(userResult.rows[0].balance || 0);
 
-    if (balance < paid) {
-      await client.query("ROLLBACK");
-      return res.status(400).json({ success: false, error: "Insufficient balance for this tranche" });
-    }
-
     const debtAmount = price - paid;
 
-    await client.query(`UPDATE users SET balance = balance - $1, debt = COALESCE(debt, 0) + $2 WHERE id = $3`, [paid, debtAmount, userId]);
+    if (!isExternal) {
+      if (balance < paid) {
+        await client.query("ROLLBACK");
+        return res.status(400).json({ success: false, error: "Solde insuffisant pour cette tranche" });
+      }
+      await client.query(`UPDATE users SET balance = balance - $1, debt = COALESCE(debt, 0) + $2 WHERE id = $3`, [paid, debtAmount, userId]);
+    } else {
+      await client.query(`UPDATE users SET debt = COALESCE(debt, 0) + $1 WHERE id = $2`, [debtAmount, userId]);
+    }
 
     await client.query(
       `INSERT INTO transactions (user_id, amount, type, status, description, created_at) VALUES ($1, $2, 'purchase', 'completed', $3, NOW())`,
-      [userId, paid, `Paiement partiel (Tranche) pour l'offre: ${offer.title}`]
+      [userId, paid, isExternal ? `Paiement externe partiel (Tranche) pour l'offre: ${offer.title}` : `Paiement partiel (Tranche) pour l'offre: ${offer.title}`]
     );
 
     const courseIds = (offer.course_ids || []).filter(Boolean);
@@ -324,7 +327,7 @@ router.post("/api/admin/student/:id/pay-debt", requireAdmin, async (req, res) =>
   const client = await pool.connect();
   try {
     await ensureUsersSchema();
-    const { amount } = req.body;
+    const { amount, isExternal } = req.body;
     const userId = req.params.id;
 
     if (!amount || amount <= 0) {
@@ -343,21 +346,24 @@ router.post("/api/admin/student/:id/pay-debt", requireAdmin, async (req, res) =>
     const debt = parseFloat(userResult.rows[0].debt || 0);
     const paid = parseFloat(amount);
 
-    if (balance < paid) {
-      await client.query("ROLLBACK");
-      return res.status(400).json({ success: false, error: "Insufficient balance" });
-    }
-
     if (paid > debt) {
       await client.query("ROLLBACK");
       return res.status(400).json({ success: false, error: "Amount exceeds debt" });
     }
 
-    await client.query(`UPDATE users SET balance = balance - $1, debt = debt - $1 WHERE id = $2`, [paid, userId]);
+    if (!isExternal) {
+      if (balance < paid) {
+        await client.query("ROLLBACK");
+        return res.status(400).json({ success: false, error: "Solde insuffisant" });
+      }
+      await client.query(`UPDATE users SET balance = balance - $1, debt = debt - $1 WHERE id = $2`, [paid, userId]);
+    } else {
+      await client.query(`UPDATE users SET debt = debt - $1 WHERE id = $2`, [paid, userId]);
+    }
 
     await client.query(
       `INSERT INTO transactions (user_id, amount, type, status, description, created_at) VALUES ($1, $2, 'purchase', 'completed', $3, NOW())`,
-      [userId, paid, `Paiement du reste de la dette`]
+      [userId, paid, isExternal ? `Paiement externe du reste de la dette` : `Paiement du reste de la dette`]
     );
 
     await client.query("COMMIT");

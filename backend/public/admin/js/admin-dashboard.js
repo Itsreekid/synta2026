@@ -127,12 +127,12 @@ const AdminDashboard = {
         }
     },
 
-    async enrollStudentPartial(studentId, offerId, amountPaid) {
+    async enrollStudentPartial(studentId, offerId, amountPaid, isExternal = false) {
         try {
             const response = await fetch(`/api/admin/student/${studentId}/enroll-partial`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ offerId, amountPaid })
+                body: JSON.stringify({ offerId, amountPaid, isExternal })
             });
             return await response.json();
         } catch (error) {
@@ -141,12 +141,12 @@ const AdminDashboard = {
         }
     },
 
-    async payStudentDebt(studentId, amount) {
+    async payStudentDebt(studentId, amount, isExternal = false) {
         try {
             const response = await fetch(`/api/admin/student/${studentId}/pay-debt`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ amount })
+                body: JSON.stringify({ amount, isExternal })
             });
             return await response.json();
         } catch (error) {

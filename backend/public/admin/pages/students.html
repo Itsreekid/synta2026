@@ -602,7 +602,13 @@
                     
                     ${debt > 0 ? `
                         <div style="margin-bottom: 1rem;">
-                            <label>Payer le reste de la dette (déduit du solde)</label>
+                            <label>Payer le reste de la dette</label>
+                            <div style="margin-top: 0.5rem; margin-bottom: 0.5rem;">
+                                <label style="display: flex; align-items: center; gap: 0.5rem; font-size: 0.9rem; cursor: pointer;">
+                                    <input type="checkbox" id="externalDebtPayment" checked>
+                                    Paiement externe (espèces/virement - ne pas toucher au solde)
+                                </label>
+                            </div>
                             <div style="display: flex; gap: 0.5rem; margin-top: 0.5rem;">
                                 <input type="number" id="payDebtAmount" max="${debt}" step="0.1" value="${debt}" style="width: 120px; padding: 0.5rem; border: 1px solid #ccc; border-radius: 4px;">
                                 <button class="btn btn-primary" onclick="handlePayDebt('${s.id}')">Payer</button>
@@ -615,11 +621,17 @@
                                 <option value="">Sélectionner une offre</option>
                                 ${optionsHtml}
                             </select>
+                            <div style="margin-top: 0.5rem; margin-bottom: 0.5rem;">
+                                <label style="display: flex; align-items: center; gap: 0.5rem; font-size: 0.9rem; cursor: pointer;">
+                                    <input type="checkbox" id="externalTranchePayment" checked>
+                                    Paiement externe (espèces/virement - ne pas toucher au solde)
+                                </label>
+                            </div>
                             <div style="display: flex; gap: 0.5rem; margin-top: 0.5rem; align-items: center;">
                                 <input type="number" id="trancheAmount" step="0.1" placeholder="Montant payé (Ex: 50)" style="flex: 1; padding: 0.5rem; border: 1px solid #ccc; border-radius: 4px;">
                                 <button class="btn btn-primary" onclick="handleEnrollPartial('${s.id}')">Inscrire</button>
                             </div>
-                            <small style="color: #64748b; margin-top: 0.5rem; display: block;">Le montant payé sera déduit du solde de l'étudiant. Le reste deviendra sa dette.</small>
+                            <small style="color: #64748b; margin-top: 0.5rem; display: block;">Le montant payé sera enregistré. Le reste deviendra sa dette.</small>
                         </div>
                     `}
                 </div>
@@ -652,12 +664,14 @@
         window.handleEnrollPartial = async (studentId) => {
             const offerId = document.getElementById('trancheOffer').value;
             const amount = parseFloat(document.getElementById('trancheAmount').value);
+            const isExternal = document.getElementById('externalTranchePayment').checked;
+
             if(!offerId || isNaN(amount) || amount < 0) {
                 alert("Veuillez sélectionner une offre et entrer un montant valide.");
                 return;
             }
-            if(confirm("Confirmer l'inscription avec paiement partiel ? Le montant sera déduit de son solde, et le reste sera sa dette.")) {
-                const res = await window.AdminDashboard.enrollStudentPartial(studentId, offerId, amount);
+            if(confirm(`Confirmer l'inscription avec paiement partiel ? ${isExternal ? "Paiement externe (le solde ne sera pas modifié)." : "Le montant sera déduit de son solde."} Le reste sera sa dette.`)) {
+                const res = await window.AdminDashboard.enrollStudentPartial(studentId, offerId, amount, isExternal);
                 if(res.success) {
                     alert("Inscription réussie ! Dette mise à jour.");
                     openStudentDetailsModal(studentId);
@@ -670,12 +684,14 @@
 
         window.handlePayDebt = async (studentId) => {
             const amount = parseFloat(document.getElementById('payDebtAmount').value);
+            const isExternal = document.getElementById('externalDebtPayment').checked;
+
             if(isNaN(amount) || amount <= 0) {
                 alert("Montant invalide.");
                 return;
             }
-            if(confirm(`Déduire ${amount} DT du solde de l'étudiant pour payer la dette ?`)) {
-                const res = await window.AdminDashboard.payStudentDebt(studentId, amount);
+            if(confirm(`Confirmer le paiement de ${amount} DT ? ${isExternal ? "Paiement externe (le solde ne sera pas modifié)." : "Déduit du solde de l'étudiant."}`)) {
+                const res = await window.AdminDashboard.payStudentDebt(studentId, amount, isExternal);
                 if(res.success) {
                     alert("Dette payée avec succès !");
                     openStudentDetailsModal(studentId);
