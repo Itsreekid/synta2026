@@ -143,7 +143,7 @@ async function loadCoursePath() {
                     <span class="course-progress-text">${activeCourse.progress}%</span>
                 </div>
             </div>
-            <button class="btn-primary" onclick="window.location.href='/app/courses/${activeCourse.course_id}'">Continuer &rarr;</button>
+            <button class="btn-primary" onclick="window.location.href='/app/course-details?id=${activeCourse.course_id}'">Continuer &rarr;</button>
         `;
 
         // FETCH MODULES FOR PATH
