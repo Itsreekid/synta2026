@@ -11,96 +11,153 @@
         <%- include('../../partials/sidebar', { active: 'dashboard' }) %>
 
         <section id="main-section" class="main-section">
-            <div class="dashboard-container">
+            <div class="dashboard-container ltr-design" dir="ltr">
 
                 <!-- ══ GREETING CARD ══ -->
-                <div class="dashboard-area-greeting">
-                    <div class="greeting-card" dir="rtl">
-                        <div class="greeting-avatar" id="user-avatar">
-                            <%= (typeof profile !== 'undefined' && profile) ? profile.initial : 'U' %>
+                <div class="dash-card greeting-card" id="greeting-section">
+                    <div class="greeting-content">
+                        <h1 class="greeting-title">Salut <span id="user-name">...</span> ! 👋</h1>
+                        <p class="greeting-subtitle">Prêt à continuer ton parcours en informatique ?<br><span>Chaque petit pas compte ! 💪</span></p>
+                        <div class="level-badge-container">
+                            <div class="level-icon">7</div>
+                            <div class="level-info">
+                                <strong>Niveau 7</strong>
+                                <span>Python Explorer</span>
+                            </div>
+                            <div class="level-progress-wrapper">
+                                <span class="level-xp">520 / 1000 XP</span>
+                                <div class="progress-bar-bg"><div class="progress-bar-fill" style="width: 52%;"></div></div>
+                            </div>
                         </div>
-                        <div class="greeting-text">
-                            <div class="greeting-label">مرحباً 👋</div>
-                            <h1 class="greeting-name" id="user-name">
-                                <%= (typeof profile !== 'undefined' && profile && profile.full_name)
-                                    ? profile.full_name.split(' ')[0]
-                                    : (typeof user !== 'undefined' && user && user.email)
-                                        ? user.email.split('@')[0]
-                                        : 'Étudiant' %>
-                            </h1>
-                            <div class="greeting-sub">استعد لحصة تعلم رائعة!</div>
-                        </div>
+                    </div>
+                    <div class="greeting-illustration">
+                        👨‍💻
                     </div>
                 </div>
 
                 <!-- ══ STAT PILLS ══ -->
-                <div class="dashboard-area-stats">
-                    <div class="stat-pills">
-                        <div class="stat-pill">
-                            <span class="pill-icon">📚</span>
-                            <div class="pill-body">
+                <div class="dash-card stats-card" id="stats-section">
+                    <div class="card-header">
+                        <h3>🔥 Ta progression</h3>
+                        <p>Continue comme ça !</p>
+                    </div>
+                    <div class="stats-grid">
+                        <div class="stat-item">
+                            <span class="stat-icon">📖</span>
+                            <div class="stat-info">
                                 <strong id="completed-courses">0</strong>
-                                <span>دروس</span>
+                                <span>Cours complétés</span>
                             </div>
                         </div>
-                        <div class="stat-pill">
-                            <span class="pill-icon">📈</span>
-                            <div class="pill-body">
+                        <div class="stat-item">
+                            <span class="stat-icon">🎯</span>
+                            <div class="stat-info">
                                 <strong id="overall-progress">0%</strong>
-                                <span>تقدم</span>
+                                <span>Progression globale</span>
                             </div>
                         </div>
-                        <div class="stat-pill">
-                            <span class="pill-icon">🏆</span>
-                            <div class="pill-body">
+                        <div class="stat-item">
+                            <span class="stat-icon">🏆</span>
+                            <div class="stat-info">
                                 <strong id="achievements">0</strong>
-                                <span>إنجازات</span>
+                                <span>Badges</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ══ CONTINUE LEARNING ══ -->
+                <div class="dash-card continue-card" id="continue-section">
+                    <div class="card-header">
+                        <h3>🚀 Continuer ton apprentissage</h3>
+                    </div>
+                    <div class="continue-content">
+                        <div class="course-logo">🐍</div>
+                        <div class="course-details">
+                            <h4>Python</h4>
+                            <p>Les conditions</p>
+                            <span class="chapter-badge">🔄 Chapitre 4 - Leçon 3</span>
+                            <div class="course-progress-container">
+                                <div class="progress-bar-bg"><div class="progress-bar-fill" style="width: 82%;"></div></div>
+                                <span class="course-progress-text">82%</span>
+                            </div>
+                            <span class="time-left">⏱ ~ 18 min restantes</span>
+                        </div>
+                        <button class="btn-primary" onclick="window.location.href='/app/courses'">Continuer &rarr;</button>
+                    </div>
+                </div>
+
+                <!-- ══ UPCOMING EVENTS ══ -->
+                <div class="dash-card session-card" id="session-section">
+                    <div class="card-header flex-between">
+                        <h3>📅 Prochaine session</h3>
+                        <a href="/app/calendar" class="link-view-all">Voir toutes &rarr;</a>
+                    </div>
+                    <div id="events-list">
+                        <div class="loading-state">Chargement...</div>
+                    </div>
+                </div>
+
+                <!-- ══ TON PARCOURS ══ -->
+                <div class="dash-card path-card" id="path-section">
+                    <div class="card-header flex-between">
+                        <h3>🧭 Ton parcours</h3>
+                        <span class="path-progress-text">72% complété</span>
+                    </div>
+                    <div class="path-stepper">
+                        <div class="path-title">Algorithmique</div>
+                        <div class="stepper-track">
+                            <div class="stepper-line"><div class="stepper-line-fill" style="width: 50%;"></div></div>
+                            <div class="step completed">
+                                <div class="step-circle">✓</div>
+                                <span>Bases</span>
+                            </div>
+                            <div class="step completed">
+                                <div class="step-circle">✓</div>
+                                <span>Conditions</span>
+                            </div>
+                            <div class="step current">
+                                <div class="step-circle">📍</div>
+                                <span>Boucles</span>
+                            </div>
+                            <div class="step">
+                                <div class="step-circle"></div>
+                                <span>Fonctions</span>
+                            </div>
+                            <div class="step">
+                                <div class="step-circle"></div>
+                                <span>Problèmes</span>
                             </div>
                         </div>
                     </div>
                 </div>
 
                 <!-- ══ QUICK ACTION GRID ══ -->
-                <div class="dashboard-area-actions">
-                    <div class="section-header" dir="rtl">
-                        <h2 class="section-title">⚡ الوصول السريع</h2>
+                <div class="dash-card quick-card" id="quick-section">
+                    <div class="card-header">
+                        <h3>⚡ Accès rapide</h3>
                     </div>
-                    <div class="shortcut-grid">
-                        <a href="/app/courses" class="shortcut-card" data-turbo="true">
-                            <div class="shortcut-icon" style="background:linear-gradient(135deg,#6c63ff,#4a42d6)">📚</div>
-                            <span>الدروس</span>
+                    <div class="quick-grid">
+                        <a href="/app/courses" class="quick-btn" data-turbo="true">
+                            <div class="quick-icon bg-orange">📖</div>
+                            <span>Cours</span>
                         </a>
-                        <a href="/app/calendar" class="shortcut-card" data-turbo="true">
-                            <div class="shortcut-icon" style="background:linear-gradient(135deg,#f7941d,#f05a28)">📅</div>
-                            <span>التقويم</span>
-                        </a>
-                        <a href="/app/paiement" class="shortcut-card" data-turbo="true">
-                            <div class="shortcut-icon" style="background:linear-gradient(135deg,#28c76f,#1a9e53)">💳</div>
-                            <span>المحفظة</span>
-                        </a>
-                        <a href="/app/offers" class="shortcut-card" data-turbo="true">
-                            <div class="shortcut-icon" style="background:linear-gradient(135deg,#ff6584,#e0405f)">🎁</div>
-                            <span>العروض</span>
-                        </a>
-                        <a href="/app/code-pratique" class="shortcut-card" data-turbo="true">
-                            <div class="shortcut-icon" style="background:linear-gradient(135deg,#00b4d8,#0077b6)">💻</div>
+                        <a href="/app/code-pratique" class="quick-btn" data-turbo="true">
+                            <div class="quick-icon bg-dark">💻</div>
                             <span>Code</span>
                         </a>
-                        <a href="/app/profile" class="shortcut-card" data-turbo="true">
-                            <div class="shortcut-icon" style="background:linear-gradient(135deg,#9b59b6,#6c3483)">👤</div>
-                            <span>ملفي</span>
+                        <a href="/app/calendar" class="quick-btn" data-turbo="true">
+                            <div class="quick-icon bg-dark">📅</div>
+                            <span>Calendrier</span>
                         </a>
-                    </div>
-                </div>
-
-                <!-- ══ UPCOMING EVENTS ══ -->
-                <div class="dashboard-area-events">
-                    <div class="section-header" dir="rtl">
-                        <h2 class="section-title">📅 الجلسات القادمة</h2>
-                        <a href="/app/calendar" class="see-all-link">عرض الكل</a>
-                    </div>
-                    <div class="events-card" id="events-list">
-                        <div class="loading-state">جاري التحميل...</div>
+                        <a href="/app/paiement" class="quick-btn" data-turbo="true">
+                            <div class="quick-icon bg-dark">💳</div>
+                            <span>Mon solde</span>
+                        </a>
+                        <a href="/app/profile" class="quick-btn" data-turbo="true">
+                            <div class="quick-icon bg-dark">👤</div>
+                            <span>Profil</span>
+                        </a>
                     </div>
                 </div>
 

@@ -198,14 +198,14 @@ async function loadEvents() {
             const isLive = event.status === 'live';
 
             return `
-                <div class="event-item" style="border-right: 3px solid #6c63ff; cursor: pointer;"
-                     onclick="window.location.href='/app/calendar'">
-                    <div class="event-date">📅 ${dateString} - ${timeString}</div>
-                    <div class="event-title" style="display: flex; align-items: center; gap: 12px;">
-                        ${event.title}
-                        ${isLive ? '<span class="live-indicator">🔴 En direct</span>' : ''}
+                <div class="event-item" onclick="window.location.href='/app/calendar'">
+                    <div class="event-item-info">
+                        <span class="event-tag">📅 ${event.course_title || 'Session'}</span>
+                        <h4 class="event-title">${event.title}</h4>
+                        <div class="event-time">🗓 ${dateString} - ${timeString}</div>
+                        ${isLive ? '<div class="event-live">Session live</div>' : ''}
                     </div>
-                    <div class="event-description">${event.course_title || ''}</div>
+                    <div class="event-action">Rejoindre &rarr;</div>
                 </div>
             `;
         }).join('');
