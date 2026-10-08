@@ -123,13 +123,7 @@ async function loadCoursePath() {
         document.querySelector('.level-info span').textContent = activeCourse.title || "Apprenti";
         
         // UPDATE CONTINUE CARD
-        const continueSection = document.getElementById('continue-section');
-        continueSection.querySelector('h4').textContent = activeCourse.title;
-        continueSection.querySelector('p').textContent = activeCourse.category || 'Formation';
-        continueSection.querySelector('.chapter-badge').textContent = 'Progression globale';
-        continueSection.querySelector('.course-progress-text').textContent = `${activeCourse.progress}%`;
-        continueSection.querySelector('.progress-bar-fill').style.width = `${activeCourse.progress}%`;
-        continueSection.querySelector('.btn-primary').onclick = () => window.location.href = `/app/courses/${activeCourse.course_id}`;
+        const continueSection = document.getElementById('continue-content-container');
         
         const emojiMap = { 'informatique': '💻', 'algorithmique': '🧭', 'python': '🐍', 'math': '📐' };
         const cat = (activeCourse.category || '').toLowerCase();
@@ -137,7 +131,20 @@ async function loadCoursePath() {
         for (const key in emojiMap) {
             if (cat.includes(key) || (activeCourse.title && activeCourse.title.toLowerCase().includes(key))) icon = emojiMap[key];
         }
-        continueSection.querySelector('.course-logo').textContent = icon;
+
+        continueSection.innerHTML = `
+            <div class="course-logo">${icon}</div>
+            <div class="course-details">
+                <h4>${activeCourse.title}</h4>
+                <p>${activeCourse.category || 'Formation'}</p>
+                <span class="chapter-badge">Progression globale</span>
+                <div class="course-progress-container">
+                    <div class="progress-bar-bg"><div class="progress-bar-fill" style="width: ${activeCourse.progress}%;"></div></div>
+                    <span class="course-progress-text">${activeCourse.progress}%</span>
+                </div>
+            </div>
+            <button class="btn-primary" onclick="window.location.href='/app/courses/${activeCourse.course_id}'">Continuer &rarr;</button>
+        `;
 
         // FETCH MODULES FOR PATH
         const modRes = await fetch(`/api/courses/${activeCourse.course_id}?t=${Date.now()}`);
