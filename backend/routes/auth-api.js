@@ -237,7 +237,7 @@ router.get("/api/auth/magic-login", async (req, res) => {
     const refresh_token = signRefreshToken(user.id);
     setSessionCookies(res, { access_token, refresh_token });
 
-    res.redirect("/user/dashboard");
+    res.redirect("/dashboard");
   } catch (err) {
     console.error("[auth/magic-login] Error:", err.message);
     return res.status(401).send("Token expired or invalid");
