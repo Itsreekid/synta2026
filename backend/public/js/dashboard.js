@@ -49,7 +49,8 @@ async function loadDashboardData() {
     try {
         await Promise.all([
             loadStats(),
-            loadEvents()
+            loadEvents(),
+            loadCoursePath()
         ]);
     } catch (error) {
         console.error('Error loading dashboard data:', error);
@@ -77,93 +78,108 @@ async function loadStats() {
             achievementsEl.textContent = stats.achievements;
         }
 
-        const activeDaysEl = document.getElementById('active-days');
-        if (activeDaysEl) {
-            activeDaysEl.textContent = stats.activeDays;
-        }
+        // Calculate Level (100 XP per completed course, 10 XP per active course progress point)
+        const xp = (stats.completedCourses * 500) + (stats.overallProgress * 10);
+        const level = Math.floor(xp / 1000) + 1;
+        const currentLevelXp = xp % 1000;
+        
+        const levelIcon = document.querySelector('.level-icon');
+        const levelStrong = document.querySelector('.level-info strong');
+        const levelXpLabel = document.querySelector('.level-xp');
+        const levelProgressBar = document.querySelector('.level-progress-wrapper .progress-bar-fill');
+        
+        if (levelIcon) levelIcon.textContent = level;
+        if (levelStrong) levelStrong.textContent = `Niveau ${level}`;
+        if (levelXpLabel) levelXpLabel.textContent = `${currentLevelXp} / 1000 XP`;
+        if (levelProgressBar) levelProgressBar.style.width = `${(currentLevelXp / 1000) * 100}%`;
 
     } catch (error) {
         console.error('Error loading stats:', error);
     }
 }
 
-async function loadRecentActivity() {
+async function loadCoursePath() {
     try {
-        const activityList = document.getElementById('activity-list');
+        const res = await fetch(`/api/courses/user/my-courses?t=${Date.now()}`, { credentials: 'include' });
+        if (!res.ok) return;
+        const courses = await res.json();
+        
+        if (!courses || courses.length === 0) {
+            document.getElementById('continue-section').style.display = 'none';
+            document.getElementById('path-section').style.display = 'none';
+            document.querySelector('.level-info span').textContent = "Débutant";
+            return;
+        }
+        
+        // Get most recent active course
+        const activeCourse = courses.find(c => c.progress < 100) || courses[0];
+        document.querySelector('.level-info span').textContent = activeCourse.title || "Apprenti";
+        
+        // UPDATE CONTINUE CARD
+        const continueSection = document.getElementById('continue-section');
+        continueSection.querySelector('h4').textContent = activeCourse.title;
+        continueSection.querySelector('p').textContent = activeCourse.category || 'Formation';
+        continueSection.querySelector('.chapter-badge').textContent = 'Progression globale';
+        continueSection.querySelector('.course-progress-text').textContent = `${activeCourse.progress}%`;
+        continueSection.querySelector('.progress-bar-fill').style.width = `${activeCourse.progress}%`;
+        continueSection.querySelector('.btn-primary').onclick = () => window.location.href = `/app/courses/${activeCourse.course_id}`;
+        
+        const emojiMap = { 'informatique': '💻', 'algorithmique': '🧭', 'python': '🐍', 'math': '📐' };
+        const cat = (activeCourse.category || '').toLowerCase();
+        let icon = '📚';
+        for (const key in emojiMap) {
+            if (cat.includes(key) || (activeCourse.title && activeCourse.title.toLowerCase().includes(key))) icon = emojiMap[key];
+        }
+        continueSection.querySelector('.course-logo').textContent = icon;
 
-        // Simulate activity data
-        const activities = [
-            {
-                icon: '🎮',
-                title: 'Leçon complétée dans le jeu Python',
-                description: 'Il y a 2 heures',
-                color: '#ff7b1a'
-            },
-            {
-                icon: '📚',
-                title: 'Inscrit à un nouveau cours',
-                description: 'Hier',
-                color: '#28a745'
-            },
-            {
-                icon: '🏆',
-                title: 'Nouvelle réalisation obtenue',
-                description: 'Il y a 2 jours',
-                color: '#ffc107'
-            },
-            {
-                icon: '📝',
-                title: 'Test complété',
-                description: 'Il y a 3 jours',
-                color: '#007bff'
+        // FETCH MODULES FOR PATH
+        const modRes = await fetch(`/api/courses/${activeCourse.course_id}?t=${Date.now()}`);
+        if (!modRes.ok) return;
+        const courseDetails = await modRes.json();
+        
+        const pathSection = document.getElementById('path-section');
+        pathSection.querySelector('.path-title').textContent = activeCourse.title;
+        pathSection.querySelector('.path-progress-text').textContent = `${activeCourse.progress}% complété`;
+        
+        // Calculate module completions based on progress ratio
+        const modules = courseDetails.modules || [];
+        if (modules.length === 0) return;
+        
+        const totalModules = modules.length;
+        const completedIndex = Math.floor((activeCourse.progress / 100) * totalModules);
+        
+        const stepperTrack = pathSection.querySelector('.stepper-track');
+        let html = `<div class="stepper-line"><div class="stepper-line-fill" style="width: ${activeCourse.progress}%;"></div></div>`;
+        
+        modules.forEach((mod, index) => {
+            let statusClass = '';
+            let iconHtml = '';
+            if (index < completedIndex) {
+                statusClass = 'completed';
+                iconHtml = '✓';
+            } else if (index === completedIndex) {
+                statusClass = 'current';
+                iconHtml = '📍';
+            } else {
+                iconHtml = index + 1;
             }
-        ];
-
-        activityList.innerHTML = activities.map(activity => `
-            <div class="activity-item">
-                <div class="activity-icon" style="background: ${activity.color}">
-                    ${activity.icon}
+            
+            // Extract a short name for the step
+            let shortName = mod.title;
+            if (shortName.length > 15) shortName = shortName.substring(0, 12) + '...';
+            
+            html += `
+                <div class="step ${statusClass}">
+                    <div class="step-circle">${iconHtml}</div>
+                    <span>${shortName}</span>
                 </div>
-                <div class="activity-content">
-                    <h4>${activity.title}</h4>
-                    <p>${activity.description}</p>
-                </div>
-            </div>
-        `).join('');
+            `;
+        });
+        
+        stepperTrack.innerHTML = html;
 
     } catch (error) {
-        console.error('Error loading activity:', error);
-        document.getElementById('activity-list').innerHTML = '<div class="loading">Erreur de chargement de l\'activité</div>';
-    }
-}
-
-async function loadProgress() {
-    try {
-        const progressList = document.getElementById('progress-list');
-
-        // Simulate progress data
-        const progressData = [
-            { title: 'Cours Python de base', percentage: 0 },
-            { title: 'Cours Excel avancé', percentage: 0 },
-            { title: 'Cours Algorithmes', percentage: 0 },
-            { title: 'Cours Bases de données', percentage: 0 }
-        ];
-
-        progressList.innerHTML = progressData.map(progress => `
-            <div class="progress-item">
-                <div class="progress-header">
-                    <span class="progress-title">${progress.title}</span>
-                    <span class="progress-percentage">${progress.percentage}%</span>
-                </div>
-                <div class="progress-bar">
-                    <div class="progress-fill" style="width: ${progress.percentage}%"></div>
-                </div>
-            </div>
-        `).join('');
-
-    } catch (error) {
-        console.error('Error loading progress:', error);
-        document.getElementById('progress-list').innerHTML = '<div class="loading">Erreur de chargement du progrès</div>';
+        console.error('Error loading course path:', error);
     }
 }
 
@@ -187,11 +203,20 @@ async function loadEvents() {
             eventsList.innerHTML = '<div class="event-item">Aucun événement à venir</div>';
             return;
         }
+        
+        // Sort events chronologically to ensure the closest is first
+        events.sort((a, b) => new Date(a.scheduled_at) - new Date(b.scheduled_at));
+
+        // Find the closest date
+        const closestDate = new Date(events[0].scheduled_at).toDateString();
+        
+        // Filter to only include events on that closest date
+        const nextEvents = events.filter(e => new Date(e.scheduled_at).toDateString() === closestDate);
 
         const monthNames = ['janvier', 'février', 'mars', 'avril', 'mai', 'juin',
                             'juillet', 'août', 'septembre', 'octobre', 'novembre', 'décembre'];
 
-        eventsList.innerHTML = events.map(event => {
+        eventsList.innerHTML = nextEvents.map(event => {
             const d = new Date(event.scheduled_at);
             const dateString = `${d.getDate()} ${monthNames[d.getMonth()]}`;
             const timeString = d.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
