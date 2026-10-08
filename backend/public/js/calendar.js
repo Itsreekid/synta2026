@@ -155,9 +155,9 @@ function renderCalendar() {
         if (dayEvents.length > 0) {
             dayColumn.classList.add('has-events');
             // Set entire border color to match the first event's color
-            dayColumn.style.border = `3px solid ${dayEvents[0].color || '#f97316'}`;
+            dayColumn.style.border = `3px solid ${dayEvents[0].color || '#667eea'}`;
         }
-        if (isSelected) dayColumn.style.border = '3px solid #ea580c';
+        if (isSelected) dayColumn.style.border = '3px solid #ffc107';
 
         // Add click handler for mobile interaction
         dayColumn.style.cursor = 'pointer';
@@ -196,7 +196,42 @@ function renderCalendar() {
         calendarGrid.appendChild(dayColumn);
     }
 
-    // Removed expandedCard logic to simplify mobile view
+    // Create expanded card (mobile only) - appears below the week row
+    if (selectedDayData) {
+        const expandedCard = document.createElement('div');
+        expandedCard.className = 'day-column expanded-card';
+        expandedCard.id = 'expanded-card';
+
+        // Add 'today' class if the selected day is today
+        if (selectedDayData.dateObj.getTime() === today.getTime()) {
+            expandedCard.classList.add('today');
+        }
+
+        const cardHeader = document.createElement('div');
+        cardHeader.className = 'day-header';
+        cardHeader.innerHTML = `
+            <div class="day-name">${selectedDayData.dayName}</div>
+            <div class="day-date">${selectedDayData.date}</div>
+            <div class="day-month">${selectedDayData.month}</div>
+        `;
+        expandedCard.appendChild(cardHeader);
+
+        const cardEventsContainer = document.createElement('div');
+        cardEventsContainer.className = 'day-events';
+        cardEventsContainer.id = 'expanded-card-events';
+
+        if (selectedDayData.events.length > 0) {
+            selectedDayData.events.forEach(event => {
+                const eventElement = createEventElement(event, selectedDayData.dateObj);
+                cardEventsContainer.appendChild(eventElement);
+            });
+        } else {
+            cardEventsContainer.innerHTML = '<div class="no-events">Aucun événement</div>';
+        }
+
+        expandedCard.appendChild(cardEventsContainer);
+        calendarGrid.appendChild(expandedCard);
+    }
 
     // Update event count
     if (totalEventsCount === 0) {
@@ -209,25 +244,23 @@ function renderCalendar() {
 
     // Store allDaysData globally for updateExpandedCard function
     window.calendarDaysData = allDaysData;
-    
-    // Auto-scroll to today if on mobile
-    if (window.innerWidth <= 480) {
-        setTimeout(() => {
-            const todayCol = document.querySelector('.day-column.today');
-            if (todayCol) {
-                todayCol.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
-            } else {
-                const firstCol = document.querySelector('.day-column');
-                if (firstCol) firstCol.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
-            }
-        }, 100);
-    }
 }
 
 // Function to update the expanded card when a day is clicked
 function updateExpandedCard(dayIndex) {
-    // Deprecated for horizontal scroll
-}
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    const selectedDay = window.calendarDaysData[dayIndex];
+    if (!selectedDay) return;
+
+    // Update compact row - remove 'today' class from all, add to selected
+    const allDayColumns = document.querySelectorAll('.calendar-grid > .day-column:not(.expanded-card)');
+    allDayColumns.forEach((col, index) => {
+        col.classList.remove('today');
+        if (index === dayIndex) {
+            col.classList.add('today');
+        }
     });
 
     // Update expanded card
@@ -296,7 +329,7 @@ function getEventsForDate(date) {
 function createEventElement(event, date) {
     const eventElement = document.createElement('div');
     eventElement.className = 'calendar-event';
-    eventElement.style.borderLeftColor = event.color || '#f97316';
+    eventElement.style.borderLeftColor = event.color || '#667eea';
 
     const iconEl = document.createElement('div');
     iconEl.className = 'event-icon';
