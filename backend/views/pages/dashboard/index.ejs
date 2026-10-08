@@ -19,14 +19,14 @@
                         <h1 class="greeting-title">Salut <span id="user-name">...</span> ! 👋</h1>
                         <p class="greeting-subtitle">Prêt à continuer ton parcours en informatique ?<br><span>Chaque petit pas compte ! 💪</span></p>
                         <div class="level-badge-container">
-                            <div class="level-icon">7</div>
+                            <div class="level-icon">1</div>
                             <div class="level-info">
-                                <strong>Niveau 7</strong>
-                                <span>Python Explorer</span>
+                                <strong>Niveau 1</strong>
+                                <span>Étudiant</span>
                             </div>
                             <div class="level-progress-wrapper">
-                                <span class="level-xp">520 / 1000 XP</span>
-                                <div class="progress-bar-bg"><div class="progress-bar-fill" style="width: 52%;"></div></div>
+                                <span class="level-xp">0 / 100 XP</span>
+                                <div class="progress-bar-bg"><div class="progress-bar-fill" style="width: 0%;"></div></div>
                             </div>
                         </div>
                     </div>
@@ -71,19 +71,8 @@
                     <div class="card-header">
                         <h3>🚀 Continuer ton apprentissage</h3>
                     </div>
-                    <div class="continue-content">
-                        <div class="course-logo">🐍</div>
-                        <div class="course-details">
-                            <h4>Python</h4>
-                            <p>Les conditions</p>
-                            <span class="chapter-badge">🔄 Chapitre 4 - Leçon 3</span>
-                            <div class="course-progress-container">
-                                <div class="progress-bar-bg"><div class="progress-bar-fill" style="width: 82%;"></div></div>
-                                <span class="course-progress-text">82%</span>
-                            </div>
-                            <span class="time-left">⏱ ~ 18 min restantes</span>
-                        </div>
-                        <button class="btn-primary" onclick="window.location.href='/app/courses'">Continuer &rarr;</button>
+                    <div class="continue-content" id="continue-content-container">
+                        <div class="loading-state">Chargement...</div>
                     </div>
                 </div>
 
