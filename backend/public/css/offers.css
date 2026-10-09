@@ -318,8 +318,8 @@
         scroll-snap-type: x mandatory;
         scroll-behavior: smooth;
         justify-content: flex-start;
-        /* Calculate precise padding to perfectly center a 280px card on any mobile screen */
-        padding: 1rem calc(50vw - 140px) 2rem calc(50vw - 140px); 
+        /* Standard padding, aligning cleanly to the left */
+        padding: 1rem 1rem 2rem 1rem;
         gap: 1.5rem;
         -webkit-overflow-scrolling: touch;
         
@@ -335,7 +335,7 @@
     .offer-card {
         flex: 0 0 280px; /* Small enough so the next card clearly peeks in */
         max-width: 280px;
-        scroll-snap-align: center;
+        scroll-snap-align: center; /* keep center or start? Center is softer, let's just keep center but with normal padding */
         margin: 0; /* Remove auto margin to respect gap */
     }
 
