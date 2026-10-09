@@ -227,6 +227,10 @@
     padding: 0.6rem 1.5rem;
     flex: 1;
     direction: rtl;
+    overflow-y: auto; /* Allows scrolling inside the card if screen is too short */
+    /* Custom thin scrollbar for a premium look */
+    scrollbar-width: thin;
+    scrollbar-color: var(--oc-border) transparent;
 }
 
 .feature-item {
