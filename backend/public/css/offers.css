@@ -53,8 +53,8 @@
     flex-direction: column;
     position: relative;
     transition: all 0.4s cubic-bezier(0.165, 0.84, 0.44, 1);
-    flex: 1 1 280px;
-    max-width: 320px;
+    flex: 1 1 350px;
+    max-width: 380px;
     width: 100%;
     margin: 0 auto;
     z-index: 1;
@@ -74,10 +74,10 @@
 
 @media (min-width: 768px) {
     .offer-card.featured {
-        transform: scale(1.03);
+        transform: scale(1.05);
     }
     .offer-card.featured:hover {
-        transform: scale(1.03) translateY(-8px);
+        transform: scale(1.05) translateY(-8px);
     }
 }
 
@@ -304,6 +304,11 @@
     display: none !important;
 }
 
+/* Hide mobile navigation by default */
+.mobile-carousel-nav {
+    display: none;
+}
+
 @media (max-width: 768px) {
     .offers-list {
         flex-direction: row;
@@ -327,8 +332,8 @@
     }
 
     .offer-card {
-        flex: 0 0 85%; /* Take up 85% of the screen width so the next card peeks in */
-        max-width: none;
+        flex: 0 0 280px; /* Small enough so the next card clearly peeks in */
+        max-width: 280px;
         scroll-snap-align: center;
         margin: 0; /* Remove auto margin to respect gap */
     }
@@ -339,5 +344,35 @@
 
     .current-price {
         font-size: 3rem;
+    }
+
+    /* Show and style mobile navigation */
+    .mobile-carousel-nav {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        gap: 2rem;
+        margin-top: -1rem;
+        padding-bottom: 2rem;
+    }
+
+    .mobile-carousel-nav .nav-btn {
+        background: white;
+        border: 1px solid var(--border-color);
+        width: 44px;
+        height: 44px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: var(--primary-blue);
+        box-shadow: 0 4px 10px rgba(0,0,0,0.05);
+        cursor: pointer;
+        transition: all 0.2s ease;
+    }
+
+    .mobile-carousel-nav .nav-btn:active {
+        background: var(--bg-light);
+        transform: scale(0.95);
     }
 }
