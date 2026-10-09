@@ -511,15 +511,30 @@
                 
                 // Populate features
                 document.getElementById('featuresList').innerHTML = '';
-                const featuresData = offer.features || [];
-                let featuresArray = [];
-                if (Array.isArray(featuresData)) {
-                    featuresArray = featuresData.map(f => typeof f === 'string' ? {text: f, active: true} : f);
-                } else if (typeof featuresData === 'object' && featuresData !== null) {
-                    featuresArray = Object.entries(featuresData).map(([text, active]) => ({text, active: !!active}));
+                let featuresData = offer.features;
+                if (typeof featuresData === 'string') {
+                    try { featuresData = JSON.parse(featuresData); } catch(e) { featuresData = []; }
                 }
                 
-                if (featuresArray.length === 0) {
+                let featuresArray = [];
+                if (featuresData && Array.isArray(featuresData) && featuresData.length > 0) {
+                    featuresArray = featuresData.map(f => typeof f === 'string' ? {text: f, active: true} : f);
+                } else if (featuresData && typeof featuresData === 'object' && Object.keys(featuresData).length > 0) {
+                    // Try to parse if it's a dict like {"live": true}
+                    if (!featuresData.text) {
+                        featuresArray = Object.entries(featuresData).map(([text, active]) => ({text, active: !!active}));
+                    } else {
+                        featuresArray = [featuresData];
+                    }
+                } else if (window.OFFERS_FEATURES_CONFIG) {
+                    // Fallback to config if available
+                    const fallback = window.OFFERS_FEATURES_CONFIG.getFeatures(offer);
+                    if (fallback && fallback.length > 0) {
+                        featuresArray = fallback;
+                    }
+                }
+                
+                if (!featuresArray || featuresArray.length === 0) {
                     addFeatureRow('', true);
                 } else {
                     featuresArray.forEach(f => addFeatureRow(f.text, f.active));
@@ -575,6 +590,8 @@
             if (loader) loader.style.display = show ? 'flex' : 'none';
         }
     </script>
+    <!-- Include offers-config.js so editOffer can fall back to it if the DB is empty -->
+    <script src="/js/offers-config.js"></script>
 </body>
 
 </html>
