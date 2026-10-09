@@ -127,6 +127,8 @@
             padding: 2rem;
             border-radius: 16px;
             box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
+            max-height: 90vh;
+            overflow-y: auto;
         }
 
         .form-group {
@@ -250,6 +252,12 @@
                 <div class="form-group">
                     <label>Description</label>
                     <textarea id="description" rows="3" placeholder="Description de l'offre"></textarea>
+                </div>
+                <div class="form-group">
+                    <label>Image de l'offre (Optionnelle)</label>
+                    <input type="file" id="offerImageInput" accept="image/*">
+                    <input type="hidden" id="offerImageUrl">
+                    <img id="offerImagePreview" style="max-width: 150px; margin-top: 10px; display: none; border-radius: 8px; border: 1px solid #e2e8f0;">
                 </div>
                 <div class="form-group">
                     <label style="display: flex; justify-content: space-between; align-items: center;">
@@ -482,6 +490,9 @@
                 document.getElementById('modalTitle').textContent = 'Nouvelle Offre';
                 document.getElementById('offerForm').reset();
                 document.getElementById('offerId').value = '';
+                document.getElementById('offerImageUrl').value = '';
+                document.getElementById('offerImagePreview').style.display = 'none';
+                document.getElementById('offerImagePreview').src = '';
                 
                 document.getElementById('is_active').checked = true;
                 if(typeof updateSwitchUI === 'function') updateSwitchUI();
@@ -524,6 +535,17 @@
                 document.getElementById('offerId').value = offer.id || '';
                 document.getElementById('title').value = offer.title || '';
                 document.getElementById('description').value = offer.description || '';
+                document.getElementById('offerImageUrl').value = offer.image_url || '';
+                
+                const preview = document.getElementById('offerImagePreview');
+                if (offer.image_url) {
+                    preview.src = offer.image_url;
+                    preview.style.display = 'block';
+                } else {
+                    preview.src = '';
+                    preview.style.display = 'none';
+                }
+
                 document.getElementById('fixed_price').value = offer.fixed_price || 0;
                 document.getElementById('discount_percentage').value = offer.discount_percentage || 0;
                 document.getElementById('is_active').checked = !!offer.is_active;
@@ -603,7 +625,8 @@
                     is_best_seller: document.getElementById('is_best_seller').checked,
                     target_classes: Array.from(document.querySelectorAll('#target_classes_group input[type="checkbox"]:checked')).map(cb => cb.value.toLowerCase()),
                     target_branches: Array.from(document.querySelectorAll('#target_branches_group input[type="checkbox"]:checked')).map(cb => cb.value.toLowerCase()),
-                    features: getFeaturesData()
+                    features: getFeaturesData(),
+                    image_url: document.getElementById('offerImageUrl').value
                 };
 
                 const result = await window.AdminDashboard.manageOffer(data);
@@ -625,6 +648,22 @@
             const loader = document.getElementById('loading');
             if (loader) loader.style.display = show ? 'flex' : 'none';
         }
+
+        // Image upload handling
+        document.getElementById('offerImageInput').addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = function(event) {
+                const base64 = event.target.result;
+                document.getElementById('offerImageUrl').value = base64;
+                const preview = document.getElementById('offerImagePreview');
+                preview.src = base64;
+                preview.style.display = 'block';
+            };
+            reader.readAsDataURL(file);
+        });
     </script>
     <!-- Include offers-config.js so editOffer can fall back to it if the DB is empty -->
     <script src="/js/offers-config.js"></script>

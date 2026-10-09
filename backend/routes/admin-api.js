@@ -53,7 +53,8 @@ async function ensureOffersSchema() {
         ADD COLUMN IF NOT EXISTS discount_percentage NUMERIC(5, 2),
         ADD COLUMN IF NOT EXISTS valid_from TIMESTAMPTZ,
         ADD COLUMN IF NOT EXISTS features JSONB DEFAULT '[]'::jsonb,
-        ADD COLUMN IF NOT EXISTS is_best_seller BOOLEAN DEFAULT false
+        ADD COLUMN IF NOT EXISTS is_best_seller BOOLEAN DEFAULT false,
+        ADD COLUMN IF NOT EXISTS image_url TEXT
       `);
       offersSchemaReady = true;
     } catch (err) {
@@ -64,7 +65,7 @@ async function ensureOffersSchema() {
 
 router.post("/api/admin/offers", requireAdmin, async (req, res) => {
   try {
-    const { id, title, description, fixed_price, discount_percentage, is_active, target_classes, target_branches, valid_from, valid_until, features, is_best_seller } = req.body;
+    const { id, title, description, fixed_price, discount_percentage, is_active, target_classes, target_branches, valid_from, valid_until, features, is_best_seller, image_url } = req.body;
     
     await ensureOffersSchema();
     
@@ -77,14 +78,14 @@ router.post("/api/admin/offers", requireAdmin, async (req, res) => {
     if (id) {
       // Update
       await pool.query(
-        `UPDATE offers SET title=$1, description=$2, fixed_price=$3, discount_percentage=$4, is_active=$5, target_classes=$6, target_branches=$7, valid_from=$8, valid_until=$9, features=$10, is_best_seller=$11 WHERE id=$12`,
-        [title, description, fixed_price, parsedDiscount, is_active, classesArray, branchesArray, parsedValidFrom, parsedValidUntil, JSON.stringify(features || []), !!is_best_seller, id]
+        `UPDATE offers SET title=$1, description=$2, fixed_price=$3, discount_percentage=$4, is_active=$5, target_classes=$6, target_branches=$7, valid_from=$8, valid_until=$9, features=$10, is_best_seller=$11, image_url=$12 WHERE id=$13`,
+        [title, description, fixed_price, parsedDiscount, is_active, classesArray, branchesArray, parsedValidFrom, parsedValidUntil, JSON.stringify(features || []), !!is_best_seller, image_url || null, id]
       );
     } else {
       // Insert
       await pool.query(
-        `INSERT INTO offers (title, description, fixed_price, discount_percentage, is_active, target_classes, target_branches, valid_from, valid_until, features, is_best_seller) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)`,
-        [title, description, fixed_price, parsedDiscount, is_active, classesArray, branchesArray, parsedValidFrom, parsedValidUntil, JSON.stringify(features || []), !!is_best_seller]
+        `INSERT INTO offers (title, description, fixed_price, discount_percentage, is_active, target_classes, target_branches, valid_from, valid_until, features, is_best_seller, image_url) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)`,
+        [title, description, fixed_price, parsedDiscount, is_active, classesArray, branchesArray, parsedValidFrom, parsedValidUntil, JSON.stringify(features || []), !!is_best_seller, image_url || null]
       );
     }
     return res.json({ success: true });
