@@ -674,10 +674,10 @@ iframe {
         -webkit-overflow-scrolling: touch;
     }
 
-    /* Offers page exception — carousel needs horizontal scroll */
+    /* Offers page exception — maximize width for mobile cards */
     body.page-offers .main-section,
     body.page-offers section {
-        overflow-x: visible !important;
+        padding: 0.5rem !important;
     }
 
     section {

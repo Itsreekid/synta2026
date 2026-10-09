@@ -316,7 +316,7 @@
 @media (max-width: 768px) {
 
     .offers-container {
-        padding: 0.5rem 0 1rem;
+        padding: 0; /* Let .main-section handle page padding */
     }
 
     /* Carousel window: clips to exactly one card, no user scroll */
@@ -325,9 +325,9 @@
         flex-wrap: nowrap;
         overflow: hidden;              /* no scrollbar, no swipe */
         scroll-behavior: smooth;       /* smooth programmatic scroll */
-        /* Remove gap so card widths = 100% lines up perfectly */
-        gap: 0;
-        padding: 0.8rem 1rem 0.4rem;
+        gap: 0;                        /* NO GAP so widths align perfectly */
+        padding: 0;                    /* NO HORIZONTAL PADDING so 100% width = offsetLeft increment */
+        margin: 0;
         align-items: stretch;
     }
 

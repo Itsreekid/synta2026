@@ -309,11 +309,11 @@ function initMobileOfferNav(list, total) {
     }
 
     // ── Scroll the list so card[index] is fully visible ──────────────
-    // Uses offsetLeft so it is always based on the real rendered layout.
+    // Cards are flex 100%, so multiplying index * container width is perfect.
     function scrollToCard(index) {
         const cards = getCards();
         if (!cards[index]) return;
-        list.scrollTo({ left: cards[index].offsetLeft, behavior: 'smooth' });
+        list.scrollTo({ left: index * list.clientWidth, behavior: 'smooth' });
     }
 
     // ── Update button states + indicator ─────────────────────────────
