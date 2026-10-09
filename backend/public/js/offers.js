@@ -123,12 +123,27 @@ async function initOffers() {
         const rightBtn = document.getElementById('nav-right-btn');
         
         if (offersList && leftBtn && rightBtn) {
+            // Start both hidden
+            leftBtn.style.opacity = '0';
+            leftBtn.style.pointerEvents = 'none';
+            rightBtn.style.opacity = '0';
+            rightBtn.style.pointerEvents = 'none';
+
             const updateButtons = () => {
-                if (!offersList) return;
-                const maxScroll = Math.max(0, offersList.scrollWidth - offersList.clientWidth);
+                const scrollLeft = Math.round(offersList.scrollLeft);
+                const maxScroll = Math.round(offersList.scrollWidth - offersList.clientWidth);
                 
-                // Left button visibility
-                if (offersList.scrollLeft <= 15) {
+                // Only show buttons if there is something to scroll
+                if (maxScroll <= 0) {
+                    leftBtn.style.opacity = '0';
+                    leftBtn.style.pointerEvents = 'none';
+                    rightBtn.style.opacity = '0';
+                    rightBtn.style.pointerEvents = 'none';
+                    return;
+                }
+
+                // Left button: show when not at the start
+                if (scrollLeft <= 5) {
                     leftBtn.style.opacity = '0';
                     leftBtn.style.pointerEvents = 'none';
                 } else {
@@ -136,8 +151,8 @@ async function initOffers() {
                     leftBtn.style.pointerEvents = 'auto';
                 }
                 
-                // Right button visibility
-                if (offersList.scrollLeft >= maxScroll - 15 || maxScroll === 0) {
+                // Right button: show when not at the end
+                if (scrollLeft >= maxScroll - 5) {
                     rightBtn.style.opacity = '0';
                     rightBtn.style.pointerEvents = 'none';
                 } else {
@@ -146,13 +161,13 @@ async function initOffers() {
                 }
             };
             
-            offersList.addEventListener('scroll', updateButtons);
+            offersList.addEventListener('scroll', updateButtons, { passive: true });
             window.addEventListener('resize', updateButtons);
             
-            // Check immediately and repeatedly for 2 seconds to account for images loading and expanding the container width!
+            // Wait for images to load before initial check
             updateButtons();
-            const interval = setInterval(updateButtons, 300);
-            setTimeout(() => clearInterval(interval), 2500);
+            const interval = setInterval(updateButtons, 250);
+            setTimeout(() => clearInterval(interval), 3000);
         }
 
     } catch (error) {

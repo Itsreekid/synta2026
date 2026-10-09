@@ -32,24 +32,14 @@
 
 /* body styles stripped for SPA */
 
+/* ── DESKTOP: all cards visible side-by-side, no scroll ── */
 .offers-list {
     display: flex;
-    flex-wrap: nowrap;
-    overflow-x: auto;
-    overflow-y: hidden;
-    scroll-snap-type: x mandatory;
-    scroll-behavior: smooth;
-    justify-content: flex-start;
+    flex-wrap: wrap;
+    justify-content: center;
     align-items: stretch;
     gap: 2.5rem;
     padding: 3rem 1rem;
-    -webkit-overflow-scrolling: touch;
-    scrollbar-width: none;
-    -ms-overflow-style: none;
-}
-
-.offers-list::-webkit-scrollbar {
-    display: none;
 }
 
 /* --- Premium Offer Card --- */
@@ -64,10 +54,9 @@
     flex-direction: column;
     position: relative;
     transition: all 0.4s cubic-bezier(0.165, 0.84, 0.44, 1);
-    flex: 0 0 350px;
-    max-width: 380px;
+    flex: 0 0 340px;
+    max-width: 360px;
     width: 100%;
-    scroll-snap-align: center;
     z-index: 1;
 }
 
@@ -315,53 +304,31 @@
     display: none !important;
 }
 
-/* Show navigation by default on all screens */
+/* ── Nav buttons: hidden by default on desktop ── */
 .mobile-carousel-nav {
-    display: block;
-    position: absolute;
-    /* Fixed distance from top so it NEVER gets pushed down below the fold */
-    top: 250px; 
-    left: 0;
-    width: 100%;
-    transform: translateY(-50%);
-    pointer-events: none;
-    z-index: 50;
+    display: none;
 }
 
-.mobile-carousel-nav .nav-btn {
-    position: absolute;
-    pointer-events: auto;
-    background: white;
-    border: 1px solid var(--border-color);
-    width: 44px;
-    height: 44px;
-    border-radius: 50%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    color: var(--primary-blue);
-    box-shadow: 0 4px 15px rgba(0,0,0,0.15);
-    cursor: pointer;
-    transition: all 0.2s ease;
-}
-
-#nav-left-btn {
-    left: 10px;
-}
-
-#nav-right-btn {
-    right: 10px;
-}
-
-.mobile-carousel-nav .nav-btn:active {
-    background: var(--bg-light);
-    transform: scale(0.95);
-}
-
+/* ── MOBILE / TABLET: horizontal swipe carousel ── */
 @media (max-width: 1024px) {
+    /* The container must be relative so absolute buttons work */
+    .offers-container {
+        padding: 1rem 0;
+    }
+
     .offers-list {
-        gap: 1.5rem;
-        padding: 1rem 1rem 2rem 1rem;
+        flex-wrap: nowrap;
+        overflow-x: auto;
+        overflow-y: hidden;
+        scroll-snap-type: x mandatory;
+        scroll-behavior: smooth;
+        justify-content: flex-start;
+        align-items: stretch;
+        gap: 1.2rem;
+        padding: 1rem 1.2rem 2rem 1.2rem;
+        -webkit-overflow-scrolling: touch;
+        scrollbar-width: none;
+        -ms-overflow-style: none;
     }
 
     .offers-list::-webkit-scrollbar {
@@ -369,9 +336,9 @@
     }
 
     .offer-card {
-        flex: 0 0 280px;
-        max-width: 280px;
-        scroll-snap-align: center;
+        flex: 0 0 82vw; /* Shows a peek of the next card */
+        max-width: 320px;
+        scroll-snap-align: start;
         margin: 0;
     }
 
@@ -380,7 +347,48 @@
     }
 
     .current-price {
-        font-size: 3rem;
+        font-size: 2.6rem;
     }
 
+    /* ── Nav buttons: fixed to viewport so they never scroll away ── */
+    .mobile-carousel-nav {
+        display: block;
+        position: fixed;
+        top: 50%;
+        left: 0;
+        width: 100%;
+        transform: translateY(-50%);
+        pointer-events: none;
+        z-index: 999;
+    }
+
+    .mobile-carousel-nav .nav-btn {
+        position: absolute;
+        pointer-events: auto;
+        background: white;
+        border: none;
+        width: 42px;
+        height: 42px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: var(--primary-blue);
+        box-shadow: 0 4px 20px rgba(0,0,0,0.2);
+        cursor: pointer;
+        transition: opacity 0.25s ease, transform 0.2s ease;
+        font-size: 1rem;
+    }
+
+    #nav-left-btn {
+        left: 8px;
+    }
+
+    #nav-right-btn {
+        right: 8px;
+    }
+
+    .mobile-carousel-nav .nav-btn:active {
+        transform: scale(0.9);
+    }
 }
