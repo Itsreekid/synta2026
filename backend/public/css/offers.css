@@ -323,6 +323,7 @@
     .offers-list {
         display: flex;
         flex-wrap: nowrap;
+        justify-content: flex-start;   /* FIX: Override desktop center to prevent center-overflow */
         overflow: hidden;              /* no scrollbar, no swipe */
         scroll-behavior: smooth;       /* smooth programmatic scroll */
         gap: 0;                        /* NO GAP so widths align perfectly */
