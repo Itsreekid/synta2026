@@ -118,16 +118,43 @@ async function initOffers() {
             `;
         }).join('');
 
-        // Setup carousel buttons visibility (Logic removed to guarantee they display)
+        // Setup carousel buttons visibility
         const leftBtn = document.getElementById('nav-left-btn');
         const rightBtn = document.getElementById('nav-right-btn');
         
         if (offersList && leftBtn && rightBtn) {
-            // Force them to be fully visible and clickable
-            leftBtn.style.opacity = '1';
-            leftBtn.style.pointerEvents = 'auto';
-            rightBtn.style.opacity = '1';
-            rightBtn.style.pointerEvents = 'auto';
+            const updateButtons = () => {
+                // If scrolled to the very left, hide left button
+                if (offersList.scrollLeft <= 10) {
+                    leftBtn.style.opacity = '0';
+                    leftBtn.style.pointerEvents = 'none';
+                } else {
+                    leftBtn.style.opacity = '1';
+                    leftBtn.style.pointerEvents = 'auto';
+                }
+                
+                // If the container doesn't overflow at all (screen is wide enough to fit both), hide both!
+                if (offersList.scrollWidth <= offersList.clientWidth) {
+                    leftBtn.style.opacity = '0';
+                    leftBtn.style.pointerEvents = 'none';
+                    rightBtn.style.opacity = '0';
+                    rightBtn.style.pointerEvents = 'none';
+                    return;
+                }
+                
+                // If scrolled to the very right, hide right button
+                if (offersList.scrollLeft >= offersList.scrollWidth - offersList.clientWidth - 10) {
+                    rightBtn.style.opacity = '0';
+                    rightBtn.style.pointerEvents = 'none';
+                } else {
+                    rightBtn.style.opacity = '1';
+                    rightBtn.style.pointerEvents = 'auto';
+                }
+            };
+            
+            offersList.addEventListener('scroll', updateButtons);
+            setTimeout(updateButtons, 100);
+            window.addEventListener('resize', updateButtons);
         }
 
     } catch (error) {
