@@ -34,22 +34,11 @@
 
 .offers-list {
     display: flex;
-    flex-wrap: nowrap;
-    overflow-x: auto;
-    overflow-y: hidden;
-    scroll-snap-type: x mandatory;
-    scroll-behavior: smooth;
-    justify-content: flex-start;
+    flex-wrap: wrap;
+    justify-content: center;
     align-items: stretch;
     gap: 2.5rem;
-    padding: 3rem 1rem;
-    -webkit-overflow-scrolling: touch;
-    scrollbar-width: none; /* Firefox */
-    -ms-overflow-style: none; /* IE and Edge */
-}
-
-.offers-list::-webkit-scrollbar {
-    display: none; /* Chrome, Safari, Opera */
+    padding: 3rem 0;
 }
 
 /* --- Premium Offer Card --- */
@@ -64,10 +53,10 @@
     flex-direction: column;
     position: relative;
     transition: all 0.4s cubic-bezier(0.165, 0.84, 0.44, 1);
-    flex: 0 0 350px;
+    flex: 1 1 350px;
     max-width: 380px;
     width: 100%;
-    scroll-snap-align: start;
+    margin: 0 auto;
     z-index: 1;
 }
 
@@ -315,15 +304,9 @@
     display: none !important;
 }
 
+/* Hide mobile navigation by default */
 .mobile-carousel-nav {
-    display: block;
-    position: absolute;
-    top: 55%;
-    left: 0;
-    width: 100%;
-    transform: translateY(-50%);
-    pointer-events: none;
-    z-index: 50;
+    display: none;
 }
 
 .mobile-carousel-nav .nav-btn {
@@ -358,13 +341,29 @@
 
 @media (max-width: 1024px) {
     .offers-list {
-        gap: 1.5rem;
+        flex-direction: row;
+        flex-wrap: nowrap;
+        overflow-x: auto;
+        overflow-y: hidden;
+        scroll-snap-type: x mandatory;
+        scroll-behavior: smooth;
+        justify-content: flex-start;
         padding: 1rem 1rem 2rem 1rem;
+        gap: 1.5rem;
+        -webkit-overflow-scrolling: touch;
+        scrollbar-width: none;
+        -ms-overflow-style: none;
+    }
+
+    .offers-list::-webkit-scrollbar {
+        display: none;
     }
 
     .offer-card {
         flex: 0 0 280px;
         max-width: 280px;
+        scroll-snap-align: center;
+        margin: 0;
     }
 
     .offer-card.featured {
@@ -374,4 +373,16 @@
     .current-price {
         font-size: 3rem;
     }
-}
+
+    /* Show and style mobile navigation */
+    .mobile-carousel-nav {
+        display: block;
+        position: absolute;
+        /* Fixed distance from top so it NEVER gets pushed down below the fold */
+        top: 250px; 
+        left: 0;
+        width: 100%;
+        transform: translateY(-50%);
+        pointer-events: none;
+        z-index: 50;
+    }
