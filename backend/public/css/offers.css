@@ -36,7 +36,7 @@
     display: flex;
     flex-wrap: wrap;
     justify-content: center;
-    align-items: center; /* Keep centered vertically, featured card will be taller */
+    align-items: stretch; /* Stretch so they have the same height */
     gap: 2.5rem;
     padding: 3rem 0;
 }
@@ -252,6 +252,7 @@
 /* --- Action Button --- */
 .purchase-section {
     padding: 1.5rem 2rem 2.5rem;
+    margin-top: auto; /* Push button to the very bottom */
 }
 
 .acheter-btn {
