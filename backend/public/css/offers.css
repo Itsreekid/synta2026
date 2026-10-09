@@ -1,81 +1,124 @@
 /* Font import removed — loaded in head.ejs */
 .offers-container {
     --primary-blue: #0a2e6b;
+    --primary-gradient: linear-gradient(135deg, #0a2e6b 0%, #1e5ddb 100%);
     --accent-orange: #ff7b1a;
-    --success-green: #4caf50;
-    --discount-red: #ff0000;
-    --border-purple: #6c40a7;
-    --bg-light: #f4f8ff;
-    --text-dark: #333;
+    --accent-gradient: linear-gradient(135deg, #ff9900 0%, #ff5500 100%);
+    --success-green: #10b981;
+    --discount-red: #ef4444;
+    --border-color: #e2e8f0;
+    --bg-light: #f8fafc;
+    --text-dark: #0f172a;
+    --text-muted: #64748b;
+    
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 2rem 1rem;
+    position: relative;
+}
+
+.offers-container::before {
+    content: '';
+    position: absolute;
+    top: -100px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 80vw;
+    height: 80vh;
+    background: radial-gradient(circle, rgba(10, 46, 107, 0.03) 0%, rgba(255, 123, 26, 0.02) 50%, transparent 80%);
+    z-index: -1;
+    pointer-events: none;
 }
 
 /* body styles stripped for SPA */
-
-.offers-container {
-    max-width: 1200px;
-    margin: 0 auto;
-}
 
 .offers-list {
     display: flex;
     flex-wrap: wrap;
     justify-content: center;
-    align-items: stretch;
-    gap: 2rem;
-    padding: 2rem 0;
+    align-items: center; /* Keep centered vertically, featured card will be taller */
+    gap: 2.5rem;
+    padding: 3rem 0;
 }
 
 /* --- Premium Offer Card --- */
 
 .offer-card {
     background: white;
-    border: 2px solid var(--border-purple);
-    border-radius: 12px;
+    border: 1px solid var(--border-color);
+    border-radius: 24px;
     overflow: hidden;
-    box-shadow: 0 10px 30px rgba(108, 64, 167, 0.1);
+    box-shadow: 0 10px 40px -10px rgba(0, 0, 0, 0.08);
     display: flex;
     flex-direction: column;
     position: relative;
-    transition: transform 0.3s ease;
+    transition: all 0.4s cubic-bezier(0.165, 0.84, 0.44, 1);
     flex: 1 1 320px;
-    max-width: 450px;
+    max-width: 400px;
     width: 100%;
     margin: 0 auto;
+    z-index: 1;
 }
 
 .offer-card:hover {
-    transform: translateY(-5px);
+    transform: translateY(-8px);
+    box-shadow: 0 20px 40px -10px rgba(0, 0, 0, 0.12);
+}
+
+/* Featured Card (Big Effort) */
+.offer-card.featured {
+    border: 2px solid var(--accent-orange);
+    box-shadow: 0 15px 50px -10px rgba(255, 123, 26, 0.25);
+    z-index: 2;
+}
+
+@media (min-width: 768px) {
+    .offer-card.featured {
+        transform: scale(1.06);
+    }
+    .offer-card.featured:hover {
+        transform: scale(1.06) translateY(-8px);
+    }
 }
 
 .best-seller-banner {
-    background: var(--border-purple);
+    background: var(--accent-gradient);
     color: white;
     text-align: center;
-    padding: 0.5rem;
-    font-weight: 700;
-    font-size: 1rem;
+    padding: 0.6rem;
+    font-weight: 800;
+    font-size: 1.05rem;
     font-family: 'Tajawal', sans-serif;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+    box-shadow: 0 2px 10px rgba(255, 85, 0, 0.3);
 }
 
 .offer-image-section {
-    height: 200px;
-    margin: 10px;
+    height: 180px;
+    margin: 16px;
     overflow: hidden;
-    border-radius: 10px;
+    border-radius: 16px;
     display: flex;
     justify-content: center;
     align-items: center;
-    border-bottom: 1px solid #eee;
+    background: var(--bg-light);
 }
 
 .offer-image-section img {
     width: 100%;
     height: 100%;
     object-fit: cover;
+    transition: transform 0.5s ease;
 }
 
+.offer-card:hover .offer-image-section img {
+    transform: scale(1.05);
+}
+
+/* --- Price Section --- */
 .offer-price-section {
-    padding: 1.5rem;
+    padding: 1.5rem 2rem 0.5rem;
     text-align: center;
     display: flex;
     flex-direction: column;
@@ -86,70 +129,82 @@
 .discount-badge {
     background: var(--discount-red);
     color: white;
-    padding: 4px 12px;
-    border-radius: 8px;
+    padding: 6px 14px;
+    border-radius: 20px;
     font-weight: 800;
     font-size: 1.1rem;
     margin-bottom: 0.5rem;
+    display: inline-block;
+    box-shadow: 0 4px 10px rgba(239, 68, 68, 0.3);
+    animation: pulseBadge 2s infinite;
+}
+
+@keyframes pulseBadge {
+    0% { transform: scale(1); }
+    50% { transform: scale(1.05); }
+    100% { transform: scale(1); }
 }
 
 .price-comparison {
     display: flex;
     align-items: baseline;
+    justify-content: center;
     gap: 1rem;
 }
 
 .original-price {
-    color: #666;
+    color: var(--text-muted);
     text-decoration: line-through;
-    font-size: 1.5rem;
-    font-weight: 500;
+    font-size: 1.6rem;
+    font-weight: 600;
+    opacity: 0.7;
 }
 
 .current-price-container {
     display: flex;
-    align-items: center;
+    align-items: flex-start;
 }
 
 .current-price {
-    font-size: 3.5rem;
-    font-weight: 800;
-    color: #013047;
+    font-size: 4rem;
+    font-weight: 900;
+    color: var(--text-dark);
     line-height: 1;
+    letter-spacing: -1px;
 }
 
 .currency-label {
-    font-size: 1.5rem;
+    font-size: 1.4rem;
     font-weight: 700;
-    color: #013047;
-    margin-left: 5px;
+    color: var(--text-muted);
+    margin-left: 6px;
+    margin-top: 6px;
 }
 
-/* --- Period / Date Box --- */
-
+/* --- Date / Period Box --- */
 .validity-box {
-    margin: 1rem 1.5rem;
-    border: 2px solid var(--border-purple);
-    border-radius: 8px;
-    padding: 0.75rem;
+    margin: 1rem 2rem;
+    background: var(--bg-light);
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    padding: 0.8rem;
     display: flex;
     align-items: center;
     justify-content: center;
     gap: 10px;
-    color: #333;
+    color: var(--text-dark);
     font-weight: 600;
     font-size: 0.95rem;
 }
 
 .validity-box i {
-    font-size: 1.25rem;
-    color: #666;
+    font-size: 1.2rem;
+    color: var(--primary-blue);
 }
 
 /* --- Feature List --- */
-
 .features-section {
-    padding: 1rem 2rem;
+    padding: 1rem 2.5rem;
     flex: 1;
 }
 
@@ -157,26 +212,35 @@
     display: flex;
     align-items: center;
     justify-content: flex-end;
-    /* RTL feel like the image */
-    gap: 12px;
-    margin-bottom: 0.8rem;
+    gap: 14px;
+    margin-bottom: 1rem;
     font-family: 'Tajawal', sans-serif;
-    color: #444;
-    font-weight: 500;
+    color: var(--text-dark);
+    font-weight: 600;
     text-align: right;
-    font-size: 1rem;
+    font-size: 1.05rem;
+    padding-bottom: 0.8rem;
+    border-bottom: 1px solid rgba(0,0,0,0.03);
+}
+
+.feature-item:last-child {
+    border-bottom: none;
+    margin-bottom: 0;
+    padding-bottom: 0;
 }
 
 .feature-text {
     flex: 1;
+    line-height: 1.4;
 }
 
 .check-icon {
-    width: 18px;
-    height: 18px;
+    width: 22px;
+    height: 22px;
     display: flex;
     align-items: center;
     justify-content: center;
+    flex-shrink: 0;
 }
 
 .check-icon img {
@@ -186,35 +250,52 @@
 }
 
 /* --- Action Button --- */
-
 .purchase-section {
-    padding: 1.5rem 2rem;
+    padding: 1.5rem 2rem 2.5rem;
 }
 
 .acheter-btn {
     width: 100%;
-    padding: 1rem;
-    background: var(--primary-blue);
+    padding: 1.1rem;
+    background: var(--primary-gradient);
     color: white;
     border: none;
-    border-radius: 30px;
-    font-size: 1.25rem;
-    font-weight: 700;
+    border-radius: 100px;
+    font-size: 1.3rem;
+    font-weight: 800;
     cursor: pointer;
-    box-shadow: 0 4px 10px rgba(10, 46, 107, 0.3);
-    transition: all 0.2s ease;
+    box-shadow: 0 8px 20px rgba(10, 46, 107, 0.25);
+    transition: all 0.3s cubic-bezier(0.165, 0.84, 0.44, 1);
+    font-family: 'Tajawal', sans-serif;
+    letter-spacing: 0.5px;
 }
 
-.acheter-btn:hover {
-    background: #082455;
-    transform: scale(1.02);
-    box-shadow: 0 6px 15px rgba(10, 46, 107, 0.4);
+.acheter-btn:hover:not(:disabled) {
+    transform: translateY(-3px);
+    box-shadow: 0 12px 25px rgba(10, 46, 107, 0.35);
+}
+
+.offer-card.featured .acheter-btn {
+    background: var(--accent-gradient);
+    box-shadow: 0 8px 20px rgba(255, 123, 26, 0.3);
+}
+
+.offer-card.featured .acheter-btn:hover:not(:disabled) {
+    box-shadow: 0 12px 25px rgba(255, 123, 26, 0.45);
 }
 
 .acheter-btn:disabled {
-    background: #ccc;
+    background: var(--border-color);
+    color: var(--text-muted);
     cursor: not-allowed;
     box-shadow: none;
+    transform: none;
+}
+
+.acheter-btn.purchased-btn {
+    background: var(--success-green) !important;
+    color: white !important;
+    box-shadow: 0 4px 15px rgba(16, 185, 129, 0.3) !important;
 }
 
 /* Hide balance summary as requested */
@@ -222,13 +303,18 @@
     display: none !important;
 }
 
-@media (max-width: 480px) {
+@media (max-width: 768px) {
     .offers-list {
         flex-direction: column;
-        padding: 1rem;
+        padding: 1rem 0;
+        gap: 2rem;
+    }
+
+    .offer-card {
+        max-width: 100%;
     }
 
     .current-price {
-        font-size: 2.5rem;
+        font-size: 3rem;
     }
 }
