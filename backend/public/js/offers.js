@@ -118,57 +118,68 @@ async function initOffers() {
             `;
         }).join('');
 
-        // Setup carousel buttons visibility
+        // ── Carousel nav button logic ──
         const leftBtn = document.getElementById('nav-left-btn');
         const rightBtn = document.getElementById('nav-right-btn');
-        
-        if (offersList && leftBtn && rightBtn) {
-            // Start both hidden
-            leftBtn.style.opacity = '0';
-            leftBtn.style.pointerEvents = 'none';
-            rightBtn.style.opacity = '0';
-            rightBtn.style.pointerEvents = 'none';
+
+        if (leftBtn && rightBtn) {
+            const isMobile = () => window.innerWidth <= 1024;
+            const totalOffers = offers.length;
+
+            const showBtn = (btn) => {
+                btn.style.opacity = '1';
+                btn.style.pointerEvents = 'auto';
+                btn.style.visibility = 'visible';
+            };
+            const hideBtn = (btn) => {
+                btn.style.opacity = '0';
+                btn.style.pointerEvents = 'none';
+                btn.style.visibility = 'hidden';
+            };
+
+            // Start hidden
+            hideBtn(leftBtn);
+            hideBtn(rightBtn);
 
             const updateButtons = () => {
-                const scrollLeft = Math.round(offersList.scrollLeft);
-                const maxScroll = Math.round(offersList.scrollWidth - offersList.clientWidth);
-                
-                // Only show buttons if there is something to scroll
-                if (maxScroll <= 0) {
-                    leftBtn.style.opacity = '0';
-                    leftBtn.style.pointerEvents = 'none';
-                    rightBtn.style.opacity = '0';
-                    rightBtn.style.pointerEvents = 'none';
+                // Desktop: no buttons needed — grid shows all
+                if (!isMobile()) {
+                    hideBtn(leftBtn);
+                    hideBtn(rightBtn);
                     return;
                 }
 
-                // Left button: show when not at the start
-                if (scrollLeft <= 5) {
-                    leftBtn.style.opacity = '0';
-                    leftBtn.style.pointerEvents = 'none';
+                const scrollLeft = Math.round(offersList.scrollLeft);
+                const maxScroll = Math.round(offersList.scrollWidth - offersList.clientWidth);
+
+                // LEFT: only visible after scrolling right
+                if (scrollLeft > 10) {
+                    showBtn(leftBtn);
                 } else {
-                    leftBtn.style.opacity = '1';
-                    leftBtn.style.pointerEvents = 'auto';
+                    hideBtn(leftBtn);
                 }
-                
-                // Right button: show when not at the end
-                if (scrollLeft >= maxScroll - 5) {
-                    rightBtn.style.opacity = '0';
-                    rightBtn.style.pointerEvents = 'none';
-                } else {
-                    rightBtn.style.opacity = '1';
-                    rightBtn.style.pointerEvents = 'auto';
+
+                // RIGHT: show if there are multiple offers AND not at the very end
+                // Use offer count as primary signal (works even before images load)
+                if (totalOffers > 1) {
+                    if (maxScroll > 0 && scrollLeft >= maxScroll - 10) {
+                        // Reached the end
+                        hideBtn(rightBtn);
+                    } else {
+                        // At start or middle — show right button
+                        showBtn(rightBtn);
+                    }
                 }
             };
-            
+
             offersList.addEventListener('scroll', updateButtons, { passive: true });
             window.addEventListener('resize', updateButtons);
-            
-            // Wait for images to load before initial check
+
+            // Run at staggered intervals to catch image-deferred layout shifts
             updateButtons();
-            const interval = setInterval(updateButtons, 250);
-            setTimeout(() => clearInterval(interval), 3000);
+            [100, 300, 700, 1500, 3000].forEach(ms => setTimeout(updateButtons, ms));
         }
+
 
     } catch (error) {
         console.error('Error loading offers:', error);
