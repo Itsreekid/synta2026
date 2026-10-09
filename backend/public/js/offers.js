@@ -124,8 +124,11 @@ async function initOffers() {
         
         if (offersList && leftBtn && rightBtn) {
             const updateButtons = () => {
-                // If scrolled to the very left, hide left button
-                if (offersList.scrollLeft <= 10) {
+                if (!offersList) return;
+                const maxScroll = Math.max(0, offersList.scrollWidth - offersList.clientWidth);
+                
+                // Left button visibility
+                if (offersList.scrollLeft <= 15) {
                     leftBtn.style.opacity = '0';
                     leftBtn.style.pointerEvents = 'none';
                 } else {
@@ -133,17 +136,8 @@ async function initOffers() {
                     leftBtn.style.pointerEvents = 'auto';
                 }
                 
-                // If the container doesn't overflow at all (screen is wide enough to fit both), hide both!
-                if (offersList.scrollWidth <= offersList.clientWidth) {
-                    leftBtn.style.opacity = '0';
-                    leftBtn.style.pointerEvents = 'none';
-                    rightBtn.style.opacity = '0';
-                    rightBtn.style.pointerEvents = 'none';
-                    return;
-                }
-                
-                // If scrolled to the very right, hide right button
-                if (offersList.scrollLeft >= offersList.scrollWidth - offersList.clientWidth - 10) {
+                // Right button visibility
+                if (offersList.scrollLeft >= maxScroll - 15 || maxScroll === 0) {
                     rightBtn.style.opacity = '0';
                     rightBtn.style.pointerEvents = 'none';
                 } else {
@@ -153,8 +147,12 @@ async function initOffers() {
             };
             
             offersList.addEventListener('scroll', updateButtons);
-            setTimeout(updateButtons, 100);
             window.addEventListener('resize', updateButtons);
+            
+            // Check immediately and repeatedly for 2 seconds to account for images loading and expanding the container width!
+            updateButtons();
+            const interval = setInterval(updateButtons, 300);
+            setTimeout(() => clearInterval(interval), 2500);
         }
 
     } catch (error) {
