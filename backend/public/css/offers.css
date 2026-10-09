@@ -305,13 +305,35 @@
 
 @media (max-width: 768px) {
     .offers-list {
-        flex-direction: column;
-        padding: 1rem 0;
-        gap: 2rem;
+        flex-direction: row;
+        flex-wrap: nowrap;
+        overflow-x: auto;
+        overflow-y: hidden;
+        scroll-snap-type: x mandatory;
+        scroll-behavior: smooth;
+        justify-content: flex-start;
+        padding: 1rem 1rem 2rem 1rem;
+        gap: 1.5rem;
+        -webkit-overflow-scrolling: touch;
+        
+        /* Hide scrollbar for a cleaner app-like look */
+        scrollbar-width: none; /* Firefox */
+        -ms-overflow-style: none; /* IE and Edge */
+    }
+
+    .offers-list::-webkit-scrollbar {
+        display: none; /* Chrome, Safari, Opera */
     }
 
     .offer-card {
-        max-width: 100%;
+        flex: 0 0 85%; /* Take up 85% of the screen width so the next card peeks in */
+        max-width: none;
+        scroll-snap-align: center;
+        margin: 0; /* Remove auto margin to respect gap */
+    }
+
+    .offer-card.featured {
+        transform: scale(1); /* Reset scale on mobile to prevent overflow issues */
     }
 
     .current-price {
