@@ -60,6 +60,13 @@
     z-index: 1;
 }
 
+@media (max-width: 1024px) and (min-width: 769px) {
+    .offer-card {
+        flex: 1 1 300px;
+        max-width: 320px;
+    }
+}
+
 .offer-card:hover {
     transform: translateY(-8px);
     box-shadow: 0 20px 40px -10px rgba(0, 0, 0, 0.12);
@@ -309,7 +316,7 @@
     display: none;
 }
 
-@media (max-width: 1024px) {
+@media (max-width: 768px) {
     .offers-list {
         flex-direction: row;
         flex-wrap: nowrap;
