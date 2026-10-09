@@ -251,6 +251,15 @@
                     <label>Description</label>
                     <textarea id="description" rows="3" placeholder="Description de l'offre"></textarea>
                 </div>
+                <div class="form-group">
+                    <label style="display: flex; justify-content: space-between; align-items: center;">
+                        <span>Points de l'offre (Fonctionnalités)</span>
+                        <button type="button" class="btn" style="padding: 0.2rem 0.5rem; font-size: 0.8rem; background: #e2e8f0; color: #475569;" onclick="addFeatureRow()">+ Ajouter un point</button>
+                    </label>
+                    <div id="featuresList" style="display: flex; flex-direction: column; gap: 0.5rem; margin-top: 0.5rem;">
+                        <!-- Feature rows injected here -->
+                    </div>
+                </div>
                 <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
                     <div class="form-group">
                         <label>Prix (DT)</label>
@@ -262,11 +271,37 @@
                     </div>
                 </div>
                 <div class="form-group">
-                    <label>Statut</label>
-                    <select id="is_active">
-                        <option value="true">Active</option>
-                        <option value="false">Inactive</option>
-                    </select>
+                    <label>Statut de l'offre</label>
+                    <label class="switch-modern" style="display: flex; align-items: center; cursor: pointer; user-select: none;">
+                        <input type="checkbox" id="is_active" checked style="display:none;">
+                        <div class="switch-track" style="width: 50px; height: 26px; background: #e2e8f0; border-radius: 13px; position: relative; transition: 0.3s; box-shadow: inset 0 1px 3px rgba(0,0,0,0.1);">
+                            <div class="switch-thumb" style="width: 22px; height: 22px; background: white; border-radius: 50%; position: absolute; top: 2px; left: 2px; box-shadow: 0 2px 5px rgba(0,0,0,0.2); transition: transform 0.3s cubic-bezier(0.4, 0.0, 0.2, 1);"></div>
+                        </div>
+                        <span class="switch-label" style="margin-left: 12px; font-weight: 600; font-size: 0.95rem; color: #64748b; transition: color 0.3s;">Active</span>
+                    </label>
+                    <script>
+                        const statusCheckbox = document.getElementById('is_active');
+                        const statusTrack = statusCheckbox.nextElementSibling;
+                        const statusThumb = statusTrack.querySelector('.switch-thumb');
+                        const statusLabel = statusTrack.nextElementSibling;
+                        
+                        function updateSwitchUI() {
+                            if (statusCheckbox.checked) {
+                                statusTrack.style.background = '#10b981'; // Modern green
+                                statusThumb.style.transform = 'translateX(24px)';
+                                statusLabel.textContent = 'Active';
+                                statusLabel.style.color = '#10b981';
+                            } else {
+                                statusTrack.style.background = '#cbd5e1';
+                                statusThumb.style.transform = 'translateX(0)';
+                                statusLabel.textContent = 'Inactive';
+                                statusLabel.style.color = '#64748b';
+                            }
+                        }
+                        
+                        statusCheckbox.addEventListener('change', updateSwitchUI);
+                        // We will call updateSwitchUI() when editing an offer too
+                    </script>
                 </div>
                 <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
                     <div class="form-group">
@@ -365,6 +400,39 @@
             `).join('');
         }
 
+        function addFeatureRow(text = '', active = true) {
+            const list = document.getElementById('featuresList');
+            const row = document.createElement('div');
+            row.className = 'feature-row';
+            row.style.display = 'flex';
+            row.style.gap = '0.5rem';
+            row.style.alignItems = 'center';
+            
+            row.innerHTML = `
+                <input type="text" placeholder="Description du point (ex: Live 🟢)" value="${text.replace(/"/g, '&quot;')}" style="flex: 1; padding: 0.5rem; border: 1px solid #e2e8f0; border-radius: 4px;">
+                <select style="width: auto; padding: 0.5rem; border: 1px solid #e2e8f0; border-radius: 4px;">
+                    <option value="true" ${active ? 'selected' : ''}>Inclus (Vert)</option>
+                    <option value="false" ${!active ? 'selected' : ''}>Non inclus (Gris)</option>
+                </select>
+                <button type="button" class="btn" style="padding: 0.5rem; background: #fee2e2; color: #ef4444;" onclick="this.parentElement.remove()"><i class="fas fa-trash"></i></button>
+            `;
+            list.appendChild(row);
+        }
+
+        function getFeaturesData() {
+            const rows = document.querySelectorAll('#featuresList .feature-row');
+            const features = [];
+            rows.forEach(row => {
+                const inputs = row.querySelectorAll('input, select');
+                const text = inputs[0].value.trim();
+                const active = inputs[1].value === 'true';
+                if (text) {
+                    features.push({ text, active });
+                }
+            });
+            return features;
+        }
+
         // Global click listener for event delegation
         document.addEventListener('click', function (e) {
             const editBtn = e.target.closest('.edit-btn');
@@ -382,9 +450,16 @@
                 document.getElementById('offerForm').reset();
                 document.getElementById('offerId').value = '';
                 
+                document.getElementById('is_active').checked = true;
+                if(typeof updateSwitchUI === 'function') updateSwitchUI();
+                
                 // Clear checkboxes
                 document.querySelectorAll('#target_classes_group input[type="checkbox"]').forEach(cb => cb.checked = false);
                 document.querySelectorAll('#target_branches_group input[type="checkbox"]').forEach(cb => cb.checked = false);
+                
+                // Clear features
+                document.getElementById('featuresList').innerHTML = '';
+                addFeatureRow('', true); // Add one empty row by default
 
                 const modal = document.getElementById('offerModal');
                 if (!modal) throw new Error('Modal element "offerModal" not found');
@@ -418,7 +493,8 @@
                 document.getElementById('description').value = offer.description || '';
                 document.getElementById('fixed_price').value = offer.fixed_price || 0;
                 document.getElementById('discount_percentage').value = offer.discount_percentage || 0;
-                document.getElementById('is_active').value = String(offer.is_active);
+                document.getElementById('is_active').checked = !!offer.is_active;
+                if(typeof updateSwitchUI === 'function') updateSwitchUI();
                 
                 // Set checkboxes
                 const offerClasses = (offer.target_classes || []).map(c => c.toLowerCase().trim());
@@ -432,6 +508,22 @@
                 document.querySelectorAll('#target_branches_group input[type="checkbox"]').forEach(cb => {
                     cb.checked = offerBranches.includes(cb.value.toLowerCase().trim());
                 });
+                
+                // Populate features
+                document.getElementById('featuresList').innerHTML = '';
+                const featuresData = offer.features || [];
+                let featuresArray = [];
+                if (Array.isArray(featuresData)) {
+                    featuresArray = featuresData.map(f => typeof f === 'string' ? {text: f, active: true} : f);
+                } else if (typeof featuresData === 'object' && featuresData !== null) {
+                    featuresArray = Object.entries(featuresData).map(([text, active]) => ({text, active: !!active}));
+                }
+                
+                if (featuresArray.length === 0) {
+                    addFeatureRow('', true);
+                } else {
+                    featuresArray.forEach(f => addFeatureRow(f.text, f.active));
+                }
 
                 const modal = document.getElementById('offerModal');
                 if (!modal) throw new Error('Modal element "offerModal" not found');
@@ -457,9 +549,10 @@
                     description: document.getElementById('description').value,
                     fixed_price: parseFloat(document.getElementById('fixed_price').value),
                     discount_percentage: parseInt(document.getElementById('discount_percentage').value),
-                    is_active: document.getElementById('is_active').value === 'true',
+                    is_active: document.getElementById('is_active').checked,
                     target_classes: Array.from(document.querySelectorAll('#target_classes_group input[type="checkbox"]:checked')).map(cb => cb.value.toLowerCase()),
-                    target_branches: Array.from(document.querySelectorAll('#target_branches_group input[type="checkbox"]:checked')).map(cb => cb.value.toLowerCase())
+                    target_branches: Array.from(document.querySelectorAll('#target_branches_group input[type="checkbox"]:checked')).map(cb => cb.value.toLowerCase()),
+                    features: getFeaturesData()
                 };
 
                 const result = await window.AdminDashboard.manageOffer(data);
