@@ -118,11 +118,8 @@ async function initOffers() {
             `;
         }).join('');
 
-        // ── Carousel navigation ──────────────────────────────────────
-        // Only runs on mobile (≤768px). Uses ResizeObserver + scroll event
-        // so button state is always accurate — no brittle setTimeout chains.
-        // ──────────────────────────────────────────────────────────────
-        initCarouselNav(offersList);
+        // ── Mobile: Prev / Next button navigation ──
+        initMobileOfferNav(offersList, offers.length);
 
 
     } catch (error) {
@@ -273,103 +270,120 @@ style.textContent = `
 document.head.appendChild(style);
 
 /**
- * initCarouselNav — robust carousel navigation controller
+ * initMobileOfferNav
+ * ─────────────────────────────────────────────────────────────
+ * Implements indexed Prev / Next navigation for the offers page
+ * on mobile viewports (≤ 768 px).
  *
- * - Uses ResizeObserver to react to container size changes and image loads
- * - Uses scroll event + requestAnimationFrame for smooth, non-blocking updates
- * - No brittle setTimeout chains; state is always derived from real geometry
- * - Cleans up its own listeners/observers if called again (idempotent)
+ * Behaviour:
+ *  • One card is visible at a time, centred in the viewport.
+ *  • Prev and Next buttons below the card navigate between offers.
+ *  • An indicator (e.g. "2 / 3") reflects the current position.
+ *  • Prev is disabled on the first offer; Next is disabled on the last.
+ *  • On desktop the nav bar stays hidden; the grid layout takes over.
+ *  • ResizeObserver recalculates card positions after images load or
+ *    the viewport resizes, so the scroll offset is always correct.
+ *  • Cleans up listeners/observers when called again (idempotent).
  *
- * @param {HTMLElement} carousel - the scrollable .offers-list element
+ * @param {HTMLElement} list  - the #offers-list scroll container
+ * @param {number}      total - total number of offer cards
  */
-function initCarouselNav(carousel) {
-    const MOBILE_BP = 768;          // Must match CSS @media breakpoint
-    const TOLERANCE = 4;            // px tolerance for subpixel rounding
+function initMobileOfferNav(list, total) {
+    const MOBILE_BP  = 768;   // must match CSS breakpoint
 
-    const leftBtn  = document.getElementById('nav-left-btn');
-    const rightBtn = document.getElementById('nav-right-btn');
+    const navEl    = document.getElementById('mobile-offer-nav');
+    const prevBtn  = document.getElementById('nav-prev-btn');
+    const nextBtn  = document.getElementById('nav-next-btn');
+    const indicator= document.getElementById('offer-indicator');
 
-    if (!carousel || !leftBtn || !rightBtn) return;
+    if (!list || !navEl || !prevBtn || !nextBtn || !indicator) return;
 
-    // ── Cleanup any previous instance ──────────────────────────────
-    if (carousel._carouselNavCleanup) carousel._carouselNavCleanup();
+    // ── Clean up a previous call ──────────────────────────────────────
+    if (list._mobileNavCleanup) list._mobileNavCleanup();
 
-    // ── Helpers ────────────────────────────────────────────────────
-    function show(btn) {
-        btn.style.opacity       = '1';
-        btn.style.pointerEvents = 'auto';
-    }
-    function hide(btn) {
-        btn.style.opacity       = '0';
-        btn.style.pointerEvents = 'none';
+    let currentIndex = 0;
+
+    // ── Collect card elements (populated after innerHTML render) ──────
+    function getCards() {
+        return Array.from(list.querySelectorAll('.offer-card'));
     }
 
-    // Start both hidden until first update fires
-    hide(leftBtn);
-    hide(rightBtn);
-
-    // ── Core update ─────────────────────────────────────────────────
-    let rafId = null;
-    function scheduleUpdate() {
-        if (rafId) cancelAnimationFrame(rafId);
-        rafId = requestAnimationFrame(update);
+    // ── Scroll the list so card[index] is fully visible ──────────────
+    // Uses offsetLeft so it is always based on the real rendered layout.
+    function scrollToCard(index) {
+        const cards = getCards();
+        if (!cards[index]) return;
+        list.scrollTo({ left: cards[index].offsetLeft, behavior: 'smooth' });
     }
 
-    function update() {
-        rafId = null;
-
-        // Desktop: no buttons
+    // ── Update button states + indicator ─────────────────────────────
+    function syncUI() {
         if (window.innerWidth > MOBILE_BP) {
-            hide(leftBtn);
-            hide(rightBtn);
+            // Desktop: hide nav entirely
+            navEl.style.display = 'none';
+            navEl.setAttribute('aria-hidden', 'true');
             return;
         }
 
-        const scrollLeft = carousel.scrollLeft;
-        const maxScroll  = carousel.scrollWidth - carousel.clientWidth;
-
-        // LEFT: show only when user has scrolled right
-        if (scrollLeft > TOLERANCE) {
-            show(leftBtn);
-        } else {
-            hide(leftBtn);
+        if (total <= 1) {
+            // Only one offer — no need for navigation
+            navEl.style.display = 'none';
+            navEl.setAttribute('aria-hidden', 'true');
+            return;
         }
 
-        // RIGHT: show when there is more content to the right
-        if (maxScroll > TOLERANCE && scrollLeft < maxScroll - TOLERANCE) {
-            show(rightBtn);
-        } else {
-            hide(rightBtn);
-        }
+        navEl.style.display = 'flex';
+        navEl.setAttribute('aria-hidden', 'false');
+
+        prevBtn.disabled = (currentIndex === 0);
+        nextBtn.disabled = (currentIndex === total - 1);
+        indicator.textContent = `${currentIndex + 1} / ${total}`;
     }
 
-    // ── Listeners ──────────────────────────────────────────────────
-    function onScroll() { scheduleUpdate(); }
-    function onResize() { scheduleUpdate(); }
+    // ── Navigate ──────────────────────────────────────────────────────
+    function goTo(index) {
+        const cards = getCards();
+        currentIndex = Math.max(0, Math.min(index, cards.length - 1));
+        scrollToCard(currentIndex);
+        syncUI();
+    }
 
-    carousel.addEventListener('scroll', onScroll, { passive: true });
+    // ── Event handlers ────────────────────────────────────────────────
+    function onPrev() { goTo(currentIndex - 1); }
+    function onNext() { goTo(currentIndex + 1); }
+    function onResize() {
+        // Re-scroll to keep current card aligned after resize
+        requestAnimationFrame(() => {
+            scrollToCard(currentIndex);
+            syncUI();
+        });
+    }
+
+    prevBtn.addEventListener('click', onPrev);
+    nextBtn.addEventListener('click', onNext);
     window.addEventListener('resize', onResize, { passive: true });
 
-    // ── ResizeObserver — reacts to image load / DOM changes ────────
-    // Observes the carousel AND each card image so we recalculate
-    // the moment any image finishes loading and expands the container.
+    // ── ResizeObserver: recalculate after images load ─────────────────
     let ro = null;
     if (typeof ResizeObserver !== 'undefined') {
-        ro = new ResizeObserver(scheduleUpdate);
-        ro.observe(carousel);
-        carousel.querySelectorAll('img').forEach(img => ro.observe(img));
+        ro = new ResizeObserver(() => {
+            requestAnimationFrame(() => scrollToCard(currentIndex));
+        });
+        ro.observe(list);
+        list.querySelectorAll('img').forEach(img => ro.observe(img));
     }
 
-    // Fire once immediately after rendering to set correct initial state
-    scheduleUpdate();
+    // ── Initial state ─────────────────────────────────────────────────
+    syncUI();
 
-    // ── Cleanup (idempotent re-init support) ───────────────────────
-    carousel._carouselNavCleanup = function () {
-        carousel.removeEventListener('scroll', onScroll);
+    // ── Cleanup ───────────────────────────────────────────────────────
+    list._mobileNavCleanup = function () {
+        prevBtn.removeEventListener('click', onPrev);
+        nextBtn.removeEventListener('click', onNext);
         window.removeEventListener('resize', onResize);
         if (ro) ro.disconnect();
-        if (rafId) cancelAnimationFrame(rafId);
     };
 }
+
 
 

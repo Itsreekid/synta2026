@@ -16,10 +16,15 @@
                 <div class="offers-list" id="offers-list">
                     <!-- Offers loaded by offers.js -->
                 </div>
-                <!-- Mobile Navigation Buttons -->
-                <div class="mobile-carousel-nav">
-                    <button id="nav-left-btn" onclick="document.getElementById('offers-list').scrollBy({left: -300, behavior: 'smooth'})" class="nav-btn"><i class="fas fa-chevron-left"></i></button>
-                    <button id="nav-right-btn" onclick="document.getElementById('offers-list').scrollBy({left: 300, behavior: 'smooth'})" class="nav-btn"><i class="fas fa-chevron-right"></i></button>
+                <!-- Mobile: Prev / Next button navigation -->
+                <div class="mobile-offer-nav" id="mobile-offer-nav" aria-hidden="true">
+                    <button id="nav-prev-btn" class="mob-nav-btn" aria-label="Offre précédente" disabled>
+                        <i class="fas fa-chevron-left"></i>
+                    </button>
+                    <span class="offer-indicator" id="offer-indicator">1 / 1</span>
+                    <button id="nav-next-btn" class="mob-nav-btn" aria-label="Offre suivante">
+                        <i class="fas fa-chevron-right"></i>
+                    </button>
                 </div>
             </div>
         </section>
