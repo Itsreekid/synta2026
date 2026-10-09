@@ -318,8 +318,8 @@
         scroll-snap-type: x mandatory;
         scroll-behavior: smooth;
         justify-content: flex-start;
-        /* Use 50% of container width (not viewport vw) so it works flawlessly with sidebars! */
-        padding: 1rem calc(50% - 140px) 2rem calc(50% - 140px); 
+        /* Calculate precise padding to perfectly center a 280px card on any mobile screen */
+        padding: 1rem calc(50vw - 140px) 2rem calc(50vw - 140px); 
         gap: 1.5rem;
         -webkit-overflow-scrolling: touch;
         
