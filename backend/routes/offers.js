@@ -41,7 +41,7 @@ router.get("/", authMiddleware, async (req, res) => {
        LEFT JOIN courses c ON c.id = oc.course_id
        WHERE o.is_active = true
        GROUP BY o.id
-       ORDER BY o.created_at DESC`
+       ORDER BY o.fixed_price ASC, o.created_at DESC`
     );
 
     let offers = offersResult.rows;
