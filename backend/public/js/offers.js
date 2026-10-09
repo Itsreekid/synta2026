@@ -118,67 +118,11 @@ async function initOffers() {
             `;
         }).join('');
 
-        // ── Carousel nav button logic ──
-        const leftBtn = document.getElementById('nav-left-btn');
-        const rightBtn = document.getElementById('nav-right-btn');
-
-        if (leftBtn && rightBtn) {
-            const isMobile = () => window.innerWidth <= 1024;
-            const totalOffers = offers.length;
-
-            const showBtn = (btn) => {
-                btn.style.opacity = '1';
-                btn.style.pointerEvents = 'auto';
-                btn.style.visibility = 'visible';
-            };
-            const hideBtn = (btn) => {
-                btn.style.opacity = '0';
-                btn.style.pointerEvents = 'none';
-                btn.style.visibility = 'hidden';
-            };
-
-            // Start hidden
-            hideBtn(leftBtn);
-            hideBtn(rightBtn);
-
-            const updateButtons = () => {
-                // Desktop: no buttons needed — grid shows all
-                if (!isMobile()) {
-                    hideBtn(leftBtn);
-                    hideBtn(rightBtn);
-                    return;
-                }
-
-                const scrollLeft = Math.round(offersList.scrollLeft);
-                const maxScroll = Math.round(offersList.scrollWidth - offersList.clientWidth);
-
-                // LEFT: only visible after scrolling right
-                if (scrollLeft > 10) {
-                    showBtn(leftBtn);
-                } else {
-                    hideBtn(leftBtn);
-                }
-
-                // RIGHT: show if there are multiple offers AND not at the very end
-                // Use offer count as primary signal (works even before images load)
-                if (totalOffers > 1) {
-                    if (maxScroll > 0 && scrollLeft >= maxScroll - 10) {
-                        // Reached the end
-                        hideBtn(rightBtn);
-                    } else {
-                        // At start or middle — show right button
-                        showBtn(rightBtn);
-                    }
-                }
-            };
-
-            offersList.addEventListener('scroll', updateButtons, { passive: true });
-            window.addEventListener('resize', updateButtons);
-
-            // Run at staggered intervals to catch image-deferred layout shifts
-            updateButtons();
-            [100, 300, 700, 1500, 3000].forEach(ms => setTimeout(updateButtons, ms));
-        }
+        // ── Carousel navigation ──────────────────────────────────────
+        // Only runs on mobile (≤768px). Uses ResizeObserver + scroll event
+        // so button state is always accurate — no brittle setTimeout chains.
+        // ──────────────────────────────────────────────────────────────
+        initCarouselNav(offersList);
 
 
     } catch (error) {
@@ -327,3 +271,105 @@ style.textContent = `
     }
 `;
 document.head.appendChild(style);
+
+/**
+ * initCarouselNav — robust carousel navigation controller
+ *
+ * - Uses ResizeObserver to react to container size changes and image loads
+ * - Uses scroll event + requestAnimationFrame for smooth, non-blocking updates
+ * - No brittle setTimeout chains; state is always derived from real geometry
+ * - Cleans up its own listeners/observers if called again (idempotent)
+ *
+ * @param {HTMLElement} carousel - the scrollable .offers-list element
+ */
+function initCarouselNav(carousel) {
+    const MOBILE_BP = 768;          // Must match CSS @media breakpoint
+    const TOLERANCE = 4;            // px tolerance for subpixel rounding
+
+    const leftBtn  = document.getElementById('nav-left-btn');
+    const rightBtn = document.getElementById('nav-right-btn');
+
+    if (!carousel || !leftBtn || !rightBtn) return;
+
+    // ── Cleanup any previous instance ──────────────────────────────
+    if (carousel._carouselNavCleanup) carousel._carouselNavCleanup();
+
+    // ── Helpers ────────────────────────────────────────────────────
+    function show(btn) {
+        btn.style.opacity       = '1';
+        btn.style.pointerEvents = 'auto';
+    }
+    function hide(btn) {
+        btn.style.opacity       = '0';
+        btn.style.pointerEvents = 'none';
+    }
+
+    // Start both hidden until first update fires
+    hide(leftBtn);
+    hide(rightBtn);
+
+    // ── Core update ─────────────────────────────────────────────────
+    let rafId = null;
+    function scheduleUpdate() {
+        if (rafId) cancelAnimationFrame(rafId);
+        rafId = requestAnimationFrame(update);
+    }
+
+    function update() {
+        rafId = null;
+
+        // Desktop: no buttons
+        if (window.innerWidth > MOBILE_BP) {
+            hide(leftBtn);
+            hide(rightBtn);
+            return;
+        }
+
+        const scrollLeft = carousel.scrollLeft;
+        const maxScroll  = carousel.scrollWidth - carousel.clientWidth;
+
+        // LEFT: show only when user has scrolled right
+        if (scrollLeft > TOLERANCE) {
+            show(leftBtn);
+        } else {
+            hide(leftBtn);
+        }
+
+        // RIGHT: show when there is more content to the right
+        if (maxScroll > TOLERANCE && scrollLeft < maxScroll - TOLERANCE) {
+            show(rightBtn);
+        } else {
+            hide(rightBtn);
+        }
+    }
+
+    // ── Listeners ──────────────────────────────────────────────────
+    function onScroll() { scheduleUpdate(); }
+    function onResize() { scheduleUpdate(); }
+
+    carousel.addEventListener('scroll', onScroll, { passive: true });
+    window.addEventListener('resize', onResize, { passive: true });
+
+    // ── ResizeObserver — reacts to image load / DOM changes ────────
+    // Observes the carousel AND each card image so we recalculate
+    // the moment any image finishes loading and expands the container.
+    let ro = null;
+    if (typeof ResizeObserver !== 'undefined') {
+        ro = new ResizeObserver(scheduleUpdate);
+        ro.observe(carousel);
+        carousel.querySelectorAll('img').forEach(img => ro.observe(img));
+    }
+
+    // Fire once immediately after rendering to set correct initial state
+    scheduleUpdate();
+
+    // ── Cleanup (idempotent re-init support) ───────────────────────
+    carousel._carouselNavCleanup = function () {
+        carousel.removeEventListener('scroll', onScroll);
+        window.removeEventListener('resize', onResize);
+        if (ro) ro.disconnect();
+        if (rafId) cancelAnimationFrame(rafId);
+    };
+}
+
+

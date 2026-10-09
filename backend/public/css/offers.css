@@ -1,228 +1,230 @@
-/* Font import removed — loaded in head.ejs */
+/* =============================================================
+   OFFERS PAGE — Premium Responsive CSS
+   All selectors scoped to .offers-container or body.page-offers
+   ============================================================= */
 
-/* ═══════════════════════════════════════════════════════
-   CRITICAL: Override parent overflow that kills carousel
-   ═══════════════════════════════════════════════════════ */
-#main-section,
-.main-section,
-section {
-    overflow-x: visible !important;
+/* ── Design tokens (scoped) ── */
+.offers-container {
+    --oc-blue:        #0a2e6b;
+    --oc-blue-grad:   linear-gradient(135deg, #0a2e6b 0%, #1e5ddb 100%);
+    --oc-orange:      #ff7b1a;
+    --oc-orange-grad: linear-gradient(135deg, #ff9900 0%, #ff5500 100%);
+    --oc-green:       #10b981;
+    --oc-red:         #ef4444;
+    --oc-border:      #e2e8f0;
+    --oc-bg:          #f8fafc;
+    --oc-dark:        #0f172a;
+    --oc-muted:       #64748b;
+    --oc-radius:      24px;
 }
 
+/* ── Container ── */
 .offers-container {
-    --primary-blue: #0a2e6b;
-    --primary-gradient: linear-gradient(135deg, #0a2e6b 0%, #1e5ddb 100%);
-    --accent-orange: #ff7b1a;
-    --accent-gradient: linear-gradient(135deg, #ff9900 0%, #ff5500 100%);
-    --success-green: #10b981;
-    --discount-red: #ef4444;
-    --border-color: #e2e8f0;
-    --bg-light: #f8fafc;
-    --text-dark: #0f172a;
-    --text-muted: #64748b;
-
     max-width: 1200px;
     margin: 0 auto;
-    padding: 2rem 1.5rem;
+    padding: 2rem 1.5rem 3rem;
     position: relative;
 }
 
-/* body styles stripped for SPA */
-
-/* ── DESKTOP: Centered grid, all cards visible ── */
+/* =============================================================
+   DESKTOP — responsive grid, all cards visible simultaneously
+   ============================================================= */
 .offers-list {
     display: flex;
     flex-wrap: wrap;
     justify-content: center;
     align-items: stretch;
     gap: 2rem;
-    padding: 2rem 0 3rem;
+    padding: 1.5rem 0 2rem;
+    list-style: none;
+    margin: 0;
 }
 
-/* Nav buttons hidden on desktop */
+/* Nav buttons are desktop-hidden */
 .mobile-carousel-nav {
     display: none;
 }
 
-/* --- Premium Offer Card --- */
-
+/* =============================================================
+   OFFER CARD — base styles shared between desktop and mobile
+   ============================================================= */
 .offer-card {
-    background: white;
-    border: 1px solid var(--border-color);
-    border-radius: 24px;
+    background: #fff;
+    border: 1.5px solid var(--oc-border);
+    border-radius: var(--oc-radius);
     overflow: hidden;
-    box-shadow: 0 10px 40px -10px rgba(0, 0, 0, 0.08);
+    box-shadow: 0 6px 28px -6px rgba(0,0,0,0.09);
     display: flex;
     flex-direction: column;
     position: relative;
-    transition: all 0.4s cubic-bezier(0.165, 0.84, 0.44, 1);
-    flex: 0 0 340px;
-    max-width: 360px;
+    transition: transform 0.32s cubic-bezier(0.165, 0.84, 0.44, 1),
+                box-shadow 0.32s cubic-bezier(0.165, 0.84, 0.44, 1);
+    /* Desktop size */
+    flex: 0 0 320px;
+    max-width: 340px;
     width: 100%;
     z-index: 1;
 }
 
 .offer-card:hover {
-    transform: translateY(-8px);
-    box-shadow: 0 20px 40px -10px rgba(0, 0, 0, 0.12);
+    transform: translateY(-5px);
+    box-shadow: 0 18px 38px -8px rgba(0,0,0,0.13);
 }
 
-/* Featured Card (Big Effort) */
 .offer-card.featured {
-    border: 2px solid var(--accent-orange);
-    box-shadow: 0 15px 50px -10px rgba(255, 123, 26, 0.25);
+    border: 2px solid var(--oc-orange);
+    box-shadow: 0 10px 38px -8px rgba(255, 123, 26, 0.2);
     z-index: 2;
 }
 
 @media (min-width: 1025px) {
     .offer-card.featured {
-        transform: scale(1.05);
+        transform: scale(1.04);
     }
     .offer-card.featured:hover {
-        transform: scale(1.05) translateY(-8px);
+        transform: scale(1.04) translateY(-5px);
     }
 }
 
+/* ── Best Seller Banner ── */
 .best-seller-banner {
-    background: var(--accent-gradient);
-    color: white;
+    background: var(--oc-orange-grad);
+    color: #fff;
     text-align: center;
-    padding: 0.6rem;
+    padding: 0.5rem 1rem;
     font-weight: 800;
-    font-size: 1.05rem;
-    font-family: 'Tajawal', sans-serif;
-    letter-spacing: 0.5px;
-    text-transform: uppercase;
-    box-shadow: 0 2px 10px rgba(255, 85, 0, 0.3);
+    font-size: 0.95rem;
+    font-family: Tajawal, sans-serif;
+    letter-spacing: 0.3px;
 }
 
+/* ── Card Image ── */
 .offer-image-section {
-    height: 150px;
-    margin: 12px;
+    height: 140px;
+    margin: 10px 10px 0;
     overflow: hidden;
     border-radius: 16px;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    background: var(--bg-light);
+    background: var(--oc-bg);
+    flex-shrink: 0;
 }
 
 .offer-image-section img {
     width: 100%;
     height: 100%;
     object-fit: cover;
-    transition: transform 0.5s ease;
+    display: block;
+    transition: transform 0.45s ease;
 }
 
 .offer-card:hover .offer-image-section img {
-    transform: scale(1.05);
+    transform: scale(1.04);
 }
 
-/* --- Price Section --- */
+/* ── Price ── */
 .offer-price-section {
-    padding: 1.5rem 2rem 0.5rem;
+    padding: 1rem 1.5rem 0.4rem;
     text-align: center;
     display: flex;
     flex-direction: column;
     align-items: center;
-    gap: 0.5rem;
+    gap: 0.3rem;
 }
 
 .discount-badge {
-    background: var(--discount-red);
-    color: white;
-    padding: 6px 14px;
+    background: var(--oc-red);
+    color: #fff;
+    padding: 4px 10px;
     border-radius: 20px;
     font-weight: 800;
-    font-size: 1.1rem;
-    margin-bottom: 0.5rem;
+    font-size: 0.95rem;
     display: inline-block;
-    box-shadow: 0 4px 10px rgba(239, 68, 68, 0.3);
-    animation: pulseBadge 2s infinite;
+    box-shadow: 0 3px 8px rgba(239,68,68,0.25);
+    animation: pulseBadge 2.5s ease-in-out infinite;
 }
 
 @keyframes pulseBadge {
-    0% { transform: scale(1); }
-    50% { transform: scale(1.05); }
-    100% { transform: scale(1); }
+    0%,100% { transform: scale(1); }
+    50%      { transform: scale(1.07); }
 }
 
 .price-comparison {
     display: flex;
     align-items: baseline;
     justify-content: center;
-    gap: 1rem;
+    gap: 0.7rem;
 }
 
 .original-price {
-    color: var(--text-muted);
+    color: var(--oc-muted);
     text-decoration: line-through;
-    font-size: 1.6rem;
+    font-size: 1.3rem;
     font-weight: 600;
-    opacity: 0.7;
+    opacity: 0.6;
 }
 
 .current-price-container {
     display: flex;
     align-items: flex-start;
+    gap: 3px;
 }
 
 .current-price {
-    font-size: 3rem;
+    font-size: 2.7rem;
     font-weight: 900;
-    color: var(--text-dark);
+    color: var(--oc-dark);
     line-height: 1;
     letter-spacing: -1px;
 }
 
 .currency-label {
-    font-size: 1.1rem;
+    font-size: 0.95rem;
     font-weight: 700;
-    color: var(--text-muted);
-    margin-left: 4px;
-    margin-top: 4px;
+    color: var(--oc-muted);
+    margin-top: 6px;
 }
 
-/* --- Date / Period Box --- */
+/* ── Date / Validity ── */
 .validity-box {
-    margin: 1rem 2rem;
-    background: var(--bg-light);
-    border: 1px solid var(--border-color);
-    border-radius: 12px;
-    padding: 0.8rem;
+    margin: 0.7rem 1.2rem;
+    background: var(--oc-bg);
+    border: 1px solid var(--oc-border);
+    border-radius: 10px;
+    padding: 0.6rem 0.8rem;
     display: flex;
     align-items: center;
     justify-content: center;
-    gap: 10px;
-    color: var(--text-dark);
+    gap: 8px;
+    color: var(--oc-dark);
     font-weight: 600;
-    font-size: 0.95rem;
+    font-size: 0.85rem;
+    flex-shrink: 0;
 }
 
 .validity-box i {
-    font-size: 1.2rem;
-    color: var(--primary-blue);
+    color: var(--oc-blue);
+    font-size: 1rem;
 }
 
-/* --- Feature List --- */
+/* ── Feature List ── */
 .features-section {
-    padding: 1rem 2.5rem;
+    padding: 0.6rem 1.5rem;
     flex: 1;
+    direction: rtl;
 }
 
 .feature-item {
     display: flex;
-    align-items: center;
+    align-items: flex-start;
     justify-content: flex-end;
-    gap: 12px;
-    margin-bottom: 0.8rem;
-    font-family: 'Tajawal', sans-serif;
-    color: var(--text-dark);
+    gap: 10px;
+    margin-bottom: 0.55rem;
+    font-family: Tajawal, sans-serif;
+    color: var(--oc-dark);
     font-weight: 600;
     text-align: right;
-    font-size: 0.95rem;
-    padding-bottom: 0.6rem;
-    border-bottom: 1px solid rgba(0,0,0,0.03);
+    font-size: 0.88rem;
+    padding-bottom: 0.5rem;
+    border-bottom: 1px solid rgba(0,0,0,0.04);
 }
 
 .feature-item:last-child {
@@ -233,16 +235,18 @@ section {
 
 .feature-text {
     flex: 1;
-    line-height: 1.4;
+    line-height: 1.45;
+    word-break: break-word;
 }
 
 .check-icon {
-    width: 22px;
-    height: 22px;
+    width: 20px;
+    height: 20px;
+    flex-shrink: 0;
     display: flex;
     align-items: center;
     justify-content: center;
-    flex-shrink: 0;
+    margin-top: 2px;
 }
 
 .check-icon img {
@@ -251,122 +255,109 @@ section {
     object-fit: contain;
 }
 
-/* --- Action Button --- */
+/* ── CTA Button ── */
 .purchase-section {
-    padding: 1rem 1.5rem 1.5rem;
-    margin-top: auto; /* Push button to the very bottom */
+    padding: 0.7rem 1.1rem 1.1rem;
+    margin-top: auto;
+    flex-shrink: 0;
 }
 
 .acheter-btn {
     width: 100%;
-    padding: 0.8rem;
-    background: var(--primary-gradient);
-    color: white;
+    padding: 0.7rem;
+    background: var(--oc-blue-grad);
+    color: #fff;
     border: none;
     border-radius: 100px;
-    font-size: 1.1rem;
+    font-size: 0.97rem;
     font-weight: 800;
     cursor: pointer;
-    box-shadow: 0 8px 20px rgba(10, 46, 107, 0.25);
-    transition: all 0.3s cubic-bezier(0.165, 0.84, 0.44, 1);
-    font-family: 'Tajawal', sans-serif;
-    letter-spacing: 0.5px;
+    box-shadow: 0 5px 16px rgba(10,46,107,0.2);
+    transition: all 0.28s cubic-bezier(0.165,0.84,0.44,1);
+    font-family: Tajawal, sans-serif;
 }
 
 .acheter-btn:hover:not(:disabled) {
-    transform: translateY(-3px);
-    box-shadow: 0 12px 25px rgba(10, 46, 107, 0.35);
+    transform: translateY(-2px);
+    box-shadow: 0 9px 22px rgba(10,46,107,0.3);
 }
 
 .offer-card.featured .acheter-btn {
-    background: var(--accent-gradient);
-    box-shadow: 0 8px 20px rgba(255, 123, 26, 0.3);
+    background: var(--oc-orange-grad);
+    box-shadow: 0 5px 16px rgba(255,123,26,0.25);
 }
 
 .offer-card.featured .acheter-btn:hover:not(:disabled) {
-    box-shadow: 0 12px 25px rgba(255, 123, 26, 0.45);
+    box-shadow: 0 9px 22px rgba(255,123,26,0.4);
 }
 
 .acheter-btn:disabled {
-    background: var(--border-color);
-    color: var(--text-muted);
+    background: var(--oc-border);
+    color: var(--oc-muted);
     cursor: not-allowed;
     box-shadow: none;
     transform: none;
 }
 
 .acheter-btn.purchased-btn {
-    background: var(--success-green) !important;
-    color: white !important;
-    box-shadow: 0 4px 15px rgba(16, 185, 129, 0.3) !important;
+    background: var(--oc-green) !important;
+    color: #fff !important;
+    box-shadow: 0 4px 12px rgba(16,185,129,0.25) !important;
 }
 
-/* Hide balance summary as requested */
-.user-balance-summary {
-    display: none !important;
-}
+/* ── Hidden balance ── */
+.user-balance-summary { display: none !important; }
 
-/* ── Nav buttons: hidden by default on desktop ── */
-.mobile-carousel-nav {
-    display: none;
-}
-
-/* ══════════════════════════════════════════════════════
-   MOBILE & TABLET (max-width: 1024px)
-   Horizontal snap carousel + fixed nav buttons
-   ══════════════════════════════════════════════════════ */
-@media (max-width: 1024px) {
-
-    /* Override user.css overflow-x: hidden that breaks the carousel */
-    #main-section,
-    .main-section,
-    section {
-        overflow-x: visible !important;
-        overflow-y: auto !important;
-    }
-
-    .offers-container {
-        padding: 0.5rem 0;
-        overflow: visible;
-    }
+/* =============================================================
+   MOBILE & TABLET  (max-width: 768px — matches user.css breakpoint)
+   ============================================================= */
+@media (max-width: 768px) {
 
     /* Horizontal carousel */
     .offers-list {
         flex-wrap: nowrap;
         justify-content: flex-start;
         align-items: stretch;
-        overflow-x: auto;
+        overflow-x: scroll;
         overflow-y: visible;
         scroll-snap-type: x mandatory;
         scroll-behavior: smooth;
         -webkit-overflow-scrolling: touch;
         scrollbar-width: none;
         -ms-overflow-style: none;
-        gap: 1rem;
-        padding: 1rem 1.2rem 2.5rem 1.2rem;
+        gap: 0.9rem;
+        /* 1.2rem left pad so first card starts nicely, 4rem right so last card is reachable */
+        padding: 0.5rem 4rem 1.5rem 1.2rem;
     }
 
-    .offers-list::-webkit-scrollbar {
-        display: none;
-    }
+    .offers-list::-webkit-scrollbar { display: none; }
 
-    /* Cards: ~85vw so next card peeks */
+    /* Cards: slightly narrower than viewport so next card peeks */
     .offer-card {
-        flex: 0 0 85vw;
-        max-width: 310px;
+        flex: 0 0 82vw;
+        max-width: 290px;
         scroll-snap-align: start;
         margin: 0;
     }
 
     .offer-card.featured {
-        transform: scale(1);
+        transform: none !important;
+    }
+
+    .offer-card:hover {
+        transform: none;
     }
 
     .current-price {
-        font-size: 2.5rem;
+        font-size: 2.4rem;
     }
 
-    /* Nav buttons fixed to viewport — they NEVER scroll away */
+    .offers-container {
+        padding: 0.5rem 0 1rem;
+    }
+
+    /* ── Nav Buttons ── */
+    /* Fixed to viewport so they are ALWAYS visible regardless of page scroll */
     .mobile-carousel-nav {
         display: block;
         position: fixed;
@@ -381,7 +372,7 @@ section {
     .mobile-carousel-nav .nav-btn {
         position: absolute;
         pointer-events: auto;
-        background: rgba(255, 255, 255, 0.95);
+        background: rgba(255, 255, 255, 0.96);
         backdrop-filter: blur(10px);
         -webkit-backdrop-filter: blur(10px);
         border: none;
@@ -391,20 +382,18 @@ section {
         display: flex;
         align-items: center;
         justify-content: center;
-        color: #0a2e6b;
-        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
+        color: var(--oc-blue, #0a2e6b);
+        box-shadow: 0 3px 18px rgba(0,0,0,0.18);
         cursor: pointer;
         font-size: 1rem;
-        transition: opacity 0.25s ease, transform 0.18s ease;
+        /* visibility toggled by JS via opacity + pointer-events */
+        opacity: 0;
+        pointer-events: none;
+        transition: opacity 0.22s ease;
     }
 
-    #nav-left-btn {
-        left: 6px;
-    }
-
-    #nav-right-btn {
-        right: 6px;
-    }
+    #nav-left-btn  { left: 8px; }
+    #nav-right-btn { right: 8px; }
 
     .mobile-carousel-nav .nav-btn:active {
         transform: scale(0.88);

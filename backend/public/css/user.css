@@ -674,6 +674,12 @@ iframe {
         -webkit-overflow-scrolling: touch;
     }
 
+    /* Offers page exception — carousel needs horizontal scroll */
+    body.page-offers .main-section,
+    body.page-offers section {
+        overflow-x: visible !important;
+    }
+
     section {
         height: calc(100vh - 70px);
         width: 100%;
