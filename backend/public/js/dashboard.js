@@ -94,12 +94,14 @@ function loadStats() {
 
 function loadCoursePath() {
     fetchWithSWR(`/api/courses/user/my-courses?t=${Date.now()}`, 'swr_courses', async (courses) => {
-        if (!courses || courses.length === 0) {
-            document.querySelector('.level-info span').textContent = "Débutant";
+        if (!courses || !Array.isArray(courses) || courses.length === 0) {
+            const levelSpan = document.querySelector('.level-info span');
+            if (levelSpan) levelSpan.textContent = "Débutant";
             
             const continueSection = document.getElementById('continue-content-container');
             if (continueSection) {
-                document.querySelector('.dashboard-container').classList.add('locked-mode');
+                const dashboardContainer = document.querySelector('.dashboard-container');
+                if (dashboardContainer) dashboardContainer.classList.add('locked-mode');
                 
                 continueSection.innerHTML = `
                     <div class="locked-state" style="display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; gap: 1.5rem; background: #fff7ed; padding: 2rem; border-radius: var(--radius-lg); border: 2px dashed #fdba74; cursor: pointer; transition: all 0.3s ease; flex: 1; height: 100%; min-height: 250px;" onclick="window.location.href='/app/offers'" onmouseover="this.style.transform='translateY(-3px)'; this.style.boxShadow='0 8px 25px rgba(249, 115, 22, 0.15)';" onmouseout="this.style.transform='none'; this.style.boxShadow='none';">
@@ -183,12 +185,14 @@ function loadCoursePath() {
         });
     }, (err) => {
         const continueSection = document.getElementById('continue-content-container');
-        continueSection.innerHTML = `
-            <div style="padding:1rem; text-align:center; color:#ef4444; background:#fef2f2; border-radius:12px; width:100%;">
-                <p style="margin-bottom:0.5rem; font-weight:600;">Connexion impossible</p>
-                <button class="btn-primary" style="padding: 0.4rem 0.8rem; font-size: 0.8rem; background: #ef4444;" onclick="loadCoursePath()">Réessayer</button>
-            </div>
-        `;
+        if (continueSection) {
+            continueSection.innerHTML = `
+                <div style="padding:1rem; text-align:center; color:#ef4444; background:#fef2f2; border-radius:12px; width:100%;">
+                    <p style="margin-bottom:0.5rem; font-weight:600;">Erreur de chargement: ${err}</p>
+                    <button class="btn-primary" style="padding: 0.4rem 0.8rem; font-size: 0.8rem; background: #ef4444;" onclick="loadCoursePath()">Réessayer</button>
+                </div>
+            `;
+        }
     });
 }
 

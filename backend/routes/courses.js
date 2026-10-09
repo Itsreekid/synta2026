@@ -69,7 +69,7 @@ router.get("/user/my-courses", authMiddleware, async (req, res) => {
            JOIN modules m ON l.module_id = m.id
            WHERE m.course_id = c.id AND lp.user_id = $1 AND lp.completed = true
        )
-       ORDER BY COALESCE(e.enrolled_at, '2000-01-01') DESC`,
+       ORDER BY COALESCE(e.enrolled_at, '2000-01-01'::timestamp) DESC`,
       [userId]
     );
 
