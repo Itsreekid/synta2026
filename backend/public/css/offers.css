@@ -47,6 +47,19 @@
 }
 
 /* =============================================================
+   TABLET — tighten layout to ensure cards don't wrap early
+   ============================================================= */
+@media (max-width: 1024px) and (min-width: 769px) {
+    .offers-container {
+        padding: 1.5rem 0.5rem;
+    }
+    .offers-list {
+        gap: 1rem;
+    }
+}
+
+
+/* =============================================================
    OFFER CARD — base styles shared between desktop and mobile
    ============================================================= */
 .offer-card {
@@ -60,8 +73,9 @@
     position: relative;
     transition: transform 0.32s cubic-bezier(0.165, 0.84, 0.44, 1),
                 box-shadow 0.32s cubic-bezier(0.165, 0.84, 0.44, 1);
-    /* Desktop size */
-    flex: 0 0 320px;
+    /* Desktop size: allow shrinking on tablet so they stay side-by-side */
+    flex: 1 1 320px;
+    min-width: 280px;
     max-width: 340px;
     width: 100%;
     z-index: 1;
