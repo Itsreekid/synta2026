@@ -349,19 +349,14 @@
     /* Show and style mobile navigation */
     .mobile-carousel-nav {
         display: flex;
-        justify-content: space-between;
+        justify-content: center;
         align-items: center;
-        position: absolute;
-        top: 50%;
-        left: 5px;
-        right: 5px;
-        transform: translateY(-50%);
-        pointer-events: none;
-        z-index: 10;
+        gap: 1.5rem;
+        margin-top: 0.5rem;
+        padding-bottom: 2rem;
     }
 
     .mobile-carousel-nav .nav-btn {
-        pointer-events: auto;
         background: white;
         border: 1px solid var(--border-color);
         width: 44px;
