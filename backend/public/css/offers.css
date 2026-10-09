@@ -348,15 +348,19 @@
 
     /* Show and style mobile navigation */
     .mobile-carousel-nav {
-        display: flex;
-        justify-content: center;
-        align-items: center;
-        gap: 1.5rem;
-        margin-top: 0.5rem;
-        padding-bottom: 2rem;
+        display: block;
+        position: absolute;
+        top: 55%;
+        left: 0;
+        width: 100%;
+        transform: translateY(-50%);
+        pointer-events: none;
+        z-index: 50;
     }
 
     .mobile-carousel-nav .nav-btn {
+        position: absolute;
+        pointer-events: auto;
         background: white;
         border: 1px solid var(--border-color);
         width: 44px;
@@ -369,6 +373,14 @@
         box-shadow: 0 4px 15px rgba(0,0,0,0.15);
         cursor: pointer;
         transition: all 0.2s ease;
+    }
+
+    #nav-left-btn {
+        left: 10px;
+    }
+
+    #nav-right-btn {
+        right: 10px;
     }
 
     .mobile-carousel-nav .nav-btn:active {
