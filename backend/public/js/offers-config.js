@@ -43,29 +43,28 @@ window.OFFERS_FEATURES_CONFIG = {
      * Function to get features for an offer
      */
     getFeatures: function (offer) {
-        let entry = this.offers[offer.id] || this.offers[offer.title];
         let list = [];
 
-        if (entry) {
-            // Support both direct array or object with .features
-            list = Array.isArray(entry) ? entry : (entry.features || []);
-        }
-        // 3. Fallback to Database data
-        else if (offer.features && (Array.isArray(offer.features) || Object.keys(offer.features).length > 0)) {
+        // 1. Prioritize Database data (from the Admin Panel edits)
+        if (offer.features && (Array.isArray(offer.features) ? offer.features.length > 0 : Object.keys(offer.features).length > 0)) {
             const data = offer.features;
             if (Array.isArray(data)) {
-                return data.map(text => ({ text, active: true }));
+                list = data.map(text => typeof text === 'string' ? { text, active: true } : text);
             } else {
-                return Object.entries(data).map(([text, active]) => ({ text, active: !!active }));
+                list = Object.entries(data).map(([text, active]) => ({ text, active: !!active }));
             }
-        }
-        // 4. Default
-        else {
-            list = this.default;
+            return list;
         }
 
-        // Ensure we always return objects { text, active }
-        return list.map(item => typeof item === 'string' ? { text: item, active: true } : item);
+        // 2. Fallback to hardcoded specific features
+        let entry = this.offers[offer.id] || this.offers[offer.title];
+        if (entry) {
+            list = Array.isArray(entry) ? entry : (entry.features || []);
+            return list.map(item => typeof item === 'string' ? { text: item, active: true } : item);
+        }
+
+        // 3. Default fallback
+        return this.default.map(item => typeof item === 'string' ? { text: item, active: true } : item);
     },
 
     /**
