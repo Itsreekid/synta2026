@@ -34,11 +34,22 @@
 
 .offers-list {
     display: flex;
-    flex-wrap: wrap;
-    justify-content: center;
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    overflow-y: hidden;
+    scroll-snap-type: x mandatory;
+    scroll-behavior: smooth;
+    justify-content: flex-start;
     align-items: stretch;
     gap: 2.5rem;
-    padding: 3rem 0;
+    padding: 3rem 1rem;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+}
+
+.offers-list::-webkit-scrollbar {
+    display: none;
 }
 
 /* --- Premium Offer Card --- */
@@ -53,10 +64,10 @@
     flex-direction: column;
     position: relative;
     transition: all 0.4s cubic-bezier(0.165, 0.84, 0.44, 1);
-    flex: 1 1 350px;
+    flex: 0 0 350px;
     max-width: 380px;
     width: 100%;
-    margin: 0 auto;
+    scroll-snap-align: center;
     z-index: 1;
 }
 
@@ -304,9 +315,17 @@
     display: none !important;
 }
 
-/* Hide mobile navigation by default */
+/* Show navigation by default on all screens */
 .mobile-carousel-nav {
-    display: none;
+    display: block;
+    position: absolute;
+    /* Fixed distance from top so it NEVER gets pushed down below the fold */
+    top: 250px; 
+    left: 0;
+    width: 100%;
+    transform: translateY(-50%);
+    pointer-events: none;
+    z-index: 50;
 }
 
 .mobile-carousel-nav .nav-btn {
@@ -341,18 +360,8 @@
 
 @media (max-width: 1024px) {
     .offers-list {
-        flex-direction: row;
-        flex-wrap: nowrap;
-        overflow-x: auto;
-        overflow-y: hidden;
-        scroll-snap-type: x mandatory;
-        scroll-behavior: smooth;
-        justify-content: flex-start;
-        padding: 1rem 1rem 2rem 1rem;
         gap: 1.5rem;
-        -webkit-overflow-scrolling: touch;
-        scrollbar-width: none;
-        -ms-overflow-style: none;
+        padding: 1rem 1rem 2rem 1rem;
     }
 
     .offers-list::-webkit-scrollbar {
@@ -374,15 +383,4 @@
         font-size: 3rem;
     }
 
-    /* Show and style mobile navigation */
-    .mobile-carousel-nav {
-        display: block;
-        position: absolute;
-        /* Fixed distance from top so it NEVER gets pushed down below the fold */
-        top: 250px; 
-        left: 0;
-        width: 100%;
-        transform: translateY(-50%);
-        pointer-events: none;
-        z-index: 50;
-    }
+}
