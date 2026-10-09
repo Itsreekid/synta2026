@@ -22,7 +22,7 @@
 .offers-container {
     max-width: 1200px;
     margin: 0 auto;
-    padding: 2rem 1.5rem 3rem;
+    padding: 1rem 1.5rem; /* Reduced top/bottom padding to give cards more height */
     position: relative;
 }
 
@@ -35,7 +35,7 @@
     justify-content: center;
     align-items: stretch;
     gap: 2rem;
-    padding: 1.5rem 0 2rem;
+    padding: 1rem 0; /* Reduced top/bottom padding */
     list-style: none;
     margin: 0;
 }
@@ -79,6 +79,8 @@
     max-width: 340px;
     width: 100%;
     z-index: 1;
+    /* Interactive length: bound the card height so it fits any screen size without scrolling */
+    max-height: calc(100vh - 140px);
 }
 
 .offer-card:hover {
