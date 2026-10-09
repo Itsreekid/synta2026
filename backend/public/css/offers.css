@@ -320,6 +320,12 @@
     transform: none;
 }
 
+.offer-card.featured .acheter-btn:disabled {
+    background: var(--oc-orange-grad);
+    color: #ffffff;
+    opacity: 0.85;
+}
+
 .acheter-btn.purchased-btn {
     background: var(--oc-green) !important;
     color: #fff !important;
