@@ -71,10 +71,13 @@ window.OFFERS_FEATURES_CONFIG = {
      * Function to get a custom image for an offer if defined
      */
     getImage: function (offer) {
+        if (offer.image_url) {
+            return offer.image_url;
+        }
         let entry = this.offers[offer.id] || this.offers[offer.title];
         if (entry && entry.image) {
             return entry.image;
         }
-        return offer.image_url; // Fallback to DB image
+        return null;
     }
 };
