@@ -118,6 +118,37 @@ async function initOffers() {
             `;
         }).join('');
 
+        // Setup carousel buttons visibility
+        const leftBtn = document.getElementById('nav-left-btn');
+        const rightBtn = document.getElementById('nav-right-btn');
+        
+        if (offersList && leftBtn && rightBtn) {
+            const updateButtons = () => {
+                // If scrolled to the very left, hide left button
+                if (offersList.scrollLeft <= 10) {
+                    leftBtn.style.opacity = '0';
+                    leftBtn.style.pointerEvents = 'none';
+                } else {
+                    leftBtn.style.opacity = '1';
+                    leftBtn.style.pointerEvents = 'auto';
+                }
+                
+                // If scrolled to the very right, hide right button
+                if (offersList.scrollLeft >= offersList.scrollWidth - offersList.clientWidth - 10) {
+                    rightBtn.style.opacity = '0';
+                    rightBtn.style.pointerEvents = 'none';
+                } else {
+                    rightBtn.style.opacity = '1';
+                    rightBtn.style.pointerEvents = 'auto';
+                }
+            };
+            
+            offersList.addEventListener('scroll', updateButtons);
+            // Initial check with small timeout to allow layout to settle
+            setTimeout(updateButtons, 100);
+            window.addEventListener('resize', updateButtons);
+        }
+
     } catch (error) {
         console.error('Error loading offers:', error);
         offersList.innerHTML = `
