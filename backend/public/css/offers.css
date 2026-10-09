@@ -60,13 +60,6 @@
     z-index: 1;
 }
 
-@media (max-width: 1024px) and (min-width: 769px) {
-    .offer-card {
-        flex: 1 1 300px;
-        max-width: 320px;
-    }
-}
-
 .offer-card:hover {
     transform: translateY(-8px);
     box-shadow: 0 20px 40px -10px rgba(0, 0, 0, 0.12);
@@ -316,7 +309,7 @@
     display: none;
 }
 
-@media (max-width: 768px) {
+@media (max-width: 1024px) {
     .offers-list {
         flex-direction: row;
         flex-wrap: nowrap;
@@ -325,8 +318,8 @@
         scroll-snap-type: x mandatory;
         scroll-behavior: smooth;
         justify-content: flex-start;
-        /* Calculate precise padding to perfectly center a 280px card on any mobile screen */
-        padding: 1rem calc(50vw - 140px) 2rem calc(50vw - 140px); 
+        /* Use 50% of container width (not viewport vw) so it works flawlessly with sidebars! */
+        padding: 1rem calc(50% - 140px) 2rem calc(50% - 140px); 
         gap: 1.5rem;
         -webkit-overflow-scrolling: touch;
         
