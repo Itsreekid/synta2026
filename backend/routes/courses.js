@@ -45,7 +45,7 @@ router.get("/user/my-courses", authMiddleware, async (req, res) => {
     if (!userId) return res.status(401).json({ error: "Unauthorized" });
 
     const result = await pool.query(
-      `SELECT e.id as enrollment_id, e.enrolled_at, e.expires_at, e.status, 
+      `SELECT e.id as enrollment_id, e.enrolled_at, e.expires_at, 
               (e.id IS NOT NULL) as is_enrolled,
               c.id as course_id, c.title, c.description, c.category, c.level, c.thumbnail_url,
               COALESCE(
@@ -84,7 +84,7 @@ router.get("/user/my-courses", authMiddleware, async (req, res) => {
     res.json(rows);
   } catch (error) {
     console.error("Error fetching user courses:", error);
-    res.status(500).json({ error: "Internal server error" });
+    res.status(500).json({ error: "Internal server error", message: error.message });
   }
 });
 

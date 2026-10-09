@@ -17,7 +17,13 @@ async function fetchWithSWR(url, cacheKey, callback, errorCallback) {
     try {
         const res = await fetch(url, { credentials: 'include' });
         if (!res.ok) {
-            if (!hasReturnedCached && errorCallback) errorCallback(`HTTP Error: ${res.status}`);
+            try {
+                const errBody = await res.json();
+                const errMsg = errBody.message || errBody.error || `HTTP Error: ${res.status}`;
+                if (!hasReturnedCached && errorCallback) errorCallback(errMsg);
+            } catch (e) {
+                if (!hasReturnedCached && errorCallback) errorCallback(`HTTP Error: ${res.status}`);
+            }
             return;
         }
         const fresh = await res.json();
