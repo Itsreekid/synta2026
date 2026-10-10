@@ -668,6 +668,8 @@ iframe {
     .main-section {
         margin-left: 0 !important;
         width: 100%;
+        box-sizing: border-box;
+        padding: 0;
         height: calc(100vh - 70px);
         overflow-y: auto;
         overflow-x: hidden;
