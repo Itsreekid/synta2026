@@ -187,7 +187,8 @@ async function renderCourseInfo(course, totalLessons, hasAccess, courseProgress)
     if (buyButton) {
         if (hasAccess) {
             buyButton.textContent = 'Continuer le cours';
-            buyButton.style.background = '#10b981'; // Green for enrolled
+            buyButton.style.background = 'linear-gradient(135deg, #10b981, #059669)';
+            buyButton.style.boxShadow = '0 8px 20px rgba(16, 185, 129, 0.3)';
             buyButton.onclick = () => {
                 // Focus the first uncompleted lesson
                 document.getElementById('modules-container').scrollIntoView({ behavior: 'smooth' });
