@@ -637,6 +637,13 @@
     .calendar-container {
         padding: 10px;
         overflow-x: hidden;
+        width: 100%;
+        min-width: 0;
+    }
+    
+    .week-calendar {
+        width: 100%;
+        min-width: 0;
     }
 
     .calendar-info h2 {
