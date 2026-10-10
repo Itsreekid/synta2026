@@ -2,18 +2,26 @@
 // Courses Page — REST API version (replaces Supabase SDK calls)
 // =====================================================
 
-document.addEventListener('DOMContentLoaded', async function () {
+async function initCoursesPage() {
+    const coursesList = document.getElementById('courses-list');
+    if (!coursesList) return; // Prevent running on other pages
+
     try {
         await loadCourses();
         setupFilters();
     } catch (err) {
         console.error('Failed to initialize courses page:', err);
-        const coursesList = document.getElementById('courses-list');
         if (coursesList) {
             coursesList.innerHTML = '<div class="error-message">Erreur de connexion à la base de données. Veuillez rafraîchir la page.</div>';
         }
     }
-});
+}
+
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initCoursesPage);
+} else {
+    initCoursesPage();
+}
 
 /**
  * Load courses from the REST API
@@ -107,7 +115,7 @@ async function loadCourses(filters = {}) {
                                 <span style="font-size: 0.75rem; color: #64748b; font-weight: 600;">${progress}% terminé</span>
                             </div>
                             <div style="height: 4px; background: #e2e8f0; border-radius: 10px; overflow: hidden;">
-                                <div style="height: 100%; background: #f97316; width: 0%; border-radius: 10px; animation: fillBar 1s ease-out forwards; --target-width: ${progress}%;"></div>
+                                <div style="height: 100%; background: #f97316; width: ${progress}%; border-radius: 10px;"></div>
                             </div>
                         </div>
                         ` : '<div style="flex: 1;"></div>'}

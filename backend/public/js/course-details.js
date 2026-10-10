@@ -5,9 +5,13 @@
 let currentCourse = null;
 let currentEnrollment = null;
 
-document.addEventListener('DOMContentLoaded', async function () {
+async function initCourseDetailsPage() {
     const urlParams = new URLSearchParams(window.location.search);
     const courseId = urlParams.get('id');
+    // Simple check to ensure we are actually on the course details page
+    if (!document.querySelector('.course-details-page-marker') && !window.location.pathname.includes('course-details')) {
+        return;
+    }
 
     if (!courseId) {
         showError('ID du cours manquant');
@@ -18,7 +22,13 @@ document.addEventListener('DOMContentLoaded', async function () {
     }
 
     await loadCourseDetails(courseId);
-});
+}
+
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initCourseDetailsPage);
+} else {
+    initCourseDetailsPage();
+}
 
 /**
  * Load course details with modules and lessons
@@ -152,7 +162,7 @@ async function renderCourseInfo(course, totalLessons, hasAccess, courseProgress)
         if (progressContainer) progressContainer.style.display = 'block';
         if (progressText) progressText.textContent = `${courseProgress.percentage}%`;
         if (progressFill) progressFill.style.width = `${courseProgress.percentage}%`;
-        if (progressCompletedText) progressCompletedText.textContent = `${courseProgress.completed} / ${courseProgress.total} leçons terminées`;
+        if (progressCompletedText) progressCompletedText.textContent = `${courseProgress.completed} / ${courseProgress.total} leçons`;
     } else {
         if (progressContainer) progressContainer.style.display = 'none'; // Hide if not enrolled or no progress
     }
