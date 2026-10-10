@@ -75,6 +75,7 @@
             box-shadow: 0 8px 25px rgba(249, 115, 22, 0.2);
             overflow: hidden;
             flex-shrink: 0;
+            display: none; /* Hidden on desktop to avoid duplicating the sidebar image */
         }
         
         .course-title-wrapper {
@@ -122,19 +123,39 @@
         
         .hero-mascot {
             position: absolute;
-            right: 1rem;
+            right: 1.5rem;
             bottom: 0;
             z-index: 2;
         }
         
         .hero-mascot img {
             display: block;
-            width: 380px;
+            width: 320px;
             max-width: 45vw;
             height: auto;
             object-fit: contain;
-            transform: translateY(12%);
+            transform: translateY(10%);
         }
+
+        /* Animated Bubbles */
+        @keyframes floatBubble {
+            0% { transform: translateY(0) scale(1); opacity: 0; }
+            50% { opacity: 0.6; transform: translateY(-20px) scale(1.1); }
+            100% { transform: translateY(-40px) scale(1); opacity: 0; }
+        }
+        
+        .mascot-bubble {
+            position: absolute;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #60a5fa, #3b82f6);
+            animation: floatBubble 3s infinite ease-in-out;
+            opacity: 0;
+            z-index: 1;
+        }
+        
+        .bubble-1 { width: 14px; height: 14px; right: 280px; bottom: 80px; animation-delay: 0s; }
+        .bubble-2 { width: 8px; height: 8px; right: 300px; bottom: 130px; animation-delay: 1.2s; }
+        .bubble-3 { width: 18px; height: 18px; right: 260px; bottom: 40px; animation-delay: 2.5s; }
 
         /* Progress Card */
         .progress-card {
@@ -388,6 +409,9 @@
                                 </div>
                             </div>
                             <div class="hero-mascot">
+                                <div class="mascot-bubble bubble-1"></div>
+                                <div class="mascot-bubble bubble-2"></div>
+                                <div class="mascot-bubble bubble-3"></div>
                                 <img src="/source/Robot%20for%20web.webp" alt="Mascot">
                             </div>
                         </div>
