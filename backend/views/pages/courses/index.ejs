@@ -11,8 +11,8 @@
     <div class="content-wrapper">
         <%- include('../../partials/sidebar', { active: 'courses' }) %>
 
-        <section id="main-section" class="main-section" style="background-color: #f8fafc; padding: 1.5rem;">
-            <div class="courses-container" style="max-width: 1200px; margin: 0 auto; display: flex; flex-direction: column; gap: 1.5rem;">
+        <section id="main-section" class="main-section" style="background-color: #f8fafc; padding: 1.5rem; width: 100%; box-sizing: border-box; overflow-x: hidden;">
+            <div class="courses-container" style="max-width: 1200px; margin: 0 auto; display: flex; flex-direction: column; gap: 1.5rem; width: 100%; min-width: 0;">
                 
                 <!-- ══ MAIN BANNER ══ -->
                 <div class="courses-banner" style="background: linear-gradient(135deg, #fff7ed, #ffedd5); border-radius: 20px; padding: 1.5rem; position: relative; overflow: hidden; border: 1px solid #fed7aa; box-shadow: 0 4px 20px rgba(249, 115, 22, 0.05); display: flex; align-items: center; justify-content: space-between;">
@@ -26,8 +26,8 @@
                 </div>
 
                 <!-- ══ FILTERS ══ -->
-                <div class="filters-container" style="display: flex; flex-direction: column; gap: 1rem;">
-                    <div class="filter-chips" style="display: flex; gap: 0.5rem; overflow-x: auto; padding-bottom: 0.25rem; -webkit-overflow-scrolling: touch; scrollbar-width: none;">
+                <div class="filters-container" style="display: flex; flex-direction: column; gap: 1rem; width: 100%; min-width: 0;">
+                    <div class="filter-chips" style="display: flex; gap: 0.5rem; overflow-x: auto; padding-bottom: 0.25rem; -webkit-overflow-scrolling: touch; scrollbar-width: none; width: 100%;">
                         <button class="chip active" onclick="applyCategoryFilter('')" style="background: var(--orange-primary); color: white; border: none; padding: 0.6rem 1.2rem; border-radius: 20px; font-weight: 600; cursor: pointer; transition: all 0.2s; white-space: nowrap;">Tous les cours</button>
                         <button class="chip" onclick="applyCategoryFilter('Programmation')" style="background: white; color: #64748b; border: 1px solid #e2e8f0; padding: 0.6rem 1.2rem; border-radius: 20px; font-weight: 600; cursor: pointer; transition: all 0.2s; white-space: nowrap;">Programmation</button>
                         <button class="chip" onclick="applyCategoryFilter('Bases de données')" style="background: white; color: #64748b; border: 1px solid #e2e8f0; padding: 0.6rem 1.2rem; border-radius: 20px; font-weight: 600; cursor: pointer; transition: all 0.2s; white-space: nowrap;">Bases de données</button>
