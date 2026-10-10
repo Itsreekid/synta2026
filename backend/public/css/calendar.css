@@ -688,6 +688,10 @@
         min-width: 0;
     }
 
+    .calendar-info {
+        margin-bottom: 24px;
+    }
+
     .calendar-info h2 {
         font-size: 20px;
     }
