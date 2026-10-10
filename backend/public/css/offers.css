@@ -24,6 +24,8 @@
     margin: 0 auto;
     padding: 1rem 1.5rem; /* Reduced top/bottom padding to give cards more height */
     position: relative;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
 }
 
 /* =============================================================
@@ -89,8 +91,9 @@
 }
 
 .offer-card.featured {
-    border: 2px solid var(--oc-orange);
-    box-shadow: 0 10px 38px -8px rgba(255, 123, 26, 0.2);
+    border: 3px solid var(--oc-orange);
+    box-shadow: 0 10px 38px -8px rgba(255, 123, 26, 0.25);
+    background: linear-gradient(to bottom, #fffdfa 0%, #ffffff 100%);
     z-index: 2;
 }
 
@@ -128,7 +131,8 @@
 .offer-image-section img {
     width: 100%;
     height: 100%;
-    object-fit: cover;
+    object-fit: contain;
+    padding: 0.5rem;
     display: block;
     transition: transform 0.45s ease;
 }
@@ -237,15 +241,15 @@
     display: flex;
     align-items: flex-start;
     justify-content: flex-end;
-    gap: 10px;
-    margin-bottom: 0.55rem;
+    gap: 12px;
+    margin-bottom: 0.65rem;
     font-family: Tajawal, sans-serif;
     color: var(--oc-dark);
     font-weight: 600;
     text-align: right;
-    font-size: 0.88rem;
+    font-size: 0.9rem;
     padding-bottom: 0.5rem;
-    border-bottom: 1px solid rgba(0,0,0,0.04);
+    border-bottom: 1px solid rgba(0,0,0,0.06);
 }
 
 .feature-item:last-child {
