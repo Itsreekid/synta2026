@@ -121,9 +121,18 @@
         }
         
         .hero-mascot {
-            font-size: 5rem;
+            position: absolute;
+            right: 2rem;
+            bottom: 0;
             z-index: 2;
-            transform: translateY(10px);
+        }
+        
+        .hero-mascot img {
+            display: block;
+            width: 180px;
+            height: auto;
+            object-fit: contain;
+            transform: translateY(15%); /* Push down slightly so it looks like it's emerging */
         }
 
         /* Progress Card */
@@ -378,7 +387,7 @@
                                 </div>
                             </div>
                             <div class="hero-mascot">
-                                <img src="/source/Robot%20for%20web.webp" alt="Mascot" style="width: 120px; height: auto; object-fit: contain;">
+                                <img src="/source/Robot%20for%20web.webp" alt="Mascot">
                             </div>
                         </div>
                         
