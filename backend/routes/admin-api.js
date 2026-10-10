@@ -446,7 +446,7 @@ router.post("/api/admin/courses", requireAdmin, async (req, res) => {
         // Retroactively enroll users who bought this offer
         await pool.query(
           `INSERT INTO enrollments (user_id, course_id, amount_paid, offer_id, enrolled_at)
-           SELECT DISTINCT user_id, $1, 0, $2, NOW()
+           SELECT DISTINCT user_id, $1::uuid, 0, $2::uuid, NOW()
            FROM enrollments
            WHERE offer_id = $2
            ON CONFLICT (user_id, course_id) DO NOTHING`,
@@ -458,7 +458,7 @@ router.post("/api/admin/courses", requireAdmin, async (req, res) => {
     return res.json({ success: true });
   } catch (err) {
     console.error("Error managing course:", err.message);
-    return res.status(500).json({ success: false, error: "Internal server error" });
+    return res.status(500).json({ success: false, error: err.message });
   }
 });
 

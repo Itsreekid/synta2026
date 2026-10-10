@@ -141,8 +141,8 @@ async function loadCourses(filters = {}) {
                 </div>
             `;
 
-            if (isEnrolled && !activeCourseHtml) {
-                activeCourseHtml = cardHtml;
+            if (isEnrolled) {
+                activeCourseHtml += cardHtml;
             } else {
                 regularCoursesHtml += cardHtml;
             }
@@ -153,7 +153,7 @@ async function loadCourses(filters = {}) {
             resumeSection.style.display = 'block';
             resumeSection.innerHTML = `
                 <h2 style="font-size: 1.1rem; font-weight: 700; color: #1e293b; margin-bottom: 0.8rem; padding-left: 0.2rem;">Reprendre mon apprentissage</h2>
-                <div style="display: grid; grid-template-columns: 1fr; gap: 1rem;">
+                <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 1.5rem;">
                     ${activeCourseHtml}
                 </div>
             `;
