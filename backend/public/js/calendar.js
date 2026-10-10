@@ -160,10 +160,10 @@ function renderCalendar() {
         }
         if (dayEvents.length > 0) {
             dayColumn.classList.add('has-events');
-            // Set entire border color to match the first event's color
-            dayColumn.style.border = `3px solid ${dayEvents[0].color || '#667eea'}`;
         }
-        if (isSelected) dayColumn.style.border = '3px solid #ffc107';
+        if (isSelected) {
+            dayColumn.classList.add('selected');
+        }
 
         // Add click handler for mobile interaction
         dayColumn.style.cursor = 'pointer';
@@ -195,7 +195,7 @@ function renderCalendar() {
                 dayEventsContainer.appendChild(eventElement);
             });
         } else {
-            dayEventsContainer.innerHTML = '<div class="no-events">Aucun événement</div>';
+            dayEventsContainer.innerHTML = '<div class="empty-state-card"><i class="fas fa-calendar-day"></i><p>Aucune session prévue ce jour</p></div>';
         }
 
         dayColumn.appendChild(dayEventsContainer);
@@ -232,7 +232,7 @@ function renderCalendar() {
                 cardEventsContainer.appendChild(eventElement);
             });
         } else {
-            cardEventsContainer.innerHTML = '<div class="no-events">Aucun événement</div>';
+            cardEventsContainer.innerHTML = '<div class="empty-state-card"><i class="fas fa-calendar-day"></i><p>Aucune session prévue ce jour</p></div>';
         }
 
         expandedCard.appendChild(cardEventsContainer);
@@ -260,12 +260,12 @@ function updateExpandedCard(dayIndex) {
     const selectedDay = window.calendarDaysData[dayIndex];
     if (!selectedDay) return;
 
-    // Update compact row - remove 'today' class from all, add to selected
+    // Update compact row - remove 'selected' class from all, add to selected
     const allDayColumns = document.querySelectorAll('.calendar-grid > .day-column:not(.expanded-card)');
     allDayColumns.forEach((col, index) => {
-        col.classList.remove('today');
+        col.classList.remove('selected');
         if (index === dayIndex) {
-            col.classList.add('today');
+            col.classList.add('selected');
         }
     });
 
@@ -298,7 +298,7 @@ function updateExpandedCard(dayIndex) {
             cardEventsContainer.appendChild(eventElement);
         });
     } else {
-        cardEventsContainer.innerHTML = '<div class="no-events">Aucun événement</div>';
+        cardEventsContainer.innerHTML = '<div class="empty-state-card"><i class="fas fa-calendar-day"></i><p>Aucune session prévue ce jour</p></div>';
     }
 }
 
