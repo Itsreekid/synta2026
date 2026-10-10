@@ -1,8 +1,8 @@
 // Calendar JavaScript
-let currentWeekStart = null;
-let selectedDate = null;
-let userClass = null;
-let userBranch = null;
+var currentWeekStart = null;
+var selectedDate = null;
+var userClass = null;
+var userBranch = null;
 
 document.addEventListener('DOMContentLoaded', function () {
     initializeCalendar();
@@ -484,7 +484,7 @@ function showEventDetails(event, date) {
     const closeBtn = document.createElement('button');
     closeBtn.className = 'modal-btn modal-btn-secondary';
     closeBtn.textContent = 'Fermer';
-    closeBtn.addEventListener('click', closeModal);
+    closeBtn.addEventListener('click', window.closeModal);
 
     actionsEl.appendChild(calBtn);
     actionsEl.appendChild(closeBtn);
@@ -513,12 +513,14 @@ function showEventDetails(event, date) {
     }
 }
 
-let countdownInterval = null;
-let sessionEndInterval = null;
+var countdownInterval = null;
+var sessionEndInterval = null;
 
-function closeModal() {
+window.closeModal = function() {
     const modal = document.getElementById('event-modal');
-    modal.style.display = 'none';
+    if (modal) {
+        modal.style.setProperty('display', 'none', 'important');
+    }
 
     // Clear countdown interval when closing modal
     if (countdownInterval) {
@@ -701,13 +703,13 @@ function goBack() {
 function joinZoomSession(zoomLink) {
     // Open Zoom link in a new tab
     window.open(zoomLink, '_blank');
-    closeModal();
+    if (window.closeModal) window.closeModal();
 }
 
 // Close modal when clicking outside of it
-window.onclick = function (event) {
+window.addEventListener('click', function (event) {
     const modal = document.getElementById('event-modal');
-    if (event.target === modal) {
-        closeModal();
+    if (modal && event.target === modal) {
+        if (window.closeModal) window.closeModal();
     }
-}
+});
