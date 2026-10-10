@@ -36,12 +36,12 @@ async function loadCourses(filters = {}) {
         if (!coursesResp.ok) throw new Error(`HTTP ${coursesResp.status}`);
         let courses = await coursesResp.json();
 
-        // Client-side search filter (not supported server-side currently)
         if (filters.search) {
             const q = filters.search.toLowerCase();
             courses = courses.filter(c =>
                 c.title.toLowerCase().includes(q) ||
-                (c.description || '').toLowerCase().includes(q)
+                (c.description || '').toLowerCase().includes(q) ||
+                (c.category || '').toLowerCase().includes(q)
             );
         }
 
@@ -62,71 +62,98 @@ async function loadCourses(filters = {}) {
         }
 
         // Render courses
-        coursesList.innerHTML = courses.map(course => {
+        let activeCourseHtml = '';
+        let regularCoursesHtml = '';
+        
+        courses.forEach(course => {
             const enrollment = enrollments.find(e => e.course_id === course.id);
             const isEnrolled = enrollment ? enrollment.is_enrolled : false;
             const progress = enrollment ? (enrollment.progress || 0) : 0;
 
             let imgSrc = course.thumbnail_url && course.thumbnail_url.startsWith('http')
                 ? course.thumbnail_url
-                : `https://via.placeholder.com/400x200/fff7ed/f97316?text=${encodeURIComponent(course.title)}`;
+                : `https://via.placeholder.com/400x225/fff7ed/f97316?text=${encodeURIComponent(course.title)}`;
                 
             // Generate some fake stats if they don't exist in DB yet
             const lessonsCount = course.lessons_count || Math.floor(Math.random() * 10) + 5;
             const quizzesCount = course.quizzes_count || Math.floor(Math.random() * 4) + 1;
             const livesCount = course.lives_count || Math.floor(Math.random() * 2) + 1;
 
-            return `
+            const ctaText = isEnrolled ? 'Continuer le cours &rarr;' : 'Découvrir le cours &rarr;';
+            const statusLabel = isEnrolled ? 'En cours' : 'Disponible';
+            const statusColor = isEnrolled ? '#f97316' : '#10b981';
+
+            const cardHtml = `
                 <div class="course-card" style="background: white; border-radius: 20px; overflow: hidden; box-shadow: 0 4px 20px rgba(0,0,0,0.04); display: flex; flex-direction: column; transition: transform 0.3s, box-shadow 0.3s; cursor: pointer;" onmouseover="this.style.transform='translateY(-5px)'; this.style.boxShadow='0 10px 25px rgba(0,0,0,0.08)';" onmouseout="this.style.transform='none'; this.style.boxShadow='0 4px 20px rgba(0,0,0,0.04)';" onclick="window.location.href='/app/course-details?id=${course.id}'">
                     
-                    <div class="course-thumbnail" style="position: relative; height: 180px;">
-                        <img src="${imgSrc}" alt="${course.title}" style="width: 100%; height: 100%; object-fit: cover;">
+                    <div class="course-thumbnail" style="position: relative; padding-top: 56.25%;">
+                        <img src="${imgSrc}" alt="${course.title}" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; object-fit: cover;">
                         <div style="position: absolute; top: 1rem; left: 1rem; display: flex; gap: 0.5rem;">
-                            <span style="background: ${isEnrolled ? '#f97316' : '#10b981'}; color: white; padding: 0.3rem 0.8rem; border-radius: 20px; font-size: 0.75rem; font-weight: 600;">
-                                ${isEnrolled ? 'En cours' : 'Disponible'}
+                            <span style="background: ${statusColor}; color: white; padding: 0.3rem 0.8rem; border-radius: 20px; font-size: 0.75rem; font-weight: 600; box-shadow: 0 2px 5px rgba(0,0,0,0.2);">
+                                ${statusLabel}
                             </span>
                         </div>
                     </div>
                     
-                    <div class="course-info" style="padding: 1.5rem; flex: 1; display: flex; flex-direction: column;">
-                        ${course.category ? `<span style="color: #64748b; font-size: 0.8rem; font-weight: 600; text-transform: uppercase; margin-bottom: 0.5rem;">${formatCategory(course.category)}</span>` : ''}
+                    <div class="course-info" style="padding: 1.2rem; flex: 1; display: flex; flex-direction: column;">
+                        ${course.category ? `<span style="color: #64748b; font-size: 0.75rem; font-weight: 700; text-transform: uppercase; margin-bottom: 0.4rem; letter-spacing: 0.5px;">${formatCategory(course.category)}</span>` : ''}
                         
-                        <h3 style="margin: 0 0 0.5rem; color: #1e293b; font-size: 1.2rem; font-weight: 700; line-height: 1.4;">${course.title}</h3>
-                        <p style="margin: 0 0 1.5rem; color: #64748b; font-size: 0.9rem; line-height: 1.5; flex: 1; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;">${course.description || 'Apprends les concepts fondamentaux et mets-les en pratique.'}</p>
+                        <h3 style="margin: 0 0 1rem; color: #1e293b; font-size: 1.1rem; font-weight: 700; line-height: 1.3; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;">${course.title}</h3>
                         
                         <!-- Progress -->
                         ${progress > 0 || isEnrolled ? `
-                        <div style="margin-bottom: 1.5rem;">
+                        <div style="margin-bottom: 1rem;">
                             <div style="display: flex; justify-content: flex-end; margin-bottom: 0.3rem;">
-                                <span style="font-size: 0.8rem; color: #64748b; font-weight: 600;">${progress}% terminé</span>
+                                <span style="font-size: 0.75rem; color: #64748b; font-weight: 600;">${progress}% terminé</span>
                             </div>
-                            <div style="height: 6px; background: #e2e8f0; border-radius: 10px; overflow: hidden;">
+                            <div style="height: 4px; background: #e2e8f0; border-radius: 10px; overflow: hidden;">
                                 <div style="height: 100%; background: #f97316; width: 0%; border-radius: 10px; animation: fillBar 1s ease-out forwards; --target-width: ${progress}%;"></div>
                             </div>
                         </div>
-                        ` : ''}
+                        ` : '<div style="flex: 1;"></div>'}
                         
                         <!-- Stats Row -->
-                        <div style="display: flex; justify-content: space-between; padding-top: 1rem; border-top: 1px solid #f1f5f9; margin-bottom: 1.5rem;">
-                            <div style="display: flex; align-items: center; gap: 0.4rem; color: #64748b; font-size: 0.85rem; font-weight: 500;">
-                                <span>📖</span> ${lessonsCount} leçons
+                        <div style="display: flex; justify-content: space-between; padding-top: 0.8rem; border-top: 1px solid #f1f5f9; margin-bottom: 1rem; margin-top: auto;">
+                            <div style="display: flex; align-items: center; gap: 0.3rem; color: #64748b; font-size: 0.8rem; font-weight: 500;">
+                                <i class="fas fa-book-open" style="color: #cbd5e1;"></i> ${lessonsCount} leçons
                             </div>
-                            <div style="display: flex; align-items: center; gap: 0.4rem; color: #64748b; font-size: 0.85rem; font-weight: 500;">
-                                <span>❓</span> ${quizzesCount} quiz
+                            <div style="display: flex; align-items: center; gap: 0.3rem; color: #64748b; font-size: 0.8rem; font-weight: 500;">
+                                <i class="fas fa-question-circle" style="color: #cbd5e1;"></i> ${quizzesCount} quiz
                             </div>
-                            <div style="display: flex; align-items: center; gap: 0.4rem; color: #64748b; font-size: 0.85rem; font-weight: 500;">
-                                <span>📡</span> ${livesCount} live
+                            <div style="display: flex; align-items: center; gap: 0.3rem; color: #64748b; font-size: 0.8rem; font-weight: 500;">
+                                <i class="fas fa-video" style="color: #cbd5e1;"></i> ${livesCount} live
                             </div>
                         </div>
                         
                         <!-- CTA Button -->
-                        <button style="width: 100%; background: ${isEnrolled ? '#f97316' : '#f8fafc'}; color: ${isEnrolled ? 'white' : '#f97316'}; border: ${isEnrolled ? 'none' : '1px solid #fed7aa'}; padding: 0.8rem; border-radius: 12px; font-weight: 600; font-size: 0.95rem; cursor: pointer; transition: all 0.2s; font-family: inherit;">
-                            Voir le cours &rarr;
+                        <button style="width: 100%; background: ${isEnrolled ? '#f97316' : '#f8fafc'}; color: ${isEnrolled ? 'white' : '#f97316'}; border: ${isEnrolled ? 'none' : '1px solid #fed7aa'}; padding: 0.75rem; border-radius: 10px; font-weight: 600; font-size: 0.9rem; cursor: pointer; transition: all 0.2s; font-family: inherit;">
+                            ${ctaText}
                         </button>
                     </div>
                 </div>
             `;
-        }).join('');
+
+            if (isEnrolled && !activeCourseHtml) {
+                activeCourseHtml = cardHtml;
+            } else {
+                regularCoursesHtml += cardHtml;
+            }
+        });
+
+        const resumeSection = document.getElementById('resume-learning-section');
+        if (activeCourseHtml && resumeSection) {
+            resumeSection.style.display = 'block';
+            resumeSection.innerHTML = `
+                <h2 style="font-size: 1.1rem; font-weight: 700; color: #1e293b; margin-bottom: 0.8rem; padding-left: 0.2rem;">Reprendre mon apprentissage</h2>
+                <div style="display: grid; grid-template-columns: 1fr; gap: 1rem;">
+                    ${activeCourseHtml}
+                </div>
+            `;
+        } else if (resumeSection) {
+            resumeSection.style.display = 'none';
+        }
+        
+        coursesList.innerHTML = regularCoursesHtml || '<div class="no-courses">Aucun cours trouvé. <button onclick="applyCategoryFilter(\'\')" style="background: none; border: none; color: #f97316; cursor: pointer; font-weight: 600; text-decoration: underline;">Effacer les filtres</button></div>';
 
     } catch (error) {
         console.error('Erreur lors du chargement des cours:', error);
