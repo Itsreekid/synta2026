@@ -108,7 +108,8 @@
         if (!overlay || !outerBtn) return;
         if (!window.google || !window.google.accounts || !window.google.accounts.id) return;
 
-        const btnWidth = outerBtn.offsetWidth || 400;
+        const btnWidth = outerBtn.offsetWidth;
+        if (btnWidth === 0) return; // Wait for layout to stabilize
 
         window.google.accounts.id.renderButton(overlay, {
             type:  'standard',
@@ -116,10 +117,18 @@
             size:  'large',
             text:  'signin_with',
             width: btnWidth,
-            // logo_alignment: 'left'
         });
 
         renderDone = true;
+        
+        // Hide spinner once loaded
+        const spinner = document.getElementById('googleBtnSpinner');
+        const text = document.getElementById('googleBtnText');
+        if (spinner && text) {
+            spinner.style.display = 'none';
+            text.style.opacity = '1';
+        }
+
         console.log('[google-auth] GIS overlay button rendered (width:', btnWidth, ')');
     }
 
@@ -216,6 +225,27 @@
     // ── Entry point ───────────────────────────────────────────────────────────
     function setup() {
         injectOverlayCSS();
+
+        const outerBtn = document.getElementById('googleSignInBtn');
+        const spinner = document.getElementById('googleBtnSpinner');
+        const text = document.getElementById('googleBtnText');
+
+        // Show spinner initially until GIS renders
+        if (spinner && text) {
+            spinner.style.display = 'inline-block';
+            text.style.opacity = '0.7';
+        }
+
+        if (outerBtn) {
+            outerBtn.addEventListener('click', () => {
+                if (!renderDone) {
+                    // This function is defined in login.html/register.html
+                    if (typeof showMsg === 'function') {
+                        showMsg('جاري الاتصال بخدمات Google، يرجى الانتظار لحظة...', 'info');
+                    }
+                }
+            });
+        }
 
         // If GIS SDK already loaded before this script executed, init immediately
         if (window.google && window.google.accounts && window.google.accounts.id) {
