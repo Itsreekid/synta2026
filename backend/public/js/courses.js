@@ -152,8 +152,11 @@ async function loadCourses(filters = {}) {
         } else if (resumeSection) {
             resumeSection.style.display = 'none';
         }
-        
-        coursesList.innerHTML = regularCoursesHtml || '<div class="no-courses">Aucun cours trouvé. <button onclick="applyCategoryFilter(\'\')" style="background: none; border: none; color: #f97316; cursor: pointer; font-weight: 600; text-decoration: underline;">Effacer les filtres</button></div>';
+        if (!regularCoursesHtml && !activeCourseHtml) {
+            coursesList.innerHTML = '<div class="no-courses" style="text-align: center; padding: 3rem; color: #64748b; font-size: 1.1rem;">Aucun cours trouvé. <button onclick="applyCategoryFilter(\'\')" style="background: none; border: none; color: #f97316; cursor: pointer; font-weight: 600; text-decoration: underline; font-size: 1rem; padding: 0;">Effacer les filtres</button></div>';
+        } else {
+            coursesList.innerHTML = regularCoursesHtml;
+        }
 
     } catch (error) {
         console.error('Erreur lors du chargement des cours:', error);
