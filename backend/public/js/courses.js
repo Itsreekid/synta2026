@@ -149,21 +149,15 @@ async function loadCourses(filters = {}) {
         });
 
         const resumeSection = document.getElementById('resume-learning-section');
-        if (activeCourseHtml && resumeSection) {
-            resumeSection.style.display = 'block';
-            resumeSection.innerHTML = `
-                <h2 style="font-size: 1.1rem; font-weight: 700; color: #1e293b; margin-bottom: 0.8rem; padding-left: 0.2rem;">Reprendre mon apprentissage</h2>
-                <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 1.5rem;">
-                    ${activeCourseHtml}
-                </div>
-            `;
-        } else if (resumeSection) {
+        if (resumeSection) {
             resumeSection.style.display = 'none';
         }
+
         if (!regularCoursesHtml && !activeCourseHtml) {
             coursesList.innerHTML = '<div class="no-courses" style="text-align: center; padding: 3rem; color: #64748b; font-size: 1.1rem;">Aucun cours trouvé. <button onclick="applyCategoryFilter(\'\')" style="background: none; border: none; color: #f97316; cursor: pointer; font-weight: 600; text-decoration: underline; font-size: 1rem; padding: 0;">Effacer les filtres</button></div>';
         } else {
-            coursesList.innerHTML = regularCoursesHtml;
+            // Group them all into the same grid, enrolled courses first
+            coursesList.innerHTML = activeCourseHtml + regularCoursesHtml;
         }
 
     } catch (error) {
