@@ -53,11 +53,9 @@
     margin: 0;
     display: flex;
     align-items: center;
+    justify-content: center;
     gap: 12px;
-    background: linear-gradient(135deg, var(--cal-text-main) 0%, #334155 100%);
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-    background-clip: text;
+    color: var(--cal-text-main);
     letter-spacing: -0.5px;
 }
 
@@ -598,16 +596,18 @@
     }
     .header-controls {
         width: 100%;
-        flex-wrap: wrap;
-        justify-content: center;
-        gap: 10px;
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 8px;
+    }
+    .today-btn {
+        grid-column: 1 / -1;
     }
     .nav-btn, .today-btn {
-        padding: 8px 16px;
+        padding: 10px;
         font-size: 13px;
-        flex: 1;
-        min-width: 110px;
         text-align: center;
+        min-width: 0;
     }
 }
 
