@@ -82,10 +82,10 @@ async function loadCourses(filters = {}) {
                 ? course.thumbnail_url
                 : `https://via.placeholder.com/400x225/fff7ed/f97316?text=${encodeURIComponent(course.title)}`;
                 
-            // Generate some fake stats if they don't exist in DB yet
-            const lessonsCount = course.lessons_count || Math.floor(Math.random() * 10) + 5;
-            const quizzesCount = course.quizzes_count || Math.floor(Math.random() * 4) + 1;
-            const livesCount = course.lives_count || Math.floor(Math.random() * 2) + 1;
+            // Use real stats from the database
+            const lessonsCount = course.lessons_count || 0;
+            const quizzesCount = course.quizzes_count || 0;
+            const livesCount = course.lives_count || 0;
 
             const ctaText = isEnrolled ? 'Continuer le cours &rarr;' : 'Découvrir le cours &rarr;';
             const statusLabel = isEnrolled ? 'En cours' : 'Disponible';

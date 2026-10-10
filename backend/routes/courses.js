@@ -14,19 +14,25 @@ router.get("/", async (req, res) => {
   try {
     const { category, level } = req.query;
 
-    let sql = `SELECT * FROM courses WHERE is_published = true`;
+    let sql = `
+      SELECT c.*,
+        (SELECT COUNT(l.id) FROM lessons l JOIN modules m ON l.module_id = m.id WHERE m.course_id = c.id AND l.type != 'quiz')::int AS lessons_count,
+        (SELECT COUNT(l.id) FROM lessons l JOIN modules m ON l.module_id = m.id WHERE m.course_id = c.id AND l.type = 'quiz')::int AS quizzes_count,
+        (SELECT COUNT(ls.id) FROM live_sessions ls WHERE ls.course_id = c.id)::int AS lives_count
+      FROM courses c WHERE c.is_published = true
+    `;
     const params = [];
 
     if (category) {
       params.push(category);
-      sql += ` AND category = $${params.length}`;
+      sql += ` AND c.category = $${params.length}`;
     }
     if (level) {
       params.push(level);
-      sql += ` AND level = $${params.length}`;
+      sql += ` AND c.level = $${params.length}`;
     }
 
-    sql += ` ORDER BY created_at DESC`;
+    sql += ` ORDER BY c.created_at DESC`;
 
     const result = await pool.query(sql, params);
     res.json(result.rows);
