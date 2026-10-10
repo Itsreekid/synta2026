@@ -650,28 +650,20 @@
         font-size: 20px;
     }
 
-    /* Mobile horizontally scrolling week view - Tiny day selectors */
+    /* Mobile week view - Shrinking day selectors to fit all 7 on screen */
     .calendar-grid {
-        display: flex;
-        overflow-x: auto;
-        scroll-snap-type: x mandatory;
+        display: grid;
+        grid-template-columns: repeat(7, 1fr);
+        gap: 4px;
         padding-bottom: 12px;
-        gap: 10px;
-        -webkit-overflow-scrolling: touch;
-        scrollbar-width: none; /* Firefox */
-    }
-    
-    .calendar-grid::-webkit-scrollbar {
-        display: none; /* Safari/Chrome */
+        overflow-x: visible;
     }
 
     .day-column {
-        flex: 0 0 auto;
-        width: 75px;
-        scroll-snap-align: center;
+        width: 100%;
         min-height: auto;
-        padding: 12px 6px;
-        border-radius: 16px;
+        padding: 10px 0;
+        border-radius: 10px;
         transform: none !important;
     }
 
@@ -695,7 +687,7 @@
     }
 
     .calendar-grid > .day-column .day-date {
-        font-size: 24px;
+        font-size: 20px;
         margin-bottom: 0;
     }
 
