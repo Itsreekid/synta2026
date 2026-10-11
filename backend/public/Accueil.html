@@ -1,11 +1,50 @@
 <!DOCTYPE html>
 <html lang="ar" dir="rtl">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="googlebot-news" content="notranslate">
-    <meta name="description" content="synta academy : plateforme de formation spécialisé en informatique offrant des cours en ligne . Maîtrisez la programmation, python, excel et plus avec nos profs">
-    <title>Synta Academy</title>
+    <title>Synta Academy - منصة تعليم الإعلامية والبرمجة في تونس</title>
+    <meta name="description"
+        content="Synta Academy : Plateforme éducative tunisienne spécialisée en informatique et programmation pour les lycéens et bacheliers.">
+    <link rel="canonical" href="https://syntaacademy.tn/">
+
+    <!-- Open Graph -->
+    <meta property="og:type" content="website">
+    <meta property="og:title" content="Synta Academy">
+    <meta property="og:description"
+        content="Plateforme éducative tunisienne spécialisée en informatique et préparation au baccalauréat.">
+    <meta property="og:site_name" content="Synta Academy">
+    <meta property="og:url" content="https://syntaacademy.tn">
+    <meta property="og:image" content="https://syntaacademy.tn/source/logoweb.png">
+
+    <!-- Schema.org JSON-LD Disambiguation -->
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "EducationalOrganization",
+      "@id": "https://syntaacademy.tn/#organization",
+      "name": "Synta Academy",
+      "alternateName": ["Synta"],
+      "legalName": "Synta Academy",
+      "url": "https://syntaacademy.tn",
+      "logo": "https://syntaacademy.tn/source/logo.png",
+      "image": "https://syntaacademy.tn/source/logoweb.png",
+      "description": "Synta Academy est une plateforme éducative tunisienne dédiée à l'apprentissage de l'informatique pour les élèves du secondaire et du baccalauréat en Tunisie.",
+      "disambiguatingDescription": "Synta Academy is an independent Tunisian educational platform (syntaacademy.tn) serving Tunisian high school students, distinct from Syntax Academy or Syntax Technologies.",
+      "address": {
+        "@type": "PostalAddress",
+        "addressCountry": "TN"
+      },
+      "areaServed": {
+        "@type": "Country",
+        "name": "Tunisia"
+      },
+      "knowsLanguage": ["ar", "fr"]
+    }
+    </script>
+
     <link rel="icon" href="source/logoweb.png" type="image/x-icon">
     <link rel="stylesheet" href="style.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
@@ -13,6 +52,7 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700&display=swap" rel="stylesheet">
 </head>
+
 <body>
 
     <!-- Hero Section -->
@@ -53,8 +93,9 @@
                         <img src="source/algo2.gif" alt="دورة البايثون">
                     </div>
                     <div class="course-content">
-                        <h3> مراجعة الإعلامية  </h3>
-                        <p class="course-description"> تعلم الأساسيات من الألف للياء بلغة سهلة وواضحة كل شي اللي تحتاجه للنجاح في الإعلامية</p>
+                        <h3> مراجعة الإعلامية </h3>
+                        <p class="course-description"> تعلم الأساسيات من الألف للياء بلغة سهلة وواضحة كل شي اللي تحتاجه
+                            للنجاح في الإعلامية</p>
                         <div class="course-meta">
                             <span class="course-duration">30 ساعة</span>
                             <span class="course-level">2éme / 3éme / Bac </span>
@@ -137,7 +178,7 @@
                 <div class="feature-card">
                     <div class="feature-icon">👨‍🏫</div>
                     <h3>أساتذة خبراء</h3>
-                    <p>تعلم من أساتذة  محترفين في مجال البرمجة والخوارزميات</p>
+                    <p>تعلم من أساتذة محترفين في مجال البرمجة والخوارزميات</p>
                 </div>
                 <div class="feature-card">
                     <div class="feature-icon">💻</div>
@@ -157,59 +198,59 @@
         const particlesContainer = document.getElementById('particles-container');
         let mouseX = 0;
         let mouseY = 0;
-        
+
         document.addEventListener('mousemove', (e) => {
             mouseX = e.clientX;
             mouseY = e.clientY;
-            
+
             // Increase particle creation frequency
             if (Math.random() > 0.7) {
                 createParticle(e.clientX, e.clientY);
             }
         });
-        
+
         function createParticle(x, y) {
             const particle = document.createElement('div');
             particle.className = 'particle';
-            
+
             const size = Math.random() * 4 + 2;
             particle.style.width = size + 'px';
             particle.style.height = size + 'px';
             particle.style.left = x + 'px';
             particle.style.top = y + 'px';
-            
+
             particlesContainer.appendChild(particle);
-            
+
             // Create particles that float near cursor
             const angle = Math.random() * Math.PI * 2;
             const distance = Math.random() * 40 + 20;
             const velocity = Math.random() * 30 + 20;
             const lifetime = Math.random() * 800 + 1200;
-            
+
             const vx = Math.cos(angle) * velocity;
             const vy = Math.sin(angle) * velocity;
-            
+
             let opacity = 1;
             const fadeRate = 1 / lifetime;
-            
+
             let posX = x;
             let posY = y;
-            
+
             const startTime = Date.now();
-            
+
             function animate() {
                 const elapsed = Date.now() - startTime;
-                
+
                 if (elapsed > lifetime) {
                     particle.remove();
                     return;
                 }
-                
+
                 // Apply gentle drift towards nearby area
                 const dx = mouseX - posX;
                 const dy = mouseY - posY;
                 const dist = Math.sqrt(dx * dx + dy * dy);
-                
+
                 if (dist < 150) {
                     posX += (vx * 0.016) + (dx * 0.002);
                     posY += (vy * 0.016) + (dy * 0.002);
@@ -217,19 +258,20 @@
                     posX += vx * 0.016;
                     posY += vy * 0.016;
                 }
-                
+
                 opacity -= fadeRate * 16;
-                
+
                 particle.style.left = posX + 'px';
                 particle.style.top = posY + 'px';
                 particle.style.opacity = Math.max(0, opacity);
-                
+
                 requestAnimationFrame(animate);
             }
-            
+
             animate();
         }
     </script>
     <script src="main.js"></script>
 </body>
+
 </html>
