@@ -16,6 +16,7 @@
 |----------|--------|----------|
 | One educational module can be included in multiple courses | ✅ | `course_modules` join table; legacy course placements are backfilled by migration |
 | A module can have a separate display order in each course | ✅ | `course_modules.order_index` |
+| One course can be linked to multiple offers; a matching student can see it through any linked offer | ✅ | Admin course editor submits multiple `offers_ids`; `offer_courses` stores the course/offer links; catalog visibility uses an `EXISTS` match |
 | Course access is granted by enrollment in a course that includes the lesson's module | ✅ | `checkLessonAccess()` joins enrollments through `course_modules` |
 | Admin interface/API can attach an existing module to another course | ✅ | Admin course chapter manager uses `course_modules` |
 | Admin can create lessons and add PDF/Word documents to them | ✅ | Admin API signs R2 uploads; course resource endpoint grants signed read URLs only to enrolled students |

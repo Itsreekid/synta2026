@@ -247,6 +247,20 @@
             font-size: 1.2rem;
         }
 
+        .offer-picker { border:1px solid var(--border); border-radius:10px; overflow:hidden; background:#fff; }
+        .offer-picker-toolbar { display:flex; align-items:center; gap:.6rem; flex-wrap:wrap; padding:.65rem; border-bottom:1px solid var(--border); background:#f8fafc; }
+        .offer-picker-search { flex:1; min-width:160px; padding:.55rem .7rem; border:1px solid var(--border); border-radius:8px; font:inherit; }
+        .offer-picker-count { color:var(--text-muted); font-size:.8rem; font-weight:650; white-space:nowrap; }
+        .offer-picker-clear { padding:.45rem .6rem; border:0; border-radius:7px; background:#fff; color:#475569; font:inherit; font-size:.78rem; cursor:pointer; }
+        .offer-picker-clear:hover { color:var(--primary); background:#eff6ff; }
+        .offer-options { max-height:190px; overflow:auto; padding:.4rem; }
+        .offer-option { display:flex !important; align-items:flex-start; gap:.65rem; margin:0 !important; padding:.65rem; border-radius:8px; cursor:pointer; font-weight:500 !important; }
+        .offer-option:hover { background:#f8fafc; }
+        .offer-option input { flex:0 0 auto; width:18px; height:18px; margin:.05rem 0 0; accent-color:#f97316; }
+        .offer-option-title { min-width:0; overflow-wrap:anywhere; color:#1e293b; font-weight:650; line-height:1.35; }
+        .offer-picker-empty { margin:0; padding:.9rem; color:var(--text-muted); font-size:.88rem; }
+        .offer-picker-hint { display:block; margin-top:.45rem; color:var(--text-muted); font-size:.78rem; line-height:1.4; }
+
         .form-group { margin-bottom: 1.1rem; }
 
         .form-group label {
@@ -447,10 +461,16 @@
                 </div>
 
                 <div class="form-group">
-                    <label>Offres Associées (Maintenez Ctrl pour plusieurs)</label>
-                    <select id="offers_ids" multiple style="height: 100px;">
-                        <!-- Injected via JS -->
-                    </select>
+                    <label for="offers-search">Offres associées</label>
+                    <div class="offer-picker">
+                        <div class="offer-picker-toolbar">
+                            <input class="offer-picker-search" type="search" id="offers-search" placeholder="Rechercher une offre…" autocomplete="off">
+                            <span class="offer-picker-count" id="offers-selected-count" aria-live="polite">0 offre sélectionnée</span>
+                            <button class="offer-picker-clear" type="button" id="offers-clear">Tout décocher</button>
+                        </div>
+                        <div class="offer-options" id="offers-list" role="group" aria-label="Sélection des offres"></div>
+                    </div>
+                    <small class="offer-picker-hint">Cochez toutes les offres qui doivent inclure ce cours. Les étudiants qui correspondent à au moins une offre liée pourront le voir.</small>
                 </div>
 
                 <div style="display: flex; flex-direction: column; gap: 0.75rem; margin-bottom: 1.1rem;">
@@ -1112,8 +1132,7 @@
             document.getElementById('courseForm').reset();
             document.getElementById('courseId').value = '';
 
-            const offersSelect = document.getElementById('offers_ids');
-            offersSelect.innerHTML = allOffers.map(o => `<option value="${o.id}">${escHtml(o.title)}</option>`).join('');
+            renderOfferPicker([]);
 
             document.getElementById('courseModal').style.display = 'flex';
         }
@@ -1134,12 +1153,7 @@
             document.getElementById('is_free').checked = !!course.is_free;
             document.getElementById('is_published').checked = !!course.is_published;
 
-            const offersSelect = document.getElementById('offers_ids');
-            offersSelect.innerHTML = allOffers.map(o => `
-                <option value="${o.id}" ${(course.offers_ids || []).includes(o.id) ? 'selected' : ''}>
-                    ${escHtml(o.title)}
-                </option>
-            `).join('');
+            renderOfferPicker(course.offers_ids || []);
 
             document.getElementById('courseModal').style.display = 'flex';
         }
@@ -1147,6 +1161,38 @@
         // ── Close modal ────────────────────────────────
         function closeModal() {
             document.getElementById('courseModal').style.display = 'none';
+        }
+
+        function renderOfferPicker(selectedIds = []) {
+            const list = document.getElementById('offers-list');
+            const search = document.getElementById('offers-search');
+            const count = document.getElementById('offers-selected-count');
+            const selected = new Set((selectedIds || []).map(String));
+            search.value = '';
+
+            list.innerHTML = allOffers.length ? allOffers.map(offer => `
+                <label class="offer-option">
+                    <input type="checkbox" name="offers_ids" value="${escHtml(String(offer.id))}" ${selected.has(String(offer.id)) ? 'checked' : ''}>
+                    <span class="offer-option-title">${escHtml(offer.title || 'Offre sans titre')}</span>
+                </label>
+            `).join('') : '<p class="offer-picker-empty">Aucune offre disponible. Créez d’abord une offre.</p>';
+
+            const updateCount = () => {
+                const total = list.querySelectorAll('input[name="offers_ids"]:checked').length;
+                count.textContent = `${total} offre${total > 1 ? 's' : ''} sélectionnée${total > 1 ? 's' : ''}`;
+            };
+            list.onchange = updateCount;
+            search.oninput = () => {
+                const query = search.value.trim().toLocaleLowerCase('fr');
+                list.querySelectorAll('.offer-option').forEach(option => {
+                    option.hidden = !option.textContent.toLocaleLowerCase('fr').includes(query);
+                });
+            };
+            document.getElementById('offers-clear').onclick = () => {
+                list.querySelectorAll('input[name="offers_ids"]').forEach(input => { input.checked = false; });
+                updateCount();
+            };
+            updateCount();
         }
 
         // Close modal on backdrop click
@@ -1169,7 +1215,7 @@
                 thumbnail_url: document.getElementById('thumbnail_url').value.trim() || null,
                 is_free: document.getElementById('is_free').checked,
                 is_published: document.getElementById('is_published').checked,
-                offers_ids: Array.from(document.getElementById('offers_ids').selectedOptions).map(o => o.value)
+                offers_ids: Array.from(document.querySelectorAll('#offers-list input[name="offers_ids"]:checked')).map(input => input.value)
             };
 
             try {

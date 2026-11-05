@@ -106,6 +106,15 @@
 - Lessons with practice files or a document but no video render a file-only lesson view instead of a video-unavailable error.
 - Lesson and live-session upload pickers accept multiple files in one selection; batch processing continues after an individual file fails and reports partial success while refreshing the admin list.
 
+## 2026-11-05 — Make Course Offer Linking Easier
+
+**Author:** Codex  
+**Type:** UX / FEATURE
+
+- Replaced the Ctrl-click native offer multi-select with a searchable checkbox list inside the course create/edit modal.
+- Editing a course preselects all existing offers; saving submits all checked IDs through the existing `offers_ids` array and `offer_courses` relationship.
+- Added a selected count and clear-all control. No database or API changes.
+
 ---
 
 ## 2026-11-05 — Add Automatic Deploy Migrations and Reusable Course Modules

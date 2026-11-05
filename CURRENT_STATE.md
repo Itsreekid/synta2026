@@ -322,3 +322,9 @@ Admin course management now supports shared chapters, lesson management, and les
 - The admin course and session pickers already use `input.multiple = true`; batch uploads remain sequential and now continue after one file fails, refresh the resource list after successful files, and report partial success.
 - JavaScript syntax checks pass; actual student/admin browser flows and production resource records remain unverified.
 
+### Multi-offer course editor (2026-11-05)
+
+- The course API and `offer_courses` already supported linking a course to several offers; the old modal used a native multi-select that required Ctrl/Command-click and was easy to miss.
+- Replaced it with a searchable checkbox list, selected-offer count, and clear-all action. Existing links are checked when editing; save submits every checked offer ID in the existing `offers_ids` array.
+- No database or API changes. Syntax checked; admin browser save/visibility behavior still needs live verification.
+
