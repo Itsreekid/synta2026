@@ -39,33 +39,26 @@ router.get("/", authMiddleware, async (req, res) => {
        FROM offers o
        LEFT JOIN offer_courses oc ON oc.offer_id = o.id
        LEFT JOIN courses c ON c.id = oc.course_id
-       WHERE o.is_active = true
+      WHERE o.is_active = true
+        AND (o.valid_from IS NULL OR o.valid_from <= NOW())
+        AND (o.valid_until IS NULL OR o.valid_until > NOW())
        GROUP BY o.id
        ORDER BY o.fixed_price ASC, o.created_at DESC`
     );
 
     let offers = offersResult.rows;
 
-    if (userProfile) {
-      offers = offers.filter((offer) => {
-        const targetClasses = offer.target_classes || [];
-        const targetBranches = offer.target_branches || [];
-        
-        // If offer has no target, OR user has no class set, OR user's class matches (case-insensitive)
-        const classMatch =
-          targetClasses.length === 0 ||
-          !userProfile.class ||
-          targetClasses.some(c => c.toLowerCase() === userProfile.class.toLowerCase());
-          
-        // Same for branch
-        const branchMatch =
-          targetBranches.length === 0 ||
-          !userProfile.branch ||
-          targetBranches.some(b => b.toLowerCase() === userProfile.branch.toLowerCase());
-          
-        return classMatch && branchMatch;
-      });
-    }
+    offers = offers.filter((offer) => {
+      const targetClasses = offer.target_classes || [];
+      const targetBranches = offer.target_branches || [];
+      const classMatch = targetClasses.length === 0 || (
+        userProfile?.class && targetClasses.some(c => String(c).trim().toLowerCase() === userProfile.class.trim().toLowerCase())
+      );
+      const branchMatch = targetBranches.length === 0 || (
+        userProfile?.branch && targetBranches.some(b => String(b).trim().toLowerCase() === userProfile.branch.trim().toLowerCase())
+      );
+      return Boolean(classMatch && branchMatch);
+    });
 
     const userBalance = userProfile?.balance || 0;
 

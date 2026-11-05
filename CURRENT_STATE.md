@@ -263,3 +263,11 @@ Admin course management now supports shared chapters, lesson management, and les
 - Session visibility and replay URLs still come from the existing enrollment-protected API. No database/API changes.
 - Course details JavaScript syntax was checked. Browser visual behavior and production session data were not manually verified.
 
+### Offer-targeted student course visibility (2026-11-05)
+
+- The student course catalog and direct course-detail API now show offer-linked courses only when at least one linked active offer matches the student's class and branch targets and is within its validity dates.
+- Active enrollments preserve visibility and access even if offer targeting is later edited. Expired enrollments no longer appear in `my-courses`.
+- Published courses with no `offer_courses` link remain visible as open formations (for example, AI or web development); existing free-enrollment rules still apply.
+- `/api/offers` now filters targeted offers strictly when the student profile lacks class/branch, and excludes offers outside validity dates.
+- No database changes. Runtime behavior still needs verification against representative student accounts and offer configurations.
+

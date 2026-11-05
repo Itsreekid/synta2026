@@ -26,6 +26,17 @@
 - Kept existing enrollment and offer checks for session/replay visibility; no schema or API changes.
 - Verified the course details JavaScript syntax. Browser rendering and live data were not manually tested.
 
+## 2026-11-05 — Filter Student Courses by Offer Target
+
+**Author:** Codex
+**Type:** FEATURE
+
+- The course catalog and course-detail API now filter offer-linked courses against the student's class and branch and the offer's active validity window.
+- Students with an active enrollment retain visibility; expired enrollments are excluded from the student course list.
+- Published courses with no offer association remain discoverable as open formations.
+- Offer listing now requires profile values to match any configured class/branch targets and honors validity dates.
+- No schema changes. API syntax was checked; database and representative-account behavior were not manually exercised.
+
 ---
 
 ## 2026-11-05 — Add Automatic Deploy Migrations and Reusable Course Modules

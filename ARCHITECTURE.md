@@ -64,6 +64,10 @@ Synta Academy is a **Tunisian e-learning platform** targeting high-school studen
 | Client JS | Vanilla JavaScript (no bundler/framework) |
 | Admin panel | Static HTML + vanilla JS (`admin/`) |
 
+### Student course visibility
+
+The published course catalog and course-detail API filter offer-linked courses using the authenticated student's `users.class` and `users.branch`, and only consider active offers inside their validity window. A course linked to several offers appears when at least one active offer matches. A student with an active enrollment can continue to see that course even if targeting later changes. Published courses with no `offer_courses` association remain open in the catalog for public/free formations such as AI or web development. Course enrollment checks continue to govern actual lesson access.
+
 ### Infrastructure
 | Component | Technology |
 |-----------|-----------|

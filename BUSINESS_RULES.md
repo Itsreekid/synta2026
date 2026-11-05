@@ -21,6 +21,8 @@
 | Admin can create lessons and add PDF/Word documents to them | ✅ | Admin API signs R2 uploads; course resource endpoint grants signed read URLs only to enrolled students |
 | Admin can upload a live replay for a session | ✅ | Admin API signs R2 uploads; live session endpoint signs private replay keys for entitled students |
 | Students only see replays for active course/offer enrollment | ✅ | Live course, upcoming, and replay APIs check enrollment expiry and offer association |
+| Offer-linked courses are shown only to students matching the offer's class and branch targets | ✅ | `GET /api/courses` and `GET /api/courses/:courseId` enforce active offer targeting; active enrollments remain visible |
+| Courses with no offer association remain open for discovery and free-course enrollment | ✅ | Catalog and course detail APIs allow published courses with no `offer_courses` mapping |
 
 > Offer access remains course-based through `offer_courses` and enrollments. Reusing a module does not change payment or entitlement rules.
 

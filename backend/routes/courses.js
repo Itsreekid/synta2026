@@ -38,18 +38,49 @@ router.get("/:courseId/resources", authMiddleware, async (req, res) => {
 /**
  * GET /api/courses
  */
-router.get("/", async (req, res) => {
+router.get("/", authMiddleware, async (req, res) => {
   try {
     const { category, level } = req.query;
+    const userId = req.user?.id || null;
 
     let sql = `
       SELECT c.*,
         (SELECT COUNT(l.id) FROM lessons l JOIN course_modules cm ON cm.module_id = l.module_id WHERE cm.course_id = c.id AND l.type IS DISTINCT FROM 'quiz')::int AS lessons_count,
         (SELECT COUNT(l.id) FROM lessons l JOIN course_modules cm ON cm.module_id = l.module_id WHERE cm.course_id = c.id AND l.type = 'quiz')::int AS quizzes_count,
         (SELECT COUNT(ls.id) FROM live_sessions ls WHERE ls.course_id = c.id)::int AS lives_count
-      FROM courses c WHERE c.is_published = true
+      FROM courses c
+      LEFT JOIN users viewer ON viewer.id = $1
+      WHERE c.is_published = true
+        AND (
+          NOT EXISTS (SELECT 1 FROM offer_courses linked WHERE linked.course_id = c.id)
+          OR EXISTS (
+            SELECT 1 FROM offer_courses oc
+            JOIN offers o ON o.id = oc.offer_id
+            WHERE oc.course_id = c.id
+              AND o.is_active = true
+              AND (o.valid_from IS NULL OR o.valid_from <= NOW())
+              AND (o.valid_until IS NULL OR o.valid_until > NOW())
+              AND (cardinality(COALESCE(o.target_classes, ARRAY[]::TEXT[])) = 0 OR (
+                viewer.class IS NOT NULL AND EXISTS (
+                  SELECT 1 FROM unnest(o.target_classes) AS target_class(value)
+                  WHERE lower(trim(target_class.value)) = lower(trim(viewer.class))
+                )
+              ))
+              AND (cardinality(COALESCE(o.target_branches, ARRAY[]::TEXT[])) = 0 OR (
+                viewer.branch IS NOT NULL AND EXISTS (
+                  SELECT 1 FROM unnest(o.target_branches) AS target_branch(value)
+                  WHERE lower(trim(target_branch.value)) = lower(trim(viewer.branch))
+                )
+              ))
+          )
+          OR EXISTS (
+            SELECT 1 FROM enrollments e
+            WHERE e.course_id = c.id AND e.user_id = $1
+              AND (e.expires_at IS NULL OR e.expires_at > NOW())
+          )
+        )
     `;
-    const params = [];
+    const params = [userId];
 
     if (category) {
       params.push(category);
@@ -97,6 +128,7 @@ router.get("/user/my-courses", authMiddleware, async (req, res) => {
               ) as total_lessons
        FROM courses c
        LEFT JOIN enrollments e ON c.id = e.course_id AND e.user_id = $1
+         AND (e.expires_at IS NULL OR e.expires_at > NOW())
        WHERE e.user_id = $1
        ORDER BY COALESCE(e.enrolled_at, '2000-01-01'::timestamp) DESC`,
       [userId]
@@ -120,18 +152,49 @@ router.get("/user/my-courses", authMiddleware, async (req, res) => {
 /**
  * GET /api/courses/:courseId
  */
-router.get("/:courseId", async (req, res) => {
+router.get("/:courseId", authMiddleware, async (req, res) => {
   try {
     const { courseId } = req.params;
 
+    const userId = req.user?.id || null;
     const courseResult = await pool.query(
       `SELECT c.*,
          (SELECT COUNT(l.id) FROM course_modules cm JOIN lessons l ON l.module_id = cm.module_id
           WHERE cm.course_id = c.id AND l.type IS DISTINCT FROM 'quiz')::int AS lessons_count,
          (SELECT COUNT(l.id) FROM course_modules cm JOIN lessons l ON l.module_id = cm.module_id
           WHERE cm.course_id = c.id AND l.type = 'quiz')::int AS quizzes_count
-       FROM courses c WHERE c.id = $1 AND c.is_published = true`,
-      [courseId]
+       FROM courses c
+       LEFT JOIN users viewer ON viewer.id = $2
+       WHERE c.id = $1 AND c.is_published = true
+         AND (
+           NOT EXISTS (SELECT 1 FROM offer_courses linked WHERE linked.course_id = c.id)
+           OR EXISTS (
+             SELECT 1 FROM offer_courses oc
+             JOIN offers o ON o.id = oc.offer_id
+             WHERE oc.course_id = c.id
+               AND o.is_active = true
+               AND (o.valid_from IS NULL OR o.valid_from <= NOW())
+               AND (o.valid_until IS NULL OR o.valid_until > NOW())
+               AND (cardinality(COALESCE(o.target_classes, ARRAY[]::TEXT[])) = 0 OR (
+                 viewer.class IS NOT NULL AND EXISTS (
+                   SELECT 1 FROM unnest(o.target_classes) AS target_class(value)
+                   WHERE lower(trim(target_class.value)) = lower(trim(viewer.class))
+                 )
+               ))
+               AND (cardinality(COALESCE(o.target_branches, ARRAY[]::TEXT[])) = 0 OR (
+                 viewer.branch IS NOT NULL AND EXISTS (
+                   SELECT 1 FROM unnest(o.target_branches) AS target_branch(value)
+                   WHERE lower(trim(target_branch.value)) = lower(trim(viewer.branch))
+                 )
+               ))
+           )
+           OR EXISTS (
+             SELECT 1 FROM enrollments e
+             WHERE e.course_id = c.id AND e.user_id = $2
+               AND (e.expires_at IS NULL OR e.expires_at > NOW())
+           )
+         )`,
+      [courseId, userId]
     );
 
     if (courseResult.rowCount === 0) {
