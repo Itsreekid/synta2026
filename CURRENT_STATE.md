@@ -315,3 +315,10 @@ Admin course management now supports shared chapters, lesson management, and les
 - Mobile navigation closes before opening the replay. Playback and attached resource behavior are unchanged.
 - JavaScript syntax checked; visual browser verification remains pending because no Synta app session is available locally.
 
+### Show lesson attachments in the student player (2026-11-05)
+
+- Root cause: course lesson rows call `playLesson()` and render into `showVideoInMainArea()`, which previously never requested or rendered `learning_resources`; a separate unused modal path did.
+- The active course lesson path now loads the entitled signed resource list and shows all attached files below the lesson content. Lessons with files/documents but no video show a file-only view rather than a video-unavailable error.
+- The admin course and session pickers already use `input.multiple = true`; batch uploads remain sequential and now continue after one file fails, refresh the resource list after successful files, and report partial success.
+- JavaScript syntax checks pass; actual student/admin browser flows and production resource records remain unverified.
+

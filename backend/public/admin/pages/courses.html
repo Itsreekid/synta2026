@@ -990,11 +990,15 @@
             input.onchange = async () => {
                 const files = [...(input.files || [])];
                 if (!files.length) return;
-                try {
-                    for (const file of files) await uploadPracticeFile({ lessonId }, file);
-                    showToast(`${files.length} fichier(s) ajouté(s) à la leçon.`, 'success');
-                    await loadChapterManager();
-                } catch (error) { showToast(error.message, 'error'); }
+                let uploaded = 0;
+                const failures = [];
+                for (const file of files) {
+                    try { await uploadPracticeFile({ lessonId }, file); uploaded++; }
+                    catch (error) { failures.push(error); }
+                }
+                if (uploaded) await loadChapterManager();
+                if (failures.length) showToast(`${uploaded}/${files.length} fichiers ajoutés. ${failures.length} transfert(s) ont échoué : ${failures[0].message}`, 'error');
+                else showToast(`${uploaded} fichier(s) ajouté(s) à la leçon.`, 'success');
             };
             input.click();
         }

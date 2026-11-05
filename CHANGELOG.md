@@ -97,6 +97,15 @@
 - The player panel and video height adapt to the available viewport; the overlay updates on resize and closes on Escape, backdrop, or close button.
 - Direct video playback pauses when the replay is closed. Attached resource links and YouTube/Vimeo playback remain unchanged.
 
+## 2026-11-05 — Show Lesson Files and Support Multi-File Batches
+
+**Author:** Codex  
+**Type:** BUGFIX / FEATURE
+
+- Connected the student course page's actual lesson player to the authenticated lesson-resource endpoint; every attached practice file now appears below the lesson content.
+- Lessons with practice files or a document but no video render a file-only lesson view instead of a video-unavailable error.
+- Lesson and live-session upload pickers accept multiple files in one selection; batch processing continues after an individual file fails and reports partial success while refreshing the admin list.
+
 ---
 
 ## 2026-11-05 — Add Automatic Deploy Migrations and Reusable Course Modules

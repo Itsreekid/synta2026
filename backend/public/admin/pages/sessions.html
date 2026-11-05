@@ -437,11 +437,15 @@ async function uploadSessionFiles(sessionId) {
     input.onchange = async () => {
         const files = [...(input.files || [])];
         if (!files.length) return;
-        try {
-            for (const file of files) await uploadPracticeFile({ liveSessionId:sessionId }, file);
-            await loadSessions();
-            showToast(`${files.length} fichier(s) ajouté(s) à la séance.`, 'success');
-        } catch (error) { showToast(error.message, 'error'); }
+        let uploaded = 0;
+        const failures = [];
+        for (const file of files) {
+            try { await uploadPracticeFile({ liveSessionId:sessionId }, file); uploaded++; }
+            catch (error) { failures.push(error); }
+        }
+        if (uploaded) await loadSessions();
+        if (failures.length) showToast(`${uploaded}/${files.length} fichiers ajoutés. ${failures.length} transfert(s) ont échoué : ${failures[0].message}`, 'error');
+        else showToast(`${uploaded} fichier(s) ajouté(s) à la séance.`, 'success');
     };
     input.click();
 }

@@ -535,11 +535,27 @@ async function playLesson(lessonId) {
             return;
         }
 
+        let practiceFiles = [];
+        try {
+            const resourceResponse = await fetch(`/api/content/lesson/${encodeURIComponent(lessonId)}/resources`, { credentials: 'include' });
+            if (resourceResponse.ok) {
+                const resourceData = await resourceResponse.json();
+                practiceFiles = (resourceData.resources || []).filter(resource => !String(resource.id).startsWith('legacy-'));
+            } else {
+                console.warn('Could not load lesson practice files:', resourceResponse.status);
+            }
+        } catch (resourceError) {
+            console.warn('Could not load lesson practice files:', resourceError.message);
+        }
+
         if (videoUrl) {
             // Mark lesson progress (best-effort)
             markLessonProgress(lessonId);
             // Show video in main content area
-            await showVideoInMainArea(lesson, videoUrl, contentData.pdfUrl);
+            await showLessonInMainArea(lesson, videoUrl, contentData.pdfUrl, practiceFiles);
+        } else if (practiceFiles.length || contentData.pdfUrl) {
+            // A lesson can be a useful downloadable resource even without a video.
+            await showLessonInMainArea(lesson, null, contentData.pdfUrl, practiceFiles);
         } else {
             showError('Vidéo non disponible pour cette leçon.');
         }
@@ -578,9 +594,9 @@ async function updateCourseProgress(userId, courseId) {
 }
 
 /**
- * Show video in main content area
+ * Show lesson video and attached resources in the course main area
  */
-async function showVideoInMainArea(lesson, videoUrl, pdfUrl) {
+async function showLessonInMainArea(lesson, videoUrl, pdfUrl, practiceFiles = []) {
     const courseMain = document.querySelector('.course-main');
     const courseSidebar = document.querySelector('.course-sidebar');
     const modulesContainer = document.getElementById('modules-container');
@@ -634,10 +650,10 @@ async function showVideoInMainArea(lesson, videoUrl, pdfUrl) {
         `;
     }
 
-    // Replace main content with video player and action buttons
+    // Replace main content with the video (when present), lesson resources, and actions.
     courseMain.innerHTML = `
         <div class="video-section-wrapper" style="width: 100%; display: flex; flex-direction: column; gap: 1rem;">
-            <div class="video-container" style="background: #000; border-radius: 12px; overflow: hidden; position: relative; aspect-ratio: 16/9; width: 100%; box-shadow: 0 15px 35px rgba(0,0,0,0.2);">
+            ${videoUrl ? `<div class="video-container" style="background: #000; border-radius: 12px; overflow: hidden; position: relative; aspect-ratio: 16/9; width: 100%; box-shadow: 0 15px 35px rgba(0,0,0,0.2);">
                 <video 
                     id="current-lesson-video"
                     controls 
@@ -647,7 +663,7 @@ async function showVideoInMainArea(lesson, videoUrl, pdfUrl) {
                 >
                     Votre navigateur ne supporte pas la lecture de vidéos.
                 </video>
-            </div>
+            </div>` : `<div class="lesson-files-only" style="display:flex;align-items:center;gap:.75rem;padding:1.25rem 1.5rem;border:1px solid #dbeafe;border-radius:14px;background:#eff6ff;color:#1e40af"><i class="fas fa-folder-open" aria-hidden="true"></i><span>Les fichiers de cette leçon sont disponibles ci-dessous.</span></div>`}
             
             <div class="lesson-actions" style="display: flex; gap: 1rem; width: 100%;">
                 <button class="btn-complete-next" onclick="completeLessonAndNext('${lesson.id}')" style="flex: 1; padding: 1rem; background: linear-gradient(135deg, #10b981 0%, #059669 100%); color: white; border: none; border-radius: 12px; font-weight: 600; font-size: 1rem; cursor: pointer; transition: all 0.3s ease; box-shadow: 0 4px 15px rgba(16, 185, 129, 0.3); display: flex; align-items: center; justify-content: center; gap: 0.5rem;">
@@ -667,6 +683,11 @@ async function showVideoInMainArea(lesson, videoUrl, pdfUrl) {
             </div>
         </div>
     `;
+
+    if (practiceFiles.length) {
+        const details = courseMain.querySelector('.lesson-details-content');
+        details?.appendChild(createResourceSection(practiceFiles, 'Fichiers de pratique de la leçon'));
+    }
 
     // Replace sidebar with modules section
     if (modulesContainer && courseSidebar) {
@@ -738,7 +759,7 @@ function restoreCourseContent() {
  */
 function openVideoModal(title, videoUrl) {
     // This function is kept for compatibility but redirects to inline player
-    showVideoInMainArea({ title, description: '' }, videoUrl);
+    showLessonInMainArea({ title, description: '' }, videoUrl, null);
 }
 
 /**
