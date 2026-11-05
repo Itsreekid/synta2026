@@ -25,22 +25,30 @@ router.get("/lesson/:lessonId/resources", authApiMiddleware, async (req, res) =>
        FROM learning_resources WHERE lesson_id = $1 ORDER BY created_at, title`,
       [lesson.id]
     );
-    const resources = await Promise.all(result.rows.map(async (resource) => ({
-      id: resource.id,
-      title: resource.title,
-      file_name: resource.file_name,
-      content_type: resource.content_type,
-      file_size: Number(resource.file_size),
-      url: await generateSignedUrl(resource.object_key, 3600, resource.file_name),
-    })));
+    const resources = await Promise.all(result.rows.map(async (resource) => {
+      const url = await generateSignedUrl(resource.object_key, 3600, resource.file_name);
+      const isPdf = String(resource.file_name || '').toLowerCase().endsWith('.pdf');
+      return {
+        id: resource.id,
+        title: resource.title,
+        file_name: resource.file_name,
+        content_type: resource.content_type,
+        file_size: Number(resource.file_size),
+        url,
+        preview_url: isPdf ? await generateSignedUrl(resource.object_key, 3600) : null,
+      };
+    }));
     if (lesson.pdf_key) {
-      const fileName = lesson.pdf_key.split("/").pop() || "document.pdf";
+      const fileName = lesson.pdf_key.split(/[?#]/)[0].split("/").pop() || "document.pdf";
+      const url = /^https?:\/\//i.test(lesson.pdf_key) ? lesson.pdf_key : await generateSignedUrl(lesson.pdf_key, 3600, fileName);
+      const previewUrl = /^https?:\/\//i.test(lesson.pdf_key) ? lesson.pdf_key : await generateSignedUrl(lesson.pdf_key, 3600);
       resources.unshift({
         id: `legacy-${lesson.id}`,
         title: "Document du cours",
         file_name: fileName,
         content_type: "application/pdf",
-        url: /^https?:\/\//i.test(lesson.pdf_key) ? lesson.pdf_key : await generateSignedUrl(lesson.pdf_key, 3600, fileName),
+        url,
+        preview_url: previewUrl,
       });
     }
     res.json({ resources });

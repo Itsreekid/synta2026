@@ -19,12 +19,13 @@
 | One course can be linked to multiple offers; a matching student can see it through any linked offer | ✅ | Admin course editor submits multiple `offers_ids`; `offer_courses` stores the course/offer links; catalog visibility uses an `EXISTS` match |
 | Course access is granted by enrollment in a course that includes the lesson's module | ✅ | `checkLessonAccess()` joins enrollments through `course_modules` |
 | Admin interface/API can attach an existing module to another course | ✅ | Admin course chapter manager uses `course_modules` |
-| Admin can create lessons and add PDF/Word documents to them | ✅ | Admin API signs R2 uploads; course resource endpoint grants signed read URLs only to enrolled students |
+| Admin can attach multiple supported teaching resources to a lesson in one resource area | ✅ | Course chapter manager accepts multiple files through learning_resources; legacy lesson PDFs remain visible; student resource endpoint returns signed links only to entitled students |
 | Admin can upload a live replay for a session | ✅ | Admin API signs R2 uploads; live session endpoint signs private replay keys for entitled students |
 | Students only see replays for active course/offer enrollment | ✅ | Live course, upcoming, and replay APIs check enrollment expiry and offer association |
 | Admin can place three-question quizzes between lessons with five interactive question styles | ✅ | Admin chapter quiz builder stores structured content; students play the quiz through authenticated lesson content |
 | Admin can attach multiple code/practice files to lessons and live sessions | ✅ | Admin supports multi-file selection; authenticated course lesson and replay flows render the associated signed downloads |
 | Students can download lesson practice files or open Python exercises in Code Pratique | ✅ | Lesson resources fetch signed downloads by filename; Python files can load as editable starter code in the authenticated Code Pratique page |
+| Lesson resources support common documents, slides, spreadsheets, images, code, notes, and ZIP files | ✅ | Admin upload API validates the supported extension and MIME-type allowlists; downloads and PDF previews use private signed R2 URLs |
 | Session replays play in the course and show their associated practice files | ✅ | Course live-session endpoint returns entitled replay URLs and signed session resources; replay modal renders player and downloads |
 | Offer-linked courses are shown only to students matching the offer's class and branch targets | ✅ | `GET /api/courses` and `GET /api/courses/:courseId` enforce active offer targeting; active enrollments remain visible |
 | Courses with no offer association remain open for discovery and free-course enrollment | ✅ | Catalog and course detail APIs allow published courses with no `offer_courses` mapping |

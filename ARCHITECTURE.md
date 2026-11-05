@@ -74,7 +74,7 @@ Lessons store an optional structured payload in `lessons.content` (JSONB). Inter
 
 ### Lesson and live-session practice files
 
-Admins can attach multiple `.py`, `.html`, `.css`, `.js`, `.mjs`, `.json`, `.txt`, and `.zip` files to a lesson or live session in one multi-file selection. Uploads use short-lived R2 PUT URLs; `learning_resources` stores metadata and private object keys. Entitled students receive expiring signed download links. Lesson files appear below the lesson video, or in a file-only lesson view when no video exists; live-session files appear together in the replay player. Downloads are signed with attachment disposition. Migration `202611050004_create_learning_resources.sql` creates the resource table.
+Admins can attach multiple common teaching resources to a lesson or live session in one multi-file selection: PDF and office documents, slides, spreadsheets, images, text/notes, programming source files, and ZIP archives. Uploads use short-lived R2 PUT URLs; `learning_resources` stores metadata and private object keys. Entitled students receive expiring signed links. Legacy single-PDF lesson attachments and new resources are displayed together in one compact lesson resource section; PDFs can be previewed or downloaded, Python exercises can open in Code Pratique, and live-session resources appear in the replay player. Downloads preserve the original filename. Each file is limited to 25 MB. Migration `202611050004_create_learning_resources.sql` creates the resource table.
 
 ### Infrastructure
 | Component | Technology |

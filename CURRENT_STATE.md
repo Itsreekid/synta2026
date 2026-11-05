@@ -334,3 +334,10 @@ Admin course management now supports shared chapters, lesson management, and les
 - The selected file is fetched from its existing signed resource URL and passed to the Code Pratique page through same-origin session storage. The existing Python editor loads it as editable starter code; students choose when to execute it.
 - No schema or API changes. Browser flow and R2 CORS behavior need live verification.
 
+### Unify lesson documents and resources (2026-11-06)
+
+- Replaced the separate single-document upload control with the existing multi-file lesson resource flow. New lessons can also upload multiple resources at creation.
+- Existing legacy PDF attachments remain visible in the same lesson resource list; students no longer see the oversized standalone “Voir le document” button. PDF resources have compact preview and download actions.
+- Expanded the validated resource allowlist to common PDF/Office/ODF documents, slides, spreadsheets, images, text/notes, programming files, and ZIP archives. Each file remains limited to 25 MB and private behind signed R2 links.
+- No database migration. Syntax checks pass; admin upload, student downloads, and R2 CORS still need browser verification.
+

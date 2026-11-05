@@ -25,7 +25,12 @@ async function attachSessionResources(sessions, includeSignedUrls = false) {
       id: resource.id, title: resource.title, file_name: resource.file_name,
       content_type: resource.content_type, file_size: Number(resource.file_size),
     };
-    if (includeSignedUrls) item.url = await generateSignedUrl(resource.object_key, 3600, resource.file_name);
+    if (includeSignedUrls) {
+      item.url = await generateSignedUrl(resource.object_key, 3600, resource.file_name);
+      if (String(resource.file_name || '').toLowerCase().endsWith('.pdf')) {
+        item.preview_url = await generateSignedUrl(resource.object_key, 3600);
+      }
+    }
     resourcesBySession.get(resource.live_session_id).push(item);
   }
   return sessions.map(session => ({ ...session, resources: resourcesBySession.get(session.id) || [] }));

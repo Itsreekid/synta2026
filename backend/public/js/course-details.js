@@ -540,12 +540,21 @@ async function playLesson(lessonId) {
             const resourceResponse = await fetch(`/api/content/lesson/${encodeURIComponent(lessonId)}/resources`, { credentials: 'include' });
             if (resourceResponse.ok) {
                 const resourceData = await resourceResponse.json();
-                practiceFiles = (resourceData.resources || []).filter(resource => !String(resource.id).startsWith('legacy-'));
+                practiceFiles = resourceData.resources || [];
             } else {
                 console.warn('Could not load lesson practice files:', resourceResponse.status);
             }
         } catch (resourceError) {
             console.warn('Could not load lesson practice files:', resourceError.message);
+        }
+        if (contentData.pdfUrl && !practiceFiles.some(resource => String(resource.id).startsWith('legacy-'))) {
+            practiceFiles.unshift({
+                id: 'legacy-fallback-' + lessonId,
+                title: 'Document de la leçon',
+                file_name: 'document.pdf',
+                url: contentData.pdfUrl,
+                preview_url: contentData.pdfUrl
+            });
         }
 
         if (videoUrl) {
@@ -609,46 +618,7 @@ async function showLessonInMainArea(lesson, videoUrl, pdfUrl, practiceFiles = []
         courseSidebar.dataset.originalContent = courseSidebar.innerHTML;
     }
 
-    // Use the pdfUrl we already got from the server
-    let pdfUrls = [];
-    if (pdfUrl) {
-        pdfUrls.push({
-            url: pdfUrl,
-            name: lesson.title ? `Document: ${lesson.title}` : 'Document PDF'
-        });
-    }
-
-    // Generate PDF buttons HTML
-    let pdfButtonsHtml = '';
-    if (pdfUrls.length > 0) {
-        pdfButtonsHtml = `
-            <div style="margin-top: 0.75rem;">
-                <p style="font-size: 0.9rem; color: #64748b; margin-bottom: 0.5rem; font-weight: 500;">
-                    📄 Documents de la leçon
-                </p>
-                <div style="display: flex; flex-wrap: wrap; gap: 0.5rem;">
-                    ${pdfUrls.map((pdf, index) => `
-                        <a href="${pdf.url}" target="_blank" style="
-                            display: inline-flex;
-                            align-items: center;
-                            gap: 0.5rem;
-                            padding: 0.6rem 1.2rem;
-                            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-                            color: white;
-                            text-decoration: none;
-                            border-radius: 8px;
-                            font-weight: 600;
-                            font-size: 0.9rem;
-                            transition: transform 0.2s ease;
-                        " onmouseover="this.style.transform='translateY(-2px)'" onmouseout="this.style.transform='translateY(0)'">
-                            <i class="fas fa-file-pdf"></i>
-                            ${pdfUrls.length === 1 ? 'Voir le document' : `Document ${index + 1}`}
-                        </a>
-                    `).join('')}
-                </div>
-            </div>
-        `;
-    }
+    // Legacy PDFs and newly uploaded files are presented in one resource section.
 
     // Replace main content with the video (when present), lesson resources, and actions.
     courseMain.innerHTML = `
@@ -679,14 +649,13 @@ async function showLessonInMainArea(lesson, videoUrl, pdfUrl, practiceFiles = []
                 <div style="color: #64748b; line-height: 1.6; font-size: 1.05rem;">
                     ${lesson.description || 'Aucune description pour cette leçon.'}
                 </div>
-                ${pdfButtonsHtml}
             </div>
         </div>
     `;
 
     if (practiceFiles.length) {
         const details = courseMain.querySelector('.lesson-details-content');
-        details?.appendChild(createResourceSection(practiceFiles, 'Fichiers de pratique de la leçon'));
+        details?.appendChild(createResourceSection(practiceFiles, 'Ressources de la leçon'));
     }
 
     // Replace sidebar with modules section
@@ -1236,9 +1205,12 @@ function createResourceSection(resources, headingText) {
     const list = document.createElement('div');
     list.className = 'replay-resource-list';
     resources.forEach(resource => {
+        const item = document.createElement('div');
+        item.style.cssText = 'display:flex;align-items:center;gap:.5rem;min-width:0';
         const link = document.createElement('a');
         link.href = resource.url;
         link.className = 'replay-resource-link';
+        link.style.flex = '1';
         const icon = document.createElement('i');
         icon.className = 'fas fa-file-code';
         icon.setAttribute('aria-hidden', 'true');
@@ -1252,15 +1224,26 @@ function createResourceSection(resources, headingText) {
             event.preventDefault();
             downloadPracticeResource(resource, link);
         });
-        list.appendChild(link);
-        if (/\.py$/i.test(String(resource.file_name || resource.title || ''))) {
+        item.appendChild(link);
+        const fileName = String(resource.file_name || resource.title || '');
+        if (/\.pdf$/i.test(fileName) && resource.preview_url) {
+            const preview = document.createElement('a');
+            preview.href = resource.preview_url;
+            preview.target = '_blank';
+            preview.rel = 'noopener noreferrer';
+            preview.textContent = 'Ouvrir';
+            preview.style.cssText = 'padding:.55rem .8rem;border:1px solid #dbeafe;border-radius:8px;background:#eff6ff;color:#1d4ed8;font-size:.82rem;font-weight:650;text-decoration:none;white-space:nowrap';
+            item.appendChild(preview);
+        }
+        if (/\.py$/i.test(fileName)) {
             const openButton = document.createElement('button');
             openButton.type = 'button';
             openButton.textContent = 'Ouvrir dans Code Pratique';
             openButton.style.cssText = 'margin:.25rem;padding:.55rem .8rem;border:1px solid #fed7aa;border-radius:8px;background:#fff7ed;color:#c2410c;font-weight:600;cursor:pointer';
             openButton.addEventListener('click', () => openPracticeResource(resource, openButton));
-            list.appendChild(openButton);
+            item.appendChild(openButton);
         }
+        list.appendChild(item);
     });
     section.appendChild(list);
     return section;

@@ -786,21 +786,21 @@
                     <div class="chapter-lessons">
                         ${(chapter.lessons || []).map(lesson => `
                             <div class="lesson-row" data-lesson-id="${escHtml(lesson.id)}" data-module-id="${escHtml(chapter.id)}" draggable="true">
-                                <div style="flex:1;min-width:150px"><i class="fas fa-grip-lines drag-grip" aria-hidden="true"></i><strong>${escHtml(lesson.title)}</strong><small style="display:block;color:var(--text-muted)">${lesson.type === 'quiz' ? 'Quiz interactif' : escHtml(lesson.type)} · ordre ${lesson.order_index}${lesson.is_preview ? ' · aperçu' : ''}${lesson.has_document ? ' · document attaché' : lesson.type !== 'quiz' ? ' · sans document' : ''} · glisser pour déplacer</small></div>
+                                <div style="flex:1;min-width:150px"><i class="fas fa-grip-lines drag-grip" aria-hidden="true"></i><strong>${escHtml(lesson.title)}</strong><small style="display:block;color:var(--text-muted)">${lesson.type === 'quiz' ? 'Quiz interactif' : escHtml(lesson.type)} · ordre ${lesson.order_index}${lesson.is_preview ? ' · aperçu' : ''}${(lesson.resources || []).length + (lesson.has_document ? 1 : 0)} ressource(s) · glisser pour déplacer</small></div>
                                 <input aria-label="Ordre de la leçon" type="number" min="0" value="${lesson.order_index}" style="width:72px;padding:.4rem;border:1px solid var(--border);border-radius:7px" onchange="updateLessonOrder('${lesson.id}',this.value)">
-                                <button class="btn" type="button" onclick="uploadLessonPracticeFiles('${lesson.id}')"><i class="fas fa-code"></i> Fichiers (${(lesson.resources || []).length})</button>
-                                ${lesson.type !== 'quiz' ? `<button class="btn" type="button" onclick="uploadLessonDocument('${lesson.id}')"><i class="fas fa-file-upload"></i> ${lesson.has_document ? 'Remplacer le document' : 'Ajouter un document'}</button>` : `<button class="btn" type="button" onclick="editInteractiveQuiz('${lesson.id}')"><i class="fas fa-sliders-h"></i> Modifier le quiz</button>`}
+                                ${lesson.type !== 'quiz' ? `<button class="btn" type="button" onclick="uploadLessonPracticeFiles('${lesson.id}')"><i class="fas fa-paperclip"></i> Ressources (${(lesson.resources || []).length + (lesson.has_document ? 1 : 0)})</button>` : `<button class="btn" type="button" onclick="editInteractiveQuiz('${lesson.id}')"><i class="fas fa-sliders-h"></i> Modifier le quiz</button>`}
                                 <button class="btn-icon" title="Modifier le titre" onclick="editLesson('${lesson.id}')"><i class="fas fa-pen"></i></button>
                                 <button class="btn-icon danger" title="Supprimer la leçon" onclick="deleteLesson('${lesson.id}')"><i class="fas fa-trash"></i></button>
                             </div>
-                            ${(lesson.resources || []).length ? `<div class="practice-files">${lesson.resources.map(resource => `<span class="practice-file-chip"><i class="fas fa-file-code"></i><span>${escHtml(resource.title || resource.file_name)}</span><button type="button" title="Supprimer le fichier" onclick="deletePracticeResource('${resource.id}')"><i class="fas fa-times"></i></button></span>`).join('')}</div>` : ''}` ).join('')}
+                            ${(lesson.resources || []).length || lesson.has_document ? `<div class="practice-files">${lesson.has_document ? `<span class="practice-file-chip"><i class="fas fa-file-alt"></i><span>Document existant</span></span>` : ''}${(lesson.resources || []).map(resource => `<span class="practice-file-chip"><i class="fas fa-paperclip"></i><span>${escHtml(resource.file_name || resource.title)}</span><button type="button" title="Supprimer la ressource" onclick="deletePracticeResource('${resource.id}')"><i class="fas fa-times"></i></button></span>`).join('')}</div>` : ''}` ).join('')}
                         <form class="lesson-form" onsubmit="createLesson(event,'${chapter.id}')">
                             <input name="title" required placeholder="Titre de la leçon">
                             <select name="type"><option value="video">Vidéo</option><option value="pdf">Document</option></select>
                             <input name="description" placeholder="Description (facultatif)">
                             <input name="duration" type="number" min="0" placeholder="Durée (s)">
                             <label style="font-size:.78rem"><input name="isPreview" type="checkbox"> Aperçu</label>
-                            <input name="document" type="file" accept=".pdf,.doc,.docx,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document" aria-label="Document de la leçon">
+                            <label style="font-size:.78rem">Ajouter les ressources de la leçon (sélection multiple)</label>
+                            <input name="resources" type="file" multiple accept=".pdf,.doc,.docx,.odt,.rtf,.ppt,.pptx,.odp,.xls,.xlsx,.ods,.csv,.md,.txt,.py,.html,.htm,.css,.js,.mjs,.json,.c,.cpp,.h,.hpp,.java,.pas,.alg,.algo,.zip,.png,.jpg,.jpeg,.webp,.gif,.svg" aria-label="Sélectionner plusieurs ressources de la leçon">
                             <button class="btn btn-primary" type="submit">Ajouter</button>
                         </form>
                         <button class="btn" type="button" onclick="openQuizBuilder('${chapter.id}')"><i class="fas fa-bolt" style="color:#f97316"></i> Ajouter un quiz interactif (3 questions)</button>
@@ -973,40 +973,22 @@
                 });
                 const data = await response.json();
                 if (!response.ok || !data.success) throw new Error(data.error || 'Impossible de créer la leçon');
-                const file = formData.get('document');
-                if (file?.size) await uploadDocument(data.data.id, file);
-                showToast('Leçon ajoutée.', 'success');
+                const resourceFiles = formData.getAll('resources').filter(file => file instanceof File && file.size > 0);
+                let resourceUploadFailed = false;
+                for (const file of resourceFiles) {
+                    try { await uploadPracticeFile({ lessonId:data.data.id }, file); }
+                    catch (uploadError) { resourceUploadFailed = true; console.error('Lesson resource upload failed:', uploadError); }
+                }
+                showToast(resourceUploadFailed ? 'Leçon créée, mais certains fichiers n’ont pas été transférés. Ajoutez-les depuis Ressources.' : 'Leçon ajoutée avec ses ressources.', resourceUploadFailed ? 'error' : 'success');
                 await loadChapterManager();
             } catch (error) { showToast(error.message, 'error'); }
         }
 
-        async function uploadLessonDocument(lessonId) {
-            const input = document.createElement('input');
-            input.type = 'file'; input.accept = '.pdf,.doc,.docx,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document';
-            input.onchange = async () => { if (input.files[0]) { try { await uploadDocument(lessonId, input.files[0]); showToast('Document ajouté au cours.', 'success'); await loadChapterManager(); } catch(error) { showToast(error.message, 'error'); } } };
-            input.click();
-        }
-
-        async function uploadDocument(lessonId, file) {
-            if (file.size > 25 * 1024 * 1024) throw new Error('Le document doit faire 25 Mo ou moins.');
-            const signedResponse = await fetch(`/api/admin/lessons/${lessonId}/document-upload-url`, {
-                method:'POST', credentials:'include', headers:{'Content-Type':'application/json'},
-                body:JSON.stringify({ fileName:file.name, contentType:file.type, size:file.size })
-            });
-            const signed = await signedResponse.json();
-            if (!signedResponse.ok) throw new Error(signed.error || 'Upload impossible');
-            const putResponse = await fetch(signed.uploadUrl, { method:'PUT', headers:{'Content-Type':file.type}, body:file });
-            if (!putResponse.ok) throw new Error('Échec de transfert vers le stockage. Vérifiez le CORS R2.');
-            const attachResponse = await fetch(`/api/admin/lessons/${lessonId}/document`, {
-                method:'PATCH', credentials:'include', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ key:signed.key })
-            });
-            const attached = await attachResponse.json();
-            if (!attachResponse.ok) throw new Error(attached.error || 'Document transféré mais non attaché');
-        }
-
         async function uploadLessonPracticeFiles(lessonId) {
             const input = document.createElement('input');
-            input.type = 'file'; input.multiple = true; input.accept = '.py,.html,.htm,.css,.js,.mjs,.json,.txt,.zip';
+            input.type = 'file'; input.multiple = true;
+            input.accept = '.pdf,.doc,.docx,.odt,.rtf,.ppt,.pptx,.odp,.xls,.xlsx,.ods,.csv,.md,.txt,.py,.html,.htm,.css,.js,.mjs,.json,.c,.cpp,.h,.hpp,.java,.pas,.alg,.algo,.zip,.png,.jpg,.jpeg,.webp,.gif,.svg';
+            input.setAttribute('aria-label', 'Ajouter plusieurs ressources à la leçon');
             input.onchange = async () => {
                 const files = [...(input.files || [])];
                 if (!files.length) return;

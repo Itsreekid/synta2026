@@ -713,10 +713,22 @@ router.patch("/api/admin/lessons/:lessonId/document", requireAdmin, async (req, 
   }
 });
 
-const resourceExtensions = new Set(["py", "html", "htm", "css", "js", "mjs", "json", "txt", "zip"]);
+const resourceExtensions = new Set([
+  "pdf", "doc", "docx", "odt", "rtf", "ppt", "pptx", "odp", "xls", "xlsx", "ods", "csv",
+  "md", "txt", "py", "html", "htm", "css", "js", "mjs", "json", "c", "cpp", "h", "hpp",
+  "java", "pas", "alg", "algo", "zip", "png", "jpg", "jpeg", "webp", "gif", "svg",
+]);
 const resourceMimeTypes = new Set([
   "text/x-python", "application/x-python", "text/html", "text/css", "text/javascript",
-  "application/javascript", "application/json", "text/plain", "application/zip", "application/x-zip-compressed",
+  "application/javascript", "application/json", "text/plain", "text/markdown", "text/csv",
+  "application/pdf", "application/msword", "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+  "application/rtf", "text/rtf", "application/vnd.ms-powerpoint",
+  "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+  "application/vnd.oasis.opendocument.text", "application/vnd.oasis.opendocument.presentation",
+  "application/vnd.ms-excel", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+  "application/vnd.oasis.opendocument.spreadsheet", "image/png", "image/jpeg", "image/webp",
+  "image/gif", "image/svg+xml", "text/x-c", "text/x-c++", "text/x-pascal",
+  "application/zip", "application/x-zip-compressed",
   "application/octet-stream",
 ]);
 
@@ -731,7 +743,7 @@ router.post("/api/admin/resources/upload-url", requireAdmin, async (req, res) =>
     return res.status(400).json({ error: "Choose exactly one lesson or live session" });
   }
   if (!isAllowedResourceFile(fileName, contentType)) {
-    return res.status(400).json({ error: "Allowed files: Python, HTML, CSS, JavaScript, JSON, TXT, or ZIP" });
+    return res.status(400).json({ error: "Unsupported file type. Use common documents, slides, spreadsheets, images, code files, or ZIP archives." });
   }
   if (!Number.isFinite(Number(size)) || Number(size) <= 0 || Number(size) > 25 * 1024 * 1024) {
     return res.status(400).json({ error: "Each practice file must be 25 MB or less" });

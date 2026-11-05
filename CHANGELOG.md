@@ -313,3 +313,13 @@
 - Selected Python code loads in the existing editor as starter code; running it remains an explicit student action.
 - No database or API changes.
 
+## 2026-11-06 — Unify Lesson Documents and Resources
+
+**Author:** Codex  
+**Type:** UX / FEATURE
+
+- Combined legacy lesson PDFs and uploaded lesson resources into one compact student resource section, with PDF preview/download actions, and removed the oversized standalone document button.
+- Replaced the single-file admin document control with multi-file resource upload, including while creating a lesson.
+- Added common document, office, image, text, programming, and ZIP formats to the server allowlist and admin pickers. Existing 25 MB per-file limit and private signed R2 access remain.
+- No database changes.
+
