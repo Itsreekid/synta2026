@@ -208,6 +208,7 @@ Two roles exist: `user` (student) and `admin`.
 | Students see only sessions they have access to | ✅ | `accessible` filter in `live.js` |
 | Students can see past sessions with replays | ✅ | `GET /api/live/replays` |
 | Enrolled students can see all sessions for a course, including completed sessions waiting for a replay | ✅ | `GET /api/live/course/:courseId` (course and offer enrollment checked) |
+| Course details separate chapters from live sessions and group sessions/replays by month | ✅ | Student course UI tabs and collapsible calendar-month sections |
 | Course details live count matches the sessions shown to that enrolled student | ✅ | Count is derived from the authenticated course-session response; no random fallback |
 | Admin can add or clear a replay URL after teaching | ✅ | `PATCH /api/live/:sessionId/replay` |
 | `zoom_start_url` (host link) is never sent to students | ✅ | `live.js`: filtered from response |

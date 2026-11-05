@@ -388,6 +388,56 @@
             transform: translateX(4px);
         }
         
+        .course-content-tabs { display:flex; gap:.55rem; padding:.45rem; background:#eef2f7; border:1px solid #e2e8f0; border-radius:16px; }
+        .course-content-tab { display:inline-flex; align-items:center; justify-content:center; gap:.6rem; min-height:48px; padding:.7rem 1rem; border:0; border-radius:12px; background:transparent; color:#64748b; font:inherit; font-weight:700; cursor:pointer; transition:background .2s,color .2s,box-shadow .2s; }
+        .course-content-tab:hover { color:#1e293b; }
+        .course-content-tab.is-active { background:#fff; color:#4f46e5; box-shadow:0 2px 8px rgba(15,23,42,.08); }
+        .course-live-tab-count { display:inline-grid; place-items:center; min-width:23px; height:23px; padding:0 .35rem; border-radius:99px; background:#e0e7ff; color:#4338ca; font-size:.75rem; }
+        .course-content-panel[hidden] { display:none !important; }
+        .course-panel-heading { margin:.15rem 0 0; color:#1e293b; font-size:1.2rem; }
+        .course-content-panel { display:flex; flex-direction:column; gap:1rem; }
+        .course-live-panel-card { padding:1.35rem; background:#fff; border:1px solid #e8edf4; border-radius:20px; box-shadow:0 4px 20px rgba(0,0,0,.03); }
+        .course-live-panel-heading { display:flex; align-items:center; justify-content:space-between; gap:1rem; margin-bottom:1.15rem; }
+        .course-live-panel-heading h3 { margin:.2rem 0; color:#1e293b; font-size:1.25rem; }
+        .course-live-panel-heading p { margin:0; color:#64748b; font-size:.92rem; }
+        .course-live-panel-heading > i { display:grid; place-items:center; width:48px; height:48px; flex:none; border-radius:15px; background:#fff1f2; color:#e11d48; font-size:1.2rem; }
+        .course-live-eyebrow { color:#6366f1; font-size:.72rem; font-weight:800; letter-spacing:.08em; text-transform:uppercase; }
+        .course-live-months { display:flex; flex-direction:column; gap:.75rem; }
+        .course-live-month { overflow:hidden; border:1px solid #e2e8f0; border-radius:15px; background:#fff; }
+        .course-live-month > summary { display:flex; align-items:center; justify-content:space-between; gap:1rem; padding:1rem 1.1rem; background:#f8fafc; color:#334155; cursor:pointer; list-style:none; font-weight:750; }
+        .course-live-month > summary::-webkit-details-marker { display:none; }
+        .course-live-month-label,.course-live-month-count { display:inline-flex; align-items:center; gap:.65rem; }
+        .course-live-month-label { text-transform:capitalize; }
+        .course-live-month-label i { color:#6366f1; }
+        .course-live-month-count { color:#64748b; font-size:.8rem; font-weight:600; }
+        .course-live-month-count i { transition:transform .2s; }
+        .course-live-month[open] .course-live-month-count i { transform:rotate(180deg); }
+        .course-live-month-content { display:flex; flex-direction:column; gap:.7rem; padding:.85rem; }
+        .course-live-session { display:flex; align-items:center; justify-content:space-between; gap:1rem; padding:1rem; border:1px solid #edf0f5; border-radius:13px; }
+        .course-live-session-main { display:flex; flex-direction:column; align-items:flex-start; gap:.35rem; min-width:0; }
+        .course-live-session-main > strong { color:#1e293b; font-size:.98rem; }
+        .course-live-session-date { color:#64748b; font-size:.84rem; }
+        .course-live-session-main p { margin:.2rem 0 0; color:#64748b; font-size:.88rem; }
+        .course-live-status { display:inline-flex; align-items:center; gap:.35rem; color:#64748b; font-size:.68rem; font-weight:800; letter-spacing:.045em; text-transform:uppercase; }
+        .course-live-status.is-live { color:#e11d48; }
+        .course-live-status.is-live span { width:7px; height:7px; border-radius:50%; background:#e11d48; box-shadow:0 0 0 3px #ffe4e6; }
+        .course-live-status.is-upcoming { color:#4f46e5; }
+        .course-live-status.has-replay { color:#059669; }
+        .course-live-session-action a { display:inline-flex; align-items:center; justify-content:center; gap:.4rem; padding:.65rem .9rem; border-radius:10px; background:#eef2ff; color:#4338ca !important; text-decoration:none; font-size:.85rem; font-weight:750; white-space:nowrap; }
+        .course-live-session-action a:hover { background:#e0e7ff; }
+        .course-live-empty { display:flex; flex-direction:column; align-items:center; gap:.5rem; padding:2.5rem 1rem; color:#64748b; text-align:center; }
+        .course-live-empty > i { margin-bottom:.35rem; color:#a5b4fc; font-size:2rem; }
+        .course-live-empty strong { color:#334155; }
+        .course-live-empty span { font-size:.9rem; }
+        @media (max-width: 640px) {
+            .course-content-tabs { gap:.25rem; }
+            .course-content-tab { flex:1; gap:.4rem; padding:.65rem .45rem; font-size:.85rem; }
+            .course-live-panel-card { padding:1rem; }
+            .course-live-month > summary { align-items:flex-start; padding:.85rem; }
+            .course-live-session { align-items:flex-start; flex-direction:column; }
+            .course-live-session-action,.course-live-session-action a { width:100%; }
+        }
+
         @media (max-width: 1024px) {
             .course-layout { grid-template-columns: 1fr; }
             .course-hero { flex-direction: column; text-align: center; }
@@ -453,16 +503,36 @@
                             </div>
                         </div>
                         
-                        <section id="course-live-section" style="display:none;background:#fff;border:1px solid #f1f5f9;border-radius:20px;padding:1.5rem;box-shadow:0 4px 20px rgba(0,0,0,.03)">
-                            <h3 style="margin:0 0 1rem;font-size:1.2rem;color:#1e293b">Séances en direct et replays</h3>
-                            <div id="course-live-list" style="display:flex;flex-direction:column;gap:.75rem"></div>
+                        <nav class="course-content-tabs" role="tablist" aria-label="Contenu du cours">
+                            <button class="course-content-tab is-active" id="chapters-tab" type="button" role="tab" aria-selected="true" aria-controls="chapters-panel" data-course-tab="chapters">
+                                <i class="fas fa-book-open" aria-hidden="true"></i> Chapitres
+                            </button>
+                            <button class="course-content-tab" id="live-tab" type="button" role="tab" aria-selected="false" aria-controls="live-panel" data-course-tab="live">
+                                <i class="fas fa-video" aria-hidden="true"></i> Séances en direct
+                                <span class="course-live-tab-count" id="live-tab-count">0</span>
+                            </button>
+                        </nav>
+
+                        <section id="chapters-panel" class="course-content-panel is-active" role="tabpanel" aria-labelledby="chapters-tab">
+                            <h3 class="course-panel-heading">Les chapitres</h3>
+                            <div class="modules-section" id="modules-container">
+                                <!-- Modules and lessons will be loaded here -->
+                            </div>
                         </section>
 
-                        <h3 style="margin: 1rem 0 0; font-size: 1.2rem; color: #1e293b;">Les chapitres</h3>
-                        
-                        <div class="modules-section" id="modules-container">
-                            <!-- Modules and lessons will be loaded here -->
-                        </div>
+                        <section id="live-panel" class="course-content-panel" role="tabpanel" aria-labelledby="live-tab" hidden>
+                            <div class="course-live-panel-card">
+                                <div class="course-live-panel-heading">
+                                    <div>
+                                        <span class="course-live-eyebrow">Votre calendrier de cours</span>
+                                        <h3>Séances en direct</h3>
+                                        <p>Retrouvez les directs à venir et les replays, classés par mois.</p>
+                                    </div>
+                                    <i class="fas fa-calendar-alt" aria-hidden="true"></i>
+                                </div>
+                                <div id="course-live-list" class="course-live-months"></div>
+                            </div>
+                        </section>
                     </div>
                     
                     <!-- Sidebar -->

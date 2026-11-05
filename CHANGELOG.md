@@ -16,6 +16,16 @@
 - Added an admin control to add, update, or clear a replay URL after teaching.
 - No database changes or migrations. Source reviewed; UI/API was not manually exercised in this session.
 
+## 2026-11-05 — Separate Course Chapters and Live Sessions
+
+**Author:** Codex
+**Type:** FEATURE
+
+- Reorganized the student course page into separate **Chapitres** and **Séances en direct** tabs; chapters remain the initial view.
+- Grouped upcoming live sessions and past recordings by calendar month with collapsible month sections.
+- Kept existing enrollment and offer checks for session/replay visibility; no schema or API changes.
+- Verified the course details JavaScript syntax. Browser rendering and live data were not manually tested.
+
 ---
 
 ## 2026-11-05 — Add Automatic Deploy Migrations and Reusable Course Modules

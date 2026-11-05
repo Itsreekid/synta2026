@@ -256,3 +256,10 @@ Admin course management now supports shared chapters, lesson management, and les
 - **R2 prerequisite:** configure bucket CORS to allow `PUT` from the exact production site origin with the `Content-Type` request header; setup details are in `backend/QUICK_DEPLOY.md`.
 - **Verification:** JavaScript and embedded admin scripts pass syntax checks. Production database, Zoom, browser interactions, R2 CORS, and actual file uploads remain unverified.
 
+### Student course navigation update (2026-11-05)
+
+- The course page now opens on a **Chapitres** tab and has a separate **Séances en direct** tab.
+- Upcoming sessions and past sessions/replays are grouped by calendar month. Each month can be expanded or collapsed; the newest month is open initially.
+- Session visibility and replay URLs still come from the existing enrollment-protected API. No database/API changes.
+- Course details JavaScript syntax was checked. Browser visual behavior and production session data were not manually verified.
+

@@ -30,6 +30,23 @@ if (document.readyState === 'loading') {
     initCourseDetailsPage();
 }
 
+document.addEventListener('click', (event) => {
+    const tab = event.target.closest('[data-course-tab]');
+    if (!tab) return;
+    const selected = tab.dataset.courseTab;
+    document.querySelectorAll('[data-course-tab]').forEach(button => {
+        const active = button.dataset.courseTab === selected;
+        button.classList.toggle('is-active', active);
+        button.setAttribute('aria-selected', String(active));
+        button.tabIndex = active ? 0 : -1;
+    });
+    document.querySelectorAll('.course-content-panel').forEach(panel => {
+        const active = panel.id === `${selected}-panel`;
+        panel.hidden = !active;
+        panel.classList.toggle('is-active', active);
+    });
+});
+
 /**
  * Load course details with modules and lessons
  */
@@ -247,11 +264,12 @@ async function renderCourseInfo(course, totalLessons, hasAccess, courseProgress,
 }
 
 function renderCourseLiveSessions(sessions, hasAccess, loaded) {
-    const section = document.getElementById('course-live-section');
+    const tab = document.getElementById('live-tab');
+    const count = document.getElementById('live-tab-count');
     const container = document.getElementById('course-live-list');
-    if (!section || !container) return;
+    if (!tab || !container) return;
 
-    section.style.display = 'block';
+    if (count) count.textContent = String(sessions.length);
     if (!hasAccess) {
         container.innerHTML = '<p style="color:#64748b">Inscrivez-vous à ce cours pour voir ses séances en direct et leurs replays.</p>';
         return;
@@ -261,7 +279,7 @@ function renderCourseLiveSessions(sessions, hasAccess, loaded) {
         return;
     }
     if (!sessions.length) {
-        container.innerHTML = '<p style="color:#64748b">Aucune séance en direct n’est planifiée pour ce cours.</p>';
+        container.innerHTML = '<div class="course-live-empty"><i class="far fa-calendar-times" aria-hidden="true"></i><strong>Aucune séance pour le moment</strong><span>Les prochains directs et leurs replays apparaîtront ici.</span></div>';
         return;
     }
 
@@ -269,7 +287,18 @@ function renderCourseLiveSessions(sessions, hasAccess, loaded) {
         '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
     }[char]));
     const now = Date.now();
-    container.innerHTML = sessions.map(session => {
+    const monthGroups = new Map();
+    sessions.forEach(session => {
+        const start = new Date(session.scheduled_at);
+        const monthKey = `${start.getFullYear()}-${String(start.getMonth() + 1).padStart(2, '0')}`;
+        if (!monthGroups.has(monthKey)) monthGroups.set(monthKey, []);
+        monthGroups.get(monthKey).push(session);
+    });
+
+    container.innerHTML = [...monthGroups.entries()].map(([monthKey, monthSessions], monthIndex) => {
+        const [year, month] = monthKey.split('-').map(Number);
+        const monthLabel = new Intl.DateTimeFormat('fr-FR', { month: 'long', year: 'numeric' }).format(new Date(year, month - 1, 1));
+        const monthContent = monthSessions.map(session => {
         const start = new Date(session.scheduled_at);
         const end = start.getTime() + (Number(session.duration_minutes) || 60) * 60000;
         const isUpcoming = start.getTime() > now;
@@ -282,11 +311,17 @@ function renderCourseLiveSessions(sessions, hasAccess, loaded) {
             action = `<a href="${escapeHtml(session.zoom_join_url)}" target="_blank" rel="noopener noreferrer" style="color:#e11d48;font-weight:700">${isLive ? 'Rejoindre le direct' : 'Ouvrir le lien du direct'}</a>`;
         }
 
-        const status = isLive ? 'EN DIRECT' : isUpcoming ? 'À VENIR' : session.replay_url ? 'REPLAY' : 'TERMINÉE';
-        return `<article style="background:#fff;border:1px solid #e2e8f0;border-radius:14px;padding:1rem 1.2rem;display:flex;justify-content:space-between;align-items:center;gap:1rem;flex-wrap:wrap">
-            <div><strong style="color:#1e293b">${escapeHtml(session.title)}</strong><div style="color:#64748b;font-size:.9rem;margin-top:.35rem">${escapeHtml(dateLabel)} · ${status}</div>${session.description ? `<p style="color:#64748b;margin:.5rem 0 0">${escapeHtml(session.description)}</p>` : ''}</div>
-            <div>${action}</div>
+        const status = isLive ? 'En direct' : isUpcoming ? 'À venir' : session.replay_url ? 'Replay disponible' : 'Terminée';
+        const statusClass = isLive ? 'is-live' : isUpcoming ? 'is-upcoming' : session.replay_url ? 'has-replay' : '';
+        return `<article class="course-live-session">
+            <div class="course-live-session-main"><span class="course-live-status ${statusClass}">${isLive ? '<span></span>' : ''}${status}</span><strong>${escapeHtml(session.title)}</strong><div class="course-live-session-date"><i class="far fa-clock" aria-hidden="true"></i> ${escapeHtml(dateLabel)}</div>${session.description ? `<p>${escapeHtml(session.description)}</p>` : ''}</div>
+            <div class="course-live-session-action">${action}</div>
         </article>`;
+        }).join('');
+        return `<details class="course-live-month" ${monthIndex === 0 ? 'open' : ''}>
+            <summary><span class="course-live-month-label"><i class="far fa-calendar" aria-hidden="true"></i><span>${escapeHtml(monthLabel)}</span></span><span class="course-live-month-count">${monthSessions.length} séance${monthSessions.length > 1 ? 's' : ''}<i class="fas fa-chevron-down" aria-hidden="true"></i></span></summary>
+            <div class="course-live-month-content">${monthContent}</div>
+        </details>`;
     }).join('');
 }
 
