@@ -301,3 +301,17 @@ Admin course management now supports shared chapters, lesson management, and les
 - A successful upload still requires the R2 bucket CORS rule to allow `PUT` from the exact admin page origin and allow the `Content-Type` header. This bucket-side setting cannot be changed from the application code.
 - No database changes. Actual upload still needs verification against the configured production bucket.
 
+### Course quiz layout integration (2026-11-05)
+
+- Root cause: the quiz was rendered as a generic `video-modal` without course-page modal layout styles. Its 680px card defaulted to the viewport's left edge, while the fixed dashboard sidebar covered it.
+- The quiz overlay now measures `#main-section` and is centered/bounded inside that content area; it recalculates on resize, closes on Escape/backdrop/button, and closes the mobile drawer when launched.
+- Added responsive width/height limits and overflow-safe question/options/code/matching controls; no quiz logic or question schema changed.
+- JavaScript syntax checks and browser verification at requested viewport sizes are pending.
+
+### Course replay player layout integration (2026-11-05)
+
+- The replay player had the same missing outer modal positioning as the quiz, plus an 1100px panel that could exceed the available space beside the fixed sidebar.
+- Replay overlay now measures `#main-section`, centers the player within that area, resizes with the viewport, constrains player height, and closes on Escape/backdrop/button while pausing direct video playback.
+- Mobile navigation closes before opening the replay. Playback and attached resource behavior are unchanged.
+- JavaScript syntax checked; visual browser verification remains pending because no Synta app session is available locally.
+

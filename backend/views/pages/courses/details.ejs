@@ -467,6 +467,76 @@
         .course-live-empty span { font-size:.9rem; }
         .quiz-game-header { display:flex; justify-content:space-between; align-items:center; gap:1rem; padding-right:2rem; color:#64748b; font-weight:700; font-size:.88rem; }
         .quiz-game-header span:first-child { color:#f97316; }
+        .quiz-modal.quiz-modal {
+            position: fixed;
+            inset: auto;
+            top: var(--quiz-area-top, 0px);
+            left: var(--quiz-area-left, 0px);
+            width: var(--quiz-area-width, 100vw);
+            height: var(--quiz-area-height, 100vh);
+            z-index: 1100;
+            display: grid;
+            place-items: center;
+            box-sizing: border-box;
+            min-width: 0;
+            padding: clamp(.75rem, 2.5vw, 2rem);
+            overflow: auto;
+            background: rgba(15, 23, 42, .48);
+        }
+        .quiz-modal .quiz-modal-content {
+            position: relative;
+            inset: auto;
+            width: min(680px, 100%);
+            max-width: 680px;
+            max-height: 100%;
+            min-width: 0;
+            margin: auto;
+            padding: clamp(1rem, 3vw, 2rem);
+            overflow: auto;
+            box-sizing: border-box;
+            border: 1px solid #e2e8f0;
+            border-radius: 22px;
+            background: #f8fafc;
+            color: #1e293b;
+            box-shadow: 0 24px 70px rgba(15, 23, 42, .24);
+        }
+        .quiz-modal #quiz-content,
+        .quiz-modal .quiz-interaction,
+        .quiz-modal .quiz-prompt { width: 100%; max-width: 100%; min-width: 0; box-sizing: border-box; }
+        .quiz-modal .quiz-prompt,
+        .quiz-modal .quiz-choice,
+        .quiz-modal .quiz-order-item,
+        .quiz-modal .quiz-match-row { overflow-wrap: anywhere; }
+        .quiz-modal .quiz-choice { width: 100%; min-width: 0; box-sizing: border-box; }
+        .quiz-modal .quiz-code-prompt { max-width: 100%; overflow-x: auto; overflow-wrap: anywhere; white-space: pre-wrap; box-sizing: border-box; }
+        .quiz-modal .quiz-match-row { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+        .replay-modal.replay-modal {
+            position: fixed;
+            inset: auto;
+            top: var(--replay-area-top, 0px);
+            left: var(--replay-area-left, 0px);
+            width: var(--replay-area-width, 100vw);
+            height: var(--replay-area-height, 100vh);
+            z-index: 1100;
+            display: grid;
+            place-items: center;
+            box-sizing: border-box;
+            min-width: 0;
+            padding: clamp(.75rem, 2.5vw, 2rem);
+            overflow: auto;
+            background: rgba(15, 23, 42, .48);
+        }
+        .replay-modal .replay-modal-content {
+            position: relative;
+            inset: auto;
+            width: min(1100px, 100%);
+            max-width: 1100px;
+            max-height: 100%;
+            min-width: 0;
+            margin: auto;
+            box-sizing: border-box;
+        }
+        .replay-modal .replay-modal-player { max-width: 100%; max-height: min(65vh, calc(100vh - 220px)); object-fit: contain; }
         .quiz-progress { height:9px; margin:1rem 0 1.5rem; overflow:hidden; border-radius:99px; background:#e2e8f0; }
         .quiz-progress span { display:block; height:100%; border-radius:inherit; background:linear-gradient(90deg,#34d399,#10b981); transition:width .25s; }
         .quiz-type-label { margin:.25rem 0; color:#6366f1; font-size:.75rem; font-weight:800; letter-spacing:.08em; text-transform:uppercase; }
@@ -497,6 +567,14 @@
         .quiz-result-stars { margin:1rem 0 1.5rem; font-size:1.6rem; }
         .lesson-icon.quiz { background:#f3e8ff; color:#9333ea; }
         @media (max-width: 640px) {
+            .quiz-modal.quiz-modal { padding: .75rem; }
+            .quiz-modal .quiz-modal-content { border-radius: 18px; }
+            .replay-modal.replay-modal { padding: .75rem; }
+            .replay-modal .replay-modal-content { border-radius: 18px; }
+            .replay-modal .replay-modal-player { max-height: 55vh; }
+            .quiz-game-header { align-items: flex-start; flex-wrap: wrap; padding-right: 2.25rem; }
+            .quiz-modal .quiz-prompt { font-size: clamp(1.15rem, 5vw, 1.4rem); }
+            .quiz-modal .quiz-match-row { grid-template-columns: minmax(0, 1fr); }
             .course-content-tabs { gap:.25rem; }
             .course-content-tab { flex:1; gap:.4rem; padding:.65rem .45rem; font-size:.85rem; }
             .course-live-panel-card { padding:1rem; }

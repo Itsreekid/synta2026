@@ -336,7 +336,10 @@ function openReplayPlayer(replayUrl, title, resources = []) {
     if (!['http:', 'https:'].includes(parsed.protocol)) return showError('Lien du replay invalide');
 
     const modal = document.createElement('div');
-    modal.className = 'video-modal';
+    modal.className = 'video-modal replay-modal';
+    modal.setAttribute('role', 'dialog');
+    modal.setAttribute('aria-modal', 'true');
+    modal.setAttribute('aria-label', title || 'Replay de la séance');
     const content = document.createElement('div');
     content.className = 'video-modal-content replay-modal-content';
     const close = document.createElement('button');
@@ -344,7 +347,7 @@ function openReplayPlayer(replayUrl, title, resources = []) {
     close.type = 'button';
     close.setAttribute('aria-label', 'Fermer le replay');
     close.textContent = '✕';
-    close.addEventListener('click', () => modal.remove());
+    close.addEventListener('click', () => closeReplayModal());
     const heading = document.createElement('h2');
     heading.className = 'replay-modal-title';
     heading.textContent = title || 'Replay de la séance';
@@ -377,10 +380,33 @@ function openReplayPlayer(replayUrl, title, resources = []) {
 
     if (resources.length) content.appendChild(createResourceSection(resources, 'Fichiers utilisés pendant la séance'));
     modal.appendChild(content);
-    modal.addEventListener('click', event => { if (event.target === modal) modal.remove(); });
-    document.addEventListener('keydown', function closeOnEscape(event) {
-        if (event.key === 'Escape' && document.body.contains(modal)) { modal.remove(); document.removeEventListener('keydown', closeOnEscape); }
-    });
+    const positionReplayModal = () => {
+        const mainArea = document.getElementById('main-section');
+        const bounds = mainArea?.getBoundingClientRect();
+        if (!bounds) return;
+        const left = Math.max(0, bounds.left);
+        const top = Math.max(0, bounds.top);
+        modal.style.setProperty('--replay-area-left', `${left}px`);
+        modal.style.setProperty('--replay-area-top', `${top}px`);
+        modal.style.setProperty('--replay-area-width', `${Math.max(0, Math.min(window.innerWidth, bounds.right) - left)}px`);
+        modal.style.setProperty('--replay-area-height', `${Math.max(0, Math.min(window.innerHeight, bounds.bottom) - top)}px`);
+    };
+    const closeReplayModal = () => {
+        if (player instanceof HTMLVideoElement) player.pause();
+        modal.remove();
+        window.removeEventListener('resize', positionReplayModal);
+        document.removeEventListener('keydown', handleReplayEscape);
+    };
+    const handleReplayEscape = event => { if (event.key === 'Escape') closeReplayModal(); };
+    if (window.matchMedia('(max-width: 768px)').matches) {
+        document.getElementById('app-sidebar')?.classList.remove('active');
+        document.getElementById('sidebar-overlay')?.classList.remove('active');
+        document.querySelector('.mobile-menu-toggle')?.classList.remove('active');
+    }
+    positionReplayModal();
+    window.addEventListener('resize', positionReplayModal);
+    modal.addEventListener('click', event => { if (event.target === modal) closeReplayModal(); });
+    document.addEventListener('keydown', handleReplayEscape);
     document.body.appendChild(modal);
 }
 
@@ -1245,13 +1271,43 @@ async function openQuizLesson(lessonId, loadedContent = null) {
         let renderedQuestionIndex = -1;
 
         const modal = document.createElement('div');
-        modal.className = 'video-modal';
+        modal.className = 'video-modal quiz-modal';
+        modal.setAttribute('role', 'dialog');
+        modal.setAttribute('aria-modal', 'true');
+        modal.setAttribute('aria-label', lesson.title || 'Mini-défi');
         modal.innerHTML = `
-            <div class="video-modal-content" style="background:#f8fafc;padding:clamp(18px,4vw,34px);border-radius:22px;max-width:680px;width:min(680px,94vw);color:#1e293b;">
-                <button class="close-modal" aria-label="Fermer" onclick="this.closest('.video-modal').remove()">✕</button>
+            <div class="video-modal-content quiz-modal-content">
+                <button class="close-modal" type="button" aria-label="Fermer">✕</button>
                 <div id="quiz-content"></div>
             </div>
         `;
+        const positionQuizModal = () => {
+            const mainArea = document.getElementById('main-section');
+            const bounds = mainArea?.getBoundingClientRect();
+            if (!bounds) return;
+            modal.style.setProperty('--quiz-area-left', `${Math.max(0, bounds.left)}px`);
+            modal.style.setProperty('--quiz-area-top', `${Math.max(0, bounds.top)}px`);
+            modal.style.setProperty('--quiz-area-width', `${Math.min(window.innerWidth, bounds.right) - Math.max(0, bounds.left)}px`);
+            modal.style.setProperty('--quiz-area-height', `${Math.min(window.innerHeight, bounds.bottom) - Math.max(0, bounds.top)}px`);
+        };
+        const closeQuizModal = () => {
+            modal.remove();
+            window.removeEventListener('resize', positionQuizModal);
+            document.removeEventListener('keydown', handleQuizEscape);
+        };
+        const handleQuizEscape = event => {
+            if (event.key === 'Escape') closeQuizModal();
+        };
+        if (window.matchMedia('(max-width: 768px)').matches) {
+            document.getElementById('app-sidebar')?.classList.remove('active');
+            document.getElementById('sidebar-overlay')?.classList.remove('active');
+            document.querySelector('.mobile-menu-toggle')?.classList.remove('active');
+        }
+        positionQuizModal();
+        window.addEventListener('resize', positionQuizModal);
+        modal.querySelector('.close-modal').addEventListener('click', closeQuizModal);
+        modal.addEventListener('click', event => { if (event.target === modal) closeQuizModal(); });
+        document.addEventListener('keydown', handleQuizEscape);
         document.body.appendChild(modal);
         renderQuestion();
 

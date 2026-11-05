@@ -79,6 +79,24 @@
 - Deployment guidance now calls out exact origin matching, including protocol and `www`.
 - This improves diagnosis; it cannot replace enabling CORS on the Cloudflare R2 bucket.
 
+## 2026-11-05 — Keep Course Quiz Inside the Learning Area
+
+**Author:** Codex  
+**Type:** BUGFIX / UX
+
+- Added a quiz-specific modal layout bounded to the live `#main-section` rectangle, so the card centers in the available learning area after the dashboard sidebar.
+- The modal responds to window resizing, closes the mobile drawer before opening, and has Escape/backdrop/close-button behavior.
+- Added responsive max dimensions and overflow wrapping for long questions, code, and answers; quiz interactions and content remain unchanged.
+
+## 2026-11-05 — Keep Replay Player Inside the Learning Area
+
+**Author:** Codex  
+**Type:** BUGFIX / UX
+
+- Replay overlays now use the measured course `#main-section` bounds, keeping the player centered within the area beside the dashboard sidebar.
+- The player panel and video height adapt to the available viewport; the overlay updates on resize and closes on Escape, backdrop, or close button.
+- Direct video playback pauses when the replay is closed. Attached resource links and YouTube/Vimeo playback remain unchanged.
+
 ---
 
 ## 2026-11-05 — Add Automatic Deploy Migrations and Reusable Course Modules
