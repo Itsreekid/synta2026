@@ -1009,6 +1009,10 @@
             </div>
         </div>
 
+        <div id="practice-file-notice" hidden style="margin-top:12px;padding:12px 16px;border:1px solid #fed7aa;border-radius:10px;background:#fff7ed;color:#9a3412;font-size:14px;">
+            Exercice chargé depuis le cours : <strong id="practice-file-name"></strong>. Modifiez-le puis cliquez sur « Exécuter le code ».
+        </div>
+
         <!-- WORKSPACE -->
         <div class="cp-workspace">
             
@@ -2257,8 +2261,27 @@ function boot() {
 
     pyEditor = null; webHtmlEditor = null; webCssEditor = null; webJsEditor = null;
     initEditors();
+    loadPracticeStarterFile();
     clearConsole();
     showConsoleWelcome();
+}
+
+function loadPracticeStarterFile() {
+    let starter;
+    try {
+        starter = JSON.parse(sessionStorage.getItem('synta:practice-starter') || 'null');
+        sessionStorage.removeItem('synta:practice-starter');
+    } catch (error) {
+        sessionStorage.removeItem('synta:practice-starter');
+        console.error('Could not read the selected lesson file:', error);
+        return;
+    }
+    if (!starter || typeof starter.code !== 'string' || !pyEditor) return;
+    switchMode('python');
+    pyEditor.setValue(starter.code);
+    document.getElementById('practice-file-name').textContent = starter.fileName || 'exercice.py';
+    document.getElementById('practice-file-notice').hidden = false;
+    document.querySelector('#mode-python .cp-panel-filename').textContent = starter.fileName || 'exercice.py';
 }
 
 if (document.readyState === 'loading') {

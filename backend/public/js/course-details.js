@@ -1238,8 +1238,6 @@ function createResourceSection(resources, headingText) {
     resources.forEach(resource => {
         const link = document.createElement('a');
         link.href = resource.url;
-        link.target = '_blank';
-        link.rel = 'noopener noreferrer';
         link.className = 'replay-resource-link';
         const icon = document.createElement('i');
         icon.className = 'fas fa-file-code';
@@ -1250,10 +1248,64 @@ function createResourceSection(resources, headingText) {
         download.className = 'fas fa-download';
         download.setAttribute('aria-hidden', 'true');
         link.append(icon, label, download);
+        link.addEventListener('click', event => {
+            event.preventDefault();
+            downloadPracticeResource(resource, link);
+        });
         list.appendChild(link);
+        if (/\.py$/i.test(String(resource.file_name || resource.title || ''))) {
+            const openButton = document.createElement('button');
+            openButton.type = 'button';
+            openButton.textContent = 'Ouvrir dans Code Pratique';
+            openButton.style.cssText = 'margin:.25rem;padding:.55rem .8rem;border:1px solid #fed7aa;border-radius:8px;background:#fff7ed;color:#c2410c;font-weight:600;cursor:pointer';
+            openButton.addEventListener('click', () => openPracticeResource(resource, openButton));
+            list.appendChild(openButton);
+        }
     });
     section.appendChild(list);
     return section;
+}
+
+async function openPracticeResource(resource, button) {
+    const previousText = button.textContent;
+    button.disabled = true;
+    button.textContent = 'Chargement…';
+    try {
+        const response = await fetch(resource.url);
+        if (!response.ok) throw new Error('Téléchargement du fichier impossible.');
+        const code = await response.text();
+        sessionStorage.setItem('synta:practice-starter', JSON.stringify({
+            fileName: resource.file_name || resource.title || 'exercice.py',
+            code
+        }));
+        window.location.assign('/app/code-pratique?source=lesson-file');
+    } catch (error) {
+        console.error('Unable to open practice file in Code Pratique:', error);
+        window.SyntaAPI?.showError?.('Impossible de charger ce fichier dans Code Pratique. Vous pouvez toujours le télécharger.');
+        button.disabled = false;
+        button.textContent = previousText;
+    }
+}
+
+async function downloadPracticeResource(resource, link) {
+    try {
+        link.setAttribute('aria-busy', 'true');
+        const response = await fetch(resource.url);
+        if (!response.ok) throw new Error('Téléchargement du fichier impossible.');
+        const blobUrl = URL.createObjectURL(await response.blob());
+        const anchor = document.createElement('a');
+        anchor.href = blobUrl;
+        anchor.download = resource.file_name || resource.title || 'fichier';
+        document.body.appendChild(anchor);
+        anchor.click();
+        anchor.remove();
+        window.setTimeout(() => URL.revokeObjectURL(blobUrl), 1000);
+    } catch (error) {
+        console.error('Unable to download practice file:', error);
+        window.SyntaAPI?.showError?.('Téléchargement impossible. Réessayez ou ouvrez le fichier dans Code Pratique.');
+    } finally {
+        link.removeAttribute('aria-busy');
+    }
 }
 
 function formatResourceSize(size) {

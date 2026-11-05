@@ -328,3 +328,9 @@ Admin course management now supports shared chapters, lesson management, and les
 - Replaced it with a searchable checkbox list, selected-offer count, and clear-all action. Existing links are checked when editing; save submits every checked offer ID in the existing `offers_ids` array.
 - No database or API changes. Syntax checked; admin browser save/visibility behavior still needs live verification.
 
+### Open lesson Python files in Code Pratique (2026-11-05)
+
+- Lesson resource lists retain a working named download action and add “Ouvrir dans Code Pratique” for Python files.
+- The selected file is fetched from its existing signed resource URL and passed to the Code Pratique page through same-origin session storage. The existing Python editor loads it as editable starter code; students choose when to execute it.
+- No schema or API changes. Browser flow and R2 CORS behavior need live verification.
+

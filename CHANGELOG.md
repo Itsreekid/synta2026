@@ -304,3 +304,12 @@
 - Migrations applied: `database/xxx.sql`
 ```
 
+## 2026-11-05 — Open Lesson Python Exercises in Code Pratique
+
+**Author:** Codex  
+**Type:** UX / FEATURE
+
+- Lesson resource lists keep a named download action and add “Ouvrir dans Code Pratique” for Python files.
+- Selected Python code loads in the existing editor as starter code; running it remains an explicit student action.
+- No database or API changes.
+
