@@ -24,7 +24,7 @@
 | Students only see replays for active course/offer enrollment | ✅ | Live course, upcoming, and replay APIs check enrollment expiry and offer association |
 | Admin can place three-question quizzes between lessons with five interactive question styles | ✅ | Admin chapter quiz builder stores structured content; students play the quiz through authenticated lesson content |
 | Admin can attach multiple code/practice files to lessons and live sessions | ✅ | Admin supports multi-file selection; authenticated course lesson and replay flows render the associated signed downloads |
-| Students can download lesson practice files or open Python exercises in Code Pratique | ✅ | Lesson resources fetch signed downloads by filename; Python files can load as editable starter code in the authenticated Code Pratique page |
+| Students can download lesson practice files or open Python exercises in Code Pratique | ✅ | Lesson access or live-session enrollment is checked before the authenticated server reads a Python attachment into the editor; downloads retain signed resource URLs |
 | Lesson resources support common documents, slides, spreadsheets, images, code, notes, and ZIP files | ✅ | Admin upload API validates the supported extension and MIME-type allowlists; downloads and PDF previews use private signed R2 URLs |
 | Session replays play in the course and show their associated practice files | ✅ | Course live-session endpoint returns entitled replay URLs and signed session resources; replay modal renders player and downloads |
 | Offer-linked courses are shown only to students matching the offer's class and branch targets | ✅ | `GET /api/courses` and `GET /api/courses/:courseId` enforce active offer targeting; active enrollments remain visible |

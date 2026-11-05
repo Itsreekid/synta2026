@@ -2,11 +2,13 @@
 // LIVE SESSIONS API ROUTES
 // =====================================================
 import express from "express";
+import { GetObjectCommand } from "@aws-sdk/client-s3";
 import pool from "../config/db.js";
 import { authApiMiddleware } from "../middleware/requireAuth.js";
 import { requireAdmin } from "../middleware/requireAdmin.js";
 import { createZoomMeeting, deleteZoomMeeting } from "../utils/zoomClient.js";
 import { createR2UploadUrl, generateSignedUrl } from "../utils/r2Utils.js";
+import { r2Client, R2_BUCKET } from "../config/r2.js";
 
 const router = express.Router();
 
@@ -29,6 +31,9 @@ async function attachSessionResources(sessions, includeSignedUrls = false) {
       item.url = await generateSignedUrl(resource.object_key, 3600, resource.file_name);
       if (String(resource.file_name || '').toLowerCase().endsWith('.pdf')) {
         item.preview_url = await generateSignedUrl(resource.object_key, 3600);
+      }
+      if (String(resource.file_name || '').toLowerCase().endsWith('.py')) {
+        item.code_url = '/api/live/resources/' + encodeURIComponent(resource.id) + '/code';
       }
     }
     resourcesBySession.get(resource.live_session_id).push(item);
@@ -72,6 +77,43 @@ router.get("/course/:courseId", authApiMiddleware, async (req, res) => {
   } catch (error) {
     console.error("Error fetching course live sessions:", error);
     res.status(500).json({ error: "Internal server error" });
+  }
+});
+
+router.get("/resources/:resourceId/code", authApiMiddleware, async (req, res) => {
+  try {
+    const result = await pool.query(
+      `SELECT lr.object_key, lr.file_name, lr.file_size
+       FROM learning_resources lr
+       JOIN live_sessions ls ON ls.id = lr.live_session_id
+       WHERE lr.id = $1
+         AND lower(lr.file_name) LIKE '%.py'
+         AND EXISTS (
+           SELECT 1 FROM enrollments e
+           WHERE e.user_id = $2
+             AND e.course_id = ls.course_id
+             AND (e.expires_at IS NULL OR e.expires_at > NOW())
+             AND (ls.offer_id IS NULL OR e.offer_id = ls.offer_id)
+         )`,
+      [req.params.resourceId, req.user.id]
+    );
+    if (!result.rowCount) return res.status(404).json({ error: "Python resource not found" });
+    const resource = result.rows[0];
+    if (Number(resource.file_size) > 1024 * 1024) {
+      return res.status(413).json({ error: "This file is too large to open in the editor. Download it instead." });
+    }
+    const object = await r2Client.send(new GetObjectCommand({
+      Bucket: R2_BUCKET,
+      Key: resource.object_key,
+    }));
+    if (!object.Body) return res.status(404).json({ error: "File content is unavailable" });
+    const code = await object.Body.transformToString("utf-8");
+    res.set("Cache-Control", "private, no-store");
+    res.set("X-Content-Type-Options", "nosniff");
+    res.type("text/plain").send(code);
+  } catch (error) {
+    console.error("Could not load session Python resource into editor:", error.message);
+    res.status(500).json({ error: "Could not load this Python file" });
   }
 });
 

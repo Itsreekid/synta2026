@@ -323,3 +323,12 @@
 - Added common document, office, image, text, programming, and ZIP formats to the server allowlist and admin pickers. Existing 25 MB per-file limit and private signed R2 access remain.
 - No database changes.
 
+## 2026-11-06 — Fix Lesson Resource Actions
+
+**Author:** Codex  
+**Type:** UX / BUGFIX
+
+- Aligned each lesson resource into a full-width row with compact download, PDF preview, and Python editor icons.
+- Added authenticated lesson and live-session endpoints that check access before reading small Python files from private R2 into Code Pratique, avoiding browser-to-R2 CORS for editor loading.
+- Files larger than 1 MB remain downloadable; no schema change.
+

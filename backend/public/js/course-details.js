@@ -1206,43 +1206,65 @@ function createResourceSection(resources, headingText) {
     list.className = 'replay-resource-list';
     resources.forEach(resource => {
         const item = document.createElement('div');
-        item.style.cssText = 'display:flex;align-items:center;gap:.5rem;min-width:0';
+        item.className = 'lesson-resource-item';
         const link = document.createElement('a');
         link.href = resource.url;
         link.className = 'replay-resource-link';
         link.style.flex = '1';
         const icon = document.createElement('i');
-        icon.className = 'fas fa-file-code';
+        icon.className = 'fas fa-file-alt';
         icon.setAttribute('aria-hidden', 'true');
         const label = document.createElement('span');
-        label.textContent = `${resource.title || resource.file_name || 'Fichier'}${resource.file_size ? ` · ${formatResourceSize(resource.file_size)}` : ''}`;
-        const download = document.createElement('i');
-        download.className = 'fas fa-download';
-        download.setAttribute('aria-hidden', 'true');
-        link.append(icon, label, download);
+        label.textContent = resource.title || resource.file_name || 'Fichier';
+        if (resource.file_size) label.textContent += ' · ' + formatResourceSize(resource.file_size);
+        link.append(icon, label);
         link.addEventListener('click', event => {
             event.preventDefault();
             downloadPracticeResource(resource, link);
         });
         item.appendChild(link);
+        const actions = document.createElement('div');
+        actions.className = 'lesson-resource-actions';
+        const downloadButton = document.createElement('button');
+        downloadButton.type = 'button';
+        downloadButton.className = 'lesson-resource-action';
+        downloadButton.title = 'Télécharger';
+        downloadButton.setAttribute('aria-label', 'Télécharger ' + (resource.file_name || resource.title || 'le fichier'));
+        const downloadIcon = document.createElement('i');
+        downloadIcon.className = 'fas fa-download';
+        downloadIcon.setAttribute('aria-hidden', 'true');
+        downloadButton.appendChild(downloadIcon);
+        downloadButton.addEventListener('click', () => downloadPracticeResource(resource, downloadButton));
+        actions.appendChild(downloadButton);
         const fileName = String(resource.file_name || resource.title || '');
         if (/\.pdf$/i.test(fileName) && resource.preview_url) {
             const preview = document.createElement('a');
             preview.href = resource.preview_url;
             preview.target = '_blank';
             preview.rel = 'noopener noreferrer';
-            preview.textContent = 'Ouvrir';
-            preview.style.cssText = 'padding:.55rem .8rem;border:1px solid #dbeafe;border-radius:8px;background:#eff6ff;color:#1d4ed8;font-size:.82rem;font-weight:650;text-decoration:none;white-space:nowrap';
-            item.appendChild(preview);
+            preview.className = 'lesson-resource-action';
+            preview.title = 'Ouvrir le PDF';
+            preview.setAttribute('aria-label', 'Ouvrir ' + fileName);
+            const previewIcon = document.createElement('i');
+            previewIcon.className = 'fas fa-eye';
+            previewIcon.setAttribute('aria-hidden', 'true');
+            preview.appendChild(previewIcon);
+            actions.appendChild(preview);
         }
         if (/\.py$/i.test(fileName)) {
             const openButton = document.createElement('button');
             openButton.type = 'button';
-            openButton.textContent = 'Ouvrir dans Code Pratique';
-            openButton.style.cssText = 'margin:.25rem;padding:.55rem .8rem;border:1px solid #fed7aa;border-radius:8px;background:#fff7ed;color:#c2410c;font-weight:600;cursor:pointer';
+            openButton.className = 'lesson-resource-action lesson-resource-code';
+            openButton.title = 'Ouvrir dans Code Pratique';
+            openButton.setAttribute('aria-label', 'Ouvrir ' + fileName + ' dans Code Pratique');
+            const codeIcon = document.createElement('i');
+            codeIcon.className = 'fas fa-code';
+            codeIcon.setAttribute('aria-hidden', 'true');
+            openButton.appendChild(codeIcon);
             openButton.addEventListener('click', () => openPracticeResource(resource, openButton));
-            item.appendChild(openButton);
+            actions.appendChild(openButton);
         }
+        item.appendChild(actions);
         list.appendChild(item);
     });
     section.appendChild(list);
@@ -1250,12 +1272,16 @@ function createResourceSection(resources, headingText) {
 }
 
 async function openPracticeResource(resource, button) {
-    const previousText = button.textContent;
+    const icon = button.querySelector('i');
     button.disabled = true;
-    button.textContent = 'Chargement…';
+    if (icon) icon.className = 'fas fa-spinner fa-spin';
     try {
-        const response = await fetch(resource.url);
-        if (!response.ok) throw new Error('Téléchargement du fichier impossible.');
+        const response = await fetch(resource.code_url || resource.url, { credentials: 'same-origin' });
+        if (!response.ok) {
+            let message = 'Impossible de charger ce fichier dans Code Pratique.';
+            try { message = (await response.json()).error || message; } catch {}
+            throw new Error(message);
+        }
         const code = await response.text();
         sessionStorage.setItem('synta:practice-starter', JSON.stringify({
             fileName: resource.file_name || resource.title || 'exercice.py',
@@ -1264,15 +1290,17 @@ async function openPracticeResource(resource, button) {
         window.location.assign('/app/code-pratique?source=lesson-file');
     } catch (error) {
         console.error('Unable to open practice file in Code Pratique:', error);
-        window.SyntaAPI?.showError?.('Impossible de charger ce fichier dans Code Pratique. Vous pouvez toujours le télécharger.');
+        window.SyntaAPI?.showError?.(error.message + ' Vous pouvez toujours le télécharger.');
         button.disabled = false;
-        button.textContent = previousText;
+        if (icon) icon.className = 'fas fa-code';
     }
 }
 
 async function downloadPracticeResource(resource, link) {
+    const icon = link.querySelector('i');
     try {
         link.setAttribute('aria-busy', 'true');
+        if (icon) icon.className = 'fas fa-spinner fa-spin';
         const response = await fetch(resource.url);
         if (!response.ok) throw new Error('Téléchargement du fichier impossible.');
         const blobUrl = URL.createObjectURL(await response.blob());
@@ -1288,6 +1316,7 @@ async function downloadPracticeResource(resource, link) {
         window.SyntaAPI?.showError?.('Téléchargement impossible. Réessayez ou ouvrez le fichier dans Code Pratique.');
     } finally {
         link.removeAttribute('aria-busy');
+        if (icon) icon.className = 'fas fa-download';
     }
 }
 

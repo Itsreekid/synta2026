@@ -2,10 +2,12 @@
 // CONTENT API ROUTES
 // =====================================================
 import express from "express";
+import { GetObjectCommand } from "@aws-sdk/client-s3";
 import pool from "../config/db.js";
 import { authApiMiddleware } from "../middleware/requireAuth.js";
 import { checkLessonAccess } from "../middleware/auth.js";
 import { generateSignedUrl } from "../utils/r2Utils.js";
+import { r2Client, R2_BUCKET } from "../config/r2.js";
 
 const router = express.Router();
 
@@ -36,6 +38,9 @@ router.get("/lesson/:lessonId/resources", authApiMiddleware, async (req, res) =>
         file_size: Number(resource.file_size),
         url,
         preview_url: isPdf ? await generateSignedUrl(resource.object_key, 3600) : null,
+        code_url: String(resource.file_name || '').toLowerCase().endsWith('.py')
+          ? '/api/content/lesson/' + encodeURIComponent(lesson.id) + '/resources/' + encodeURIComponent(resource.id) + '/code'
+          : null,
       };
     }));
     if (lesson.pdf_key) {
@@ -55,6 +60,47 @@ router.get("/lesson/:lessonId/resources", authApiMiddleware, async (req, res) =>
   } catch (error) {
     console.error("Error loading lesson practice files:", error.message);
     res.status(500).json({ error: "Could not load lesson files" });
+  }
+});
+
+router.get("/lesson/:lessonId/resources/:resourceId/code", authApiMiddleware, async (req, res) => {
+  try {
+    const lessonResult = await pool.query(
+      "SELECT id, is_preview FROM lessons WHERE id = $1",
+      [req.params.lessonId]
+    );
+    if (!lessonResult.rowCount) return res.status(404).json({ error: "Lesson not found" });
+    const lesson = lessonResult.rows[0];
+    const hasAccess = lesson.is_preview || await checkLessonAccess(req.user.id, lesson.id);
+    if (!hasAccess) return res.status(403).json({ error: "Lesson access required" });
+
+    const resourceResult = await pool.query(
+      `SELECT object_key, file_name, file_size
+       FROM learning_resources
+       WHERE id = $1 AND lesson_id = $2`,
+      [req.params.resourceId, lesson.id]
+    );
+    if (!resourceResult.rowCount) return res.status(404).json({ error: "Python resource not found" });
+    const resource = resourceResult.rows[0];
+    if (!String(resource.file_name || '').toLowerCase().endsWith('.py')) {
+      return res.status(415).json({ error: "Only Python files can be opened in Code Pratique" });
+    }
+    if (Number(resource.file_size) > 1024 * 1024) {
+      return res.status(413).json({ error: "This file is too large to open in the editor. Download it instead." });
+    }
+
+    const object = await r2Client.send(new GetObjectCommand({
+      Bucket: R2_BUCKET,
+      Key: resource.object_key,
+    }));
+    if (!object.Body) return res.status(404).json({ error: "File content is unavailable" });
+    const code = await object.Body.transformToString("utf-8");
+    res.set("Cache-Control", "private, no-store");
+    res.set("X-Content-Type-Options", "nosniff");
+    res.type("text/plain").send(code);
+  } catch (error) {
+    console.error("Could not load Python resource into editor:", error.message);
+    res.status(500).json({ error: "Could not load this Python file" });
   }
 });
 

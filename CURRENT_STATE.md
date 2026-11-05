@@ -341,3 +341,9 @@ Admin course management now supports shared chapters, lesson management, and les
 - Expanded the validated resource allowlist to common PDF/Office/ODF documents, slides, spreadsheets, images, text/notes, programming files, and ZIP archives. Each file remains limited to 25 MB and private behind signed R2 links.
 - No database migration. Syntax checks pass; admin upload, student downloads, and R2 CORS still need browser verification.
 
+### Lesson resource UX and Python editor loading (2026-11-06)
+
+- Resource rows now use compact aligned download, PDF-preview, and Python-editor icon buttons.
+- Python editor loading uses authenticated same-origin endpoints for lessons and live sessions, verifies the matching lesson access or course enrollment, and reads the private R2 object server-side. This avoids browser-to-R2 CORS for editor loading. Files over 1 MB can still be downloaded but are not loaded into the editor.
+- No database changes. Browser interaction and deployed API/R2 behavior still need verification.
+
