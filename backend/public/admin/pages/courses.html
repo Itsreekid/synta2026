@@ -1008,7 +1008,13 @@
             });
             const signed = await signedResponse.json();
             if (!signedResponse.ok) throw new Error(signed.error || `Impossible de préparer ${file.name}`);
-            const uploadResponse = await fetch(signed.uploadUrl, { method:'PUT', headers:{'Content-Type':contentType}, body:file });
+            let uploadResponse;
+            try {
+                uploadResponse = await fetch(signed.uploadUrl, { method:'PUT', headers:{'Content-Type':contentType}, body:file });
+            } catch (error) {
+                console.error('R2 practice-file upload failed:', error);
+                throw new Error(`Transfert de ${file.name} vers R2 bloqué. Vérifiez le CORS du bucket : autorisez PUT depuis l’origine exacte de cette page admin et l’en-tête Content-Type.`);
+            }
             if (!uploadResponse.ok) throw new Error(`Échec du transfert de ${file.name}. Vérifiez le CORS R2.`);
             const saveResponse = await fetch('/api/admin/resources', {
                 method:'POST', credentials:'include', headers:{'Content-Type':'application/json'},

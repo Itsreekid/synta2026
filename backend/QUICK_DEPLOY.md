@@ -12,7 +12,7 @@ This does not initialize a brand-new empty PostgreSQL database. The base schema 
 
 ## R2 browser uploads
 
-The admin uploads lesson documents, live replay videos, and practice files directly to the private R2 bucket using short-lived signed URLs. Configure the bucket CORS policy to allow `PUT` from your exact Synta site origin and allow the `Content-Type` request header. Practice files support Python, HTML, CSS, JavaScript, JSON, TXT, and ZIP (25 MB per file). Example policy values: `AllowedOrigins: ["https://your-site-domain"]`, `AllowedMethods: ["PUT"]`, `AllowedHeaders: ["Content-Type"]`, `ExposeHeaders: ["ETag"]`, `MaxAgeSeconds: 3600`. Replace the example origin with the production domain (and add the admin preview domain if you use one).
+The admin uploads lesson documents, live replay videos, and practice files directly to the private R2 bucket using short-lived signed URLs. Configure the bucket CORS policy to allow `PUT` from your exact Synta site origin and allow the `Content-Type` request header. The origin must match the address in the browser exactly, including `https://` and any `www` subdomain. Practice files support Python, HTML, CSS, JavaScript, JSON, TXT, and ZIP (25 MB per file). Example policy values: `AllowedOrigins: ["https://your-site-domain"]`, `AllowedMethods: ["PUT"]`, `AllowedHeaders: ["Content-Type"]`, `ExposeHeaders: ["ETag"]`, `MaxAgeSeconds: 3600`. Replace the example origin with the production domain (and add the admin preview domain if you use one). A browser `Failed to fetch` during the R2 step usually means this CORS rule is missing or the origin/header does not match; the app now reports that step explicitly.
 
 ## ⚡ Quick Fix Commands
 

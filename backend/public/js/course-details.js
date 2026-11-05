@@ -427,14 +427,14 @@ function renderModulesAndLessons(modules, hasAccess, courseProgress) {
             }
 
             return `
-                            <div class="lesson-item ${isLocked ? 'locked' : ''}" ${!isLocked ? `onclick="playLesson('${lesson.id}')"` : ''} style="${!isLocked ? 'cursor: pointer;' : ''}">
+                            <div class="lesson-item ${lesson.type === 'quiz' ? 'quiz-item' : ''} ${isLocked ? 'locked' : ''}" ${!isLocked ? `onclick="playLesson('${lesson.id}')"` : ''} style="${!isLocked ? 'cursor: pointer;' : ''}">
                                 <div class="lesson-info">
                                     <div class="lesson-icon ${iconClass}">
                                         ${iconHtml}
                                     </div>
                                     <div class="lesson-details">
                                         <div class="lesson-title">${escapeHtml(lesson.title)}</div>
-                                        ${lesson.type === 'quiz' ? '<div class="lesson-duration" style="color:#7c3aed"><i class="fas fa-sparkles"></i> Mini-défi · 3 questions</div>' : ''}
+                                        ${lesson.type === 'quiz' ? '<span class="quiz-checkpoint-badge"><i class="fas fa-bolt" aria-hidden="true"></i> Mini-défi · 3 questions</span>' : ''}
                                         ${lesson.duration && lesson.duration > 0 ? `<div class="lesson-duration"><i class="far fa-clock"></i> ${duration}</div>` : ''}
                                     </div>
                                 </div>
@@ -496,6 +496,12 @@ async function playLesson(lessonId) {
 
         const videoUrl = contentData.videoUrl;
         const lesson = contentData.lesson || { id: lessonId, title: 'Leçon', video_key: true };
+
+        // Quiz checkpoints have no video URL; send them to the interactive quiz player.
+        if (lesson.type === 'quiz' || contentData.type === 'quiz') {
+            await openQuizLesson(lessonId, contentData);
+            return;
+        }
 
         // Server signalled video is unavailable (R2 error) but returned 200
         if (contentData.videoError) {
@@ -1224,9 +1230,9 @@ function formatDurationReadable(seconds) {
 /**
  * Open quiz lesson
  */
-async function openQuizLesson(lessonId) {
+async function openQuizLesson(lessonId, loadedContent = null) {
     try {
-        const contentData = await window.SyntaAPI.getContentUrl(lessonId);
+        const contentData = loadedContent || await window.SyntaAPI.getContentUrl(lessonId);
         const lesson = contentData.lesson || {};
         const questions = lesson.content?.questions;
         if (!Array.isArray(questions) || questions.length !== 3) {

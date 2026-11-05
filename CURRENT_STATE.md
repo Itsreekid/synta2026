@@ -288,3 +288,16 @@ Admin course management now supports shared chapters, lesson management, and les
 - Added migration `202611050004_create_learning_resources.sql` and base schema table. No DB migration was executed manually; Coolify will apply it on deployment.
 - JavaScript syntax checks pass. Browser interaction, deployed DB migration, R2 CORS, and actual downloads remain unverified.
 
+### Quiz launch and chapter-list polish (2026-11-05)
+
+- Fixed course chapter clicks so quiz lessons route to the interactive quiz player instead of attempting to open a video URL.
+- Reused the already-loaded authenticated lesson payload to avoid fetching the quiz twice.
+- Quiz checkpoints now have a compact lavender row, smaller bolt/check icon, and a “Mini-défi · 3 questions” badge, visually separating them from video lessons while keeping them discoverable in sequence.
+- JavaScript syntax checked; browser interaction still needs verification after deployment.
+
+### R2 upload error clarity (2026-11-05)
+
+- Lesson and live-session practice-file upload UIs now identify a rejected browser-to-R2 request as an R2/CORS upload failure instead of displaying the unhelpful browser “Failed to fetch” message.
+- A successful upload still requires the R2 bucket CORS rule to allow `PUT` from the exact admin page origin and allow the `Content-Type` header. This bucket-side setting cannot be changed from the application code.
+- No database changes. Actual upload still needs verification against the configured production bucket.
+

@@ -259,6 +259,29 @@
             border-color: #fdba74;
             box-shadow: 0 4px 15px rgba(249, 115, 22, 0.08);
         }
+
+        .lesson-item.quiz-item {
+            min-height: 58px;
+            padding: .55rem 1rem;
+            border-color: #ede9fe;
+            background: #faf8ff;
+        }
+        .lesson-item.quiz-item:hover:not(.locked) { border-color: #c4b5fd; background: #f5f3ff; }
+        .lesson-item.quiz-item .lesson-info { gap: .8rem; }
+        .lesson-item.quiz-item .lesson-icon { width: 30px; height: 30px; font-size: .85rem; }
+        .lesson-item.quiz-item .lesson-title { font-size: .94rem; }
+        .quiz-checkpoint-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: .3rem;
+            margin-top: .2rem;
+            padding: .15rem .5rem;
+            border-radius: 999px;
+            background: #ede9fe;
+            color: #6d28d9;
+            font-size: .72rem;
+            font-weight: 750;
+        }
         
         .lesson-info {
             display: flex;

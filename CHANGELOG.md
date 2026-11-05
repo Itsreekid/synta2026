@@ -60,6 +60,25 @@
 - Added `learning_resources` to the base schema and migration `202611050004_create_learning_resources.sql`; not executed manually.
 - Syntax checks passed; database/R2/browser flows remain unverified.
 
+## 2026-11-05 — Fix Quiz Launch and Distinguish Checkpoints
+
+**Author:** Codex  
+**Type:** BUGFIX / UX
+
+- Chapter-list clicks now inspect the lesson type and open quiz checkpoints in the interactive quiz player instead of the video player.
+- Reuse the loaded lesson content so opening a quiz does not make a duplicate content request.
+- Styled quiz items as compact checkpoint rows with a distinct bolt icon and “Mini-défi · 3 questions” badge.
+- No database or migration changes.
+
+## 2026-11-05 — Explain R2 Practice-File Upload Failures
+
+**Author:** Codex  
+**Type:** BUGFIX / UX
+
+- Lesson and session admin upload flows now catch browser network/CORS errors from the direct R2 `PUT` and show a French message naming the required bucket CORS settings.
+- Deployment guidance now calls out exact origin matching, including protocol and `www`.
+- This improves diagnosis; it cannot replace enabling CORS on the Cloudflare R2 bucket.
+
 ---
 
 ## 2026-11-05 — Add Automatic Deploy Migrations and Reusable Course Modules
