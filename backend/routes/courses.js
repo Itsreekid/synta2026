@@ -16,8 +16,8 @@ router.get("/", async (req, res) => {
 
     let sql = `
       SELECT c.*,
-        (SELECT COUNT(l.id) FROM lessons l JOIN modules m ON l.module_id = m.id WHERE m.course_id = c.id AND l.type != 'quiz')::int AS lessons_count,
-        (SELECT COUNT(l.id) FROM lessons l JOIN modules m ON l.module_id = m.id WHERE m.course_id = c.id AND l.type = 'quiz')::int AS quizzes_count,
+        (SELECT COUNT(l.id) FROM lessons l JOIN course_modules cm ON cm.module_id = l.module_id WHERE cm.course_id = c.id AND l.type != 'quiz')::int AS lessons_count,
+        (SELECT COUNT(l.id) FROM lessons l JOIN course_modules cm ON cm.module_id = l.module_id WHERE cm.course_id = c.id AND l.type = 'quiz')::int AS quizzes_count,
         (SELECT COUNT(ls.id) FROM live_sessions ls WHERE ls.course_id = c.id)::int AS lives_count
       FROM courses c WHERE c.is_published = true
     `;
@@ -57,23 +57,23 @@ router.get("/user/my-courses", authMiddleware, async (req, res) => {
               COALESCE(
                 (SELECT COUNT(lp.id) FILTER (WHERE lp.completed = true)
                  FROM lessons l2
-                 JOIN modules m2 ON l2.module_id = m2.id
+                 JOIN course_modules cm2 ON l2.module_id = cm2.module_id
                  LEFT JOIN lesson_progress lp ON lp.lesson_id = l2.id AND lp.user_id = $1
-                 WHERE m2.course_id = c.id), 0
+                 WHERE cm2.course_id = c.id), 0
               ) as dynamic_completed,
               COALESCE(
                 (SELECT COUNT(l2.id)
                  FROM lessons l2
-                 JOIN modules m2 ON l2.module_id = m2.id
-                 WHERE m2.course_id = c.id), 0
+                 JOIN course_modules cm2 ON l2.module_id = cm2.module_id
+                 WHERE cm2.course_id = c.id), 0
               ) as total_lessons
        FROM courses c
        LEFT JOIN enrollments e ON c.id = e.course_id AND e.user_id = $1
        WHERE e.user_id = $1 OR EXISTS (
            SELECT 1 FROM lesson_progress lp 
            JOIN lessons l ON lp.lesson_id = l.id
-           JOIN modules m ON l.module_id = m.id
-           WHERE m.course_id = c.id AND lp.user_id = $1 AND lp.completed = true
+           JOIN course_modules cm ON l.module_id = cm.module_id
+           WHERE cm.course_id = c.id AND lp.user_id = $1 AND lp.completed = true
        )
        ORDER BY COALESCE(e.enrolled_at, '2000-01-01'::timestamp) DESC`,
       [userId]
@@ -113,8 +113,9 @@ router.get("/:courseId", async (req, res) => {
     const course = courseResult.rows[0];
 
     const modulesResult = await pool.query(
-      `SELECT id, title, description, order_index FROM modules
-       WHERE course_id = $1 ORDER BY order_index ASC`,
+      `SELECT m.id, m.title, m.description, cm.order_index FROM course_modules cm
+       JOIN modules m ON m.id = cm.module_id
+       WHERE cm.course_id = $1 ORDER BY cm.order_index ASC`,
       [courseId]
     );
 

@@ -46,8 +46,8 @@ export async function checkLessonAccess(userId, lessonId) {
     const result = await pool.query(
       `SELECT 1
        FROM enrollments e
-       JOIN modules m ON m.course_id = e.course_id
-       JOIN lessons l ON l.module_id = m.id
+       JOIN course_modules cm ON cm.course_id = e.course_id
+       JOIN lessons l ON l.module_id = cm.module_id
        WHERE e.user_id = $1
          AND l.id = $2
          AND (e.expires_at IS NULL OR e.expires_at > NOW())

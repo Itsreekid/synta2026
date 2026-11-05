@@ -1,17 +1,25 @@
-# Railway Deployment - Quick Reference
+# Coolify Deployment — Quick Reference
+
+## Automatic database migrations
+
+The backend Docker image runs `npm run migrate` before `npm start`. On each deployment it applies only new files in `database/migrations/`, records them in `schema_migrations`, and then starts the app. Applied SQL files must not be edited; create a new numbered file for every later change. If a migration fails, the container exits and the app does not start.
+
+In Coolify, configure the application to build from the **repository root** and use **`/backend/Dockerfile`** as the Dockerfile path. Keep `DATABASE_URL` set to the PostgreSQL service reachable from the backend container. No SQL paste or manual migration command is needed for these incremental changes.
+
+This does not initialize a brand-new empty PostgreSQL database. The base schema in `database/schema_postgres.sql` must already have been installed once. Back up the database before the first deployment containing migrations.
 
 ## ⚡ Quick Fix Commands
 
 ```bash
 # 1. Commit and push changes
 git add .
-git commit -m "Fix Railway deployment"
+git commit -m "Add deploy migrations"
 git push origin main
 ```
 
-## 🔑 Required Environment Variables (Set in Railway Dashboard)
+## Required environment variables (set in Coolify)
 
-Copy these to Railway → Variables tab:
+Set the application variables in Coolify. Keep the existing application secrets and `DATABASE_URL` configured:
 
 ```
 SUPABASE_URL=
@@ -26,29 +34,26 @@ ALLOWED_ORIGINS=https://syntaacademy.com,https://www.syntaacademy.com
 NODE_ENV=production
 ```
 
-## ✅ Checklist
+## Deploy checklist
 
-- [ ] All environment variables set in Railway
+- [ ] Required environment variables set in Coolify
 - [ ] Code pushed to GitHub
-- [ ] Railway deployment triggered
+- [ ] Coolify deployment triggered
 - [ ] Check deployment logs for errors
 - [ ] Test `/health` endpoint
 - [ ] Test `/debug/cors` endpoint
-- [ ] Update frontend with correct Railway URL
+- [ ] Confirm the application domain is configured in Coolify
 
 ## 🔗 Important URLs
 
-- Railway Dashboard: https://railway.app/dashboard
-- Your Railway App: `https://[your-service].up.railway.app`
-- Health Check: `https://[your-service].up.railway.app/health`
-- CORS Debug: `https://[your-service].up.railway.app/debug/cors`
+- Coolify Dashboard: your OVH-hosted Coolify URL
 
 ## 🐛 Common Issues
 
 | Issue | Solution |
 |-------|----------|
-| "Missing environment variables" | Add all variables in Railway dashboard |
-| "Port already in use" | Railway sets PORT automatically |
+| "Missing environment variables" | Add the required variables in Coolify |
+| "Port already in use" | Confirm only one app process is configured |
 | CORS errors | Add frontend domain to ALLOWED_ORIGINS |
 | Build fails | Check Railway logs, verify package.json |
 

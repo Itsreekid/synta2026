@@ -69,6 +69,8 @@
 - **Risks:** Column existence must be verified before removing ensure functions
 - **Acceptance criteria:** `config/db.js` only connects; no DDL in route files
 
+**Progress note (2026-11-05):** A deployment migration runner now applies numbered SQL files before the app starts, and notifications table DDL was moved out of `config/db.js`. TASK-004 remains IN PROGRESS because the runtime schema changes in `admin-api.js` and other routes still need conversion into migrations.
+
 ---
 
 ### TASK-005: Add Rate Limiting

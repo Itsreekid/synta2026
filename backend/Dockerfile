@@ -3,7 +3,7 @@ FROM node:20-alpine AS deps
 WORKDIR /app
 
 # Copy package files and install only production dependencies
-COPY package.json package-lock.json* ./
+COPY backend/package.json backend/package-lock.json ./
 RUN npm ci --omit=dev
 
 # ─── Stage 2: Production image ────────────────────────────────────────────────
@@ -20,10 +20,11 @@ RUN addgroup --system --gid 1001 nodejs \
 COPY --from=deps /app/node_modules ./node_modules
 
 # Copy the rest of the backend source code
-COPY . .
+COPY backend/ ./
+COPY database/migrations/ ./database/migrations/
 
 USER synta
 
 EXPOSE 3000
 
-CMD ["node", "server.js"]
+CMD ["sh", "-c", "npm run migrate && npm start"]

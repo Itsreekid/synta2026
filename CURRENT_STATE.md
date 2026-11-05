@@ -2,7 +2,7 @@
 
 > **Last updated:** 2026-11-05  
 > **Updated by:** Codex  
-> **Next recommended task:** TASK-004 (Move runtime schema changes to migration files) in `IMPLEMENTATION_PLAN.md`
+> **Next recommended task:** Add an admin workflow to attach an existing module to multiple courses, then continue TASK-004 in `IMPLEMENTATION_PLAN.md`
 
 ---
 
@@ -139,7 +139,7 @@ The backend is running in production on Coolify. Core features (login, course ac
 - `transactions.status`, `transactions.payment_method`, `transactions.transaction_code`, `transactions.is_confirmed`, `transactions.processed_at`, `transactions.receipt_url` — added by `ensureTransactionsSchema()` on first deposit
 
 **Tables created at startup:**
-- `notifications` — created in `config/db.js` pool startup query
+- `notifications` — created by the numbered deploy migration
 
 ---
 
@@ -214,9 +214,20 @@ For teaching, the current supported assignment model is still course-based: sche
 - Course live-session listing and admin replay-link editing are implemented; no database migration was needed. These changes have not been manually exercised against the production Zoom/database setup.
 - Remaining work is tracked in `IMPLEMENTATION_PLAN.md`; TASK-004 is the next recommended task.
 
+## 11. Course Module Reuse and Deployment Migrations (2026-11-05)
+
+- Added `course_modules`, a many-to-many course/module mapping with per-course ordering. Existing module placements are copied into it by `202611050002_create_course_modules.sql`.
+- Course catalog/detail, lesson access, progress tracking, and user stats now read course membership through the join table.
+- Added `backend/scripts/migrate.js`; it serializes concurrent runs with a PostgreSQL advisory lock, runs new SQL migrations transactionally, records file checksums in `schema_migrations`, and stops the app launch when a migration fails.
+- Docker now expects repository root as build context and `/backend/Dockerfile`; it includes SQL migrations and runs them before starting Express. See `backend/QUICK_DEPLOY.md`.
+- `202611050001_create_notifications.sql` replaces notifications DDL previously performed at runtime in `backend/config/db.js`.
+- No live database migration was run. On first deploy, the existing Postgres DB must already contain the base schema. Back up before deploying.
+- **Not yet complete:** admins still have no UI/API to attach one existing module to another course. Add that workflow before expecting staff to reuse chapters operationally. Keep legacy `modules.course_id` and `order_index` until all module write paths have been migrated.
+- **BROKEN/RISK:** Other runtime `ALTER TABLE` calls remain, so TASK-004 is still in progress.
+
 ---
 
-## 11. Important Files to Inspect
+## 12. Important Files to Inspect
 
 | File | Why |
 |------|-----|
@@ -224,7 +235,7 @@ For teaching, the current supported assignment model is still course-based: sche
 | `backend/routes/ai-api.js` | AI endpoint behavior and Gemini fallback chain |
 | `backend/routes/auth-api.js` | Auth flow, verify logic, magic login |
 | `backend/routes/admin-api.js` | Full admin operations, payment confirmation, enrollment |
-| `backend/config/db.js` | DB connection, notifications table creation |
+| `backend/config/db.js` | Shared DB connection pool |
 | `database/schema_postgres.sql` | Base schema — always reference before schema changes |
 | `backend/middleware/requireAuth.js` | Cookie auth system |
 | `backend/middleware/requireAdmin.js` | Admin auth — dual mechanism |

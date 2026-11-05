@@ -143,25 +143,26 @@ router.post("/lesson/:lessonId/progress", authApiMiddleware, async (req, res) =>
 
     // Update course-level progress
     const lessonRow = await pool.query(
-      `SELECT m.course_id FROM lessons l JOIN modules m ON m.id = l.module_id WHERE l.id = $1`,
+      `SELECT cm.course_id FROM lessons l JOIN course_modules cm ON cm.module_id = l.module_id WHERE l.id = $1`,
       [lessonId]
     );
 
     if (lessonRow.rowCount > 0) {
-      const { course_id } = lessonRow.rows[0];
       await pool.query(
-        `UPDATE enrollments SET
-           progress = (
-             SELECT ROUND(100.0 * COUNT(*) FILTER (WHERE lp.completed = true)
-                          / NULLIF(COUNT(*), 0))
-             FROM lessons l2
-             JOIN modules m2 ON m2.id = l2.module_id
-             LEFT JOIN lesson_progress lp ON lp.lesson_id = l2.id AND lp.user_id = $1
-             WHERE m2.course_id = $2
-           ),
+        `UPDATE enrollments e SET
+           progress = stats.progress,
            last_accessed = NOW()
-         WHERE user_id = $1 AND course_id = $2`,
-        [userId, course_id]
+         FROM (
+           SELECT cm.course_id,
+                  ROUND(100.0 * COUNT(*) FILTER (WHERE lp.completed = true) / NULLIF(COUNT(*), 0)) AS progress
+           FROM course_modules cm
+           JOIN lessons l2 ON l2.module_id = cm.module_id
+           LEFT JOIN lesson_progress lp ON lp.lesson_id = l2.id AND lp.user_id = $1
+           WHERE cm.course_id IN (SELECT course_id FROM course_modules WHERE module_id = (SELECT module_id FROM lessons WHERE id = $2))
+           GROUP BY cm.course_id
+         ) stats
+         WHERE e.user_id = $1 AND e.course_id = stats.course_id`,
+        [userId, lessonId]
       );
     }
 

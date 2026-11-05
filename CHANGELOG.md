@@ -18,6 +18,19 @@
 
 ---
 
+## 2026-11-05 — Add Automatic Deploy Migrations and Reusable Course Modules
+
+**Author:** Codex
+**Type:** SCHEMA / ARCHITECTURE
+
+- Added a checksum-tracked, advisory-lock protected migration runner; Docker runs it before the application on container startup.
+- Added migrations for the notifications table and the `course_modules` many-to-many mapping, with data backfill from legacy module course fields.
+- Updated course listing/details, content access, progress calculations, and user stats to read course/module membership from `course_modules`.
+- Added Coolify build context and Dockerfile instructions. Requires repository root as build context and existing base Postgres schema; no live database migration was run.
+- Admin course/module assignment UI is still needed to operationally reuse chapters.
+
+---
+
 ## 2026-11-05 — Secure Purchase and AI Debug Endpoints
 
 **Author:** Codex  

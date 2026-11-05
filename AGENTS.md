@@ -173,6 +173,7 @@ synta academy new/
 │   ├── package.json            ← Dependencies (ESM, Node 18+)
 │   └── Dockerfile              ← Multi-stage Docker build (Node 20 Alpine)
 ├── database/                   ← SQL migration files
+│   ├── migrations/              ← Numbered incremental SQL files; applied by Docker before app start
 │   ├── schema_postgres.sql     ← Base schema (self-hosted Postgres) — PRIMARY
 │   ├── add_google_auth.sql     ← Adds google_id to users
 │   ├── add_email_verification.sql ← Adds email_verified, token fields

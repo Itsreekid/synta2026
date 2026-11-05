@@ -45,7 +45,7 @@ Synta Academy is a **Tunisian e-learning platform** targeting high-school studen
 |-----------|-----------|
 | Database | PostgreSQL (self-hosted via Coolify) |
 | Client | `pg` (node-postgres) Pool |
-| Migrations | Manual SQL scripts in `/database/` |
+| Migrations | Versioned SQL files in `/database/migrations/`, applied by the container before app start |
 
 ### Storage
 | Component | Technology |
@@ -261,9 +261,9 @@ Schema is defined in `/database/schema_postgres.sql` and supplemented by increme
 
 **Notable design choices:**
 - No ORM — all queries are raw SQL with parameterized inputs
-- Migrations are manual SQL files, not versioned (no Flyway/Knex/Prisma)
+- Deploy migrations are numbered SQL files in `database/migrations/`; the container runner applies new files transactionally before starting Express
 - Some columns are added at runtime via `ALTER TABLE ... ADD COLUMN IF NOT EXISTS` in route files (anti-pattern)
-- The `notifications` table is created at startup in `config/db.js` (another anti-pattern)
+- Existing runtime `ALTER TABLE` calls in route files remain and are tracked in TASK-004; notifications table creation has moved to a deployment migration
 
 ---
 

@@ -182,15 +182,15 @@ router.get("/api/user/stats", authApiMiddleware, async (req, res) => {
               COALESCE(
                 (SELECT COUNT(lp.id) FILTER (WHERE lp.completed = true)
                  FROM lessons l2
-                 JOIN modules m2 ON l2.module_id = m2.id
+                 JOIN course_modules cm2 ON l2.module_id = cm2.module_id
                  LEFT JOIN lesson_progress lp ON lp.lesson_id = l2.id AND lp.user_id = $1
-                 WHERE m2.course_id = e.course_id), 0
+                 WHERE cm2.course_id = e.course_id), 0
               ) as dynamic_completed,
               COALESCE(
                 (SELECT COUNT(l2.id)
                  FROM lessons l2
-                 JOIN modules m2 ON l2.module_id = m2.id
-                 WHERE m2.course_id = e.course_id), 0
+                 JOIN course_modules cm2 ON l2.module_id = cm2.module_id
+                 WHERE cm2.course_id = e.course_id), 0
               ) as total_lessons
        FROM enrollments e WHERE user_id = $1`,
       [userId]

@@ -1,7 +1,7 @@
 # DATABASE_SCHEMA.md — Synta Academy
 
 > **Last audited:** 2026-11-05  
-> **Source of truth:** `database/schema_postgres.sql` + migration files in `database/`  
+> **Source of truth:** `database/schema_postgres.sql` + versioned files in `database/migrations/`
 > **Active database:** PostgreSQL (self-hosted via Coolify)
 
 > [!IMPORTANT]
@@ -24,7 +24,8 @@ erDiagram
     users ||--o{ notifications : "receives"
     users ||--o{ lesson_feedback : "submits"
 
-    courses ||--o{ modules : "contains"
+    courses ||--o{ course_modules : "organizes"
+    modules ||--o{ course_modules : "reused by"
     courses ||--o{ enrollments : "in"
     courses ||--o{ purchases : "purchased as"
     courses ||--o{ live_sessions : "has"
@@ -106,16 +107,36 @@ erDiagram
 
 ### 2.3 `modules`
 
-**Purpose:** Sections/chapters within a course. Ordered by `order_index`.
+**Purpose:** Reusable educational chapters (for example, Variables or Arrays). Lessons belong to a module; course placement and ordering are represented by `course_modules`.
 
 | Column | Type | Constraints | Notes |
 |--------|------|-------------|-------|
 | `id` | UUID | PK, DEFAULT gen_random_uuid() | |
-| `course_id` | UUID | NOT NULL REFERENCES courses(id) ON DELETE CASCADE | |
+| `course_id` | UUID | NOT NULL REFERENCES courses(id) ON DELETE CASCADE | Legacy single-course link, retained during transition |
 | `title` | TEXT | NOT NULL | |
 | `description` | TEXT | NULLABLE | |
-| `order_index` | INTEGER | NOT NULL DEFAULT 0 | Display order |
+| `order_index` | INTEGER | NOT NULL DEFAULT 0 | Legacy order, copied to `course_modules` during migration |
 | `created_at` | TIMESTAMPTZ | NOT NULL DEFAULT NOW() | |
+
+---
+
+### 2.3a `course_modules` (new)
+
+**Purpose:** Maps reusable modules into one or more courses, with a separate display order per course. Migration `202611050002_create_course_modules.sql` backfills the existing `modules.course_id/order_index` values. Legacy columns remain for compatibility and are not authoritative for new course lookups.
+
+| Column | Type | Constraints | Notes |
+|--------|------|-------------|-------|
+| `course_id` | UUID | NOT NULL REFERENCES courses(id) ON DELETE CASCADE | Course using the module |
+| `module_id` | UUID | NOT NULL REFERENCES modules(id) ON DELETE CASCADE | Shared educational module |
+| `order_index` | INTEGER | NOT NULL DEFAULT 0 | Position within this course |
+| `created_at` | TIMESTAMPTZ | NOT NULL DEFAULT NOW() | |
+| PRIMARY KEY | | (`course_id`, `module_id`) | Prevents duplicate placement |
+
+Indexes: `idx_course_modules_module`; `idx_course_modules_course_order`.
+
+### `schema_migrations`
+
+Created automatically by the deployment runner. Tracks each applied migration filename and SHA-256 checksum; do not edit a migration after it has been applied.
 
 ---
 
@@ -370,8 +391,7 @@ erDiagram
 
 **Index:** `idx_notifications_user`
 
-> [!WARNING]
-> This table is **created at runtime** in `config/db.js` during the pool startup query, not in the base schema file. It is an anti-pattern.
+> Created by `database/migrations/202611050001_create_notifications.sql` during deployment; it is no longer created by the runtime connection pool.
 
 ---
 
@@ -494,7 +514,7 @@ The following columns are added at runtime by application code, not by migration
 - `users.debt` — added by `admin-api.js:ensureUsersSchema()`
 - `offers.discount_percentage`, `offers.is_best_seller`, `offers.image_url` — added by `admin-api.js:ensureOffersSchema()`
 - `transactions.status`, `transactions.payment_method`, `transactions.transaction_code`, `transactions.is_confirmed`, `transactions.processed_at`, `transactions.receipt_url` — added by `user-api.js:ensureTransactionsSchema()`
-- `notifications` table — created at startup in `config/db.js`
+- `notifications` table — created by deployment migration `202611050001_create_notifications.sql`
 
 ### P2 — Duplicate/Overlapping Financial Tables (HIGH)
 Three tables track financial transactions with overlapping purposes:

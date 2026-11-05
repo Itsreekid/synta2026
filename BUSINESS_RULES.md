@@ -11,6 +11,16 @@
 
 ## 1. User Roles
 
+### BR-00: Course Content Reuse
+| Behavior | Status | Evidence |
+|----------|--------|----------|
+| One educational module can be included in multiple courses | ✅ | `course_modules` join table; legacy course placements are backfilled by migration |
+| A module can have a separate display order in each course | ✅ | `course_modules.order_index` |
+| Course access is granted by enrollment in a course that includes the lesson's module | ✅ | `checkLessonAccess()` joins enrollments through `course_modules` |
+| Admin interface/API can attach an existing module to another course | ❌ | No module-to-course assignment endpoint or UI found |
+
+> Offer access remains course-based through `offer_courses` and enrollments. Reusing a module does not change payment or entitlement rules.
+
 ### BR-01: User Roles
 Two roles exist: `user` (student) and `admin`.
 
