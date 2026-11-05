@@ -343,7 +343,7 @@ Both mechanisms work in `requireAdmin.js`. This can lead to situations where a u
 /api/enrollment/*    Enroll in course/offer, list enrollments
 /api/purchase/*      Balance-based course/offer purchase
 /api/offers/*        Offer catalog with per-user targeting
-/api/live/*          Upcoming sessions, replays, admin scheduling
+/api/live/*          Course sessions/replays, upcoming sessions, admin scheduling and replay-link management
 /api/tracking/*      Quiz responses, weak topics, lesson progress, feedback
 /api/admin/*         Student management, payment confirmation, course/offer admin, notifications
 /api/session/*       Placement quiz flow (register, questions, submit, set-password)

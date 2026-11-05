@@ -5,6 +5,19 @@
 
 ---
 
+## 2026-11-05 — Show Course Live Sessions and Replays
+
+**Author:** Codex
+**Type:** FEATURE
+
+- Removed the random live count from course details and derive the count from sessions the enrolled student can access.
+- Added an authenticated course-session endpoint with course and offer enrollment checks. Completed sessions stay visible while the replay is pending.
+- Added a course page section for upcoming sessions, active Zoom links, and replays. Host links remain excluded.
+- Added an admin control to add, update, or clear a replay URL after teaching.
+- No database changes or migrations. Source reviewed; UI/API was not manually exercised in this session.
+
+---
+
 ## 2026-11-05 — Secure Purchase and AI Debug Endpoints
 
 **Author:** Codex  

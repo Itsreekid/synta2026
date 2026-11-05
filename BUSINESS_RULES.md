@@ -194,6 +194,9 @@ Two roles exist: `user` (student) and `admin`.
 | Sessions can be restricted to a specific offer | ✅ | `live_sessions.offer_id` filter logic |
 | Students see only sessions they have access to | ✅ | `accessible` filter in `live.js` |
 | Students can see past sessions with replays | ✅ | `GET /api/live/replays` |
+| Enrolled students can see all sessions for a course, including completed sessions waiting for a replay | ✅ | `GET /api/live/course/:courseId` (course and offer enrollment checked) |
+| Course details live count matches the sessions shown to that enrolled student | ✅ | Count is derived from the authenticated course-session response; no random fallback |
+| Admin can add or clear a replay URL after teaching | ✅ | `PATCH /api/live/:sessionId/replay` |
 | `zoom_start_url` (host link) is never sent to students | ✅ | `live.js`: filtered from response |
 | Admin can schedule sessions (single or recurring) | ✅ | `POST /api/live/schedule` |
 | Recurring sessions share one Zoom meeting ID | ✅ | `createZoomMeeting({isRecurring})` |
@@ -205,7 +208,7 @@ Two roles exist: `user` (student) and `admin`.
 | Attendance is tracked per student per session | ❌ | No `live_session_attendance` table |
 | Session status updates (live → completed) | ❌ | `status` column exists but no mechanism to update it |
 
-> ❓ **NEEDS CLARIFICATION:** How should session replays be attached? Currently `replay_url` must be manually set via DB. Should there be an admin API endpoint or Zoom webhook handler?
+> ❓ **NEEDS CLARIFICATION:** Should Zoom recordings be attached automatically through a webhook, in addition to the new admin replay-link control?
 
 ---
 

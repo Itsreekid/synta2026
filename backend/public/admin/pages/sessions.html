@@ -417,9 +417,33 @@ function renderCard(s, status) {
         </div>
         <div class="session-actions">
             ${hostBtn}
+            ${status === 'completed' ? `<button class="btn-secondary" onclick="updateReplay('${s.id}')"><i class="fas fa-link"></i> ${s.replay_url ? 'Modifier le replay' : 'Ajouter le replay'}</button>` : ''}
             ${status !== 'completed' ? `<button class="btn-danger" onclick="deleteSession('${s.id}')"><i class="fas fa-trash"></i></button>` : ''}
         </div>
     </div>`;
+}
+
+async function updateReplay(sessionId) {
+    const session = allSessions.find(item => item.id === sessionId);
+    const replayUrl = prompt('Lien du replay (laisser vide pour le retirer) :', session?.replay_url || '');
+    if (replayUrl === null) return;
+
+    try {
+        const response = await fetch(`${API}/api/live/${encodeURIComponent(sessionId)}/replay`, {
+            method: 'PATCH',
+            credentials: 'include',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ replayUrl })
+        });
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.error || 'Impossible de mettre à jour le replay.');
+
+        if (session) session.replay_url = data.replay_url;
+        renderSessions();
+        showToast('Lien du replay mis à jour.', 'success');
+    } catch (error) {
+        showToast(error.message || 'Erreur lors de la mise à jour du replay.', 'error');
+    }
 }
 
 // ── Load Offers & Courses for form dropdowns ──────────────────────────

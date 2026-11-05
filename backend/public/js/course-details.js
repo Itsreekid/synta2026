@@ -49,6 +49,19 @@ async function loadCourseDetails(courseId) {
         // Check enrollment status via REST API
         const hasAccess = await checkUserAccess(courseId);
 
+        let liveSessions = [];
+        let liveSessionsLoaded = false;
+        if (hasAccess) {
+            try {
+                const liveResponse = await fetch(`/api/live/course/${encodeURIComponent(courseId)}`, { credentials: 'include' });
+                if (!liveResponse.ok) throw new Error(`Live sessions request failed (${liveResponse.status})`);
+                liveSessions = await liveResponse.json();
+                liveSessionsLoaded = true;
+            } catch (error) {
+                console.error('Live sessions fetch error:', error);
+            }
+        }
+
         let courseProgress = null;
         if (hasAccess) {
             try {
@@ -66,7 +79,8 @@ async function loadCourseDetails(courseId) {
         const totalLessons = modulesWithLessons.reduce((sum, module) => sum + (module.lessons?.length || 0), 0);
 
         // Render course information
-        await renderCourseInfo(course, totalLessons, hasAccess, courseProgress);
+        await renderCourseInfo(course, totalLessons, hasAccess, courseProgress, liveSessionsLoaded ? liveSessions.length : null);
+        renderCourseLiveSessions(liveSessions, hasAccess, liveSessionsLoaded);
 
         // Render modules and lessons
         renderModulesAndLessons(modulesWithLessons, hasAccess, courseProgress);
@@ -107,7 +121,7 @@ async function checkUserAccess(courseId) {
 /**
  * Render course information
  */
-async function renderCourseInfo(course, totalLessons, hasAccess, courseProgress) {
+async function renderCourseInfo(course, totalLessons, hasAccess, courseProgress, liveCount) {
     // Update thumbnail in sidebar AND hero
     const thumbnailSidebar = document.getElementById('course-thumbnail');
     const thumbnailHero = document.getElementById('course-thumbnail-hero');
@@ -176,7 +190,7 @@ async function renderCourseInfo(course, totalLessons, hasAccess, courseProgress)
     if (quizzesCount) quizzesCount.textContent = course.quizzes_count || Math.floor(Math.random() * 4) + 1;
     
     const livesCount = document.getElementById('lives-count');
-    if (livesCount) livesCount.textContent = course.lives_count || Math.floor(Math.random() * 2) + 1;
+    if (livesCount) livesCount.textContent = liveCount === null ? '—' : liveCount;
 
     // Update language (default to Arabe)
     const courseLang = document.getElementById('course-language');
@@ -200,6 +214,50 @@ async function renderCourseInfo(course, totalLessons, hasAccess, courseProgress)
             };
         }
     }
+}
+
+function renderCourseLiveSessions(sessions, hasAccess, loaded) {
+    const section = document.getElementById('course-live-section');
+    const container = document.getElementById('course-live-list');
+    if (!section || !container) return;
+
+    section.style.display = 'block';
+    if (!hasAccess) {
+        container.innerHTML = '<p style="color:#64748b">Inscrivez-vous à ce cours pour voir ses séances en direct et leurs replays.</p>';
+        return;
+    }
+    if (!loaded) {
+        container.innerHTML = '<p style="color:#b45309">Impossible de charger les séances pour le moment. Actualisez la page pour réessayer.</p>';
+        return;
+    }
+    if (!sessions.length) {
+        container.innerHTML = '<p style="color:#64748b">Aucune séance en direct n’est planifiée pour ce cours.</p>';
+        return;
+    }
+
+    const escapeHtml = (value) => String(value ?? '').replace(/[&<>"']/g, char => ({
+        '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+    }[char]));
+    const now = Date.now();
+    container.innerHTML = sessions.map(session => {
+        const start = new Date(session.scheduled_at);
+        const end = start.getTime() + (Number(session.duration_minutes) || 60) * 60000;
+        const isUpcoming = start.getTime() > now;
+        const isLive = now >= start.getTime() && now <= end;
+        const dateLabel = start.toLocaleString('fr-FR', { dateStyle: 'full', timeStyle: 'short' });
+        let action = '<span style="color:#64748b">Replay bientôt disponible</span>';
+        if (session.replay_url) {
+            action = `<a href="${escapeHtml(session.replay_url)}" target="_blank" rel="noopener noreferrer" style="color:#2563eb;font-weight:700">Voir le replay</a>`;
+        } else if ((isUpcoming || isLive) && session.zoom_join_url) {
+            action = `<a href="${escapeHtml(session.zoom_join_url)}" target="_blank" rel="noopener noreferrer" style="color:#e11d48;font-weight:700">${isLive ? 'Rejoindre le direct' : 'Ouvrir le lien du direct'}</a>`;
+        }
+
+        const status = isLive ? 'EN DIRECT' : isUpcoming ? 'À VENIR' : session.replay_url ? 'REPLAY' : 'TERMINÉE';
+        return `<article style="background:#fff;border:1px solid #e2e8f0;border-radius:14px;padding:1rem 1.2rem;display:flex;justify-content:space-between;align-items:center;gap:1rem;flex-wrap:wrap">
+            <div><strong style="color:#1e293b">${escapeHtml(session.title)}</strong><div style="color:#64748b;font-size:.9rem;margin-top:.35rem">${escapeHtml(dateLabel)} · ${status}</div>${session.description ? `<p style="color:#64748b;margin:.5rem 0 0">${escapeHtml(session.description)}</p>` : ''}</div>
+            <div>${action}</div>
+        </article>`;
+    }).join('');
 }
 
 /**

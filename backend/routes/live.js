@@ -10,6 +10,38 @@ import { createZoomMeeting, deleteZoomMeeting } from "../utils/zoomClient.js";
 const router = express.Router();
 
 /**
+ * GET /api/live/course/:courseId — ENROLLED STUDENTS ONLY
+ * Returns scheduled sessions and past sessions for the course. Past sessions
+ * remain visible while the replay is being prepared.
+ */
+router.get("/course/:courseId", authApiMiddleware, async (req, res) => {
+  try {
+    const { courseId } = req.params;
+    const userId = req.user.id;
+
+    const result = await pool.query(
+      `SELECT ls.id, ls.title, ls.description, ls.scheduled_at,
+              ls.duration_minutes, ls.status, ls.zoom_join_url, ls.replay_url
+       FROM live_sessions ls
+       WHERE ls.course_id = $1
+         AND EXISTS (
+           SELECT 1 FROM enrollments e
+           WHERE e.user_id = $2
+             AND e.course_id = ls.course_id
+             AND (ls.offer_id IS NULL OR e.offer_id = ls.offer_id)
+         )
+       ORDER BY ls.scheduled_at DESC`,
+      [courseId, userId]
+    );
+
+    res.json(result.rows);
+  } catch (error) {
+    console.error("Error fetching course live sessions:", error);
+    res.status(500).json({ error: "Internal server error" });
+  }
+});
+
+/**
  * GET /api/live/upcoming — PROTECTED
  */
 router.get("/upcoming", authApiMiddleware, async (req, res) => {
@@ -158,6 +190,38 @@ router.delete("/:sessionId", requireAdmin, async (req, res) => {
   } catch (error) {
     console.error("Error deleting live session:", error);
     res.status(500).json({ error: "Failed to delete session" });
+  }
+});
+
+/**
+ * PATCH /api/live/:sessionId/replay — ADMIN ONLY
+ * Attach or clear the recording link after a live session.
+ */
+router.patch("/:sessionId/replay", requireAdmin, async (req, res) => {
+  const { sessionId } = req.params;
+  const rawReplayUrl = typeof req.body?.replayUrl === "string" ? req.body.replayUrl.trim() : "";
+  let replayUrl = null;
+
+  if (rawReplayUrl) {
+    try {
+      const parsedUrl = new URL(rawReplayUrl);
+      if (!["http:", "https:"].includes(parsedUrl.protocol)) throw new Error("Invalid protocol");
+      replayUrl = parsedUrl.toString();
+    } catch {
+      return res.status(400).json({ error: "Replay URL must be a valid HTTP or HTTPS URL" });
+    }
+  }
+
+  try {
+    const result = await pool.query(
+      `UPDATE live_sessions SET replay_url = $1 WHERE id = $2 RETURNING id, replay_url`,
+      [replayUrl, sessionId]
+    );
+    if (result.rowCount === 0) return res.status(404).json({ error: "Session not found" });
+    res.json({ success: true, ...result.rows[0] });
+  } catch (error) {
+    console.error("Error updating live session replay:", error);
+    res.status(500).json({ error: "Failed to update replay link" });
   }
 });
 

@@ -8,7 +8,7 @@
 
 ## Project Status: OPERATIONAL — CRITICAL PURCHASE AND AI AUTHORIZATION FIXES APPLIED
 
-The backend is running in production on Coolify. Core features (login, course access, payment flow) work. Purchase identity and the AI debugger endpoint now require cookie JWT authentication; other open issues remain listed below.
+The backend is running in production on Coolify. Core features (login, course access, payment flow) work. Purchase identity and the AI debugger endpoint require cookie JWT authentication. Course details now show real enrolled-course live sessions and replay state; other open issues remain listed below.
 
 ---
 
@@ -117,6 +117,7 @@ The backend is running in production on Coolify. Core features (login, course ac
 | BUG-008 | 🟠 MEDIUM | `backend/public/admin/` | Admin HTML pages served as static files with no server-side authentication. API-level auth works, but HTML is accessible to anyone. |
 | BUG-009 | 🟠 MEDIUM | `server.js` | No rate limiting on any endpoint. Brute-force and abuse possible. |
 | BUG-010 | 🟠 MEDIUM | `routes/live.js` | `live_sessions.status` is never updated. `GET /api/live/upcoming` could show sessions that have already occurred (relies on `scheduled_at >= NOW()` filter). |
+| BUG-012 | ✅ FIXED 2026-11-05 | `public/js/course-details.js` | Course details previously substituted a random live count and had no session list. Count now matches the student's accessible course sessions; past sessions remain listed while replay is pending. |
 | BUG-011 | 🟠 MEDIUM | `server.js` | Temporary `/api/admin/init-db` and `/api/admin/promote` endpoints are unprotected and present in production. |
 
 ---
@@ -203,11 +204,14 @@ The backend is running in production on Coolify. Core features (login, course ac
 
 TASK-001 and TASK-002 are complete. Continue with TASK-004 in `IMPLEMENTATION_PLAN.md`.
 
+For teaching, the current supported assignment model is still course-based: schedule the session against the Bac Science course in Admin → Sessions. Enrolled students see it on that course page. The application does not yet have a separate cohort/group entity.
+
 ---
 
 ## 10. Incomplete Work
 
 - TASK-001 and TASK-002 are implemented; automated and manual endpoint verification has not been run in this session.
+- Course live-session listing and admin replay-link editing are implemented; no database migration was needed. These changes have not been manually exercised against the production Zoom/database setup.
 - Remaining work is tracked in `IMPLEMENTATION_PLAN.md`; TASK-004 is the next recommended task.
 
 ---
