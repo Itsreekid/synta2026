@@ -9,6 +9,47 @@ import { generateSignedUrl } from "../utils/r2Utils.js";
 
 const router = express.Router();
 
+router.get("/lesson/:lessonId/resources", authApiMiddleware, async (req, res) => {
+  try {
+    const lessonResult = await pool.query(
+      "SELECT id, pdf_key, is_preview FROM lessons WHERE id = $1",
+      [req.params.lessonId]
+    );
+    if (!lessonResult.rowCount) return res.status(404).json({ error: "Lesson not found" });
+    const lesson = lessonResult.rows[0];
+    const hasAccess = lesson.is_preview || await checkLessonAccess(req.user.id, lesson.id);
+    if (!hasAccess) return res.status(403).json({ error: "Lesson access required" });
+
+    const result = await pool.query(
+      `SELECT id, title, file_name, object_key, content_type, file_size
+       FROM learning_resources WHERE lesson_id = $1 ORDER BY created_at, title`,
+      [lesson.id]
+    );
+    const resources = await Promise.all(result.rows.map(async (resource) => ({
+      id: resource.id,
+      title: resource.title,
+      file_name: resource.file_name,
+      content_type: resource.content_type,
+      file_size: Number(resource.file_size),
+      url: await generateSignedUrl(resource.object_key, 3600, resource.file_name),
+    })));
+    if (lesson.pdf_key) {
+      const fileName = lesson.pdf_key.split("/").pop() || "document.pdf";
+      resources.unshift({
+        id: `legacy-${lesson.id}`,
+        title: "Document du cours",
+        file_name: fileName,
+        content_type: "application/pdf",
+        url: /^https?:\/\//i.test(lesson.pdf_key) ? lesson.pdf_key : await generateSignedUrl(lesson.pdf_key, 3600, fileName),
+      });
+    }
+    res.json({ resources });
+  } catch (error) {
+    console.error("Error loading lesson practice files:", error.message);
+    res.status(500).json({ error: "Could not load lesson files" });
+  }
+});
+
 /**
  * GET /api/content/lesson/:lessonId — PROTECTED
  */
@@ -18,7 +59,7 @@ router.get("/lesson/:lessonId", authApiMiddleware, async (req, res) => {
     const userId = req.user?.id;
 
     const lessonResult = await pool.query(
-      `SELECT id, title, type, video_key, pdf_key, duration, is_preview, module_id, description
+      `SELECT id, title, type, video_key, pdf_key, duration, is_preview, module_id, description, content
        FROM lessons WHERE id = $1`,
       [lessonId]
     );
@@ -57,6 +98,7 @@ router.get("/lesson/:lessonId", authApiMiddleware, async (req, res) => {
         pdf_key: lesson.pdf_key,
         description: lesson.description,
         is_preview: lesson.is_preview,
+        content: lesson.content,
       },
     };
 

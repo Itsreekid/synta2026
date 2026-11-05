@@ -31,6 +31,11 @@ if (document.readyState === 'loading') {
 }
 
 document.addEventListener('click', (event) => {
+    const replayButton = event.target.closest('[data-replay-url]');
+    if (replayButton) {
+        openReplayPlayer(replayButton.dataset.replayUrl, replayButton.dataset.replayTitle, JSON.parse(replayButton.dataset.replayResources || '[]'));
+        return;
+    }
     const tab = event.target.closest('[data-course-tab]');
     if (!tab) return;
     const selected = tab.dataset.courseTab;
@@ -306,7 +311,7 @@ function renderCourseLiveSessions(sessions, hasAccess, loaded) {
         const dateLabel = start.toLocaleString('fr-FR', { dateStyle: 'full', timeStyle: 'short' });
         let action = '<span style="color:#64748b">Replay bientôt disponible</span>';
         if (session.replay_url) {
-            action = `<a href="${escapeHtml(session.replay_url)}" target="_blank" rel="noopener noreferrer" style="color:#2563eb;font-weight:700">Voir le replay</a>`;
+            action = `<button type="button" class="course-replay-button" data-replay-url="${escapeHtml(session.replay_url)}" data-replay-title="${escapeHtml(session.title)}" data-replay-resources="${escapeHtml(JSON.stringify(session.resources || []))}"><i class="fas fa-play-circle" aria-hidden="true"></i> Regarder le replay</button>`;
         } else if ((isUpcoming || isLive) && session.zoom_join_url) {
             action = `<a href="${escapeHtml(session.zoom_join_url)}" target="_blank" rel="noopener noreferrer" style="color:#e11d48;font-weight:700">${isLive ? 'Rejoindre le direct' : 'Ouvrir le lien du direct'}</a>`;
         }
@@ -323,6 +328,60 @@ function renderCourseLiveSessions(sessions, hasAccess, loaded) {
             <div class="course-live-month-content">${monthContent}</div>
         </details>`;
     }).join('');
+}
+
+function openReplayPlayer(replayUrl, title, resources = []) {
+    let parsed;
+    try { parsed = new URL(replayUrl, window.location.href); } catch { return showError('Lien du replay invalide'); }
+    if (!['http:', 'https:'].includes(parsed.protocol)) return showError('Lien du replay invalide');
+
+    const modal = document.createElement('div');
+    modal.className = 'video-modal';
+    const content = document.createElement('div');
+    content.className = 'video-modal-content replay-modal-content';
+    const close = document.createElement('button');
+    close.className = 'close-modal';
+    close.type = 'button';
+    close.setAttribute('aria-label', 'Fermer le replay');
+    close.textContent = '✕';
+    close.addEventListener('click', () => modal.remove());
+    const heading = document.createElement('h2');
+    heading.className = 'replay-modal-title';
+    heading.textContent = title || 'Replay de la séance';
+    content.append(close, heading);
+
+    const youtubeId = parsed.hostname.includes('youtu.be') ? parsed.pathname.slice(1) : parsed.searchParams.get('v');
+    const vimeoId = parsed.hostname.includes('vimeo.com') ? parsed.pathname.split('/').filter(Boolean).pop() : null;
+    let player;
+    if (youtubeId && (parsed.hostname.includes('youtube.com') || parsed.hostname.includes('youtu.be'))) {
+        player = document.createElement('iframe');
+        player.src = `https://www.youtube-nocookie.com/embed/${encodeURIComponent(youtubeId)}?autoplay=1`;
+        player.allow = 'autoplay; encrypted-media; picture-in-picture';
+        player.allowFullscreen = true;
+        player.title = title || 'Replay de la séance';
+    } else if (vimeoId && /^\d+$/.test(vimeoId)) {
+        player = document.createElement('iframe');
+        player.src = `https://player.vimeo.com/video/${encodeURIComponent(vimeoId)}?autoplay=1`;
+        player.allow = 'autoplay; fullscreen; picture-in-picture';
+        player.allowFullscreen = true;
+        player.title = title || 'Replay de la séance';
+    } else {
+        player = document.createElement('video');
+        player.controls = true;
+        player.autoplay = true;
+        player.playsInline = true;
+        player.src = parsed.href;
+    }
+    player.className = 'replay-modal-player';
+    content.appendChild(player);
+
+    if (resources.length) content.appendChild(createResourceSection(resources, 'Fichiers utilisés pendant la séance'));
+    modal.appendChild(content);
+    modal.addEventListener('click', event => { if (event.target === modal) modal.remove(); });
+    document.addEventListener('keydown', function closeOnEscape(event) {
+        if (event.key === 'Escape' && document.body.contains(modal)) { modal.remove(); document.removeEventListener('keydown', closeOnEscape); }
+    });
+    document.body.appendChild(modal);
 }
 
 /**
@@ -354,7 +413,10 @@ function renderModulesAndLessons(modules, hasAccess, courseProgress) {
             const duration = formatDuration(lesson.duration);
             
             let iconClass = 'active';
-            let iconHtml = '<i class="fas fa-play" style="margin-left: 2px;"></i>';
+            let iconHtml = lesson.type === 'quiz'
+                ? '<i class="fas fa-bolt"></i>'
+                : '<i class="fas fa-play" style="margin-left: 2px;"></i>';
+            if (lesson.type === 'quiz') iconClass = 'quiz';
             
             if (isLocked) {
                 iconClass = 'locked';
@@ -372,6 +434,7 @@ function renderModulesAndLessons(modules, hasAccess, courseProgress) {
                                     </div>
                                     <div class="lesson-details">
                                         <div class="lesson-title">${escapeHtml(lesson.title)}</div>
+                                        ${lesson.type === 'quiz' ? '<div class="lesson-duration" style="color:#7c3aed"><i class="fas fa-sparkles"></i> Mini-défi · 3 questions</div>' : ''}
                                         ${lesson.duration && lesson.duration > 0 ? `<div class="lesson-duration"><i class="far fa-clock"></i> ${duration}</div>` : ''}
                                     </div>
                                 </div>
@@ -1049,7 +1112,12 @@ async function openLesson(lessonId, lessonType) {
     try {
         if (lessonType === 'video') {
             const { videoUrl } = await window.SyntaAPI.getLessonVideo(lessonId);
-            openVideoPlayer(lessonId, videoUrl);
+            let resources = [];
+            try {
+                const response = await fetch(`/api/content/lesson/${encodeURIComponent(lessonId)}/resources`, { credentials:'include' });
+                if (response.ok) resources = (await response.json()).resources || [];
+            } catch (error) { console.warn('Could not load lesson files:', error.message); }
+            openVideoPlayer(lessonId, videoUrl, resources);
         } else if (lessonType === 'pdf') {
             const { pdfUrl } = await window.SyntaAPI.getLessonPDF(lessonId);
             window.open(pdfUrl, '_blank');
@@ -1067,7 +1135,7 @@ async function openLesson(lessonId, lessonType) {
 /**
  * Open video player modal
  */
-function openVideoPlayer(lessonId, videoUrl) {
+function openVideoPlayer(lessonId, videoUrl, resources = []) {
     const modal = document.createElement('div');
     modal.className = 'video-modal';
     modal.innerHTML = `
@@ -1081,6 +1149,8 @@ function openVideoPlayer(lessonId, videoUrl) {
     `;
 
     document.body.appendChild(modal);
+
+    if (resources.length) modal.querySelector('.video-modal-content').appendChild(createResourceSection(resources, 'Fichiers pour cette leçon'));
 
     const video = document.getElementById('lesson-video');
 
@@ -1104,6 +1174,40 @@ function openVideoPlayer(lessonId, videoUrl) {
     });
 }
 
+function createResourceSection(resources, headingText) {
+    const section = document.createElement('section');
+    section.className = 'replay-resource-section';
+    const heading = document.createElement('h3');
+    heading.textContent = headingText;
+    section.appendChild(heading);
+    const list = document.createElement('div');
+    list.className = 'replay-resource-list';
+    resources.forEach(resource => {
+        const link = document.createElement('a');
+        link.href = resource.url;
+        link.target = '_blank';
+        link.rel = 'noopener noreferrer';
+        link.className = 'replay-resource-link';
+        const icon = document.createElement('i');
+        icon.className = 'fas fa-file-code';
+        icon.setAttribute('aria-hidden', 'true');
+        const label = document.createElement('span');
+        label.textContent = `${resource.title || resource.file_name || 'Fichier'}${resource.file_size ? ` · ${formatResourceSize(resource.file_size)}` : ''}`;
+        const download = document.createElement('i');
+        download.className = 'fas fa-download';
+        download.setAttribute('aria-hidden', 'true');
+        link.append(icon, label, download);
+        list.appendChild(link);
+    });
+    section.appendChild(list);
+    return section;
+}
+
+function formatResourceSize(size) {
+    const bytes = Number(size) || 0;
+    return bytes < 1024 * 1024 ? `${Math.max(1, Math.round(bytes / 1024))} Ko` : `${(bytes / (1024 * 1024)).toFixed(1)} Mo`;
+}
+
 /**
  * Format duration in seconds to readable format
  */
@@ -1124,132 +1228,149 @@ async function openQuizLesson(lessonId) {
     try {
         const contentData = await window.SyntaAPI.getContentUrl(lessonId);
         const lesson = contentData.lesson || {};
-
-        if (!lesson.content || !lesson.content.questions) {
+        const questions = lesson.content?.questions;
+        if (!Array.isArray(questions) || questions.length !== 3) {
             window.SyntaAPI.showError('Quiz non disponible ou mal configuré');
             return;
         }
-
-        const questions = lesson.content.questions;
         let currentQuestionIndex = 0;
         let score = 0;
+        let selectedAnswer = null;
+        let renderedQuestionIndex = -1;
 
         const modal = document.createElement('div');
-        modal.className = 'video-modal'; // Reuse modal styles
+        modal.className = 'video-modal';
         modal.innerHTML = `
-            <div class="video-modal-content" style="background: white; padding: 30px; border-radius: 12px; max-width: 600px; color: #1e293b;">
-                <button class="close-modal" onclick="this.closest('.video-modal').remove()">✕</button>
-                <div id="quiz-content">
-                    <div class="quiz-header">
-                        <span id="question-number">Question 1/${questions.length}</span>
-                    </div>
-                    <h3 id="question-text" style="margin: 20px 0;"></h3>
-                    <div id="options-container" style="display: flex; flex-direction: column; gap: 10px;"></div>
-                    <button id="next-question" style="margin-top: 20px; display: none;" class="lesson-btn">Suivant</button>
-                </div>
+            <div class="video-modal-content" style="background:#f8fafc;padding:clamp(18px,4vw,34px);border-radius:22px;max-width:680px;width:min(680px,94vw);color:#1e293b;">
+                <button class="close-modal" aria-label="Fermer" onclick="this.closest('.video-modal').remove()">✕</button>
+                <div id="quiz-content"></div>
             </div>
         `;
         document.body.appendChild(modal);
-
         renderQuestion();
 
         function renderQuestion() {
             const question = questions[currentQuestionIndex];
-            document.getElementById('question-number').textContent = `Question ${currentQuestionIndex + 1}/${questions.length}`;
-            document.getElementById('question-text').textContent = question.text;
-
-            const optionsContainer = document.getElementById('options-container');
-            const nextButton = document.getElementById('next-question');
-            nextButton.style.display = 'none';
-            optionsContainer.innerHTML = '';
-
-            question.options.forEach(option => {
-                const btn = document.createElement('button');
-                btn.className = 'quiz-option-btn';
-                btn.style.cssText = 'padding: 12px; border: 1px solid #e2e8f0; border-radius: 8px; text-align: left; background: white; cursor: pointer; transition: all 0.2s;';
-                btn.textContent = option;
-                btn.onclick = () => handleAnswer(option, btn);
-                optionsContainer.appendChild(btn);
-            });
+            if (renderedQuestionIndex !== currentQuestionIndex) {
+                selectedAnswer = question.type === 'ordering' ? shuffleQuizItems(question.items || []) : question.type === 'matching' ? {} : null;
+                renderedQuestionIndex = currentQuestionIndex;
+            }
+            const quizContent = modal.querySelector('#quiz-content');
+            const typeLabels = { multiple_choice:'Choisis la bonne réponse', true_false:'Vrai ou faux ?', code_drag_drop:'Complète le code', ordering:'Remets dans le bon ordre', matching:'Relie chaque élément' };
+            let interaction = '';
+            if (question.type === 'multiple_choice') {
+                interaction = (question.options || []).map(option => `<button class="quiz-choice" data-choice="${escapeQuizHtml(option)}">${escapeQuizHtml(option)}</button>`).join('');
+            } else if (question.type === 'true_false') {
+                interaction = `<button class="quiz-choice" data-choice="true">Vrai</button><button class="quiz-choice" data-choice="false">Faux</button>`;
+            } else if (question.type === 'code_drag_drop') {
+                interaction = `<div class="quiz-code-prompt">${escapeQuizHtml(question.text).replace('___','<span class="quiz-drop-zone" data-drop-zone>dépose ici</span>')}</div><div class="quiz-token-tray">${(question.options || []).map((word,index) => `<button class="quiz-token" draggable="true" data-token-index="${index}">${escapeQuizHtml(word)}</button>`).join('')}</div>`;
+            } else if (question.type === 'ordering') {
+                interaction = `<div class="quiz-order-list">${(selectedAnswer || []).map((item,index) => `<div class="quiz-order-item" draggable="true" data-order-index="${index}"><span><i class="fas fa-grip-lines" aria-hidden="true"></i> ${escapeQuizHtml(item)}</span><span><button type="button" data-move="up" aria-label="Monter">↑</button><button type="button" data-move="down" aria-label="Descendre">↓</button></span></div>`).join('')}</div>`;
+            } else if (question.type === 'matching') {
+                const options = shuffleQuizItems((question.pairs || []).map(pair => pair.right));
+                interaction = (question.pairs || []).map((pair,index) => `<label class="quiz-match-row"><strong>${escapeQuizHtml(pair.left)}</strong><select data-match-index="${index}"><option value="">Choisir…</option>${options.map(option => `<option value="${escapeQuizHtml(option)}">${escapeQuizHtml(option)}</option>`).join('')}</select></label>`).join('');
+            }
+            quizContent.innerHTML = `
+                <div class="quiz-game-header"><span>✨ Mini-défi</span><span>Question ${currentQuestionIndex + 1} sur 3</span></div>
+                <div class="quiz-progress"><span style="width:${Math.round((currentQuestionIndex / questions.length) * 100)}%"></span></div>
+                <p class="quiz-type-label">${typeLabels[question.type] || 'Question'}</p>
+                <h2 class="quiz-prompt">${escapeQuizHtml(question.text).replaceAll('___','<span class="quiz-blank">_____</span>')}</h2>
+                <div class="quiz-interaction">${interaction}</div>
+                <div class="quiz-feedback" id="quiz-feedback" aria-live="polite"></div>
+                <button class="quiz-check-button" id="quiz-check-button">Vérifier</button>`;
+            bindQuizInteraction(question, quizContent);
+            quizContent.querySelector('#quiz-check-button').onclick = () => submitAnswer(question, quizContent);
         }
 
-        async function handleAnswer(selectedOption, btn) {
-            const question = questions[currentQuestionIndex];
-            const isCorrect = selectedOption === question.answer;
-            if (isCorrect) score++;
-
-            // Visual feedback
-            const options = document.querySelectorAll('.quiz-option-btn');
-            options.forEach(opt => opt.onclick = null); // Disable further clicks
-
-            if (isCorrect) {
-                btn.style.background = '#dcfce7';
-                btn.style.borderColor = '#22c55e';
-            } else {
-                btn.style.background = '#fee2e2';
-                btn.style.borderColor = '#ef4444';
-                // Highlight correct answer
-                options.forEach(opt => {
-                    if (opt.textContent === question.answer) {
-                        opt.style.background = '#dcfce7';
-                    }
+        function bindQuizInteraction(question, container) {
+            container.querySelectorAll('[data-choice]').forEach(button => button.addEventListener('click', () => {
+                container.querySelectorAll('[data-choice]').forEach(item => item.classList.remove('is-selected'));
+                button.classList.add('is-selected');
+                selectedAnswer = question.type === 'true_false' ? button.dataset.choice === 'true' : button.dataset.choice;
+            }));
+            const dropZone = container.querySelector('[data-drop-zone]');
+            if (dropZone) {
+                const placeToken = token => { selectedAnswer = token; dropZone.textContent = token; dropZone.classList.add('has-token'); };
+                container.querySelectorAll('[data-token-index]').forEach(button => {
+                    button.addEventListener('click', () => placeToken(button.textContent));
+                    button.addEventListener('dragstart', event => event.dataTransfer.setData('text/plain', button.textContent));
                 });
+                dropZone.addEventListener('dragover', event => event.preventDefault());
+                dropZone.addEventListener('drop', event => { event.preventDefault(); placeToken(event.dataTransfer.getData('text/plain')); });
             }
-
-            // Record response in tracking API
-            try {
-                const token = await getToken();
-                await fetch(`${window.SyntaAPI.BACKEND_URL}/api/tracking/response`, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${token}`
-                    },
-                    body: JSON.stringify({
-                        lessonId,
-                        questionId: question.id || `q${currentQuestionIndex}`,
-                        category: question.category || 'General',
-                        selectedOption,
-                        isCorrect
-                    })
-                });
-            } catch (err) {
-                console.error('Failed to track response:', err);
-            }
-
-            document.getElementById('next-question').style.display = 'block';
-        }
-
-        document.getElementById('next-question').onclick = () => {
-            currentQuestionIndex++;
-            if (currentQuestionIndex < questions.length) {
+            container.querySelectorAll('[data-move]').forEach(button => button.addEventListener('click', () => {
+                const index = Number(button.closest('[data-order-index]').dataset.orderIndex);
+                const offset = button.dataset.move === 'up' ? -1 : 1;
+                const target = index + offset;
+                if (target < 0 || target >= selectedAnswer.length) return;
+                [selectedAnswer[index], selectedAnswer[target]] = [selectedAnswer[target], selectedAnswer[index]];
                 renderQuestion();
-            } else {
-                showResults();
+            }));
+            container.querySelectorAll('.quiz-order-item').forEach(row => {
+                row.addEventListener('dragstart', event => event.dataTransfer.setData('text/plain', row.dataset.orderIndex));
+                row.addEventListener('dragover', event => event.preventDefault());
+                row.addEventListener('drop', event => {
+                    event.preventDefault();
+                    const from = Number(event.dataTransfer.getData('text/plain'));
+                    const to = Number(row.dataset.orderIndex);
+                    selectedAnswer.splice(to, 0, selectedAnswer.splice(from, 1)[0]);
+                    renderQuestion();
+                });
+            });
+            container.querySelectorAll('[data-match-index]').forEach(select => select.addEventListener('change', () => {
+                selectedAnswer[select.dataset.matchIndex] = select.value;
+            }));
+        }
+
+        async function submitAnswer(question, container) {
+            if (selectedAnswer === null || (question.type === 'matching' && (Object.keys(selectedAnswer).length !== question.pairs.length || Object.values(selectedAnswer).some(value => !value)))) {
+                const feedback = container.querySelector('#quiz-feedback');
+                feedback.textContent = 'Choisis une réponse avant de continuer.';
+                feedback.className = 'quiz-feedback is-warning';
+                return;
             }
-        };
+            let isCorrect = false;
+            if (question.type === 'multiple_choice' || question.type === 'code_drag_drop') isCorrect = selectedAnswer === question.answer;
+            else if (question.type === 'true_false') isCorrect = selectedAnswer === question.answer;
+            else if (question.type === 'ordering') isCorrect = selectedAnswer.every((item,index) => item === question.answer[index]);
+            else if (question.type === 'matching') isCorrect = question.pairs.every((pair,index) => selectedAnswer[index] === pair.right);
+            if (isCorrect) score++;
+            const feedback = container.querySelector('#quiz-feedback');
+            feedback.textContent = isCorrect ? 'Bien joué ! Tu as compris 👏' : 'Pas tout à fait — retiens la bonne réponse et continue 💡';
+            feedback.className = `quiz-feedback ${isCorrect ? 'is-correct' : 'is-incorrect'}`;
+            const checkButton = container.querySelector('#quiz-check-button');
+            checkButton.textContent = currentQuestionIndex === questions.length - 1 ? 'Voir mon résultat' : 'Question suivante';
+            checkButton.onclick = async () => {
+                try {
+                    await fetch('/api/tracking/response', { method:'POST', credentials:'include', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ lessonId, questionId:`q${currentQuestionIndex + 1}`, category:question.type, selectedOption:JSON.stringify(selectedAnswer), isCorrect, pointsEarned:isCorrect ? 1 : 0 }) });
+                } catch (error) { console.warn('Quiz response tracking failed:', error); }
+                currentQuestionIndex++;
+                if (currentQuestionIndex < questions.length) renderQuestion();
+                else showResults();
+            };
+            checkButton.classList.add('is-next');
+            container.querySelectorAll('button,select').forEach(control => { if (control !== checkButton) control.disabled = true; });
+        }
 
         async function showResults() {
-            const quizContent = document.getElementById('quiz-content');
-            const finalPercentage = Math.round((score / questions.length) * 100);
-
-            quizContent.innerHTML = `
-                <div style="text-align: center;">
-                    <div style="font-size: 3rem; margin-bottom: 20px;">${finalPercentage >= 70 ? '🎉' : '📚'}</div>
-                    <h2>Quiz Terminé !</h2>
-                    <p style="font-size: 1.5rem; margin: 20px 0;">Votre score: ${score}/${questions.length} (${finalPercentage}%)</p>
-                    <button class="lesson-btn" onclick="this.closest('.video-modal').remove()">Fermer</button>
-                </div>
-            `;
-
-            if (finalPercentage >= 70) {
-                await window.SyntaAPI.markLessonComplete(lessonId, 100);
-            }
+            const passed = score >= 2;
+            modal.querySelector('#quiz-content').innerHTML = `<div class="quiz-results"><div class="quiz-result-emoji">${passed ? '🎉' : '🌱'}</div><span class="quiz-type-label">Mini-défi terminé</span><h2>${passed ? 'Bravo, continue comme ça !' : 'Chaque essai te fait progresser !'}</h2><p>Tu as obtenu <strong>${score} / ${questions.length}</strong></p><div class="quiz-result-stars">${'⭐'.repeat(score)}${'☆'.repeat(questions.length - score)}</div><button class="quiz-check-button" id="quiz-finish">Continuer le cours</button></div>`;
+            await window.SyntaAPI.markLessonComplete(lessonId, 100);
+            modal.querySelector('#quiz-finish').addEventListener('click', () => { modal.remove(); loadCourseDetails(currentCourse.id); });
         }
 
     } catch (error) {
         console.error('Error opening quiz:', error);
+        window.SyntaAPI.showError(error.message || 'Impossible d’ouvrir le quiz');
     }
+}
+
+function escapeQuizHtml(value) {
+    return String(value ?? '').replace(/[&<>"']/g, char => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[char]));
+}
+
+function shuffleQuizItems(items) {
+    return [...items].sort(() => Math.random() - 0.5);
 }
 
 /**

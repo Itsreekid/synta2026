@@ -3,7 +3,7 @@ import pool from "../config/db.js";
 import { requireAdmin } from "../middleware/requireAdmin.js";
 import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
-import { createR2UploadUrl } from "../utils/r2Utils.js";
+import { createR2UploadUrl, deleteFromR2 } from "../utils/r2Utils.js";
 
 const router = express.Router();
 const SALT_ROUNDS = 12;
@@ -472,7 +472,10 @@ router.get("/api/admin/courses/:courseId/modules", requireAdmin, async (req, res
               COALESCE(json_agg(json_build_object(
                 'id', l.id, 'title', l.title, 'description', l.description,
                 'type', l.type, 'duration', l.duration, 'order_index', l.order_index,
-                'is_preview', l.is_preview, 'has_document', (l.pdf_key IS NOT NULL)
+                'is_preview', l.is_preview, 'has_document', (l.pdf_key IS NOT NULL), 'content', l.content,
+                'resources', COALESCE((SELECT json_agg(json_build_object(
+                  'id', lr.id, 'title', lr.title, 'file_name', lr.file_name, 'file_size', lr.file_size
+                ) ORDER BY lr.created_at) FROM learning_resources lr WHERE lr.lesson_id = l.id), '[]'::json)
               ) ORDER BY l.order_index) FILTER (WHERE l.id IS NOT NULL), '[]') AS lessons
        FROM course_modules cm JOIN modules m ON m.id = cm.module_id
        LEFT JOIN lessons l ON l.module_id = m.id
@@ -595,18 +598,21 @@ router.delete("/api/admin/courses/:courseId/modules/:moduleId", requireAdmin, as
 });
 
 router.post("/api/admin/modules/:moduleId/lessons", requireAdmin, async (req, res) => {
-  const { title, description = "", type = "video", duration = 0, isPreview = false } = req.body || {};
+  const { title, description = "", type = "video", duration = 0, isPreview = false, content = {} } = req.body || {};
   if (typeof title !== "string" || !title.trim() || !["video", "pdf", "quiz"].includes(type)) {
     return res.status(400).json({ success: false, error: "A title and valid lesson type are required" });
+  }
+  if (type === "quiz" && !isValidInteractiveQuiz(content)) {
+    return res.status(400).json({ success: false, error: "A quiz must contain exactly 3 valid questions" });
   }
   try {
     const module = await pool.query("SELECT id FROM modules WHERE id = $1", [req.params.moduleId]);
     if (!module.rowCount) return res.status(404).json({ success: false, error: "Chapter not found" });
     const result = await pool.query(
-      `INSERT INTO lessons (module_id, title, description, type, duration, is_preview, order_index)
-       VALUES ($1, $2, $3, $4, $5, $6, COALESCE((SELECT MAX(order_index) + 1 FROM lessons WHERE module_id = $1), 0))
-       RETURNING id, title, description, type, duration, is_preview, order_index`,
-      [req.params.moduleId, title.trim(), String(description).trim() || null, type, Math.max(0, Number(duration) || 0), !!isPreview]
+      `INSERT INTO lessons (module_id, title, description, type, duration, is_preview, order_index, content)
+       VALUES ($1, $2, $3, $4, $5, $6, COALESCE((SELECT MAX(order_index) + 1 FROM lessons WHERE module_id = $1), 0), $7::jsonb)
+       RETURNING id, title, description, type, duration, is_preview, order_index, content`,
+      [req.params.moduleId, title.trim(), String(description).trim() || null, type, Math.max(0, Number(duration) || 0), !!isPreview, JSON.stringify(type === "quiz" ? content : {})]
     );
     res.status(201).json({ success: true, data: result.rows[0] });
   } catch (error) {
@@ -616,20 +622,28 @@ router.post("/api/admin/modules/:moduleId/lessons", requireAdmin, async (req, re
 });
 
 router.patch("/api/admin/lessons/:lessonId", requireAdmin, async (req, res) => {
-  const { title, description, type, duration, isPreview, orderIndex } = req.body || {};
+  const { title, description, type, duration, isPreview, orderIndex, content } = req.body || {};
   if (type !== undefined && !["video", "pdf", "quiz"].includes(type)) {
     return res.status(400).json({ success: false, error: "Invalid lesson type" });
+  }
+  if (content !== undefined && type !== "quiz") {
+    return res.status(400).json({ success: false, error: "Quiz content can only be saved on quiz lessons" });
+  }
+  if (content !== undefined && !isValidInteractiveQuiz(content)) {
+    return res.status(400).json({ success: false, error: "A quiz must contain exactly 3 valid questions" });
   }
   try {
     const result = await pool.query(
       `UPDATE lessons SET title = COALESCE($1, title),
          description = CASE WHEN $7 THEN $2 ELSE description END,
          type = COALESCE($3, type), duration = COALESCE($4, duration),
-         is_preview = COALESCE($5, is_preview), order_index = COALESCE($6, order_index)
-       WHERE id = $8 RETURNING id`,
+         is_preview = COALESCE($5, is_preview), order_index = COALESCE($6, order_index),
+         content = COALESCE($8::jsonb, content)
+       WHERE id = $9 RETURNING id`,
       [title?.trim() || null, description === undefined ? null : (String(description).trim() || null), type ?? null,
        duration === undefined ? null : Math.max(0, Number(duration) || 0), isPreview ?? null,
-       orderIndex === undefined ? null : Math.max(0, Number(orderIndex) || 0), description !== undefined, req.params.lessonId]
+       orderIndex === undefined ? null : Math.max(0, Number(orderIndex) || 0), description !== undefined,
+       content === undefined ? null : JSON.stringify(content), req.params.lessonId]
     );
     if (!result.rowCount) return res.status(404).json({ success: false, error: "Lesson not found" });
     res.json({ success: true });
@@ -638,6 +652,19 @@ router.patch("/api/admin/lessons/:lessonId", requireAdmin, async (req, res) => {
     res.status(500).json({ success: false, error: "Could not update lesson" });
   }
 });
+
+function isValidInteractiveQuiz(content) {
+  const allowedTypes = new Set(["multiple_choice", "true_false", "code_drag_drop", "ordering", "matching"]);
+  if (!content || !Array.isArray(content.questions) || content.questions.length !== 3) return false;
+  return content.questions.every((question) => {
+    if (!question || typeof question.text !== "string" || !question.text.trim() || !allowedTypes.has(question.type)) return false;
+    if (question.type === "multiple_choice") return Array.isArray(question.options) && question.options.length >= 2 && question.options.includes(question.answer);
+    if (question.type === "true_false") return typeof question.answer === "boolean";
+    if (question.type === "code_drag_drop") return Array.isArray(question.options) && question.options.length >= 2 && question.options.includes(question.answer);
+    if (question.type === "ordering") return Array.isArray(question.items) && question.items.length >= 2 && Array.isArray(question.answer) && question.answer.length === question.items.length;
+    return Array.isArray(question.pairs) && question.pairs.length >= 2 && question.pairs.every(pair => pair.left && pair.right);
+  });
+}
 
 router.delete("/api/admin/lessons/:lessonId", requireAdmin, async (req, res) => {
   try {
@@ -683,6 +710,87 @@ router.patch("/api/admin/lessons/:lessonId/document", requireAdmin, async (req, 
   } catch (error) {
     console.error("Could not attach lesson document:", error.message);
     res.status(500).json({ success: false, error: "Could not attach document" });
+  }
+});
+
+const resourceExtensions = new Set(["py", "html", "htm", "css", "js", "mjs", "json", "txt", "zip"]);
+const resourceMimeTypes = new Set([
+  "text/x-python", "application/x-python", "text/html", "text/css", "text/javascript",
+  "application/javascript", "application/json", "text/plain", "application/zip", "application/x-zip-compressed",
+  "application/octet-stream",
+]);
+
+function isAllowedResourceFile(fileName, contentType) {
+  const extension = String(fileName || "").split(".").pop()?.toLowerCase();
+  return resourceExtensions.has(extension) && resourceMimeTypes.has(contentType);
+}
+
+router.post("/api/admin/resources/upload-url", requireAdmin, async (req, res) => {
+  const { lessonId, liveSessionId, fileName, contentType, size } = req.body || {};
+  if (Boolean(lessonId) === Boolean(liveSessionId)) {
+    return res.status(400).json({ error: "Choose exactly one lesson or live session" });
+  }
+  if (!isAllowedResourceFile(fileName, contentType)) {
+    return res.status(400).json({ error: "Allowed files: Python, HTML, CSS, JavaScript, JSON, TXT, or ZIP" });
+  }
+  if (!Number.isFinite(Number(size)) || Number(size) <= 0 || Number(size) > 25 * 1024 * 1024) {
+    return res.status(400).json({ error: "Each practice file must be 25 MB or less" });
+  }
+  try {
+    const ownerTable = lessonId ? "lessons" : "live_sessions";
+    const ownerId = lessonId || liveSessionId;
+    const owner = await pool.query(`SELECT id FROM ${ownerTable} WHERE id = $1`, [ownerId]);
+    if (!owner.rowCount) return res.status(404).json({ error: "Lesson or session not found" });
+    const safeName = String(fileName).normalize("NFKD").replace(/[^a-zA-Z0-9._-]/g, "_").slice(-120);
+    const ownerType = lessonId ? "lessons" : "sessions";
+    const key = `learning-resources/${ownerType}/${ownerId}/${Date.now()}-${safeName}`;
+    const uploadUrl = await createR2UploadUrl(key, contentType, 900);
+    res.json({ uploadUrl, key });
+  } catch (error) {
+    console.error("Could not prepare practice-file upload:", error.message);
+    res.status(500).json({ error: "Could not prepare file upload" });
+  }
+});
+
+router.post("/api/admin/resources", requireAdmin, async (req, res) => {
+  const { lessonId, liveSessionId, title, fileName, contentType, size, key } = req.body || {};
+  if (Boolean(lessonId) === Boolean(liveSessionId) || !isAllowedResourceFile(fileName, contentType)) {
+    return res.status(400).json({ error: "Invalid resource details" });
+  }
+  const ownerId = lessonId || liveSessionId;
+  const expectedPrefix = `learning-resources/${lessonId ? "lessons" : "sessions"}/${ownerId}/`;
+  if (typeof key !== "string" || !key.startsWith(expectedPrefix) || key.includes("..")) {
+    return res.status(400).json({ error: "Invalid upload key" });
+  }
+  if (!Number.isFinite(Number(size)) || Number(size) <= 0 || Number(size) > 25 * 1024 * 1024) {
+    return res.status(400).json({ error: "Each practice file must be 25 MB or less" });
+  }
+  try {
+    const ownerTable = lessonId ? "lessons" : "live_sessions";
+    const owner = await pool.query(`SELECT id FROM ${ownerTable} WHERE id = $1`, [ownerId]);
+    if (!owner.rowCount) return res.status(404).json({ error: "Lesson or session not found" });
+    const result = await pool.query(
+      `INSERT INTO learning_resources (lesson_id, live_session_id, title, file_name, object_key, content_type, file_size)
+       VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING id, title, file_name, file_size`,
+      [lessonId || null, liveSessionId || null, String(title || fileName).trim().slice(0, 180), fileName, key, contentType, Number(size)]
+    );
+    res.status(201).json({ success: true, resource: result.rows[0] });
+  } catch (error) {
+    console.error("Could not attach practice file:", error.message);
+    res.status(500).json({ error: "Could not attach practice file" });
+  }
+});
+
+router.delete("/api/admin/resources/:resourceId", requireAdmin, async (req, res) => {
+  try {
+    const result = await pool.query("SELECT object_key FROM learning_resources WHERE id = $1", [req.params.resourceId]);
+    if (!result.rowCount) return res.status(404).json({ error: "Resource not found" });
+    await deleteFromR2(result.rows[0].object_key);
+    await pool.query("DELETE FROM learning_resources WHERE id = $1", [req.params.resourceId]);
+    res.json({ success: true });
+  } catch (error) {
+    console.error("Could not delete practice file:", error.message);
+    res.status(500).json({ error: "Could not delete practice file" });
   }
 });
 

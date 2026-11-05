@@ -33,6 +33,8 @@ erDiagram
 
     modules ||--o{ lessons : "contains"
     lessons ||--o{ lesson_progress : "tracked by"
+    lessons ||--o{ learning_resources : "has practice files"
+    live_sessions ||--o{ learning_resources : "has practice files"
     lessons ||--o{ quiz_responses : "answered in"
     lessons ||--o{ lesson_feedback : "rated by"
 
@@ -64,6 +66,7 @@ erDiagram
 | `class` | TEXT | NULLABLE | Academic level: `1ere`, `2eme`, `3eme`, `bac`, `other` |
 | `branch` | TEXT | NULLABLE | Academic branch: `informatique`, `mathematiques`, `sciences`, `technique`, `lettres`, `economie`, `other` |
 | `created_at` | TIMESTAMPTZ | NOT NULL DEFAULT NOW() | |
+
 | `updated_at` | TIMESTAMPTZ | NOT NULL DEFAULT NOW() | |
 | `google_id` | TEXT | UNIQUE, NULLABLE | Added by `add_google_auth.sql` |
 | `email_verified` | BOOLEAN | NOT NULL DEFAULT false | Added by `add_email_verification.sql` |
@@ -151,6 +154,7 @@ Created automatically by the deployment runner. Tracks each applied migration fi
 | `title` | TEXT | NOT NULL | |
 | `description` | TEXT | NULLABLE | |
 | `type` | TEXT | NULLABLE | `'video'`, `'pdf'`, `'quiz'` |
+| `content` | JSONB | NOT NULL DEFAULT `{}` | Added by `202611050003_add_lesson_quiz_content.sql`; interactive quiz payload `{version: 1, questions: [...]}` |
 | `video_key` | TEXT | NULLABLE | R2 object key OR full URL |
 | `pdf_key` | TEXT | NULLABLE | R2 object key OR full URL |
 | `duration` | INTEGER | NULLABLE | Video duration in seconds |
@@ -159,6 +163,24 @@ Created automatically by the deployment runner. Tracks each applied migration fi
 | `created_at` | TIMESTAMPTZ | NOT NULL DEFAULT NOW() | |
 
 Admin lesson PDF/Word uploads use `pdf_key` for the private R2 object key. The student course-resource endpoint returns short-lived signed download URLs only after checking course enrollment.
+
+### 2.4a `learning_resources`
+
+**Purpose:** Multiple private practice-file attachments for a lesson or live session. Files live in R2; the database stores metadata and the object key. Migration: `202611050004_create_learning_resources.sql`.
+
+| Column | Type | Constraints | Notes |
+|--------|------|-------------|-------|
+| `id` | UUID | PK, DEFAULT gen_random_uuid() | |
+| `lesson_id` | UUID | NULLABLE REFERENCES lessons(id) ON DELETE CASCADE | Exactly one of lesson/session owner is set |
+| `live_session_id` | UUID | NULLABLE REFERENCES live_sessions(id) ON DELETE CASCADE | Exactly one of lesson/session owner is set |
+| `title` | TEXT | NOT NULL | Display name |
+| `file_name` | TEXT | NOT NULL | Original download name |
+| `object_key` | TEXT | NOT NULL UNIQUE | Private R2 object key |
+| `content_type` | TEXT | NOT NULL | Validated source/archive MIME type |
+| `file_size` | BIGINT | NOT NULL CHECK > 0 | Maximum 25 MB per file enforced by API |
+| `created_at` | TIMESTAMPTZ | NOT NULL DEFAULT NOW() | |
+
+Check constraint `learning_resources_single_owner` ensures exactly one parent. Indexes: `idx_learning_resources_lesson`, `idx_learning_resources_live_session`.
 
 ---
 
@@ -499,6 +521,10 @@ Admin lesson PDF/Word uploads use `pdf_key` for the private R2 object key. The s
 | `add_feedback_table.sql` | Creates `lesson_feedback` | ✅ Required |
 | `add_lesson_content.sql` | UNKNOWN | NEEDS CLARIFICATION |
 | `add_offers_features.sql` | Adds `features` JSONB to offers | ✅ Required |
+| `202611050001_create_notifications.sql` | Creates notifications table for deployment-managed schema setup | ✅ Applied by deployment runner |
+| `202611050002_create_course_modules.sql` | Adds reusable course/module mapping and backfills placements | ✅ Applied by deployment runner |
+| `202611050003_add_lesson_quiz_content.sql` | Adds JSONB `lessons.content` for interactive quiz payloads | ⏳ Runs automatically on the next deployment; not applied yet |
+| `202611050004_create_learning_resources.sql` | Adds multiple file attachments for lessons and live sessions | ⏳ Runs automatically on the next deployment; not applied yet |
 | `add_offers_targeting.sql` | Adds `target_classes`, `target_branches` arrays to offers | ✅ Required |
 | `add_transaction_automation.sql` | UNKNOWN trigger/automation | NEEDS CLARIFICATION |
 | `create_live_sessions.sql` | Earlier version of live_sessions table | ⚠️ Superseded by schema_postgres.sql |

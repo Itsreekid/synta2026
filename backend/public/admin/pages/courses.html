@@ -173,13 +173,26 @@
         .modal-content.chapter-modal { width: min(900px, 96vw); max-width: 900px; }
         .chapter-toolbar, .chapter-row, .lesson-row { display:flex; gap:.7rem; align-items:center; flex-wrap:wrap; }
         .chapter-row, .lesson-row { padding:.8rem; border:1px solid var(--border); border-radius:10px; margin:.5rem 0; background:#fff; }
+        .practice-files { display:flex; flex-wrap:wrap; gap:.4rem; padding:0 .35rem .5rem; }
+        .practice-file-chip { display:inline-flex; align-items:center; gap:.45rem; max-width:100%; padding:.35rem .55rem; border:1px solid #e9d5ff; border-radius:8px; background:#faf5ff; color:#6b21a8; font-size:.78rem; }
+        .practice-file-chip span { overflow-wrap:anywhere; }
+        .practice-file-chip button { border:0; background:transparent; color:#be123c; cursor:pointer; }
         .chapter-row { justify-content:space-between; background:#f8fafc; }
+        .chapter-card[draggable="true"],.lesson-row[draggable="true"] { cursor:grab; }
+        .chapter-card.is-dragging,.lesson-row.is-dragging { opacity:.45; }
+        .chapter-card.drop-target,.lesson-row.drop-target { outline:2px dashed #f97316; outline-offset:2px; }
+        .drag-grip { color:#94a3b8; margin-right:.55rem; cursor:grab; }
+        .quiz-builder { width:min(900px,96vw); max-width:900px; max-height:92vh; overflow:auto; }
+        .quiz-question-card { padding:1rem; margin:.75rem 0; border:1px solid var(--border); border-radius:12px; background:#fff; }
+        .quiz-question-card textarea,.quiz-question-card input,.quiz-question-card select { width:100%; padding:.65rem; border:1px solid var(--border); border-radius:8px; font:inherit; }
+        .quiz-question-fields { display:grid; grid-template-columns:1fr 1fr; gap:.65rem; margin-top:.65rem; }
+        .quiz-builder-hint { color:var(--text-muted); font-size:.84rem; }
         .chapter-lessons { padding:0 .5rem .6rem 1rem; }
         .chapter-form { display:grid; grid-template-columns:1fr 1fr auto; gap:.6rem; margin:1rem 0; }
         .chapter-form input, .chapter-form select { min-width:0; padding:.65rem; border:1px solid var(--border); border-radius:8px; }
         .lesson-form { display:grid; grid-template-columns:1.2fr 1fr 1.2fr 90px 85px 1fr auto; gap:.5rem; padding:.8rem 0; align-items:center; }
         .chapter-modal button { font-family:inherit; }
-        @media(max-width:700px) { .chapter-form,.lesson-form { grid-template-columns:1fr; } }
+        @media(max-width:700px) { .chapter-form,.lesson-form,.quiz-question-fields { grid-template-columns:1fr; } }
 
         .badge {
             font-size: 0.72rem;
@@ -487,6 +500,19 @@
         </div>
     </div>
 
+    <div id="quizBuilderModal" class="modal">
+        <div class="modal-content quiz-builder">
+            <div style="display:flex;justify-content:space-between;align-items:center;gap:1rem">
+                <div><h2 id="quizBuilderHeading">Créer un quiz</h2><p class="quiz-builder-hint">3 questions courtes · 5 styles interactifs · le quiz se place dans l’ordre des leçons</p></div>
+                <button type="button" class="btn-icon" onclick="closeQuizBuilder()" aria-label="Fermer"><i class="fas fa-times"></i></button>
+            </div>
+            <label style="display:block;margin:.8rem 0">Titre du quiz<input id="quizLessonTitle" style="display:block;width:100%;padding:.7rem;border:1px solid var(--border);border-radius:8px" placeholder="Ex. Mini-défi : les variables"></label>
+            <label style="display:block;margin:.8rem 0">Petite consigne (facultatif)<input id="quizLessonDescription" style="display:block;width:100%;padding:.7rem;border:1px solid var(--border);border-radius:8px" placeholder="3 questions pour vérifier ce que tu as retenu"></label>
+            <div id="quizQuestionBuilder"></div>
+            <div style="display:flex;justify-content:flex-end;gap:.6rem;margin-top:1rem"><button type="button" class="btn" onclick="closeQuizBuilder()">Annuler</button><button type="button" class="btn btn-primary" onclick="saveQuizBuilder()"><i class="fas fa-save"></i> Enregistrer le quiz</button></div>
+        </div>
+    </div>
+
     <!-- Scripts -->
     <script src="../../js/authentication.js"></script>
     <script src="../js/admin-auth.js"></script>
@@ -496,6 +522,63 @@
         let activeChapterCourseId = null;
         let activeCourseChapters = [];
         let chapterLibrary = [];
+        let dragState = null;
+        let activeQuizModuleId = null;
+        let activeQuizLessonId = null;
+
+        document.addEventListener('dragstart', event => {
+            const lessonRow = event.target.closest('.lesson-row[data-lesson-id]');
+            const chapterCard = event.target.closest('.chapter-card[data-chapter-id]');
+            if (lessonRow) {
+                dragState = { kind:'lesson', id:lessonRow.dataset.lessonId, moduleId:lessonRow.dataset.moduleId };
+                lessonRow.classList.add('is-dragging');
+            } else if (chapterCard) {
+                dragState = { kind:'chapter', id:chapterCard.dataset.chapterId };
+                chapterCard.classList.add('is-dragging');
+            } else return;
+            event.dataTransfer.effectAllowed = 'move';
+            event.dataTransfer.setData('text/plain', dragState.id);
+        });
+        document.addEventListener('dragover', event => {
+            if (!dragState) return;
+            const lessonRow = event.target.closest('.lesson-row[data-lesson-id]');
+            const chapterCard = event.target.closest('.chapter-card[data-chapter-id]');
+            const target = dragState.kind === 'lesson' && lessonRow?.dataset.moduleId === dragState.moduleId
+                ? lessonRow : dragState.kind === 'chapter' ? chapterCard : null;
+            if (target) { event.preventDefault(); target.classList.add('drop-target'); }
+        });
+        document.addEventListener('dragleave', event => event.target.closest('.drop-target')?.classList.remove('drop-target'));
+        document.addEventListener('drop', async event => {
+            if (!dragState) return;
+            const state = dragState;
+            const lessonRow = event.target.closest('.lesson-row[data-lesson-id]');
+            const chapterCard = event.target.closest('.chapter-card[data-chapter-id]');
+            if (state.kind === 'lesson' && lessonRow?.dataset.moduleId === state.moduleId) {
+                event.preventDefault();
+                const chapter = activeCourseChapters.find(item => String(item.id) === String(state.moduleId));
+                const lessons = chapter?.lessons || [];
+                const from = lessons.findIndex(item => String(item.id) === String(state.id));
+                const to = lessons.findIndex(item => String(item.id) === String(lessonRow.dataset.lessonId));
+                if (from >= 0 && to >= 0 && from !== to) {
+                    lessons.splice(to, 0, lessons.splice(from, 1)[0]);
+                    renderChapterManager();
+                    await persistLessonOrder(lessons);
+                }
+            } else if (state.kind === 'chapter' && chapterCard) {
+                event.preventDefault();
+                const from = activeCourseChapters.findIndex(item => String(item.id) === String(state.id));
+                const to = activeCourseChapters.findIndex(item => String(item.id) === String(chapterCard.dataset.chapterId));
+                if (from >= 0 && to >= 0 && from !== to) {
+                    activeCourseChapters.splice(to, 0, activeCourseChapters.splice(from, 1)[0]);
+                    renderChapterManager();
+                    await persistChapterOrder();
+                }
+            }
+        });
+        document.addEventListener('dragend', () => {
+            document.querySelectorAll('.is-dragging,.drop-target').forEach(el => el.classList.remove('is-dragging','drop-target'));
+            dragState = null;
+        });
 
         // ── Init ──────────────────────────────────────
         document.addEventListener('DOMContentLoaded', async () => {
@@ -671,9 +754,9 @@
                 return;
             }
             list.innerHTML = activeCourseChapters.map(chapter => `
-                <section style="border:1px solid var(--border);border-radius:12px;margin:.75rem 0;overflow:hidden">
+                <section class="chapter-card" data-chapter-id="${escHtml(chapter.id)}" draggable="true" style="border:1px solid var(--border);border-radius:12px;margin:.75rem 0;overflow:hidden">
                     <div class="chapter-row" style="border:0;border-radius:0;margin:0">
-                        <div><strong>${escHtml(chapter.title)}</strong><small style="display:block;color:var(--text-muted)">${chapter.lesson_count} leçon(s) · ordre ${chapter.order_index}</small></div>
+                        <div><i class="fas fa-grip-vertical drag-grip" aria-hidden="true"></i><strong>${escHtml(chapter.title)}</strong><small style="display:block;color:var(--text-muted)">${chapter.lesson_count} élément(s) · ordre ${chapter.order_index} · glisser pour déplacer</small></div>
                         <div class="actions">
                             <input aria-label="Ordre du chapitre" type="number" min="0" value="${chapter.order_index}" style="width:76px;padding:.45rem;border:1px solid var(--border);border-radius:7px" onchange="updateChapterOrder('${chapter.id}',this.value)">
                             <button class="btn-icon" title="Modifier le titre" onclick="editChapter('${chapter.id}')"><i class="fas fa-pen"></i></button>
@@ -682,22 +765,25 @@
                     </div>
                     <div class="chapter-lessons">
                         ${(chapter.lessons || []).map(lesson => `
-                            <div class="lesson-row">
-                                <div style="flex:1;min-width:150px"><strong>${escHtml(lesson.title)}</strong><small style="display:block;color:var(--text-muted)">${escHtml(lesson.type)} · ordre ${lesson.order_index}${lesson.is_preview ? ' · aperçu' : ''}${lesson.has_document ? ' · document attaché' : ' · sans document'}</small></div>
+                            <div class="lesson-row" data-lesson-id="${escHtml(lesson.id)}" data-module-id="${escHtml(chapter.id)}" draggable="true">
+                                <div style="flex:1;min-width:150px"><i class="fas fa-grip-lines drag-grip" aria-hidden="true"></i><strong>${escHtml(lesson.title)}</strong><small style="display:block;color:var(--text-muted)">${lesson.type === 'quiz' ? 'Quiz interactif' : escHtml(lesson.type)} · ordre ${lesson.order_index}${lesson.is_preview ? ' · aperçu' : ''}${lesson.has_document ? ' · document attaché' : lesson.type !== 'quiz' ? ' · sans document' : ''} · glisser pour déplacer</small></div>
                                 <input aria-label="Ordre de la leçon" type="number" min="0" value="${lesson.order_index}" style="width:72px;padding:.4rem;border:1px solid var(--border);border-radius:7px" onchange="updateLessonOrder('${lesson.id}',this.value)">
-                                <button class="btn" type="button" onclick="uploadLessonDocument('${lesson.id}')"><i class="fas fa-file-upload"></i> ${lesson.has_document ? 'Remplacer le document' : 'Ajouter un document'}</button>
+                                <button class="btn" type="button" onclick="uploadLessonPracticeFiles('${lesson.id}')"><i class="fas fa-code"></i> Fichiers (${(lesson.resources || []).length})</button>
+                                ${lesson.type !== 'quiz' ? `<button class="btn" type="button" onclick="uploadLessonDocument('${lesson.id}')"><i class="fas fa-file-upload"></i> ${lesson.has_document ? 'Remplacer le document' : 'Ajouter un document'}</button>` : `<button class="btn" type="button" onclick="editInteractiveQuiz('${lesson.id}')"><i class="fas fa-sliders-h"></i> Modifier le quiz</button>`}
                                 <button class="btn-icon" title="Modifier le titre" onclick="editLesson('${lesson.id}')"><i class="fas fa-pen"></i></button>
                                 <button class="btn-icon danger" title="Supprimer la leçon" onclick="deleteLesson('${lesson.id}')"><i class="fas fa-trash"></i></button>
-                            </div>`).join('')}
+                            </div>
+                            ${(lesson.resources || []).length ? `<div class="practice-files">${lesson.resources.map(resource => `<span class="practice-file-chip"><i class="fas fa-file-code"></i><span>${escHtml(resource.title || resource.file_name)}</span><button type="button" title="Supprimer le fichier" onclick="deletePracticeResource('${resource.id}')"><i class="fas fa-times"></i></button></span>`).join('')}</div>` : ''}` ).join('')}
                         <form class="lesson-form" onsubmit="createLesson(event,'${chapter.id}')">
                             <input name="title" required placeholder="Titre de la leçon">
-                            <select name="type"><option value="video">Vidéo</option><option value="pdf">Document</option><option value="quiz">Quiz</option></select>
+                            <select name="type"><option value="video">Vidéo</option><option value="pdf">Document</option></select>
                             <input name="description" placeholder="Description (facultatif)">
                             <input name="duration" type="number" min="0" placeholder="Durée (s)">
                             <label style="font-size:.78rem"><input name="isPreview" type="checkbox"> Aperçu</label>
                             <input name="document" type="file" accept=".pdf,.doc,.docx,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document" aria-label="Document de la leçon">
                             <button class="btn btn-primary" type="submit">Ajouter</button>
                         </form>
+                        <button class="btn" type="button" onclick="openQuizBuilder('${chapter.id}')"><i class="fas fa-bolt" style="color:#f97316"></i> Ajouter un quiz interactif (3 questions)</button>
                     </div>
                 </section>`).join('');
         }
@@ -723,6 +809,123 @@
         async function updateChapterOrder(moduleId, orderIndex) {
             await chapterRequest(`/api/admin/courses/${activeChapterCourseId}/modules/${moduleId}`, 'PATCH', { orderIndex:Number(orderIndex) });
             await loadChapterManager();
+        }
+
+        async function persistChapterOrder() {
+            try {
+                for (let index = 0; index < activeCourseChapters.length; index++) {
+                    const response = await fetch(`/api/admin/courses/${activeChapterCourseId}/modules/${activeCourseChapters[index].id}`, {
+                        method:'PATCH', credentials:'include', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ orderIndex:index })
+                    });
+                    if (!response.ok) throw new Error('Impossible d’enregistrer l’ordre des chapitres');
+                    activeCourseChapters[index].order_index = index;
+                }
+                showToast('Ordre des chapitres enregistré.', 'success');
+            } catch (error) { showToast(error.message, 'error'); await loadChapterManager(); }
+        }
+
+        async function persistLessonOrder(lessons) {
+            try {
+                for (let index = 0; index < lessons.length; index++) {
+                    const response = await fetch(`/api/admin/lessons/${lessons[index].id}`, {
+                        method:'PATCH', credentials:'include', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ orderIndex:index })
+                    });
+                    if (!response.ok) throw new Error('Impossible d’enregistrer l’ordre des éléments');
+                    lessons[index].order_index = index;
+                }
+                showToast('Ordre des leçons et quiz enregistré.', 'success');
+            } catch (error) { showToast(error.message, 'error'); await loadChapterManager(); }
+        }
+
+        function openQuizBuilder(moduleId, lesson = null) {
+            activeQuizModuleId = moduleId;
+            activeQuizLessonId = lesson?.id || null;
+            document.getElementById('quizBuilderHeading').textContent = lesson ? 'Modifier le quiz' : 'Créer un quiz interactif';
+            document.getElementById('quizLessonTitle').value = lesson?.title || '';
+            document.getElementById('quizLessonDescription').value = lesson?.description || '';
+            const existing = lesson?.content?.questions || [];
+            const defaults = [
+                { type:'multiple_choice', text:'Quelle réponse est correcte ?', options:['Réponse A','Réponse B','Réponse C'], answer:'Réponse A' },
+                { type:'true_false', text:'Cette affirmation est-elle vraie ?', answer:true },
+                { type:'code_drag_drop', text:'Complète le code : ___', options:['mot1','mot2','mot3'], answer:'mot1' }
+            ];
+            renderQuizQuestionBuilder([0,1,2].map(index => existing[index] || defaults[index]));
+            document.getElementById('quizBuilderModal').style.display = 'flex';
+        }
+
+        function closeQuizBuilder() { document.getElementById('quizBuilderModal').style.display = 'none'; }
+
+        function renderQuizQuestionBuilder(questions) {
+            const typeNames = { multiple_choice:'QCM', true_false:'Vrai ou faux', code_drag_drop:'Mot à glisser dans le code', ordering:'Remettre dans l’ordre', matching:'Associer les éléments' };
+            document.getElementById('quizQuestionBuilder').innerHTML = questions.map((question, index) => `
+                <section class="quiz-question-card" data-question-index="${index}">
+                    <strong>Question ${index + 1}</strong>
+                    <select data-question-type onchange="renderQuizQuestionFields(${index},this.value)" style="margin-top:.55rem">
+                        ${Object.entries(typeNames).map(([value,label]) => `<option value="${value}" ${question.type === value ? 'selected' : ''}>${label}</option>`).join('')}
+                    </select>
+                    <textarea data-question-text rows="2" placeholder="Écris une question courte" style="margin-top:.55rem">${escHtml(question.text || '')}</textarea>
+                    <div class="quiz-question-fields" data-question-fields>${quizFieldsHtml(question)}</div>
+                </section>`).join('');
+        }
+
+        function quizFieldsHtml(question) {
+            const type = question.type;
+            if (type === 'true_false') return `<label>Bonne réponse<select data-answer><option value="true" ${question.answer === true ? 'selected' : ''}>Vrai</option><option value="false" ${question.answer === false ? 'selected' : ''}>Faux</option></select></label><span class="quiz-builder-hint">L’élève choisira entre Vrai et Faux.</span>`;
+            if (type === 'ordering') return `<label style="grid-column:1/-1">Éléments dans le bon ordre<textarea data-items rows="3" placeholder="Un élément par ligne">${escHtml((question.items || question.answer || []).join('\n'))}</textarea></label><span class="quiz-builder-hint">L’élève devra remettre ces éléments dans l’ordre.</span>`;
+            if (type === 'matching') return `<label style="grid-column:1/-1">Paires à associer<textarea data-pairs rows="4" placeholder="Terme | Définition&#10;Variable | Zone mémoire">${escHtml((question.pairs || []).map(pair => `${pair.left} | ${pair.right}`).join('\n'))}</textarea></label><span class="quiz-builder-hint">Une paire par ligne, séparée par |</span>`;
+            const isCode = type === 'code_drag_drop';
+            return `<label>Réponses possibles (séparées par virgules)<input data-options value="${escHtml((question.options || []).join(', '))}" placeholder="mot1, mot2, mot3"></label><label>Bonne réponse<input data-answer value="${escHtml(question.answer || '')}" placeholder="Copie exactement la bonne réponse"></label>${isCode ? '<span class="quiz-builder-hint" style="grid-column:1/-1">Dans la question, indique la zone à compléter avec ___ ; l’élève glissera un mot dans le code.</span>' : ''}`;
+        }
+
+        function renderQuizQuestionFields(index, type) {
+            const card = document.querySelector(`[data-question-index="${index}"]`);
+            const defaults = { type, text:card.querySelector('[data-question-text]').value };
+            card.querySelector('[data-question-fields]').innerHTML = quizFieldsHtml(defaults);
+        }
+
+        function collectQuizQuestion(card) {
+            const type = card.querySelector('[data-question-type]').value;
+            const text = card.querySelector('[data-question-text]').value.trim();
+            if (type === 'true_false') return { type, text, answer:card.querySelector('[data-answer]').value === 'true' };
+            if (type === 'ordering') {
+                const items = card.querySelector('[data-items]').value.split('\n').map(value => value.trim()).filter(Boolean);
+                return { type, text, items, answer:[...items] };
+            }
+            if (type === 'matching') {
+                const pairs = card.querySelector('[data-pairs]').value.split('\n').map(line => {
+                    const [left, ...right] = line.split('|'); return { left:left.trim(), right:right.join('|').trim() };
+                }).filter(pair => pair.left && pair.right);
+                return { type, text, pairs };
+            }
+            const options = card.querySelector('[data-options]').value.split(',').map(value => value.trim()).filter(Boolean);
+            return { type, text, options, answer:card.querySelector('[data-answer]').value.trim() };
+        }
+
+        async function saveQuizBuilder() {
+            const title = document.getElementById('quizLessonTitle').value.trim();
+            const description = document.getElementById('quizLessonDescription').value.trim();
+            const questions = [...document.querySelectorAll('.quiz-question-card')].map(collectQuizQuestion);
+            if (!title) return showToast('Donne un titre à ce quiz.', 'error');
+            if (questions.some(question => !question.text)) return showToast('Chaque question doit avoir un énoncé.', 'error');
+            if (questions.some(question => question.type === 'multiple_choice' && (question.options.length < 2 || !question.options.includes(question.answer)))) return showToast('Pour chaque QCM, ajoute au moins 2 choix et indique la bonne réponse exacte.', 'error');
+            if (questions.some(question => question.type === 'code_drag_drop' && (question.options.length < 2 || !question.options.includes(question.answer) || !question.text.includes('___')))) return showToast('Le quiz code doit avoir au moins 2 mots, la bonne réponse et le symbole ___ dans l’énoncé.', 'error');
+            if (questions.some(question => question.type === 'ordering' && question.items.length < 2)) return showToast('Ajoute au moins 2 éléments à remettre dans l’ordre.', 'error');
+            if (questions.some(question => question.type === 'matching' && question.pairs.length < 2)) return showToast('Ajoute au moins 2 paires à associer.', 'error');
+            const body = { title, description, type:'quiz', duration:0, isPreview:false, content:{ version:1, questions } };
+            try {
+                const url = activeQuizLessonId ? `/api/admin/lessons/${activeQuizLessonId}` : `/api/admin/modules/${activeQuizModuleId}/lessons`;
+                const response = await fetch(url, { method:activeQuizLessonId ? 'PATCH' : 'POST', credentials:'include', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body) });
+                const data = await response.json();
+                if (!response.ok || !data.success) throw new Error(data.error || 'Impossible d’enregistrer ce quiz');
+                closeQuizBuilder();
+                showToast(activeQuizLessonId ? 'Quiz mis à jour.' : 'Quiz ajouté dans le chapitre.', 'success');
+                await loadChapterManager();
+            } catch (error) { showToast(error.message, 'error'); }
+        }
+
+        function editInteractiveQuiz(lessonId) {
+            const lesson = activeCourseChapters.flatMap(chapter => chapter.lessons || []).find(item => item.id === lessonId);
+            if (lesson) openQuizBuilder(lesson.module_id || activeCourseChapters.find(chapter => chapter.lessons?.some(item => item.id === lessonId))?.id, lesson);
         }
 
         async function editChapter(moduleId) {
@@ -779,6 +982,46 @@
             });
             const attached = await attachResponse.json();
             if (!attachResponse.ok) throw new Error(attached.error || 'Document transféré mais non attaché');
+        }
+
+        async function uploadLessonPracticeFiles(lessonId) {
+            const input = document.createElement('input');
+            input.type = 'file'; input.multiple = true; input.accept = '.py,.html,.htm,.css,.js,.mjs,.json,.txt,.zip';
+            input.onchange = async () => {
+                const files = [...(input.files || [])];
+                if (!files.length) return;
+                try {
+                    for (const file of files) await uploadPracticeFile({ lessonId }, file);
+                    showToast(`${files.length} fichier(s) ajouté(s) à la leçon.`, 'success');
+                    await loadChapterManager();
+                } catch (error) { showToast(error.message, 'error'); }
+            };
+            input.click();
+        }
+
+        async function uploadPracticeFile(owner, file) {
+            if (file.size > 25 * 1024 * 1024) throw new Error(`${file.name} dépasse la limite de 25 Mo.`);
+            const contentType = file.type || 'application/octet-stream';
+            const signedResponse = await fetch('/api/admin/resources/upload-url', {
+                method:'POST', credentials:'include', headers:{'Content-Type':'application/json'},
+                body:JSON.stringify({ ...owner, fileName:file.name, contentType, size:file.size })
+            });
+            const signed = await signedResponse.json();
+            if (!signedResponse.ok) throw new Error(signed.error || `Impossible de préparer ${file.name}`);
+            const uploadResponse = await fetch(signed.uploadUrl, { method:'PUT', headers:{'Content-Type':contentType}, body:file });
+            if (!uploadResponse.ok) throw new Error(`Échec du transfert de ${file.name}. Vérifiez le CORS R2.`);
+            const saveResponse = await fetch('/api/admin/resources', {
+                method:'POST', credentials:'include', headers:{'Content-Type':'application/json'},
+                body:JSON.stringify({ ...owner, title:file.name.replace(/\.[^.]+$/, ''), fileName:file.name, contentType, size:file.size, key:signed.key })
+            });
+            const saved = await saveResponse.json();
+            if (!saveResponse.ok) throw new Error(saved.error || `Impossible d’attacher ${file.name}`);
+        }
+
+        async function deletePracticeResource(resourceId) {
+            if (!confirm('Supprimer ce fichier ?')) return;
+            await chapterRequest(`/api/admin/resources/${encodeURIComponent(resourceId)}`, 'DELETE');
+            await loadChapterManager();
         }
 
         async function deleteLesson(lessonId) {

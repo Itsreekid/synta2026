@@ -33,7 +33,7 @@ import { r2Client, R2_BUCKET, SIGNED_URL_EXPIRY } from "../config/r2.js";
  * const url = await generateSignedUrl('courses/python/lesson1/video.mp4', 300);
  * // URL valid for 5 minutes
  */
-export async function generateSignedUrl(key, expiresIn = SIGNED_URL_EXPIRY) {
+export async function generateSignedUrl(key, expiresIn = SIGNED_URL_EXPIRY, downloadFileName = null) {
   // Input validation
   if (!key || typeof key !== "string") {
     throw new Error("Invalid R2 key: must be a non-empty string");
@@ -44,9 +44,13 @@ export async function generateSignedUrl(key, expiresIn = SIGNED_URL_EXPIRY) {
   }
 
   try {
+    const responseContentDisposition = downloadFileName
+      ? `attachment; filename="${String(downloadFileName).replace(/[^\x20-\x7E]|["\\;]/g, "_")}"; filename*=UTF-8''${encodeURIComponent(downloadFileName)}`
+      : undefined;
     const command = new GetObjectCommand({
       Bucket: R2_BUCKET,
       Key: key,
+      ...(responseContentDisposition ? { ResponseContentDisposition: responseContentDisposition } : {}),
     });
 
     const signedUrl = await getSignedUrl(r2Client, command, {

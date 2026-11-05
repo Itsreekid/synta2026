@@ -37,6 +37,29 @@
 - Offer listing now requires profile values to match any configured class/branch targets and honors validity dates.
 - No schema changes. API syntax was checked; database and representative-account behavior were not manually exercised.
 
+## 2026-11-05 — Add Chapter Ordering and Interactive Quizzes
+
+**Author:** Codex
+**Type:** FEATURE / SCHEMA
+
+- Added drag-and-drop ordering for course chapters and for lessons/quiz checkpoints within a chapter; numeric ordering remains available.
+- Added an admin quiz builder for exactly three questions with five styles: QCM, true/false, drag a word into code, reorder steps, and matching pairs.
+- Added the student mini-quiz experience with interactive controls, feedback, score, and lesson completion tracking.
+- Added `lessons.content` JSONB in migration `202611050003_add_lesson_quiz_content.sql` and the base schema reference. Migration was not executed manually.
+- Syntax/source checks only; database and browser workflows remain unverified.
+
+## 2026-11-05 — Play Replays In-Page and Attach Practice Files
+
+**Author:** Codex
+**Type:** FEATURE / SCHEMA
+
+- Session replays open in a course-page player modal; direct videos play natively and YouTube/Vimeo URLs use embedded players.
+- Added a private R2 resource flow for multiple Python, HTML, CSS, JavaScript, JSON, TXT, and ZIP files on a lesson or live session (25 MB per file).
+- Admins can upload/remove attachments from lesson and session management. Entitled students see lesson files below the video and session files inside the replay player.
+- Signed downloads use attachment disposition to download source files instead of rendering executable HTML in the browser.
+- Added `learning_resources` to the base schema and migration `202611050004_create_learning_resources.sql`; not executed manually.
+- Syntax checks passed; database/R2/browser flows remain unverified.
+
 ---
 
 ## 2026-11-05 — Add Automatic Deploy Migrations and Reusable Course Modules

@@ -6,11 +6,13 @@ The backend Docker image runs `npm run migrate` before `npm start`. On each depl
 
 In Coolify, configure the application to build from the **repository root** and use **`/backend/Dockerfile`** as the Dockerfile path. Keep `DATABASE_URL` set to the PostgreSQL service reachable from the backend container. No SQL paste or manual migration command is needed for these incremental changes.
 
+The current migrations add reusable course modules, interactive quiz content, and the `learning_resources` table for lesson/live-session practice files. Coolify applies pending migration files before starting the app. Back up the database before deployment.
+
 This does not initialize a brand-new empty PostgreSQL database. The base schema in `database/schema_postgres.sql` must already have been installed once. Back up the database before the first deployment containing migrations.
 
 ## R2 browser uploads
 
-The admin uploads lesson documents and live replay videos directly to the private R2 bucket using short-lived signed URLs. Configure the bucket CORS policy to allow `PUT` from your exact Synta site origin and allow the `Content-Type` request header. Example policy values: `AllowedOrigins: ["https://your-site-domain"]`, `AllowedMethods: ["PUT"]`, `AllowedHeaders: ["Content-Type"]`, `ExposeHeaders: ["ETag"]`, `MaxAgeSeconds: 3600`. Replace the example origin with the production domain (and add the admin preview domain if you use one).
+The admin uploads lesson documents, live replay videos, and practice files directly to the private R2 bucket using short-lived signed URLs. Configure the bucket CORS policy to allow `PUT` from your exact Synta site origin and allow the `Content-Type` request header. Practice files support Python, HTML, CSS, JavaScript, JSON, TXT, and ZIP (25 MB per file). Example policy values: `AllowedOrigins: ["https://your-site-domain"]`, `AllowedMethods: ["PUT"]`, `AllowedHeaders: ["Content-Type"]`, `ExposeHeaders: ["ETag"]`, `MaxAgeSeconds: 3600`. Replace the example origin with the production domain (and add the admin preview domain if you use one).
 
 ## ⚡ Quick Fix Commands
 

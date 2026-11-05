@@ -75,6 +75,7 @@ CREATE TABLE IF NOT EXISTS lessons (
   title       TEXT NOT NULL,
   description TEXT,
   type        TEXT,         -- 'video' | 'pdf' | 'quiz'
+  content     JSONB NOT NULL DEFAULT '{}'::jsonb, -- structured quiz questions and answers
   video_key   TEXT,
   pdf_key     TEXT,
   duration    INTEGER,      -- seconds
@@ -190,6 +191,23 @@ CREATE TABLE IF NOT EXISTS live_sessions (
   replay_url       TEXT,
   created_at       TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
+
+-- ─── LEARNING RESOURCE ATTACHMENTS ────────────────────
+CREATE TABLE IF NOT EXISTS learning_resources (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  lesson_id UUID REFERENCES lessons(id) ON DELETE CASCADE,
+  live_session_id UUID REFERENCES live_sessions(id) ON DELETE CASCADE,
+  title TEXT NOT NULL,
+  file_name TEXT NOT NULL,
+  object_key TEXT NOT NULL UNIQUE,
+  content_type TEXT NOT NULL,
+  file_size BIGINT NOT NULL CHECK (file_size > 0),
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  CONSTRAINT learning_resources_single_owner CHECK ((lesson_id IS NOT NULL) <> (live_session_id IS NOT NULL))
+);
+
+CREATE INDEX IF NOT EXISTS idx_learning_resources_lesson ON learning_resources(lesson_id, created_at);
+CREATE INDEX IF NOT EXISTS idx_learning_resources_live_session ON learning_resources(live_session_id, created_at);
 
 -- ─── QUIZ RESPONSES ───────────────────────────────────
 CREATE TABLE IF NOT EXISTS quiz_responses (

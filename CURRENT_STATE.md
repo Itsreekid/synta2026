@@ -271,3 +271,20 @@ Admin course management now supports shared chapters, lesson management, and les
 - `/api/offers` now filters targeted offers strictly when the student profile lacks class/branch, and excludes offers outside validity dates.
 - No database changes. Runtime behavior still needs verification against representative student accounts and offer configurations.
 
+### Chapter drag ordering and interactive quizzes (2026-11-05)
+
+- Admin chapter manager supports drag-and-drop ordering for chapters and for lessons/quiz items within a chapter; existing numeric order controls remain available.
+- Admins can create/edit a three-question quiz and choose among multiple choice, true/false, code-word drag and drop, ordering, and matching pairs.
+- Student course player supports the five formats, answer feedback, progress through all three questions, result screen, and quiz completion tracking.
+- Added `202611050003_add_lesson_quiz_content.sql` for `lessons.content` JSONB; the migration has not been run manually. Coolify applies it on deployment.
+- Verification is limited to source/syntax checks; no DB migration, browser interaction, or live student/admin flow was exercised.
+
+### Replay player and lesson/session practice files (2026-11-05)
+
+- Course-page replays now open in an in-page video modal; YouTube and Vimeo links use embeds, while direct recording URLs use the native video player.
+- Replay modal can display and download files attached to that live session. Lesson videos can show attached practice files below the player.
+- Admin course and session pages can upload multiple Python, HTML, CSS, JavaScript, JSON, TXT, and ZIP files (25 MB each) to private R2 and remove attachments.
+- Student file routes enforce lesson/course/session enrollment and return signed URLs with attachment disposition.
+- Added migration `202611050004_create_learning_resources.sql` and base schema table. No DB migration was executed manually; Coolify will apply it on deployment.
+- JavaScript syntax checks pass. Browser interaction, deployed DB migration, R2 CORS, and actual downloads remain unverified.
+

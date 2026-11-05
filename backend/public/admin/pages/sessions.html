@@ -116,6 +116,10 @@
         .badge-offer { background: #fef3cd; color: #92400e; }
 
         .session-actions { display: flex; gap: 0.5rem; flex-shrink: 0; align-items: center; flex-wrap: wrap; justify-content: flex-end; }
+        .session-resource-list { grid-column:1/-1; padding:.8rem 1rem; border-radius:12px; background:#f8fafc; color:#334155; }
+        .session-resource-item { display:flex; align-items:center; justify-content:space-between; gap:.75rem; padding:.4rem 0; }
+        .session-resource-item span { overflow-wrap:anywhere; font-size:.88rem; }
+        .session-resource-item span i { color:#7c3aed; margin-right:.4rem; }
 
         .empty-state {
             text-align: center; padding: 3rem;
@@ -417,10 +421,57 @@ function renderCard(s, status) {
         </div>
         <div class="session-actions">
             ${hostBtn}
+            <button class="btn-secondary" onclick="uploadSessionFiles('${s.id}')"><i class="fas fa-paperclip"></i> Ajouter des fichiers (${(s.resources || []).length})</button>
             ${status === 'completed' ? `<button class="btn-secondary" onclick="uploadReplay('${s.id}')"><i class="fas fa-cloud-upload-alt"></i> ${s.replay_url ? 'Remplacer le replay' : 'Téléverser le replay'}</button><button class="btn-secondary" onclick="updateReplay('${s.id}')"><i class="fas fa-link"></i> Lien externe</button>` : ''}
             ${status !== 'completed' ? `<button class="btn-danger" onclick="deleteSession('${s.id}')"><i class="fas fa-trash"></i></button>` : ''}
         </div>
+        ${(s.resources || []).length ? `<div class="session-resource-list"><strong>Fichiers de la séance</strong>${s.resources.map(resource => `<div class="session-resource-item"><span><i class="fas fa-file-code"></i> ${escT(resource.title || resource.file_name)}</span><button class="btn-danger" title="Supprimer le fichier" onclick="deleteSessionResource('${resource.id}')"><i class="fas fa-trash"></i></button></div>`).join('')}</div>` : ''}
     </div>`;
+}
+
+async function uploadSessionFiles(sessionId) {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.multiple = true;
+    input.accept = '.py,.html,.htm,.css,.js,.mjs,.json,.txt,.zip';
+    input.onchange = async () => {
+        const files = [...(input.files || [])];
+        if (!files.length) return;
+        try {
+            for (const file of files) await uploadPracticeFile({ liveSessionId:sessionId }, file);
+            await loadSessions();
+            showToast(`${files.length} fichier(s) ajouté(s) à la séance.`, 'success');
+        } catch (error) { showToast(error.message, 'error'); }
+    };
+    input.click();
+}
+
+async function uploadPracticeFile(owner, file) {
+    if (file.size > 25 * 1024 * 1024) throw new Error(`${file.name} dépasse la limite de 25 Mo.`);
+    const contentType = file.type || 'application/octet-stream';
+    const signedResponse = await fetch(`${API}/api/admin/resources/upload-url`, {
+        method:'POST', credentials:'include', headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({ ...owner, fileName:file.name, contentType, size:file.size })
+    });
+    const signed = await signedResponse.json();
+    if (!signedResponse.ok) throw new Error(signed.error || `Impossible de préparer ${file.name}`);
+    const uploadResponse = await fetch(signed.uploadUrl, { method:'PUT', headers:{'Content-Type':contentType}, body:file });
+    if (!uploadResponse.ok) throw new Error(`Échec du transfert de ${file.name}. Vérifiez le CORS R2.`);
+    const saveResponse = await fetch(`${API}/api/admin/resources`, {
+        method:'POST', credentials:'include', headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({ ...owner, title:file.name.replace(/\.[^.]+$/, ''), fileName:file.name, contentType, size:file.size, key:signed.key })
+    });
+    const saved = await saveResponse.json();
+    if (!saveResponse.ok) throw new Error(saved.error || `Impossible d’attacher ${file.name}`);
+}
+
+async function deleteSessionResource(resourceId) {
+    if (!confirm('Supprimer ce fichier de la séance ?')) return;
+    const response = await fetch(`${API}/api/admin/resources/${encodeURIComponent(resourceId)}`, { method:'DELETE', credentials:'include' });
+    const data = await response.json();
+    if (!response.ok) return showToast(data.error || 'Suppression impossible', 'error');
+    await loadSessions();
+    showToast('Fichier supprimé.', 'success');
 }
 
 async function updateReplay(sessionId) {

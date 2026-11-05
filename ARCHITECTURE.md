@@ -68,6 +68,14 @@ Synta Academy is a **Tunisian e-learning platform** targeting high-school studen
 
 The published course catalog and course-detail API filter offer-linked courses using the authenticated student's `users.class` and `users.branch`, and only consider active offers inside their validity window. A course linked to several offers appears when at least one active offer matches. A student with an active enrollment can continue to see that course even if targeting later changes. Published courses with no `offer_courses` association remain open in the catalog for public/free formations such as AI or web development. Course enrollment checks continue to govern actual lesson access.
 
+### Interactive chapter quizzes
+
+Lessons store an optional structured payload in `lessons.content` (JSONB). Interactive quizzes have exactly three questions and support `multiple_choice`, `true_false`, `code_drag_drop`, `ordering`, and `matching`. Admins create/edit them in the chapter manager and reorder them among lessons; students load payloads through the authenticated lesson-content endpoint and complete the quiz in the course page. Migration `202611050003_add_lesson_quiz_content.sql` adds the column.
+
+### Lesson and live-session practice files
+
+Admins can attach multiple `.py`, `.html`, `.css`, `.js`, `.mjs`, `.json`, `.txt`, and `.zip` files to a lesson or live session. Uploads use short-lived R2 PUT URLs; `learning_resources` stores metadata and private object keys. Entitled students receive expiring signed download links. Lesson files appear below the lesson video; live-session files appear in the replay player. Downloads are signed with attachment disposition. Migration `202611050004_create_learning_resources.sql` creates the resource table.
+
 ### Infrastructure
 | Component | Technology |
 |-----------|-----------|

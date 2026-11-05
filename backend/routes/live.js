@@ -10,6 +10,27 @@ import { createR2UploadUrl, generateSignedUrl } from "../utils/r2Utils.js";
 
 const router = express.Router();
 
+async function attachSessionResources(sessions, includeSignedUrls = false) {
+  if (!sessions.length) return [];
+  const ids = sessions.map(session => session.id);
+  const result = await pool.query(
+    `SELECT id, live_session_id, title, file_name, object_key, content_type, file_size
+     FROM learning_resources WHERE live_session_id = ANY($1) ORDER BY created_at, title`,
+    [ids]
+  );
+  const resourcesBySession = new Map();
+  for (const resource of result.rows) {
+    if (!resourcesBySession.has(resource.live_session_id)) resourcesBySession.set(resource.live_session_id, []);
+    const item = {
+      id: resource.id, title: resource.title, file_name: resource.file_name,
+      content_type: resource.content_type, file_size: Number(resource.file_size),
+    };
+    if (includeSignedUrls) item.url = await generateSignedUrl(resource.object_key, 3600, resource.file_name);
+    resourcesBySession.get(resource.live_session_id).push(item);
+  }
+  return sessions.map(session => ({ ...session, resources: resourcesBySession.get(session.id) || [] }));
+}
+
 /**
  * GET /api/live/course/:courseId — ENROLLED STUDENTS ONLY
  * Returns scheduled sessions and past sessions for the course. Past sessions
@@ -42,7 +63,7 @@ router.get("/course/:courseId", authApiMiddleware, async (req, res) => {
         ? await generateSignedUrl(session.replay_url, 3600)
         : session.replay_url,
     })));
-    res.json(sessions);
+    res.json(await attachSessionResources(sessions, true));
   } catch (error) {
     console.error("Error fetching course live sessions:", error);
     res.status(500).json({ error: "Internal server error" });
@@ -286,7 +307,7 @@ router.get("/admin/sessions", requireAdmin, async (req, res) => {
       course: { title: course_title },
     }));
 
-    res.json(data);
+    res.json(await attachSessionResources(data));
   } catch (error) {
     console.error("Error fetching admin sessions:", error);
     res.status(500).json({ error: "Internal server error" });
