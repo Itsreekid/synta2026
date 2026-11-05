@@ -210,6 +210,11 @@ Key files in `backend/public/js/`:
 - `session.js` — Onboarding quiz flow
 - `offers-config.js` — Static offer configuration data
 
+### Student course navigation and player
+Authenticated app navigation uses Turbo Drive from the shared head partial; the six student navigation destinations remain in the shared sidebar. Course detail data is fetched by `course-details.js`. Course structure and access checks run concurrently, followed by concurrent session, resource, and progress reads when the student has access. Lesson and replay media share the course main area and chapter sidebar; a player switch returns to the corresponding course panel. Lesson position is restored from the authenticated lesson-content response and saved periodically/on pause through `POST /api/tracking/position`; that endpoint checks preview/enrollment access and updates only `last_position`.
+
+The app is server-rendered EJS with vanilla JavaScript; no client-side bundler or framework is used. Keep navigation and page behavior compatible with Turbo page visits and `turbo:load` lifecycles.
+
 ### Admin Panel
 Located at `admin/`. Entirely **static HTML + vanilla JS**, no server-side rendering. Authenticates by calling the same `/api/admin/*` endpoints as the backend. Main pages:
 - `dashboard.html` / `overview.html` — Stats overview

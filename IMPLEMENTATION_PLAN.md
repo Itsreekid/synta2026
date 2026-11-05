@@ -381,13 +381,25 @@
 
 ---
 
+### TASK-024: Unify Course and Replay Playback Experience
+- **Priority:** MEDIUM
+- **Status:** IMPLEMENTED IN SOURCE — 2026-11-06; production verification pending deployment
+- **Objective:** Keep lesson and replay playback in one responsive course-player layout and reduce course-detail loading delay.
+- **Changes made:** Replays now render in the course main area with the chapter sidebar; player-level controls switch to live sessions or back to chapters; lesson playback resumes from saved position and an authenticated, access-checked endpoint saves `last_position` without clearing completion; independent course/access and session/resource/progress requests run concurrently; course grid/player controls have responsive minimum-width constraints.
+- **Verification:** `node --check` passed for the changed course-detail script and neighboring frontend scripts. Production baseline and a mobile Lighthouse audit were captured, but a post-change hosted measurement cannot be taken until the source is deployed.
+- **Remaining acceptance checks:** Deploy through Coolify; verify lesson-to-live-to-replay-to-chapters flow on desktop and mobile; confirm position persistence and media playback; record post-deploy navigation and Lighthouse metrics.
+- **Dependencies:** Existing course enrollment, live-session, resource, and progress APIs; no schema changes.
+- **Risks:** Browser verification requires deployment of these source changes and an authenticated student account with an accessible replay.
+
+---
+
 ## Priority Summary
 
 | Priority | Tasks | Count |
 |----------|-------|-------|
 | CRITICAL | TASK-001, 002, 003, 004 | 4 |
 | HIGH | TASK-005, 006, 007, 008, 011, 012, 013, 019, 020, 021 | 10 |
-| MEDIUM | TASK-009, 010, 014, 015, 016, 022, 023 | 7 |
+| MEDIUM | TASK-009, 010, 014, 015, 016, 022, 023, 024 | 8 |
 | LOW | TASK-017, 018 | 2 |
 
 **Recommended remaining start order:** TASK-004 → TASK-003 → TASK-005

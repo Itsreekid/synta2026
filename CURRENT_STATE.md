@@ -1,8 +1,8 @@
 # CURRENT_STATE.md — Synta Academy
 
-> **Last updated:** 2026-11-05  
+> **Last updated:** 2026-11-06  
 > **Updated by:** Codex  
-> **Next recommended task:** Continue TASK-004 in `IMPLEMENTATION_PLAN.md`; then validate the new admin workflows against Coolify/R2
+> **Next recommended task:** Deploy and browser-verify TASK-024 (course/replay player UX and request concurrency); then continue TASK-004 in `IMPLEMENTATION_PLAN.md`
 
 ---
 
@@ -188,6 +188,15 @@ The backend is running in production on Coolify. Core features (login, course ac
 **Activity:** Complete codebase audit for documentation purposes  
 **Source-reviewed:** Purchase endpoints now enforce authenticated identity; AI debug endpoint now requires a valid cookie JWT. The endpoints were not manually exercised in this session.  
 **Not verified against live database:** Actual runtime column existence (debt, offers columns, transaction columns)
+
+### 2026-11-06 — Course Player UX and Loading
+- Replays now use the same in-page player area and chapter sidebar as lesson playback; player buttons switch between the live-session list and chapters.
+- Lesson playback resumes from the saved position and saves periodically, on pause, and before switching to live sessions. The position route checks enrollment/preview access and preserves completion state.
+- Course details now request access status alongside course data, then load live sessions, resources, and progress concurrently. A failed secondary request no longer blocks the other sections.
+- Added `min-width: 0` constraints to the course grid and responsive player controls.
+- `node --check` passed for `course-details.js`, `courses.js`, and `api-client.js`.
+- Production page baseline captured on 2026-11-06: navigation duration 1,333 ms, HTML transfer 11,054 bytes; course API timing 111 ms, access 103 ms, live 83 ms, course resources 80 ms, progress 65 ms. These individual durations are not additive network timings. Lighthouse mobile audit: accessibility 97, best practices 100, SEO 92; CLS 0.096, with heading order, main landmark, and meta description flagged.
+- **Not yet verified:** the modified files have not been deployed to production, so browser interaction and after-change performance are pending deployment. The authenticated session was used to inspect production baseline data only.
 
 ---
 

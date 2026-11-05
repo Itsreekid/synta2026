@@ -5,6 +5,18 @@
 
 ---
 
+## 2026-11-06 — Align Course/Replay Player and Parallelize Course Loading
+
+**Author:** Codex  
+**Type:** UX / PERFORMANCE
+
+- Replaced the replay overlay with the same in-page course player area and chapter sidebar used by lesson playback.
+- Added a player-level switch from lessons to live sessions and from a replay back to chapters. Lesson switching saves the current playback position first.
+- Fixed the player-position API mismatch by adding authenticated `POST /api/tracking/position`; it checks active enrollment or preview access and preserves completion state while updating `last_position`.
+- Parallelized the independent course access, live-session, resource, and progress requests to remove the serial request waterfall.
+- Added minimum-width constraints to the course grid and responsive player controls.
+- JavaScript syntax checks passed. Production baseline was measured, but the local changes cannot be measured in the hosted browser until deployed; authenticated production clicks were not used to verify these local edits.
+
 ## 2026-11-05 — Show Course Live Sessions and Replays
 
 **Author:** Codex

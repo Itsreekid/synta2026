@@ -136,12 +136,19 @@ router.get("/lesson/:lessonId", authApiMiddleware, async (req, res) => {
       });
     }
 
+    const progressResult = await pool.query(
+      "SELECT last_position FROM lesson_progress WHERE user_id = $1 AND lesson_id = $2",
+      [userId, lessonId]
+    );
+    const lastPosition = Number(progressResult.rows[0]?.last_position) || 0;
+
     const response = {
       lessonId: lesson.id,
       title: lesson.title,
       type: lesson.type,
       duration: lesson.duration,
       isPreview: lesson.is_preview,
+      lastPosition,
       // Include full lesson object for quiz / content rendering
       lesson: {
         id: lesson.id,
@@ -153,6 +160,7 @@ router.get("/lesson/:lessonId", authApiMiddleware, async (req, res) => {
         description: lesson.description,
         is_preview: lesson.is_preview,
         content: lesson.content,
+        last_position: lastPosition,
       },
     };
 

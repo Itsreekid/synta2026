@@ -26,7 +26,7 @@
 | Admin can attach multiple code/practice files to lessons and live sessions | ✅ | Admin supports multi-file selection; authenticated course lesson and replay flows render the associated signed downloads |
 | Students can download lesson practice files or open Python exercises in Code Pratique | ✅ | Lesson access or live-session enrollment is checked before the authenticated server reads a Python attachment into the editor; downloads retain signed resource URLs |
 | Lesson resources support common documents, slides, spreadsheets, images, code, notes, and ZIP files | ✅ | Admin upload API validates the supported extension and MIME-type allowlists; downloads and PDF previews use private signed R2 URLs |
-| Session replays play in the course and show their associated practice files | ✅ | Course live-session endpoint returns entitled replay URLs and signed session resources; replay modal renders player and downloads |
+| Session replays play in the course and show their associated practice files | ✅ | Course live-session endpoint returns entitled replay URLs and signed session resources; replay and lesson share the in-page player and course sidebar |
 | Offer-linked courses are shown only to students matching the offer's class and branch targets | ✅ | `GET /api/courses` and `GET /api/courses/:courseId` enforce active offer targeting; active enrollments remain visible |
 | Courses with no offer association remain open for discovery and free-course enrollment | ✅ | Catalog and course detail APIs allow published courses with no `offer_courses` mapping |
 
@@ -241,7 +241,7 @@ Two roles exist: `user` (student) and `admin`.
 |----------|--------|----------|
 | Each lesson view is recorded in `lesson_progress` | ✅ | `content.js` upsert on lesson access |
 | Student can mark a lesson as completed | ✅ | `POST /api/content/lesson/:id/progress` |
-| Video resume position is saved | ✅ | `lesson_progress.last_position` |
+| Video resume position is restored and saved during playback, on pause, and when switching players | ✅ | Lesson-content response returns `last_position`; `POST /api/tracking/position` checks preview or active enrollment and updates the position without changing completion |
 | Course-level progress % is recalculated on each completion | ✅ | `content.js` and `tracking.js` |
 | `enrollments.progress` is kept in sync with `lesson_progress` | ✅ | UPDATE enrollments in tracking route |
 

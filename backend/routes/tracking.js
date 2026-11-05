@@ -109,6 +109,54 @@ router.post("/progress", authMiddleware, async (req, res) => {
 });
 
 /**
+ * POST /api/tracking/position — save a student's current lesson playback position
+ */
+router.post("/position", authMiddleware, async (req, res) => {
+  try {
+    if (!req.user) return res.status(401).json({ error: "Unauthorized" });
+
+    const { lessonId, position } = req.body || {};
+    const lastPosition = Number(position);
+    if (!lessonId || !Number.isFinite(lastPosition) || lastPosition < 0) {
+      return res.status(400).json({ error: "A lesson ID and non-negative position are required" });
+    }
+
+    const access = await pool.query(
+      `SELECT l.is_preview,
+              EXISTS (
+                SELECT 1
+                FROM course_modules cm
+                JOIN enrollments e ON e.course_id = cm.course_id
+                WHERE cm.module_id = l.module_id
+                  AND e.user_id = $1
+                  AND (e.expires_at IS NULL OR e.expires_at > NOW())
+              ) AS enrolled
+       FROM lessons l
+       WHERE l.id = $2`,
+      [req.user.id, lessonId]
+    );
+    if (!access.rowCount) return res.status(404).json({ error: "Lesson not found" });
+    if (!access.rows[0].is_preview && !access.rows[0].enrolled) {
+      return res.status(403).json({ error: "Access denied" });
+    }
+
+    await pool.query(
+      `INSERT INTO lesson_progress (user_id, lesson_id, last_position, updated_at)
+       VALUES ($1, $2, $3, NOW())
+       ON CONFLICT (user_id, lesson_id) DO UPDATE SET
+         last_position = EXCLUDED.last_position,
+         updated_at = NOW()`,
+      [req.user.id, lessonId, Math.floor(lastPosition)]
+    );
+
+    res.json({ success: true });
+  } catch (error) {
+    console.error("Error saving lesson position:", error);
+    res.status(500).json({ error: "Could not save lesson position" });
+  }
+});
+
+/**
  * GET /api/tracking/course-progress/:courseId
  */
 router.get("/course-progress/:courseId", authMiddleware, async (req, res) => {

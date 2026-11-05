@@ -38,7 +38,10 @@ document.addEventListener('click', (event) => {
     }
     const tab = event.target.closest('[data-course-tab]');
     if (!tab) return;
-    const selected = tab.dataset.courseTab;
+    setCourseContentTab(tab.dataset.courseTab);
+});
+
+function setCourseContentTab(selected) {
     document.querySelectorAll('[data-course-tab]').forEach(button => {
         const active = button.dataset.courseTab === selected;
         button.classList.toggle('is-active', active);
@@ -50,15 +53,43 @@ document.addEventListener('click', (event) => {
         panel.hidden = !active;
         panel.classList.toggle('is-active', active);
     });
-});
+}
+
+async function switchCoursePlayerTo(panelName) {
+    const video = document.getElementById('current-lesson-video');
+    if (video && Number.isFinite(video.currentTime) && video.dataset.lessonId) {
+        video.pause();
+        await persistLessonVideoPosition(video, true);
+    }
+    restoreCourseContent();
+    setCourseContentTab(panelName);
+    document.getElementById(`${panelName}-panel`)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+async function persistLessonVideoPosition(video, force = false) {
+    if (!video?.dataset.lessonId || !Number.isFinite(video.currentTime)) return;
+    const position = Math.floor(video.currentTime);
+    const lastSaved = Number(video.dataset.lastSavedPosition) || 0;
+    if (!force && Math.abs(position - lastSaved) < 10) return;
+    if (video.positionSavePromise) return video.positionSavePromise;
+
+    video.positionSavePromise = window.SyntaAPI.updateVideoPosition(video.dataset.lessonId, position)
+        .then(() => { video.dataset.lastSavedPosition = String(position); })
+        .catch(error => console.warn('Could not save lesson position:', error.message))
+        .finally(() => { video.positionSavePromise = null; });
+    return video.positionSavePromise;
+}
 
 /**
  * Load course details with modules and lessons
  */
 async function loadCourseDetails(courseId) {
     try {
-        // Fetch course + modules + lessons via REST API (no Supabase)
-        const course = await window.SyntaAPI.fetchCourseDetails(courseId);
+        // Course structure and access status do not depend on one another.
+        const [course, hasAccess] = await Promise.all([
+            window.SyntaAPI.fetchCourseDetails(courseId),
+            checkUserAccess(courseId)
+        ]);
 
         if (!course) {
             showError('Cours non trouvé');
@@ -68,38 +99,31 @@ async function loadCourseDetails(courseId) {
 
         currentCourse = course;
 
-        // Check enrollment status via REST API
-        const hasAccess = await checkUserAccess(courseId);
-
         let liveSessions = [];
         let liveSessionsLoaded = false;
         let courseResources = [];
-        if (hasAccess) {
-            try {
-                const liveResponse = await fetch(`/api/live/course/${encodeURIComponent(courseId)}`, { credentials: 'include' });
-                if (!liveResponse.ok) throw new Error(`Live sessions request failed (${liveResponse.status})`);
-                liveSessions = await liveResponse.json();
-                liveSessionsLoaded = true;
-            } catch (error) {
-                console.error('Live sessions fetch error:', error);
-            }
-        }
-
-        if (hasAccess) {
-            try {
-                const resourcesResponse = await fetch(`/api/courses/${encodeURIComponent(courseId)}/resources`, { credentials: 'include' });
-                if (resourcesResponse.ok) courseResources = (await resourcesResponse.json()).resources || [];
-            } catch (error) { console.error('Course documents fetch error:', error); }
-        }
-
         let courseProgress = null;
         if (hasAccess) {
-            try {
-                const progRes = await fetch(`/api/tracking/course-progress/${courseId}`, { credentials: 'include' });
-                if (progRes.ok) courseProgress = await progRes.json();
-            } catch (e) {
-                console.error("Progress fetch error", e);
-            }
+            const [liveResult, resourceResult, progressResult] = await Promise.allSettled([
+                fetch(`/api/live/course/${encodeURIComponent(courseId)}`, { credentials: 'include' })
+                    .then(response => {
+                        if (!response.ok) throw new Error(`Live sessions request failed (${response.status})`);
+                        return response.json();
+                    }),
+                fetch(`/api/courses/${encodeURIComponent(courseId)}/resources`, { credentials: 'include' })
+                    .then(response => response.ok ? response.json() : { resources: [] }),
+                fetch(`/api/tracking/course-progress/${encodeURIComponent(courseId)}`, { credentials: 'include' })
+                    .then(response => response.ok ? response.json() : null)
+            ]);
+
+            if (liveResult.status === 'fulfilled') {
+                liveSessions = liveResult.value;
+                liveSessionsLoaded = true;
+            } else console.error('Live sessions fetch error:', liveResult.reason);
+            if (resourceResult.status === 'fulfilled') courseResources = resourceResult.value.resources || [];
+            else console.error('Course documents fetch error:', resourceResult.reason);
+            if (progressResult.status === 'fulfilled') courseProgress = progressResult.value;
+            else console.error('Progress fetch error:', progressResult.reason);
         }
 
         // Modules & lessons are already nested in the course response
@@ -334,25 +358,6 @@ function openReplayPlayer(replayUrl, title, resources = []) {
     let parsed;
     try { parsed = new URL(replayUrl, window.location.href); } catch { return showError('Lien du replay invalide'); }
     if (!['http:', 'https:'].includes(parsed.protocol)) return showError('Lien du replay invalide');
-
-    const modal = document.createElement('div');
-    modal.className = 'video-modal replay-modal';
-    modal.setAttribute('role', 'dialog');
-    modal.setAttribute('aria-modal', 'true');
-    modal.setAttribute('aria-label', title || 'Replay de la séance');
-    const content = document.createElement('div');
-    content.className = 'video-modal-content replay-modal-content';
-    const close = document.createElement('button');
-    close.className = 'close-modal';
-    close.type = 'button';
-    close.setAttribute('aria-label', 'Fermer le replay');
-    close.textContent = '✕';
-    close.addEventListener('click', () => closeReplayModal());
-    const heading = document.createElement('h2');
-    heading.className = 'replay-modal-title';
-    heading.textContent = title || 'Replay de la séance';
-    content.append(close, heading);
-
     const youtubeId = parsed.hostname.includes('youtu.be') ? parsed.pathname.slice(1) : parsed.searchParams.get('v');
     const vimeoId = parsed.hostname.includes('vimeo.com') ? parsed.pathname.split('/').filter(Boolean).pop() : null;
     let player;
@@ -375,39 +380,51 @@ function openReplayPlayer(replayUrl, title, resources = []) {
         player.playsInline = true;
         player.src = parsed.href;
     }
-    player.className = 'replay-modal-player';
-    content.appendChild(player);
+    player.className = 'course-replay-player';
+    if (player instanceof HTMLVideoElement) player.setAttribute('controlsList', 'nodownload');
 
-    if (resources.length) content.appendChild(createResourceSection(resources, 'Fichiers utilisés pendant la séance'));
-    modal.appendChild(content);
-    const positionReplayModal = () => {
-        const mainArea = document.getElementById('main-section');
-        const bounds = mainArea?.getBoundingClientRect();
-        if (!bounds) return;
-        const left = Math.max(0, bounds.left);
-        const top = Math.max(0, bounds.top);
-        modal.style.setProperty('--replay-area-left', `${left}px`);
-        modal.style.setProperty('--replay-area-top', `${top}px`);
-        modal.style.setProperty('--replay-area-width', `${Math.max(0, Math.min(window.innerWidth, bounds.right) - left)}px`);
-        modal.style.setProperty('--replay-area-height', `${Math.max(0, Math.min(window.innerHeight, bounds.bottom) - top)}px`);
-    };
-    const closeReplayModal = () => {
-        if (player instanceof HTMLVideoElement) player.pause();
-        modal.remove();
-        window.removeEventListener('resize', positionReplayModal);
-        document.removeEventListener('keydown', handleReplayEscape);
-    };
-    const handleReplayEscape = event => { if (event.key === 'Escape') closeReplayModal(); };
+    const courseMain = document.querySelector('.course-main');
+    const courseSidebar = document.querySelector('.course-sidebar');
+    const modulesContainer = document.getElementById('modules-container');
+    if (!courseMain || !courseSidebar) return;
+    if (courseMain.dataset.originalContent) restoreCourseContent();
+    courseMain.dataset.originalContent = courseMain.innerHTML;
+    courseSidebar.dataset.originalContent = courseSidebar.innerHTML;
+
+    const wrapper = document.createElement('div');
+    wrapper.className = 'video-section-wrapper course-replay-view';
+    const heading = document.createElement('div');
+    heading.className = 'course-player-heading';
+    const titleElement = document.createElement('h1');
+    titleElement.textContent = title || 'Replay de la séance';
+    const switchButton = document.createElement('button');
+    switchButton.type = 'button';
+    switchButton.className = 'course-player-switch';
+    switchButton.innerHTML = '<i class="fas fa-book-open" aria-hidden="true"></i> Retour aux chapitres';
+    switchButton.addEventListener('click', () => switchCoursePlayerTo('chapters'));
+    heading.append(titleElement, switchButton);
+    const frame = document.createElement('div');
+    frame.className = 'video-container course-player-frame';
+    frame.appendChild(player);
+    const details = document.createElement('div');
+    details.className = 'lesson-details-content';
+    details.innerHTML = '<p>Replay de votre séance en direct.</p>';
+    wrapper.append(heading, frame, details);
+    courseMain.replaceChildren(wrapper);
+
+    if (resources.length) details.appendChild(createResourceSection(resources, 'Fichiers utilisés pendant la séance'));
+    if (modulesContainer) {
+        const modulesClone = modulesContainer.cloneNode(true);
+        modulesClone.style.cssText = '';
+        courseSidebar.replaceChildren(modulesClone);
+    }
     if (window.matchMedia('(max-width: 768px)').matches) {
         document.getElementById('app-sidebar')?.classList.remove('active');
         document.getElementById('sidebar-overlay')?.classList.remove('active');
         document.querySelector('.mobile-menu-toggle')?.classList.remove('active');
     }
-    positionReplayModal();
-    window.addEventListener('resize', positionReplayModal);
-    modal.addEventListener('click', event => { if (event.target === modal) closeReplayModal(); });
-    document.addEventListener('keydown', handleReplayEscape);
-    document.body.appendChild(modal);
+    courseMain.style.order = '-2';
+    courseMain.scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
 
 /**
@@ -623,9 +640,13 @@ async function showLessonInMainArea(lesson, videoUrl, pdfUrl, practiceFiles = []
     // Replace main content with the video (when present), lesson resources, and actions.
     courseMain.innerHTML = `
         <div class="video-section-wrapper" style="width: 100%; display: flex; flex-direction: column; gap: 1rem;">
+            <div class="course-player-heading"><span class="course-player-mode">Leçon</span><button class="course-player-switch" type="button" onclick="switchCoursePlayerTo('live')"><i class="fas fa-video" aria-hidden="true"></i> Séances en direct</button></div>
             ${videoUrl ? `<div class="video-container" style="background: #000; border-radius: 12px; overflow: hidden; position: relative; aspect-ratio: 16/9; width: 100%; box-shadow: 0 15px 35px rgba(0,0,0,0.2);">
                 <video 
                     id="current-lesson-video"
+                    data-lesson-id="${lesson.id}"
+                    data-resume-position="${Number(lesson.last_position) || 0}"
+                    data-last-saved-position="${Number(lesson.last_position) || 0}"
                     controls 
                     controlsList="nodownload"
                     style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; object-fit: cover;"
@@ -688,6 +709,12 @@ async function showLessonInMainArea(lesson, videoUrl, pdfUrl, practiceFiles = []
         const video = document.getElementById('current-lesson-video');
         if (video) {
             video.addEventListener('contextmenu', (e) => e.preventDefault());
+            video.addEventListener('loadedmetadata', () => {
+                const resumeAt = Number(video.dataset.resumePosition) || 0;
+                if (resumeAt > 0 && resumeAt < video.duration) video.currentTime = resumeAt;
+            }, { once: true });
+            video.addEventListener('timeupdate', () => persistLessonVideoPosition(video));
+            video.addEventListener('pause', () => persistLessonVideoPosition(video, true));
         }
     }, 100);
 
