@@ -159,6 +159,7 @@ router.post("/lesson/:lessonId/progress", authApiMiddleware, async (req, res) =>
            JOIN lessons l2 ON l2.module_id = cm.module_id
            LEFT JOIN lesson_progress lp ON lp.lesson_id = l2.id AND lp.user_id = $1
            WHERE cm.course_id IN (SELECT course_id FROM course_modules WHERE module_id = (SELECT module_id FROM lessons WHERE id = $2))
+             AND l2.type IS DISTINCT FROM 'quiz'
            GROUP BY cm.course_id
          ) stats
          WHERE e.user_id = $1 AND e.course_id = stats.course_id`,

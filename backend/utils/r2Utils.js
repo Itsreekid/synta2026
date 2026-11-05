@@ -89,6 +89,13 @@ export async function uploadToR2(key, fileBuffer, contentType) {
   }
 }
 
+/** Create a short-lived URL for a browser to upload directly to R2. */
+export async function createR2UploadUrl(key, contentType, expiresIn = 900) {
+  if (!key || typeof key !== "string" || !contentType) throw new Error("Upload key and content type are required");
+  const command = new PutObjectCommand({ Bucket: R2_BUCKET, Key: key, ContentType: contentType });
+  return getSignedUrl(r2Client, command, { expiresIn });
+}
+
 /**
  * Delete a file from R2
  * @param {string} key - R2 object key

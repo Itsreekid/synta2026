@@ -3,6 +3,7 @@ import pool from "../config/db.js";
 import { requireAdmin } from "../middleware/requireAdmin.js";
 import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
+import { createR2UploadUrl } from "../utils/r2Utils.js";
 
 const router = express.Router();
 const SALT_ROUNDS = 12;
@@ -459,6 +460,229 @@ router.post("/api/admin/courses", requireAdmin, async (req, res) => {
   } catch (err) {
     console.error("Error managing course:", err.message);
     return res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// Course content management. Modules are reusable; course_modules stores each placement.
+router.get("/api/admin/courses/:courseId/modules", requireAdmin, async (req, res) => {
+  try {
+    const result = await pool.query(
+      `SELECT m.id, m.title, m.description, cm.order_index,
+              COUNT(l.id)::int AS lesson_count,
+              COALESCE(json_agg(json_build_object(
+                'id', l.id, 'title', l.title, 'description', l.description,
+                'type', l.type, 'duration', l.duration, 'order_index', l.order_index,
+                'is_preview', l.is_preview, 'has_document', (l.pdf_key IS NOT NULL)
+              ) ORDER BY l.order_index) FILTER (WHERE l.id IS NOT NULL), '[]') AS lessons
+       FROM course_modules cm JOIN modules m ON m.id = cm.module_id
+       LEFT JOIN lessons l ON l.module_id = m.id
+       WHERE cm.course_id = $1
+       GROUP BY m.id, cm.order_index ORDER BY cm.order_index, m.title`,
+      [req.params.courseId]
+    );
+    res.json({ success: true, data: result.rows });
+  } catch (error) {
+    console.error("Error listing course chapters:", error.message);
+    res.status(500).json({ success: false, error: "Could not load course chapters" });
+  }
+});
+
+router.get("/api/admin/modules/library", requireAdmin, async (_req, res) => {
+  try {
+    const result = await pool.query(
+      `SELECT m.id, m.title, m.description, COUNT(DISTINCT cm.course_id)::int AS course_count
+       FROM modules m LEFT JOIN course_modules cm ON cm.module_id = m.id
+       GROUP BY m.id ORDER BY m.title`
+    );
+    res.json({ success: true, data: result.rows });
+  } catch (error) {
+    console.error("Error listing chapter library:", error.message);
+    res.status(500).json({ success: false, error: "Could not load chapter library" });
+  }
+});
+
+router.post("/api/admin/courses/:courseId/modules", requireAdmin, async (req, res) => {
+  const { courseId } = req.params;
+  const { moduleId, title, description = "", orderIndex } = req.body || {};
+  const client = await pool.connect();
+  try {
+    await client.query("BEGIN");
+    const course = await client.query("SELECT id FROM courses WHERE id = $1", [courseId]);
+    if (!course.rowCount) {
+      await client.query("ROLLBACK");
+      return res.status(404).json({ success: false, error: "Course not found" });
+    }
+    const order = Number.isInteger(Number(orderIndex)) ? Number(orderIndex) : 0;
+    let selectedModuleId = moduleId;
+    if (moduleId) {
+      const existing = await client.query("SELECT id FROM modules WHERE id = $1", [moduleId]);
+      if (!existing.rowCount) {
+        await client.query("ROLLBACK");
+        return res.status(404).json({ success: false, error: "Chapter not found" });
+      }
+    } else {
+      if (typeof title !== "string" || !title.trim()) {
+        await client.query("ROLLBACK");
+        return res.status(400).json({ success: false, error: "Chapter title is required" });
+      }
+      const created = await client.query(
+        `INSERT INTO modules (course_id, title, description, order_index)
+         VALUES ($1, $2, $3, $4) RETURNING id`,
+        [courseId, title.trim(), String(description).trim() || null, order]
+      );
+      selectedModuleId = created.rows[0].id;
+    }
+    await client.query(
+      `INSERT INTO course_modules (course_id, module_id, order_index)
+       VALUES ($1, $2, $3) ON CONFLICT (course_id, module_id) DO UPDATE SET order_index = EXCLUDED.order_index`,
+      [courseId, selectedModuleId, order]
+    );
+    await client.query("COMMIT");
+    res.status(201).json({ success: true, moduleId: selectedModuleId });
+  } catch (error) {
+    await client.query("ROLLBACK");
+    console.error("Error assigning chapter:", error.message);
+    res.status(500).json({ success: false, error: "Could not assign chapter" });
+  } finally {
+    client.release();
+  }
+});
+
+router.patch("/api/admin/courses/:courseId/modules/:moduleId", requireAdmin, async (req, res) => {
+  try {
+    const result = await pool.query(
+      `UPDATE course_modules SET order_index = $1 WHERE course_id = $2 AND module_id = $3 RETURNING course_id`,
+      [Math.max(0, Number(req.body?.orderIndex) || 0), req.params.courseId, req.params.moduleId]
+    );
+    if (!result.rowCount) return res.status(404).json({ success: false, error: "Chapter placement not found" });
+    res.json({ success: true });
+  } catch (error) {
+    console.error("Error updating chapter order:", error.message);
+    res.status(500).json({ success: false, error: "Could not update chapter" });
+  }
+});
+
+router.patch("/api/admin/modules/:moduleId", requireAdmin, async (req, res) => {
+  const { title, description } = req.body || {};
+  if (typeof title !== "string" || !title.trim()) {
+    return res.status(400).json({ success: false, error: "Chapter title is required" });
+  }
+  try {
+    const result = await pool.query(
+      "UPDATE modules SET title = $1, description = $2 WHERE id = $3 RETURNING id",
+      [title.trim(), String(description || "").trim() || null, req.params.moduleId]
+    );
+    if (!result.rowCount) return res.status(404).json({ success: false, error: "Chapter not found" });
+    res.json({ success: true });
+  } catch (error) {
+    console.error("Error updating chapter:", error.message);
+    res.status(500).json({ success: false, error: "Could not update chapter" });
+  }
+});
+
+router.delete("/api/admin/courses/:courseId/modules/:moduleId", requireAdmin, async (req, res) => {
+  try {
+    const result = await pool.query(
+      "DELETE FROM course_modules WHERE course_id = $1 AND module_id = $2 RETURNING module_id",
+      [req.params.courseId, req.params.moduleId]
+    );
+    if (!result.rowCount) return res.status(404).json({ success: false, error: "Chapter placement not found" });
+    res.json({ success: true });
+  } catch (error) {
+    console.error("Error removing chapter from course:", error.message);
+    res.status(500).json({ success: false, error: "Could not remove chapter" });
+  }
+});
+
+router.post("/api/admin/modules/:moduleId/lessons", requireAdmin, async (req, res) => {
+  const { title, description = "", type = "video", duration = 0, isPreview = false } = req.body || {};
+  if (typeof title !== "string" || !title.trim() || !["video", "pdf", "quiz"].includes(type)) {
+    return res.status(400).json({ success: false, error: "A title and valid lesson type are required" });
+  }
+  try {
+    const module = await pool.query("SELECT id FROM modules WHERE id = $1", [req.params.moduleId]);
+    if (!module.rowCount) return res.status(404).json({ success: false, error: "Chapter not found" });
+    const result = await pool.query(
+      `INSERT INTO lessons (module_id, title, description, type, duration, is_preview, order_index)
+       VALUES ($1, $2, $3, $4, $5, $6, COALESCE((SELECT MAX(order_index) + 1 FROM lessons WHERE module_id = $1), 0))
+       RETURNING id, title, description, type, duration, is_preview, order_index`,
+      [req.params.moduleId, title.trim(), String(description).trim() || null, type, Math.max(0, Number(duration) || 0), !!isPreview]
+    );
+    res.status(201).json({ success: true, data: result.rows[0] });
+  } catch (error) {
+    console.error("Error creating lesson:", error.message);
+    res.status(500).json({ success: false, error: "Could not create lesson" });
+  }
+});
+
+router.patch("/api/admin/lessons/:lessonId", requireAdmin, async (req, res) => {
+  const { title, description, type, duration, isPreview, orderIndex } = req.body || {};
+  if (type !== undefined && !["video", "pdf", "quiz"].includes(type)) {
+    return res.status(400).json({ success: false, error: "Invalid lesson type" });
+  }
+  try {
+    const result = await pool.query(
+      `UPDATE lessons SET title = COALESCE($1, title),
+         description = CASE WHEN $7 THEN $2 ELSE description END,
+         type = COALESCE($3, type), duration = COALESCE($4, duration),
+         is_preview = COALESCE($5, is_preview), order_index = COALESCE($6, order_index)
+       WHERE id = $8 RETURNING id`,
+      [title?.trim() || null, description === undefined ? null : (String(description).trim() || null), type ?? null,
+       duration === undefined ? null : Math.max(0, Number(duration) || 0), isPreview ?? null,
+       orderIndex === undefined ? null : Math.max(0, Number(orderIndex) || 0), description !== undefined, req.params.lessonId]
+    );
+    if (!result.rowCount) return res.status(404).json({ success: false, error: "Lesson not found" });
+    res.json({ success: true });
+  } catch (error) {
+    console.error("Error updating lesson:", error.message);
+    res.status(500).json({ success: false, error: "Could not update lesson" });
+  }
+});
+
+router.delete("/api/admin/lessons/:lessonId", requireAdmin, async (req, res) => {
+  try {
+    const result = await pool.query("DELETE FROM lessons WHERE id = $1 RETURNING id", [req.params.lessonId]);
+    if (!result.rowCount) return res.status(404).json({ success: false, error: "Lesson not found" });
+    res.json({ success: true });
+  } catch (error) {
+    console.error("Error deleting lesson:", error.message);
+    res.status(500).json({ success: false, error: "Could not delete lesson" });
+  }
+});
+
+router.post("/api/admin/lessons/:lessonId/document-upload-url", requireAdmin, async (req, res) => {
+  const { fileName, contentType, size } = req.body || {};
+  if (!Number.isFinite(Number(size)) || Number(size) <= 0 || Number(size) > 25 * 1024 * 1024) {
+    return res.status(400).json({ success: false, error: "Document size must be 25 MB or less" });
+  }
+  if (!new Set(["application/pdf", "application/msword", "application/vnd.openxmlformats-officedocument.wordprocessingml.document"]).has(contentType)) {
+    return res.status(400).json({ success: false, error: "Only PDF or Word documents are supported" });
+  }
+  try {
+    const lesson = await pool.query("SELECT id, module_id FROM lessons WHERE id = $1", [req.params.lessonId]);
+    if (!lesson.rowCount) return res.status(404).json({ success: false, error: "Lesson not found" });
+    const safeName = String(fileName || "document").normalize("NFKD").replace(/[^a-zA-Z0-9._-]/g, "_").slice(-100);
+    const key = `course-documents/${lesson.rows[0].module_id}/${req.params.lessonId}/${Date.now()}-${safeName}`;
+    const uploadUrl = await createR2UploadUrl(key, contentType);
+    res.json({ success: true, uploadUrl, key });
+  } catch (error) {
+    console.error("Could not create document upload URL:", error.message);
+    res.status(500).json({ success: false, error: "Could not prepare document upload" });
+  }
+});
+
+router.patch("/api/admin/lessons/:lessonId/document", requireAdmin, async (req, res) => {
+  const { key } = req.body || {};
+  if (typeof key !== "string" || !key.startsWith("course-documents/") || key.includes("..")) {
+    return res.status(400).json({ success: false, error: "Invalid document key" });
+  }
+  try {
+    const result = await pool.query("UPDATE lessons SET pdf_key = $1 WHERE id = $2 RETURNING id", [key, req.params.lessonId]);
+    if (!result.rowCount) return res.status(404).json({ success: false, error: "Lesson not found" });
+    res.json({ success: true });
+  } catch (error) {
+    console.error("Could not attach lesson document:", error.message);
+    res.status(500).json({ success: false, error: "Could not attach document" });
   }
 });
 

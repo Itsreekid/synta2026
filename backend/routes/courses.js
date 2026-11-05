@@ -4,8 +4,36 @@
 import express from "express";
 import pool from "../config/db.js";
 import { authMiddleware, checkCourseEnrollment } from "../middleware/auth.js";
+import { generateSignedUrl } from "../utils/r2Utils.js";
 
 const router = express.Router();
+
+router.get("/:courseId/resources", authMiddleware, async (req, res) => {
+  try {
+    const userId = req.user?.id;
+    if (!userId) return res.status(401).json({ error: "Unauthorized" });
+    const access = await checkCourseEnrollment(userId, req.params.courseId);
+    if (!access) return res.status(403).json({ error: "Course enrollment required" });
+    const result = await pool.query(
+      `SELECT l.id, l.title, l.pdf_key, m.title AS module_title
+       FROM course_modules cm JOIN modules m ON m.id = cm.module_id
+       JOIN lessons l ON l.module_id = m.id
+       WHERE cm.course_id = $1 AND l.pdf_key IS NOT NULL
+       ORDER BY cm.order_index, l.order_index`,
+      [req.params.courseId]
+    );
+    const resources = await Promise.all(result.rows.map(async (row) => ({
+      id: row.id,
+      title: row.title,
+      chapter: row.module_title,
+      url: /^https?:\/\//i.test(row.pdf_key) ? row.pdf_key : await generateSignedUrl(row.pdf_key, 3600),
+    })));
+    res.json({ resources });
+  } catch (error) {
+    console.error("Error loading course documents:", error.message);
+    res.status(500).json({ error: "Could not load course documents" });
+  }
+});
 
 /**
  * GET /api/courses
@@ -16,7 +44,7 @@ router.get("/", async (req, res) => {
 
     let sql = `
       SELECT c.*,
-        (SELECT COUNT(l.id) FROM lessons l JOIN course_modules cm ON cm.module_id = l.module_id WHERE cm.course_id = c.id AND l.type != 'quiz')::int AS lessons_count,
+        (SELECT COUNT(l.id) FROM lessons l JOIN course_modules cm ON cm.module_id = l.module_id WHERE cm.course_id = c.id AND l.type IS DISTINCT FROM 'quiz')::int AS lessons_count,
         (SELECT COUNT(l.id) FROM lessons l JOIN course_modules cm ON cm.module_id = l.module_id WHERE cm.course_id = c.id AND l.type = 'quiz')::int AS quizzes_count,
         (SELECT COUNT(ls.id) FROM live_sessions ls WHERE ls.course_id = c.id)::int AS lives_count
       FROM courses c WHERE c.is_published = true
@@ -59,22 +87,17 @@ router.get("/user/my-courses", authMiddleware, async (req, res) => {
                  FROM lessons l2
                  JOIN course_modules cm2 ON l2.module_id = cm2.module_id
                  LEFT JOIN lesson_progress lp ON lp.lesson_id = l2.id AND lp.user_id = $1
-                 WHERE cm2.course_id = c.id), 0
+                 WHERE cm2.course_id = c.id AND l2.type IS DISTINCT FROM 'quiz'), 0
               ) as dynamic_completed,
               COALESCE(
                 (SELECT COUNT(l2.id)
                  FROM lessons l2
                  JOIN course_modules cm2 ON l2.module_id = cm2.module_id
-                 WHERE cm2.course_id = c.id), 0
+                 WHERE cm2.course_id = c.id AND l2.type IS DISTINCT FROM 'quiz'), 0
               ) as total_lessons
        FROM courses c
        LEFT JOIN enrollments e ON c.id = e.course_id AND e.user_id = $1
-       WHERE e.user_id = $1 OR EXISTS (
-           SELECT 1 FROM lesson_progress lp 
-           JOIN lessons l ON lp.lesson_id = l.id
-           JOIN course_modules cm ON l.module_id = cm.module_id
-           WHERE cm.course_id = c.id AND lp.user_id = $1 AND lp.completed = true
-       )
+       WHERE e.user_id = $1
        ORDER BY COALESCE(e.enrolled_at, '2000-01-01'::timestamp) DESC`,
       [userId]
     );
@@ -102,7 +125,12 @@ router.get("/:courseId", async (req, res) => {
     const { courseId } = req.params;
 
     const courseResult = await pool.query(
-      `SELECT * FROM courses WHERE id = $1 AND is_published = true`,
+      `SELECT c.*,
+         (SELECT COUNT(l.id) FROM course_modules cm JOIN lessons l ON l.module_id = cm.module_id
+          WHERE cm.course_id = c.id AND l.type IS DISTINCT FROM 'quiz')::int AS lessons_count,
+         (SELECT COUNT(l.id) FROM course_modules cm JOIN lessons l ON l.module_id = cm.module_id
+          WHERE cm.course_id = c.id AND l.type = 'quiz')::int AS quizzes_count
+       FROM courses c WHERE c.id = $1 AND c.is_published = true`,
       [courseId]
     );
 

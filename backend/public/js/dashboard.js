@@ -45,6 +45,7 @@ function initializeDashboard() {
         loadUserData();
         loadStats();
         loadEvents();
+        loadReplays();
         loadCoursePath();
     } catch (error) {
         console.error('Error initializing dashboard:', error);
@@ -68,6 +69,12 @@ function loadUserData() {
 
         const avatar = document.getElementById('user-avatar');
         if (avatar && userName) avatar.textContent = userName.charAt(0).toUpperCase();
+
+        const classNames = { '1ere':'1ère', '2eme':'2ème', '3eme':'3ème', bac:'Bac' };
+        const branchNames = { informatique:'Informatique', sciences:'Sciences', mathematiques:'Mathématiques', technique:'Technique', lettres:'Lettres', economie:'Économie' };
+        const academicLabel = [classNames[user.user_metadata?.user_class], branchNames[user.user_metadata?.user_branch]].filter(Boolean).join(' · ');
+        const subtitle = document.querySelector('.greeting-subtitle span');
+        if (subtitle && academicLabel) subtitle.textContent = `Ton parcours : ${academicLabel} · Chaque petit pas compte ! 💪`;
     });
 }
 
@@ -140,19 +147,18 @@ function loadCoursePath() {
             if (cat.includes(key) || (activeCourse.title && activeCourse.title.toLowerCase().includes(key))) icon = emojiMap[key];
         }
 
-        continueSection.innerHTML = `
-            <div class="course-logo">${icon}</div>
-            <div class="course-details">
-                <h4>${activeCourse.title}</h4>
-                <p>${activeCourse.category || 'Formation'}</p>
-                <span class="chapter-badge">Progression globale</span>
-                <div class="course-progress-container">
-                    <div class="progress-bar-bg"><div class="progress-bar-fill" style="width: ${activeCourse.progress}%;"></div></div>
-                    <span class="course-progress-text">${activeCourse.progress}%</span>
-                </div>
-            </div>
-            <button class="btn-primary" onclick="window.location.href='/app/course-details?id=${activeCourse.course_id}'">Continuer &rarr;</button>
-        `;
+        const escapeHtml = value => String(value ?? '').replace(/[&<>"']/g, char => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[char]));
+        continueSection.innerHTML = `<div class="continue-course-grid">${courses.map(course => {
+            const courseCategory = String(course.category || 'Formation');
+            let courseIcon = '📚';
+            for (const key in emojiMap) if (courseCategory.toLowerCase().includes(key) || course.title.toLowerCase().includes(key)) courseIcon = emojiMap[key];
+            return `<article class="continue-course-card">
+                <div class="course-logo">${courseIcon}</div>
+                <div class="course-details"><h4>${escapeHtml(course.title)}</h4><p>${escapeHtml(courseCategory)}</p>
+                    <div class="course-progress-container"><div class="progress-bar-bg"><div class="progress-bar-fill" style="width:${Number(course.progress)||0}%"></div></div><span class="course-progress-text">${Number(course.progress)||0}%</span></div>
+                </div><button class="btn-primary" onclick="window.location.href='/app/course-details?id=${encodeURIComponent(course.course_id)}'">Ouvrir la formation &rarr;</button>
+            </article>`;
+        }).join('')}</div>`;
 
         fetchWithSWR(`/api/courses/${activeCourse.course_id}?t=${Date.now()}`, `swr_course_${activeCourse.course_id}`, (courseDetails) => {
             const pathSection = document.getElementById('path-section');
@@ -180,7 +186,7 @@ function loadCoursePath() {
                 html += `
                     <div class="step ${statusClass}">
                         <div class="step-circle">${iconHtml}</div>
-                        <span>${shortName}</span>
+                        <span>${escapeHtml(shortName)}</span>
                     </div>
                 `;
             });
@@ -200,6 +206,21 @@ function loadCoursePath() {
             `;
         }
     });
+}
+
+function loadReplays() {
+    const list = document.getElementById('replay-list');
+    if (!list) return;
+    fetchWithSWR(`/api/live/replays?t=${Date.now()}`, 'swr_replays', replays => {
+        if (!Array.isArray(replays) || !replays.length) {
+            list.innerHTML = '<div class="event-item">Les enregistrements publiés par ton enseignant apparaîtront ici.</div>';
+            return;
+        }
+        const escapeHtml = value => String(value ?? '').replace(/[&<>"']/g, char => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[char]));
+        list.innerHTML = replays.slice(0, 5).map(replay => `
+            <article class="replay-dashboard-item"><div><strong>${escapeHtml(replay.title)}</strong><div style="color:#64748b;font-size:.85rem">${escapeHtml(replay.course?.title || 'Formation')} · ${new Date(replay.scheduled_at).toLocaleDateString('fr-FR')}</div></div>
+            <a class="btn-primary" href="${escapeHtml(replay.replay_url)}" target="_blank" rel="noopener noreferrer" style="text-decoration:none;white-space:nowrap">Voir le replay</a></article>`).join('');
+    }, () => { list.innerHTML = '<div class="event-item">Impossible de charger les replays.</div>'; });
 }
 
 function loadEvents() {

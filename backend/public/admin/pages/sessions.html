@@ -417,7 +417,7 @@ function renderCard(s, status) {
         </div>
         <div class="session-actions">
             ${hostBtn}
-            ${status === 'completed' ? `<button class="btn-secondary" onclick="updateReplay('${s.id}')"><i class="fas fa-link"></i> ${s.replay_url ? 'Modifier le replay' : 'Ajouter le replay'}</button>` : ''}
+            ${status === 'completed' ? `<button class="btn-secondary" onclick="uploadReplay('${s.id}')"><i class="fas fa-cloud-upload-alt"></i> ${s.replay_url ? 'Remplacer le replay' : 'Téléverser le replay'}</button><button class="btn-secondary" onclick="updateReplay('${s.id}')"><i class="fas fa-link"></i> Lien externe</button>` : ''}
             ${status !== 'completed' ? `<button class="btn-danger" onclick="deleteSession('${s.id}')"><i class="fas fa-trash"></i></button>` : ''}
         </div>
     </div>`;
@@ -446,6 +446,41 @@ async function updateReplay(sessionId) {
     }
 }
 
+async function uploadReplay(sessionId) {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = 'video/mp4,video/webm,video/quicktime,.mp4,.webm,.mov';
+    input.onchange = async () => {
+        const file = input.files?.[0];
+        if (!file) return;
+        if (file.size > 1024 * 1024 * 1024) return showToast('La vidéo doit faire 1 Go ou moins.', 'error');
+        const contentType = file.type || ({'.mp4':'video/mp4','.webm':'video/webm','.mov':'video/quicktime'}[file.name.toLowerCase().match(/\.[^.]+$/)?.[0]]);
+        if (!contentType) return showToast('Format non pris en charge. Choisissez MP4, WebM ou MOV.', 'error');
+        showToast('Préparation du transfert…');
+        try {
+            const signedResponse = await fetch(`${API}/api/live/${encodeURIComponent(sessionId)}/replay-upload-url`, {
+                method:'POST', credentials:'include', headers:{'Content-Type':'application/json'},
+                body:JSON.stringify({ fileName:file.name, contentType, size:file.size })
+            });
+            const signed = await signedResponse.json();
+            if (!signedResponse.ok) throw new Error(signed.error || 'Impossible de préparer le transfert');
+            const putResponse = await fetch(signed.uploadUrl, { method:'PUT', headers:{'Content-Type':contentType}, body:file });
+            if (!putResponse.ok) throw new Error('Transfert interrompu. Vérifiez le CORS de votre bucket R2.');
+            const saveResponse = await fetch(`${API}/api/live/${encodeURIComponent(sessionId)}/replay`, {
+                method:'PATCH', credentials:'include', headers:{'Content-Type':'application/json'},
+                body:JSON.stringify({ replayKey:signed.key })
+            });
+            const saved = await saveResponse.json();
+            if (!saveResponse.ok) throw new Error(saved.error || 'Vidéo transférée mais impossible de l’attacher');
+            const session = allSessions.find(item => item.id === sessionId);
+            if (session) session.replay_url = saved.replay_url;
+            renderSessions();
+            showToast('Replay téléversé et visible pour les étudiants inscrits.', 'success');
+        } catch (error) { showToast(error.message, 'error'); }
+    };
+    input.click();
+}
+
 // ── Load Offers & Courses for form dropdowns ──────────────────────────
 async function loadOffers() {
     try {
@@ -464,9 +499,9 @@ async function loadOffers() {
 
 async function loadCourses() {
     try {
-        const res = await fetch(`${API}/api/courses`, { credentials: 'include' });
+        const res = await fetch(`${API}/api/admin/courses`, { credentials: 'include' });
         const data = await res.json();
-        const courses = Array.isArray(data) ? data : (data.courses || []);
+        const courses = Array.isArray(data.data) ? data.data : [];
         allCourses = courses;
         const sel = document.getElementById('f-course');
         sel.innerHTML = '<option value="">— Sélectionner un cours —</option>';

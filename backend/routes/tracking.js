@@ -87,6 +87,7 @@ router.post("/progress", authMiddleware, async (req, res) => {
            JOIN course_modules cm ON cm.course_id = ac.course_id
            JOIN lessons l ON l.module_id = cm.module_id
            LEFT JOIN lesson_progress lp ON lp.lesson_id = l.id AND lp.user_id = $1
+           WHERE l.type IS DISTINCT FROM 'quiz'
            GROUP BY cm.course_id
          )
          UPDATE enrollments e
@@ -126,7 +127,7 @@ router.get("/course-progress/:courseId", authMiddleware, async (req, res) => {
        FROM lessons l
        JOIN course_modules cm ON l.module_id = cm.module_id
        LEFT JOIN lesson_progress lp ON lp.lesson_id = l.id AND lp.user_id = $1
-       WHERE cm.course_id = $2`,
+       WHERE cm.course_id = $2 AND l.type IS DISTINCT FROM 'quiz'`,
       [userId, courseId]
     );
 

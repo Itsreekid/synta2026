@@ -235,6 +235,14 @@
     padding: 1.25rem;
     border-radius: var(--radius-lg);
 }
+.continue-course-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(270px,1fr)); gap:1rem; width:100%; }
+.continue-course-card { background:#fff; border:1px solid #e2e8f0; border-radius:16px; padding:1rem; display:grid; grid-template-columns:auto 1fr; gap:.8rem; align-items:center; box-shadow:0 3px 12px rgba(15,23,42,.04); }
+.continue-course-card .course-logo { width:48px; height:48px; font-size:1.8rem; }
+.continue-course-card .course-details h4 { font-size:1rem; }
+.continue-course-card .course-progress-container { margin-top:.6rem; }
+.continue-course-card .btn-primary { grid-column:1 / -1; width:100%; }
+.replay-dashboard-item { display:flex; justify-content:space-between; gap:1rem; align-items:center; padding:.85rem 0; border-bottom:1px solid #e2e8f0; }
+.replay-dashboard-item:last-child { border-bottom:0; }
 .course-logo {
     width: 64px;
     height: 64px;

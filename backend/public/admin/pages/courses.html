@@ -170,6 +170,17 @@
         .course-title-cell strong { display: block; }
         .course-title-cell span { color: var(--text-muted); font-size: 0.82rem; }
 
+        .modal-content.chapter-modal { width: min(900px, 96vw); max-width: 900px; }
+        .chapter-toolbar, .chapter-row, .lesson-row { display:flex; gap:.7rem; align-items:center; flex-wrap:wrap; }
+        .chapter-row, .lesson-row { padding:.8rem; border:1px solid var(--border); border-radius:10px; margin:.5rem 0; background:#fff; }
+        .chapter-row { justify-content:space-between; background:#f8fafc; }
+        .chapter-lessons { padding:0 .5rem .6rem 1rem; }
+        .chapter-form { display:grid; grid-template-columns:1fr 1fr auto; gap:.6rem; margin:1rem 0; }
+        .chapter-form input, .chapter-form select { min-width:0; padding:.65rem; border:1px solid var(--border); border-radius:8px; }
+        .lesson-form { display:grid; grid-template-columns:1.2fr 1fr 1.2fr 90px 85px 1fr auto; gap:.5rem; padding:.8rem 0; align-items:center; }
+        .chapter-modal button { font-family:inherit; }
+        @media(max-width:700px) { .chapter-form,.lesson-form { grid-template-columns:1fr; } }
+
         .badge {
             font-size: 0.72rem;
             padding: 0.2rem 0.55rem;
@@ -456,12 +467,35 @@
         </div>
     </div>
 
+    <div id="chapterModal" class="modal">
+        <div class="modal-content chapter-modal">
+            <div style="display:flex;justify-content:space-between;align-items:center;gap:1rem">
+                <div><h2>Programme pédagogique</h2><p id="chapterCourseTitle" style="color:var(--text-muted);margin-top:.3rem"></p></div>
+                <button type="button" class="btn-icon" onclick="closeChapterManager()" aria-label="Fermer"><i class="fas fa-times"></i></button>
+            </div>
+            <div class="chapter-form">
+                <input id="newChapterTitle" placeholder="Nouveau chapitre (ex. Tableaux)">
+                <input id="newChapterDescription" placeholder="Description (facultatif)">
+                <button class="btn btn-primary" type="button" onclick="createChapter()"><i class="fas fa-plus"></i> Créer</button>
+            </div>
+            <div style="display:flex;gap:.6rem;align-items:center;margin-bottom:.8rem">
+                <select id="chapterLibrarySelect" style="flex:1;padding:.65rem;border:1px solid var(--border);border-radius:8px"><option value="">Ou réutiliser un chapitre existant…</option></select>
+                <button class="btn" type="button" onclick="attachExistingChapter()">Ajouter au cours</button>
+            </div>
+            <div id="chapterManagerList"><div class="empty-state">Chargement du programme…</div></div>
+            <div style="display:flex;justify-content:flex-end;margin-top:1rem"><button class="btn" type="button" onclick="closeChapterManager()">Fermer</button></div>
+        </div>
+    </div>
+
     <!-- Scripts -->
     <script src="../../js/authentication.js"></script>
     <script src="../js/admin-auth.js"></script>
     <script>
         let allCourses = [];
         let allOffers = [];
+        let activeChapterCourseId = null;
+        let activeCourseChapters = [];
+        let chapterLibrary = [];
 
         // ── Init ──────────────────────────────────────
         document.addEventListener('DOMContentLoaded', async () => {
@@ -583,6 +617,9 @@
                                 <button class="btn-icon" title="Modifier" onclick="editCourse('${course.id}')">
                                     <i class="fas fa-edit" style="pointer-events:none;"></i>
                                 </button>
+                                <button class="btn-icon" title="Gérer les chapitres, leçons et documents" onclick="openChapterManager('${course.id}')">
+                                    <i class="fas fa-layer-group" style="pointer-events:none;"></i>
+                                </button>
                                 <button class="btn-icon" title="${course.is_published ? 'Dépublier' : 'Publier'}" 
                                     onclick="togglePublish('${course.id}', ${course.is_published})"
                                     style="color:${course.is_published ? 'var(--warning)' : 'var(--success)'}; border-color:${course.is_published ? 'var(--warning)' : 'var(--success)'};">
@@ -593,6 +630,185 @@
                     </tr>
                 `;
             }).join('');
+        }
+
+        async function openChapterManager(courseId) {
+            activeChapterCourseId = courseId;
+            const course = allCourses.find(item => String(item.id) === String(courseId));
+            document.getElementById('chapterCourseTitle').textContent = course?.title || '';
+            document.getElementById('chapterModal').style.display = 'flex';
+            await loadChapterManager();
+        }
+
+        function closeChapterManager() { document.getElementById('chapterModal').style.display = 'none'; }
+
+        async function loadChapterManager() {
+            const list = document.getElementById('chapterManagerList');
+            list.innerHTML = '<div class="empty-state"><i class="fas fa-spinner fa-spin"></i> Chargement…</div>';
+            try {
+                const [courseResp, libraryResp] = await Promise.all([
+                    fetch(`/api/admin/courses/${encodeURIComponent(activeChapterCourseId)}/modules`, { credentials:'include' }),
+                    fetch('/api/admin/modules/library', { credentials:'include' })
+                ]);
+                const courseData = await courseResp.json();
+                const libraryData = await libraryResp.json();
+                if (!courseResp.ok || !courseData.success) throw new Error(courseData.error || 'Erreur de chargement');
+                activeCourseChapters = courseData.data || [];
+                chapterLibrary = libraryData.data || [];
+                const attached = new Set(activeCourseChapters.map(item => String(item.id)));
+                document.getElementById('chapterLibrarySelect').innerHTML = '<option value="">Ou réutiliser un chapitre existant…</option>' +
+                    chapterLibrary.filter(item => !attached.has(String(item.id))).map(item => `<option value="${escHtml(item.id)}">${escHtml(item.title)} · ${item.course_count} cours</option>`).join('');
+                renderChapterManager();
+            } catch (error) {
+                list.innerHTML = `<div class="empty-state" style="color:var(--danger)">${escHtml(error.message)}</div>`;
+            }
+        }
+
+        function renderChapterManager() {
+            const list = document.getElementById('chapterManagerList');
+            if (!activeCourseChapters.length) {
+                list.innerHTML = '<div class="empty-state"><i class="fas fa-book-open"></i><p>Aucun chapitre pour ce cours. Créez-en un ou réutilisez un chapitre existant.</p></div>';
+                return;
+            }
+            list.innerHTML = activeCourseChapters.map(chapter => `
+                <section style="border:1px solid var(--border);border-radius:12px;margin:.75rem 0;overflow:hidden">
+                    <div class="chapter-row" style="border:0;border-radius:0;margin:0">
+                        <div><strong>${escHtml(chapter.title)}</strong><small style="display:block;color:var(--text-muted)">${chapter.lesson_count} leçon(s) · ordre ${chapter.order_index}</small></div>
+                        <div class="actions">
+                            <input aria-label="Ordre du chapitre" type="number" min="0" value="${chapter.order_index}" style="width:76px;padding:.45rem;border:1px solid var(--border);border-radius:7px" onchange="updateChapterOrder('${chapter.id}',this.value)">
+                            <button class="btn-icon" title="Modifier le titre" onclick="editChapter('${chapter.id}')"><i class="fas fa-pen"></i></button>
+                            <button class="btn-icon danger" title="Retirer de ce cours (le chapitre reste dans les autres cours)" onclick="removeChapter('${chapter.id}')"><i class="fas fa-unlink"></i></button>
+                        </div>
+                    </div>
+                    <div class="chapter-lessons">
+                        ${(chapter.lessons || []).map(lesson => `
+                            <div class="lesson-row">
+                                <div style="flex:1;min-width:150px"><strong>${escHtml(lesson.title)}</strong><small style="display:block;color:var(--text-muted)">${escHtml(lesson.type)} · ordre ${lesson.order_index}${lesson.is_preview ? ' · aperçu' : ''}${lesson.has_document ? ' · document attaché' : ' · sans document'}</small></div>
+                                <input aria-label="Ordre de la leçon" type="number" min="0" value="${lesson.order_index}" style="width:72px;padding:.4rem;border:1px solid var(--border);border-radius:7px" onchange="updateLessonOrder('${lesson.id}',this.value)">
+                                <button class="btn" type="button" onclick="uploadLessonDocument('${lesson.id}')"><i class="fas fa-file-upload"></i> ${lesson.has_document ? 'Remplacer le document' : 'Ajouter un document'}</button>
+                                <button class="btn-icon" title="Modifier le titre" onclick="editLesson('${lesson.id}')"><i class="fas fa-pen"></i></button>
+                                <button class="btn-icon danger" title="Supprimer la leçon" onclick="deleteLesson('${lesson.id}')"><i class="fas fa-trash"></i></button>
+                            </div>`).join('')}
+                        <form class="lesson-form" onsubmit="createLesson(event,'${chapter.id}')">
+                            <input name="title" required placeholder="Titre de la leçon">
+                            <select name="type"><option value="video">Vidéo</option><option value="pdf">Document</option><option value="quiz">Quiz</option></select>
+                            <input name="description" placeholder="Description (facultatif)">
+                            <input name="duration" type="number" min="0" placeholder="Durée (s)">
+                            <label style="font-size:.78rem"><input name="isPreview" type="checkbox"> Aperçu</label>
+                            <input name="document" type="file" accept=".pdf,.doc,.docx,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document" aria-label="Document de la leçon">
+                            <button class="btn btn-primary" type="submit">Ajouter</button>
+                        </form>
+                    </div>
+                </section>`).join('');
+        }
+
+        async function createChapter() {
+            const title = document.getElementById('newChapterTitle').value.trim();
+            if (!title) return showToast('Saisissez le titre du chapitre.', 'error');
+            await chapterRequest(`/api/admin/courses/${activeChapterCourseId}/modules`, 'POST', {
+                title, description: document.getElementById('newChapterDescription').value.trim(), orderIndex: activeCourseChapters.length
+            });
+            document.getElementById('newChapterTitle').value = '';
+            document.getElementById('newChapterDescription').value = '';
+            await loadChapterManager();
+        }
+
+        async function attachExistingChapter() {
+            const moduleId = document.getElementById('chapterLibrarySelect').value;
+            if (!moduleId) return showToast('Choisissez un chapitre existant.', 'error');
+            await chapterRequest(`/api/admin/courses/${activeChapterCourseId}/modules`, 'POST', { moduleId, orderIndex: activeCourseChapters.length });
+            await loadChapterManager();
+        }
+
+        async function updateChapterOrder(moduleId, orderIndex) {
+            await chapterRequest(`/api/admin/courses/${activeChapterCourseId}/modules/${moduleId}`, 'PATCH', { orderIndex:Number(orderIndex) });
+            await loadChapterManager();
+        }
+
+        async function editChapter(moduleId) {
+            const chapter = activeCourseChapters.find(item => item.id === moduleId);
+            const title = prompt('Titre du chapitre', chapter?.title || '');
+            if (title === null) return;
+            await chapterRequest(`/api/admin/modules/${moduleId}`, 'PATCH', { title, description:chapter?.description || '' });
+            await loadChapterManager();
+        }
+
+        async function removeChapter(moduleId) {
+            if (!confirm('Retirer ce chapitre de ce cours ? Son contenu restera disponible dans les autres cours.')) return;
+            await chapterRequest(`/api/admin/courses/${activeChapterCourseId}/modules/${moduleId}`, 'DELETE');
+            await loadChapterManager();
+        }
+
+        async function createLesson(event, moduleId) {
+            event.preventDefault();
+            const form = event.currentTarget;
+            const formData = new FormData(form);
+            try {
+                const response = await fetch(`/api/admin/modules/${moduleId}/lessons`, {
+                    method:'POST', credentials:'include', headers:{'Content-Type':'application/json'},
+                    body:JSON.stringify({ title:formData.get('title'), description:formData.get('description'), type:formData.get('type'), duration:formData.get('duration'), isPreview:formData.get('isPreview') === 'on' })
+                });
+                const data = await response.json();
+                if (!response.ok || !data.success) throw new Error(data.error || 'Impossible de créer la leçon');
+                const file = formData.get('document');
+                if (file?.size) await uploadDocument(data.data.id, file);
+                showToast('Leçon ajoutée.', 'success');
+                await loadChapterManager();
+            } catch (error) { showToast(error.message, 'error'); }
+        }
+
+        async function uploadLessonDocument(lessonId) {
+            const input = document.createElement('input');
+            input.type = 'file'; input.accept = '.pdf,.doc,.docx,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document';
+            input.onchange = async () => { if (input.files[0]) { try { await uploadDocument(lessonId, input.files[0]); showToast('Document ajouté au cours.', 'success'); await loadChapterManager(); } catch(error) { showToast(error.message, 'error'); } } };
+            input.click();
+        }
+
+        async function uploadDocument(lessonId, file) {
+            if (file.size > 25 * 1024 * 1024) throw new Error('Le document doit faire 25 Mo ou moins.');
+            const signedResponse = await fetch(`/api/admin/lessons/${lessonId}/document-upload-url`, {
+                method:'POST', credentials:'include', headers:{'Content-Type':'application/json'},
+                body:JSON.stringify({ fileName:file.name, contentType:file.type, size:file.size })
+            });
+            const signed = await signedResponse.json();
+            if (!signedResponse.ok) throw new Error(signed.error || 'Upload impossible');
+            const putResponse = await fetch(signed.uploadUrl, { method:'PUT', headers:{'Content-Type':file.type}, body:file });
+            if (!putResponse.ok) throw new Error('Échec de transfert vers le stockage. Vérifiez le CORS R2.');
+            const attachResponse = await fetch(`/api/admin/lessons/${lessonId}/document`, {
+                method:'PATCH', credentials:'include', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ key:signed.key })
+            });
+            const attached = await attachResponse.json();
+            if (!attachResponse.ok) throw new Error(attached.error || 'Document transféré mais non attaché');
+        }
+
+        async function deleteLesson(lessonId) {
+            if (!confirm('Supprimer définitivement cette leçon et son document associé ? La leçon disparaîtra de tous les cours qui réutilisent ce chapitre.')) return;
+            await chapterRequest(`/api/admin/lessons/${lessonId}`, 'DELETE');
+            await loadChapterManager();
+        }
+
+        async function editLesson(lessonId) {
+            const lesson = activeCourseChapters.flatMap(chapter => chapter.lessons || []).find(item => item.id === lessonId);
+            if (!lesson) return;
+            const title = prompt('Titre de la leçon', lesson.title);
+            if (title === null) return;
+            await chapterRequest(`/api/admin/lessons/${lessonId}`, 'PATCH', { title, type:lesson.type });
+            await loadChapterManager();
+        }
+
+        async function updateLessonOrder(lessonId, orderIndex) {
+            await chapterRequest(`/api/admin/lessons/${lessonId}`, 'PATCH', { orderIndex:Number(orderIndex) });
+            await loadChapterManager();
+        }
+
+        async function chapterRequest(url, method, body) {
+            try {
+                const response = await fetch(url, { method, credentials:'include', headers:{'Content-Type':'application/json'}, ...(body ? {body:JSON.stringify(body)} : {}) });
+                const data = await response.json();
+                if (!response.ok || data.success === false) throw new Error(data.error || 'Action impossible');
+                showToast('Modifications enregistrées.', 'success');
+                return data;
+            } catch (error) { showToast(error.message, 'error'); throw error; }
         }
 
         // ── Filter ─────────────────────────────────────

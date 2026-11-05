@@ -51,6 +51,7 @@ async function loadCourseDetails(courseId) {
 
         let liveSessions = [];
         let liveSessionsLoaded = false;
+        let courseResources = [];
         if (hasAccess) {
             try {
                 const liveResponse = await fetch(`/api/live/course/${encodeURIComponent(courseId)}`, { credentials: 'include' });
@@ -60,6 +61,13 @@ async function loadCourseDetails(courseId) {
             } catch (error) {
                 console.error('Live sessions fetch error:', error);
             }
+        }
+
+        if (hasAccess) {
+            try {
+                const resourcesResponse = await fetch(`/api/courses/${encodeURIComponent(courseId)}/resources`, { credentials: 'include' });
+                if (resourcesResponse.ok) courseResources = (await resourcesResponse.json()).resources || [];
+            } catch (error) { console.error('Course documents fetch error:', error); }
         }
 
         let courseProgress = null;
@@ -76,11 +84,13 @@ async function loadCourseDetails(courseId) {
         const modulesWithLessons = course.modules || [];
 
         // Count total lessons
-        const totalLessons = modulesWithLessons.reduce((sum, module) => sum + (module.lessons?.length || 0), 0);
+        const totalLessons = modulesWithLessons.reduce((sum, module) =>
+            sum + (module.lessons || []).filter(lesson => lesson.type !== 'quiz').length, 0);
 
         // Render course information
         await renderCourseInfo(course, totalLessons, hasAccess, courseProgress, liveSessionsLoaded ? liveSessions.length : null);
         renderCourseLiveSessions(liveSessions, hasAccess, liveSessionsLoaded);
+        renderCourseResources(courseResources, hasAccess);
 
         // Render modules and lessons
         renderModulesAndLessons(modulesWithLessons, hasAccess, courseProgress);
@@ -89,6 +99,26 @@ async function loadCourseDetails(courseId) {
         console.error('Erreur lors du chargement du cours:', error);
         showError('Une erreur s\'est produite lors du chargement des détails du cours');
     }
+}
+
+function renderCourseResources(resources, hasAccess) {
+    const container = document.getElementById('course-resources-list');
+    if (!container) return;
+    if (!hasAccess) {
+        container.innerHTML = '<p style="color:#64748b;font-size:.9rem">Inscrivez-vous au cours pour accéder aux documents.</p>';
+        return;
+    }
+    if (!resources.length) {
+        container.innerHTML = '<p style="color:#64748b;font-size:.9rem">Aucun document ajouté pour le moment.</p>';
+        return;
+    }
+    const escape = value => String(value ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+    container.innerHTML = resources.map(resource => `
+        <a class="resource-item" href="${escape(resource.url)}" target="_blank" rel="noopener noreferrer" style="text-decoration:none;color:inherit">
+            <span style="color:#ef4444;font-size:1.2rem"><i class="fas fa-file-alt"></i></span>
+            <span style="flex:1;font-size:.9rem;font-weight:600;color:#334155">${escape(resource.title)}<small style="display:block;color:#64748b;font-weight:400">${escape(resource.chapter)}</small></span>
+            <i class="fas fa-arrow-up-right-from-square" style="color:#94a3b8;font-size:.8rem"></i>
+        </a>`).join('');
 }
 
 /**
@@ -187,7 +217,7 @@ async function renderCourseInfo(course, totalLessons, hasAccess, courseProgress,
     
     // Update quizzes and lives count
     const quizzesCount = document.getElementById('quizzes-count');
-    if (quizzesCount) quizzesCount.textContent = course.quizzes_count || Math.floor(Math.random() * 4) + 1;
+    if (quizzesCount) quizzesCount.textContent = Number(course.quizzes_count) || 0;
     
     const livesCount = document.getElementById('lives-count');
     if (livesCount) livesCount.textContent = liveCount === null ? '—' : liveCount;
@@ -266,6 +296,7 @@ function renderCourseLiveSessions(sessions, hasAccess, loaded) {
 function renderModulesAndLessons(modules, hasAccess, courseProgress) {
     const container = document.getElementById('modules-container');
     const completedIds = courseProgress ? courseProgress.completedIds : [];
+    const escapeHtml = value => String(value ?? '').replace(/[&<>"']/g, char => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[char]));
 
     if (!modules || modules.length === 0) {
         container.innerHTML = '<p style="color: #64748b; text-align: center; padding: 2rem;">Aucun module disponible pour ce cours.</p>';
@@ -278,7 +309,7 @@ function renderModulesAndLessons(modules, hasAccess, courseProgress) {
         return `
             <div class="module-card">
                 <div class="module-header" onclick="toggleModule(${moduleIndex})">
-                    <h3>${module.title}</h3>
+                    <h3>${escapeHtml(module.title)}</h3>
                     <span class="module-toggle" id="toggle-${moduleIndex}">▼</span>
                 </div>
                 <div class="lessons-list" id="lessons-${moduleIndex}">
@@ -305,7 +336,7 @@ function renderModulesAndLessons(modules, hasAccess, courseProgress) {
                                         ${iconHtml}
                                     </div>
                                     <div class="lesson-details">
-                                        <div class="lesson-title">${lesson.title}</div>
+                                        <div class="lesson-title">${escapeHtml(lesson.title)}</div>
                                         ${lesson.duration && lesson.duration > 0 ? `<div class="lesson-duration"><i class="far fa-clock"></i> ${duration}</div>` : ''}
                                     </div>
                                 </div>
@@ -786,7 +817,7 @@ async function completePurchaseDetails(courseId, price) {
 /**
  * Show error message
  */
-function showError(message) {
+function showErrorLegacy(message) {
     const messageDiv = document.createElement('div');
     messageDiv.style.cssText = `
         position: fixed;
@@ -900,12 +931,13 @@ function renderCourseContent(course, hasAccess, progress) {
     if (!contentContainer) return;
 
     const completedLessons = progress?.completed_lessons || [];
+    const escapeHtml = value => String(value ?? '').replace(/[&<>"']/g, char => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[char]));
 
     contentContainer.innerHTML = course.modules.map(module => `
         <div class="module-card">
             <div class="module-header">
-                <h3>${module.title}</h3>
-                ${module.description ? `<p>${module.description}</p>` : ''}
+                <h3>${escapeHtml(module.title)}</h3>
+                ${module.description ? `<p>${escapeHtml(module.description)}</p>` : ''}
             </div>
             
             <div class="lessons-list">
@@ -920,8 +952,8 @@ function renderCourseContent(course, hasAccess, progress) {
                                     ${lesson.type === 'video' ? '🎥' : lesson.type === 'pdf' ? '📄' : '📝'}
                                 </span>
                                 <div class="lesson-details">
-                                    <h4>${lesson.title}</h4>
-                                    ${lesson.description ? `<p>${lesson.description}</p>` : ''}
+                                    <h4>${escapeHtml(lesson.title)}</h4>
+                                    ${lesson.description ? `<p>${escapeHtml(lesson.description)}</p>` : ''}
                                     ${lesson.duration ? `<span class="duration">${formatDuration(lesson.duration)}</span>` : ''}
                                 </div>
                             </div>
@@ -950,7 +982,7 @@ function renderCourseContent(course, hasAccess, progress) {
 /**
  * Enroll in course
  */
-async function enrollInCourse(courseId, isFree) {
+async function legacyEnrollInCourse(courseId, isFree) {
     const authenticated = await window.SyntaAPI.isAuthenticated();
     if (!authenticated) {
         window.SyntaAPI.showError('يجب تسجيل الدخول أولاً');
@@ -1040,7 +1072,7 @@ function openVideoPlayer(lessonId, videoUrl) {
 /**
  * Format duration in seconds to readable format
  */
-function formatDuration(seconds) {
+function formatDurationReadable(seconds) {
     const hours = Math.floor(seconds / 3600);
     const minutes = Math.floor((seconds % 3600) / 60);
 

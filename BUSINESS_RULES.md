@@ -17,7 +17,10 @@
 | One educational module can be included in multiple courses | ✅ | `course_modules` join table; legacy course placements are backfilled by migration |
 | A module can have a separate display order in each course | ✅ | `course_modules.order_index` |
 | Course access is granted by enrollment in a course that includes the lesson's module | ✅ | `checkLessonAccess()` joins enrollments through `course_modules` |
-| Admin interface/API can attach an existing module to another course | ❌ | No module-to-course assignment endpoint or UI found |
+| Admin interface/API can attach an existing module to another course | ✅ | Admin course chapter manager uses `course_modules` |
+| Admin can create lessons and add PDF/Word documents to them | ✅ | Admin API signs R2 uploads; course resource endpoint grants signed read URLs only to enrolled students |
+| Admin can upload a live replay for a session | ✅ | Admin API signs R2 uploads; live session endpoint signs private replay keys for entitled students |
+| Students only see replays for active course/offer enrollment | ✅ | Live course, upcoming, and replay APIs check enrollment expiry and offer association |
 
 > Offer access remains course-based through `offer_courses` and enrollments. Reusing a module does not change payment or entitlement rules.
 

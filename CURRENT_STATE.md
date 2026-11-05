@@ -2,7 +2,7 @@
 
 > **Last updated:** 2026-11-05  
 > **Updated by:** Codex  
-> **Next recommended task:** Add an admin workflow to attach an existing module to multiple courses, then continue TASK-004 in `IMPLEMENTATION_PLAN.md`
+> **Next recommended task:** Continue TASK-004 in `IMPLEMENTATION_PLAN.md`; then validate the new admin workflows against Coolify/R2
 
 ---
 
@@ -204,14 +204,15 @@ The backend is running in production on Coolify. Core features (login, course ac
 
 TASK-001 and TASK-002 are complete. Continue with TASK-004 in `IMPLEMENTATION_PLAN.md`.
 
-For teaching, the current supported assignment model is still course-based: schedule the session against the Bac Science course in Admin → Sessions. Enrolled students see it on that course page. The application does not yet have a separate cohort/group entity.
+Admin course management now supports shared chapters, lesson management, and lesson documents. Admin → Sessions supports Zoom scheduling and uploaded recordings. Students see their enrolled courses, course documents, live sessions, and authorized replays. There is still no separate cohort/group entity; live access remains course/offer enrollment based.
 
 ---
 
 ## 10. Incomplete Work
 
 - TASK-001 and TASK-002 are implemented; automated and manual endpoint verification has not been run in this session.
-- Course live-session listing and admin replay-link editing are implemented; no database migration was needed. These changes have not been manually exercised against the production Zoom/database setup.
+- Admin chapter/lesson/document and live recording workflows are implemented in source; they have not been manually exercised against production Postgres, Zoom, or R2.
+- Direct browser uploads require the production Synta origin in the R2 bucket CORS policy. Upload limits: lesson documents 25 MB; replay videos 1 GB.
 - Remaining work is tracked in `IMPLEMENTATION_PLAN.md`; TASK-004 is the next recommended task.
 
 ## 11. Course Module Reuse and Deployment Migrations (2026-11-05)
@@ -222,7 +223,10 @@ For teaching, the current supported assignment model is still course-based: sche
 - Docker now expects repository root as build context and `/backend/Dockerfile`; it includes SQL migrations and runs them before starting Express. See `backend/QUICK_DEPLOY.md`.
 - `202611050001_create_notifications.sql` replaces notifications DDL previously performed at runtime in `backend/config/db.js`.
 - No live database migration was run. On first deploy, the existing Postgres DB must already contain the base schema. Back up before deploying.
-- **Not yet complete:** admins still have no UI/API to attach one existing module to another course. Add that workflow before expecting staff to reuse chapters operationally. Keep legacy `modules.course_id` and `order_index` until all module write paths have been migrated.
+- Admin can now create a chapter once and attach it to other courses. Keep legacy `modules.course_id` and `order_index` for compatibility while new reads use `course_modules`.
+- Student course pages replace placeholder resources with enrolled-only signed document links; the dashboard lists all enrolled courses and available replays.
+- Uploaded replay object keys are stored in existing `live_sessions.replay_url`; students receive expiring signed links. External replay URLs remain supported.
+- **Deployment prerequisite:** set R2 CORS for the exact admin site origin before testing browser uploads.
 - **BROKEN/RISK:** Other runtime `ALTER TABLE` calls remain, so TASK-004 is still in progress.
 
 ---
@@ -241,4 +245,14 @@ For teaching, the current supported assignment model is still course-based: sche
 | `backend/middleware/requireAdmin.js` | Admin auth — dual mechanism |
 | `backend/utils/zoomClient.js` | Zoom token caching, meeting creation |
 | `backend/routes/session.js` | Placement quiz onboarding flow |
+
+## 13. Admin Content and Student Course UX (2026-11-05)
+
+- Admin → Courses now includes a chapter manager: create a chapter, attach an existing shared chapter, reorder it, edit its title, and remove its placement without deleting shared chapter content.
+- The chapter manager creates, edits, reorders, and deletes lessons; admins can upload a lesson document (PDF/DOC/DOCX, 25 MB limit) directly to private R2.
+- Admin → Sessions includes replay upload after a session (MP4/WebM/MOV, up to 1 GB) or external replay URL. Uploaded object keys use existing `live_sessions.replay_url`; student endpoints convert keys to expiring signed download links and enforce course, offer, and enrollment expiry.
+- Student course pages show actual lesson/quiz counts, enrolled-only downloadable lesson documents, live join links, and replays. Student dashboard lists each enrolled course plus recent eligible replays and the student's class/branch.
+- Lesson progress totals now exclude quiz items to match the dashboard's separate lesson/quiz counts.
+- **R2 prerequisite:** configure bucket CORS to allow `PUT` from the exact production site origin with the `Content-Type` request header; setup details are in `backend/QUICK_DEPLOY.md`.
+- **Verification:** JavaScript and embedded admin scripts pass syntax checks. Production database, Zoom, browser interactions, R2 CORS, and actual file uploads remain unverified.
 

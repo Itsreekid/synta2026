@@ -53,6 +53,7 @@ Synta Academy is a **Tunisian e-learning platform** targeting high-school studen
 | Object storage | Cloudflare R2 (S3-compatible) |
 | Access method | Pre-signed URLs (5-minute expiry default) |
 | Content types | MP4 video, PDF, images (thumbnails, receipts) |
+| Admin uploads | Short-lived signed R2 PUT URLs; lesson documents are stored in `lessons.pdf_key`, uploaded live replays reuse `live_sessions.replay_url` to store a private R2 object key |
 
 ### Frontend
 | Component | Technology |

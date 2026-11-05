@@ -158,6 +158,8 @@ Created automatically by the deployment runner. Tracks each applied migration fi
 | `is_preview` | BOOLEAN | NOT NULL DEFAULT false | Free preview — bypasses enrollment check |
 | `created_at` | TIMESTAMPTZ | NOT NULL DEFAULT NOW() | |
 
+Admin lesson PDF/Word uploads use `pdf_key` for the private R2 object key. The student course-resource endpoint returns short-lived signed download URLs only after checking course enrollment.
+
 ---
 
 ### 2.5 `offers`
@@ -325,7 +327,7 @@ Created automatically by the deployment runner. Tracks each applied migration fi
 | `zoom_join_url` | TEXT | NULLABLE | Student join link |
 | `zoom_start_url` | TEXT | NULLABLE | 🔒 Host-only link — NEVER expose to students |
 | `zoom_password` | TEXT | NULLABLE | |
-| `replay_url` | TEXT | NULLABLE | Recording URL (manually set) |
+| `replay_url` | TEXT | NULLABLE | External HTTPS URL or private R2 object key uploaded by an admin; students receive a short-lived signed URL |
 | `created_at` | TIMESTAMPTZ | NOT NULL DEFAULT NOW() | |
 
 **Indexes:** `idx_live_sessions_course`, `idx_live_sessions_scheduled`

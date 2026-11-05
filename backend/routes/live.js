@@ -6,6 +6,7 @@ import pool from "../config/db.js";
 import { authApiMiddleware } from "../middleware/requireAuth.js";
 import { requireAdmin } from "../middleware/requireAdmin.js";
 import { createZoomMeeting, deleteZoomMeeting } from "../utils/zoomClient.js";
+import { createR2UploadUrl, generateSignedUrl } from "../utils/r2Utils.js";
 
 const router = express.Router();
 
@@ -28,13 +29,20 @@ router.get("/course/:courseId", authApiMiddleware, async (req, res) => {
            SELECT 1 FROM enrollments e
            WHERE e.user_id = $2
              AND e.course_id = ls.course_id
+             AND (e.expires_at IS NULL OR e.expires_at > NOW())
              AND (ls.offer_id IS NULL OR e.offer_id = ls.offer_id)
          )
        ORDER BY ls.scheduled_at DESC`,
       [courseId, userId]
     );
 
-    res.json(result.rows);
+    const sessions = await Promise.all(result.rows.map(async (session) => ({
+      ...session,
+      replay_url: session.replay_url && !/^https?:\/\//i.test(session.replay_url)
+        ? await generateSignedUrl(session.replay_url, 3600)
+        : session.replay_url,
+    })));
+    res.json(sessions);
   } catch (error) {
     console.error("Error fetching course live sessions:", error);
     res.status(500).json({ error: "Internal server error" });
@@ -49,7 +57,8 @@ router.get("/upcoming", authApiMiddleware, async (req, res) => {
     const userId = req.user.id;
 
     const enrollResult = await pool.query(
-      `SELECT course_id, offer_id FROM enrollments WHERE user_id = $1`,
+      `SELECT course_id, offer_id FROM enrollments
+       WHERE user_id = $1 AND (expires_at IS NULL OR expires_at > NOW())`,
       [userId]
     );
 
@@ -79,10 +88,11 @@ router.get("/upcoming", authApiMiddleware, async (req, res) => {
       (s) => !s.offer_id || (offerMap[s.course_id]?.has(s.offer_id) ?? false)
     );
 
-    const response = accessible.map(({ offer_id, course_id, course_title, course_thumbnail, ...s }) => ({
+    const response = await Promise.all(accessible.map(async ({ offer_id, course_id, course_title, course_thumbnail, ...s }) => ({
       ...s,
+      replay_url: s.replay_url && !/^https?:\/\//i.test(s.replay_url) ? await generateSignedUrl(s.replay_url, 3600) : s.replay_url,
       course: { title: course_title, thumbnail_url: course_thumbnail },
-    }));
+    })));
 
     res.json(response);
   } catch (error) {
@@ -98,29 +108,25 @@ router.get("/replays", authApiMiddleware, async (req, res) => {
   try {
     const userId = req.user.id;
 
-    const enrollResult = await pool.query(
-      `SELECT course_id FROM enrollments WHERE user_id = $1`,
-      [userId]
-    );
-    const enrolledCourseIds = enrollResult.rows.map((e) => e.course_id);
-    if (enrolledCourseIds.length === 0) return res.json([]);
-
     const result = await pool.query(
-      `SELECT ls.id, ls.title, ls.description, ls.scheduled_at,
+      `SELECT DISTINCT ls.id, ls.title, ls.description, ls.scheduled_at,
               ls.duration_minutes, ls.replay_url, c.title AS course_title
        FROM live_sessions ls
        JOIN courses c ON c.id = ls.course_id
-       WHERE ls.course_id = ANY($1)
-         AND ls.scheduled_at < NOW()
+       JOIN enrollments e ON e.course_id = ls.course_id AND e.user_id = $1
+         AND (e.expires_at IS NULL OR e.expires_at > NOW())
+         AND (ls.offer_id IS NULL OR ls.offer_id = e.offer_id)
+       WHERE ls.scheduled_at < NOW()
          AND ls.replay_url IS NOT NULL
        ORDER BY ls.scheduled_at DESC`,
-      [enrolledCourseIds]
+      [userId]
     );
 
-    const replays = result.rows.map(({ course_title, ...s }) => ({
+    const replays = await Promise.all(result.rows.map(async ({ course_title, ...s }) => ({
       ...s,
+      replay_url: !/^https?:\/\//i.test(s.replay_url) ? await generateSignedUrl(s.replay_url, 3600) : s.replay_url,
       course: { title: course_title },
-    }));
+    })));
 
     res.json(replays);
   } catch (error) {
@@ -199,6 +205,23 @@ router.delete("/:sessionId", requireAdmin, async (req, res) => {
  */
 router.patch("/:sessionId/replay", requireAdmin, async (req, res) => {
   const { sessionId } = req.params;
+  const replayKey = typeof req.body?.replayKey === "string" ? req.body.replayKey.trim() : "";
+  if (replayKey) {
+    if (!replayKey.startsWith(`live-replays/${sessionId}/`) || replayKey.includes("..")) {
+      return res.status(400).json({ error: "Invalid replay upload key" });
+    }
+    try {
+      const result = await pool.query(
+        `UPDATE live_sessions SET replay_url = $1 WHERE id = $2 RETURNING id, replay_url`,
+        [replayKey, sessionId]
+      );
+      if (!result.rowCount) return res.status(404).json({ error: "Session not found" });
+      return res.json({ success: true, ...result.rows[0] });
+    } catch (error) {
+      console.error("Error attaching live replay:", error.message);
+      return res.status(500).json({ error: "Failed to attach replay" });
+    }
+  }
   const rawReplayUrl = typeof req.body?.replayUrl === "string" ? req.body.replayUrl.trim() : "";
   let replayUrl = null;
 
@@ -222,6 +245,27 @@ router.patch("/:sessionId/replay", requireAdmin, async (req, res) => {
   } catch (error) {
     console.error("Error updating live session replay:", error);
     res.status(500).json({ error: "Failed to update replay link" });
+  }
+});
+
+router.post("/:sessionId/replay-upload-url", requireAdmin, async (req, res) => {
+  const { fileName, contentType, size } = req.body || {};
+  if (!new Set(["video/mp4", "video/webm", "video/quicktime"]).has(contentType)) {
+    return res.status(400).json({ error: "Upload an MP4, WebM, or MOV video" });
+  }
+  if (!Number.isFinite(Number(size)) || Number(size) <= 0 || Number(size) > 1024 * 1024 * 1024) {
+    return res.status(400).json({ error: "Replay file must be 1 GB or less" });
+  }
+  try {
+    const session = await pool.query("SELECT id FROM live_sessions WHERE id = $1", [req.params.sessionId]);
+    if (!session.rowCount) return res.status(404).json({ error: "Session not found" });
+    const safeName = String(fileName || "replay").normalize("NFKD").replace(/[^a-zA-Z0-9._-]/g, "_").slice(-100);
+    const key = `live-replays/${req.params.sessionId}/${Date.now()}-${safeName}`;
+    const uploadUrl = await createR2UploadUrl(key, contentType, 900);
+    res.json({ uploadUrl, key });
+  } catch (error) {
+    console.error("Could not prepare replay upload:", error.message);
+    res.status(500).json({ error: "Could not prepare replay upload" });
   }
 });
 

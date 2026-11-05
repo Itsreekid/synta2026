@@ -31,6 +31,22 @@
 
 ---
 
+## 2026-11-05 — Complete Course Content and Replay Workflows
+
+**Author:** Codex
+**Type:** FEATURE / ARCHITECTURE
+
+- Added admin chapter management to create chapters, reuse them across courses, reorder placements, edit chapter titles, and remove a chapter from one course without deleting shared content.
+- Added lesson creation/deletion and direct R2 PDF/Word uploads; enrolled students now see real course documents instead of placeholder resource cards.
+- Added direct R2 upload for Zoom session recordings and signed replay URLs for enrolled students. Expired or unrelated offer enrollments do not unlock replays.
+- Student dashboard now shows every enrolled course and recent available replays, with class/branch context.
+- Course lesson and quiz counters are based on real mapped content, and lesson completion progress excludes quiz items.
+- Fixed a duplicate global enrollment function declaration that prevented the course details script from parsing.
+- R2 bucket CORS must allow PUT from the deployed site origin; see `backend/QUICK_DEPLOY.md`.
+- No new database columns or tables. Source syntax checks are being performed; no live DB, Zoom, or R2 upload was exercised here.
+
+---
+
 ## 2026-11-05 — Secure Purchase and AI Debug Endpoints
 
 **Author:** Codex  

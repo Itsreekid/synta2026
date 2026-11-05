@@ -8,6 +8,10 @@ In Coolify, configure the application to build from the **repository root** and 
 
 This does not initialize a brand-new empty PostgreSQL database. The base schema in `database/schema_postgres.sql` must already have been installed once. Back up the database before the first deployment containing migrations.
 
+## R2 browser uploads
+
+The admin uploads lesson documents and live replay videos directly to the private R2 bucket using short-lived signed URLs. Configure the bucket CORS policy to allow `PUT` from your exact Synta site origin and allow the `Content-Type` request header. Example policy values: `AllowedOrigins: ["https://your-site-domain"]`, `AllowedMethods: ["PUT"]`, `AllowedHeaders: ["Content-Type"]`, `ExposeHeaders: ["ETag"]`, `MaxAgeSeconds: 3600`. Replace the example origin with the production domain (and add the admin preview domain if you use one).
+
 ## ⚡ Quick Fix Commands
 
 ```bash
