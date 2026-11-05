@@ -166,7 +166,7 @@ async function subscribeToOffer(offerId, title) {
             method: 'POST',
             credentials: 'include',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ offerId, userId: user.id })
+            body: JSON.stringify({ offerId })
         });
 
         const data = await purchaseResp.json();

@@ -1,70 +1,206 @@
-\# Agent Instructions
+# AGENTS.md — Synta Academy
 
-\> This file is mirrored across CLAUDE.md, AGENTS.md, and GEMINI.md so the same instructions load in any AI environment.
+> **This file governs ALL AI coding agents working on this repository.**
+> Read this file completely before touching any code.
 
-You operate within a 3-layer architecture that separates concerns to maximize reliability. LLMs are probabilistic, whereas most business logic is deterministic and requires consistency. This system fixes that mismatch.
+---
 
-\#\# The 3-Layer Architecture
+## Identity of This Project
 
-\*\*Layer 1: Directive (What to do)\*\*  
-\- Basically just SOPs written in Markdown, live in \`directives/\`  
-\- Define the goals, inputs, tools/scripts to use, outputs, and edge cases  
-\- Natural language instructions, like you'd give a mid-level employee
+**Synta Academy** is a Tunisian e-learning platform (Node.js/Express + PostgreSQL + Cloudflare R2 + Zoom + Gemini AI). It sells educational offers to Bac-level high school students, manages live Zoom sessions, tracks lesson progress, and operates a manual internal wallet system. The UI language is French/Arabic; currency is TND (Tunisian Dinar).
 
-\*\*Layer 2: Orchestration (Decision making)\*\*  
-\- This is you. Your job: intelligent routing.  
-\- Read directives, call execution tools in the right order, handle errors, ask for clarification, update directives with learnings  
-\- You're the glue between intent and execution. E.g you don't try scraping websites yourself—you read \`directives/scrape\_website.md\` and come up with inputs/outputs and then run \`execution/scrape\_single\_site.py\`
+---
 
-\*\*Layer 3: Execution (Doing the work)\*\*  
-\- Deterministic Python scripts in \`execution/\`  
-\- Environment variables, api tokens, etc are stored in \`.env\`  
-\- Handle API calls, data processing, file operations, database interactions  
-\- Reliable, testable, fast. Use scripts instead of manual work. Commented well.
+## Mandatory Reading Before Any Code Change
 
-\*\*Why this works:\*\* if you do everything yourself, errors compound. 90% accuracy per step \= 59% success over 5 steps. The solution is push complexity into deterministic code. That way you just focus on decision-making.
+| Document | Read when |
+|----------|-----------|
+| `AGENTS.md` (this file) | Always — before every task |
+| `CURRENT_STATE.md` | Always — to understand what is broken or in progress |
+| `ARCHITECTURE.md` | Before adding routes, middleware, or changing system design |
+| `DATABASE_SCHEMA.md` | Before any database change, migration, or query modification |
+| `BUSINESS_RULES.md` | Before implementing any user-facing feature |
+| `IMPLEMENTATION_PLAN.md` | To check if a task is already planned and to understand its dependencies |
 
-\#\# Operating Principles
+**After reading documentation, inspect the actual source code before writing any changes.**
 
-\*\*1. Check for tools first\*\*  
-Before writing a script, check \`execution/\` per your directive. Only create new scripts if none exist.
+---
 
-\*\*2. Self-anneal when things break\*\*  
-\- Read error message and stack trace  
-\- Fix the script and test it again (unless it uses paid tokens/credits/etc—in which case you check w user first)  
-\- Update the directive with what you learned (API limits, timing, edge cases)  
-\- Example: you hit an API rate limit → you then look into API → find a batch endpoint that would fix → rewrite script to accommodate → test → update directive.
+## Before Coding — Checklist
 
-\*\*3. Update directives as you learn\*\*  
-Directives are living documents. When you discover API constraints, better approaches, common errors, or timing expectations—update the directive. But don't create or overwrite directives without asking unless explicitly told to. Directives are your instruction set and must be preserved (and improved upon over time, not extemporaneously used and then discarded).
+- [ ] Read `CURRENT_STATE.md` — understand current working state and known bugs
+- [ ] Check `IMPLEMENTATION_PLAN.md` — is this task already defined? What is its priority?
+- [ ] Check `ARCHITECTURE.md` — will your change affect the existing architecture?
+- [ ] Check `DATABASE_SCHEMA.md` — are the tables you need already defined?
+- [ ] Check `BUSINESS_RULES.md` — is the behavior you are implementing documented and verified?
+- [ ] Inspect actual source files in the area you will modify
+- [ ] Confirm you understand what middleware protects the route you are touching
 
-\#\# Self-annealing loop
+---
 
-Errors are learning opportunities. When something breaks:  
-1\. Fix it  
-2\. Update the tool  
-3\. Test tool, make sure it works  
-4\. Update directive to include new flow  
-5\. System is now stronger
+## During Coding — Mandatory Rules
 
-\#\# File Organization
+### Database Rules
+1. **NEVER invent tables or columns** that are not in `DATABASE_SCHEMA.md`. If you need a new column or table, document it first, propose a migration, and get confirmation.
+2. **NEVER run migrations** in production without explicit human approval. Create the SQL file; do not execute it.
+3. **ALL database access must use parameterized queries** (`pool.query('... WHERE id = $1', [id])`). No string concatenation into SQL.
+4. **NEVER expose `zoom_start_url`** in any API response. It is the host meeting link. Filter it from every response object.
+5. **Do NOT add `ALTER TABLE` calls to route files or startup code.** Put schema changes in `/database/` migration files only.
 
-\*\*Deliverables vs Intermediates:\*\*  
-\- \*\*Deliverables\*\*: Google Sheets, Google Slides, or other cloud-based outputs that the user can access  
-\- \*\*Intermediates\*\*: Temporary files needed during processing
+### Authentication & Authorization Rules
+6. **Every new API endpoint must have explicit auth middleware.** Choose the correct middleware:
+   - `authApiMiddleware` from `requireAuth.js` → protected API endpoints (returns 401 JSON)
+   - `requireAdmin` from `requireAdmin.js` → admin-only endpoints (returns 403 JSON)
+   - `authMiddleware` from `auth.js` → optional auth (sets req.user or null)
+   - `requireAuth` from `requireAuth.js` → protected page routes (redirects to /login)
+7. **Never trust `userId` from request body or query params for authenticated operations.** Always derive user identity from `req.user.id` (set by auth middleware after JWT verification).
+8. **Never bypass the JWT cookie system.** Do not read tokens from localStorage, URL params, or other mechanisms in backend code.
 
-\*\*Directory structure:\*\*  
-\- \`.tmp/\` \- All intermediate files (dossiers, scraped data, temp exports). Never commit, always regenerated.  
-\- \`execution/\` \- Python scripts (the deterministic tools)  
-\- \`directives/\` \- SOPs in Markdown (the instruction set)  
-\- \`.env\` \- Environment variables and API keys  
-\- \`credentials.json\`, \`token.json\` \- Google OAuth credentials (required files, in \`.gitignore\`)
+### Business Logic Rules
+9. **Never implement a feature that conflicts with `BUSINESS_RULES.md` without explicit confirmation.** If a rule is marked NEEDS CLARIFICATION, do not implement it — ask first.
+10. **Never silently change how enrollments or payments work.** These are financial operations. Any change requires explicit review.
+11. **Always use DB transactions (`BEGIN/COMMIT/ROLLBACK`) for operations that modify both `users.balance` and `transactions` or `enrollments`.** Use `pool.connect()` + client for transaction blocks.
 
-\*\*Key principle:\*\* Local files are only for processing. Deliverables live in cloud services (Google Sheets, Slides, etc.) where the user can access them. Everything in \`.tmp/\` can be deleted and regenerated.
+### Code Quality Rules
+12. **Follow existing naming conventions:** camelCase for JS variables, snake_case for SQL columns, kebab-case for route files.
+13. **Never duplicate existing functionality.** Check if a helper/function/middleware already exists before writing a new one.
+14. **Maintain existing comments and docstrings** unless they are demonstrably wrong.
+15. **Never commit `.env` files or any file containing real secrets.** Check `.gitignore` before every commit.
+16. **Never expose real secrets in API responses, logs, or error messages.** This includes JWT secrets, R2 keys, Zoom credentials, and API keys.
 
-\#\# Summary
+### Architecture Rules
+17. **This project uses ESM modules** (`"type": "module"` in `package.json`). Use `import/export`, not `require/module.exports`.
+18. **All database access goes through the single pool** exported from `backend/config/db.js`. Do not create additional database connections.
+19. **Frontend JS is vanilla — no bundler.** Do not introduce webpack, Vite, React, or any build tooling unless explicitly instructed.
+20. **New routes belong in existing route files or new files in `backend/routes/`**, mounted in `server.js`. Do not add routes directly to `server.js`.
 
-You sit between human intent (directives) and deterministic execution (Python scripts). Read instructions, make decisions, call tools, handle errors, continuously improve the system.
+---
 
-Be pragmatic. Be reliable. Self-anneal.
+## After Coding — Required Steps
 
+1. **Verify your change does not break existing tests** (when tests exist)
+2. **Manually test the happy path and at least one error path** for every new endpoint
+3. **If you created or modified a database table:** update `DATABASE_SCHEMA.md`
+4. **If you changed how the system works architecturally:** update `ARCHITECTURE.md`
+5. **If you implemented or changed a business rule:** update `BUSINESS_RULES.md` with correct status
+6. **If you completed a task from `IMPLEMENTATION_PLAN.md`:** mark it COMPLETED with the date
+7. **Update `CURRENT_STATE.md`** with:
+   - What you changed
+   - What is now working
+   - Any new known bugs or issues
+   - What the next agent should do next
+8. **Add a `CHANGELOG.md` entry** for significant changes
+
+---
+
+## When Switching Agents — Handoff Protocol
+
+When you are finishing a session that another AI agent (or human) will continue:
+
+1. **Commit or save your work** with a clear description of what changed
+2. **Update `CURRENT_STATE.md`** immediately — this is the most critical document for continuity
+3. **Write in `CURRENT_STATE.md`:**
+   - Exactly what you completed
+   - What is broken or incomplete
+   - What the next task should be (by TASK-ID from `IMPLEMENTATION_PLAN.md`)
+   - Any unexpected discoveries or caveats
+4. **Do NOT rely on conversation history** being available to the next agent. All context must be in documentation files.
+5. **If you left something in a broken state**, document it explicitly with BROKEN: label
+6. **If you are mid-way through a migration**, document the exact SQL state
+
+---
+
+## Critical Security Rules (Never Violate)
+
+| Rule | Reason |
+|------|--------|
+| `zoom_start_url` must NEVER appear in API responses to non-admins | Gives full Zoom host control |
+| `password_hash` must NEVER appear in any API response | bcrypt hashes can be attacked offline |
+| `JWT_SECRET` must NEVER appear in logs, errors, or responses | Full auth compromise |
+| `R2_SECRET_KEY`, `R2_ACCESS_KEY` must NEVER appear in client-reachable code | Full storage access |
+| `GEMINI_API_KEY` must NEVER appear in client-reachable code | Billing risk |
+| `ZOOM_CLIENT_SECRET` must NEVER appear in client-reachable code | Full Zoom account access |
+| Admin endpoints must ALWAYS use `requireAdmin` middleware | Privilege escalation |
+| Purchase endpoints must ALWAYS derive `userId` from JWT, never from body | Impersonation risk |
+
+---
+
+## Project Directory Map
+
+```
+synta academy new/
+├── backend/                    ← Main Node.js application
+│   ├── server.js               ← Entry point, middleware, route mounting
+│   ├── config/
+│   │   ├── db.js               ← PostgreSQL pool (single instance)
+│   │   └── r2.js               ← Cloudflare R2 client
+│   ├── routes/                 ← All API route handlers
+│   │   ├── auth-api.js         ← /api/auth/* (register, login, logout, verify)
+│   │   ├── google-auth.js      ← /api/auth/google
+│   │   ├── user-api.js         ← /api/user/* + /api/events
+│   │   ├── content.js          ← /api/content/* (lessons, progress, thumbnails)
+│   │   ├── courses.js          ← /api/courses/*
+│   │   ├── enrollment.js       ← /api/enrollment/*
+│   │   ├── purchase.js         ← /api/purchase/* (JWT protected)
+│   │   ├── offers.js           ← /api/offers/*
+│   │   ├── live.js             ← /api/live/* (Zoom sessions)
+│   │   ├── tracking.js         ← /api/tracking/* (quiz, progress)
+│   │   ├── admin-api.js        ← /api/admin/* (all admin operations)
+│   │   ├── session.js          ← /api/session/* (placement quiz)
+│   │   ├── ai-api.js           ← /api/ai/* (debug endpoint JWT protected)
+│   │   └── pages.js            ← HTML page rendering (EJS)
+│   ├── middleware/
+│   │   ├── requireAuth.js      ← Cookie JWT middleware (page redirect / API 401)
+│   │   ├── requireAdmin.js     ← Admin role check middleware
+│   │   ├── auth.js             ← Optional Bearer+Cookie auth middleware
+│   │   └── attachUserProfile.js ← Fetches DB profile for EJS templates
+│   ├── services/
+│   │   └── email.js            ← Resend email service (verification emails)
+│   ├── utils/
+│   │   ├── r2Utils.js          ← R2 signed URL generation, upload, delete
+│   │   └── zoomClient.js       ← Zoom S2S OAuth, meeting create/delete
+│   ├── views/                  ← EJS templates
+│   │   ├── pages/              ← App pages (dashboard, courses, auth, etc.)
+│   │   └── partials/           ← Shared EJS components (head, header, sidebar)
+│   ├── public/                 ← Static assets
+│   │   ├── index.html          ← Landing page
+│   │   ├── Accueil.html        ← French landing page
+│   │   ├── admin/              ← Admin panel (static HTML)
+│   │   ├── js/                 ← Client-side JavaScript
+│   │   ├── css/                ← Stylesheets
+│   │   └── source/             ← Images
+│   ├── .env.example            ← Environment variable template (no secrets)
+│   ├── package.json            ← Dependencies (ESM, Node 18+)
+│   └── Dockerfile              ← Multi-stage Docker build (Node 20 Alpine)
+├── database/                   ← SQL migration files
+│   ├── schema_postgres.sql     ← Base schema (self-hosted Postgres) — PRIMARY
+│   ├── add_google_auth.sql     ← Adds google_id to users
+│   ├── add_email_verification.sql ← Adds email_verified, token fields
+│   ├── add_feedback_table.sql  ← Creates lesson_feedback table
+│   ├── add_offers_targeting.sql ← Adds target arrays to offers
+│   └── add_offers_features.sql ← Adds features JSONB to offers
+├── AGENTS.md                   ← THIS FILE
+├── ARCHITECTURE.md             ← System architecture documentation
+├── DATABASE_SCHEMA.md          ← Full schema reference
+├── BUSINESS_RULES.md           ← Business logic documentation
+├── IMPLEMENTATION_PLAN.md      ← Development roadmap
+├── CURRENT_STATE.md            ← Live status and handoff document
+└── CHANGELOG.md                ← Change history
+```
+
+---
+
+## Known Issues Summary (as of 2026-11-05)
+
+| ID | Severity | Description |
+|----|----------|-------------|
+| BUG-001 | FIXED 2026-11-05 | Purchase endpoints require JWT auth and derive user ID from `req.user.id` |
+| BUG-002 | FIXED 2026-11-05 | `/api/ai/debug` requires JWT auth |
+| BUG-003 | CRITICAL | Refresh token is issued but never consumed — 1-hour login window |
+| BUG-004 | HIGH | `users.debt`, `offers.*`, `transactions.*` columns added at runtime (schema drift risk) |
+| BUG-005 | HIGH | `session_registrations.auth_user_id` never set after account creation |
+| BUG-006 | HIGH | No password reset flow implemented despite page existing |
+| BUG-007 | HIGH | `user_weak_topics` table is never populated by any code |
+| BUG-008 | MEDIUM | Admin HTML served as static file with no server-side auth |
+| BUG-009 | MEDIUM | No rate limiting on any endpoint |
+| BUG-010 | MEDIUM | Live session `status` is never updated from `scheduled` |

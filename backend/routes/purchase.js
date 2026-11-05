@@ -3,19 +3,21 @@
 // =====================================================
 import express from "express";
 import pool from "../config/db.js";
+import { authApiMiddleware } from "../middleware/requireAuth.js";
 
 const router = express.Router();
 
 /**
  * POST /api/purchase/course
  */
-router.post("/course", async (req, res) => {
+router.post("/course", authApiMiddleware, async (req, res) => {
   const client = await pool.connect();
   try {
-    const { courseId, userId } = req.body;
+    const { courseId } = req.body;
+    const userId = req.user.id;
 
-    if (!courseId || !userId) {
-      return res.status(400).json({ error: "Missing required fields: courseId and userId" });
+    if (!courseId) {
+      return res.status(400).json({ error: "Missing required field: courseId" });
     }
 
     await client.query("BEGIN");
@@ -96,13 +98,14 @@ router.post("/course", async (req, res) => {
 /**
  * POST /api/purchase/offer
  */
-router.post("/offer", async (req, res) => {
+router.post("/offer", authApiMiddleware, async (req, res) => {
   const client = await pool.connect();
   try {
-    const { offerId, userId } = req.body;
+    const { offerId } = req.body;
+    const userId = req.user.id;
 
-    if (!offerId || !userId) {
-      return res.status(400).json({ error: "Missing required fields: offerId and userId" });
+    if (!offerId) {
+      return res.status(400).json({ error: "Missing required field: offerId" });
     }
 
     await client.query("BEGIN");

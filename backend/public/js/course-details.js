@@ -695,17 +695,15 @@ function showPurchaseConfirmationDetails(courseId, courseTitle, price, currentBa
  */
 async function completePurchaseDetails(courseId, price) {
     try {
-        const user = await window.SyntaAPI.getCurrentUser();
-
         // Call backend API to purchase course
         const response = await fetch(`${window.SyntaAPI.BACKEND_URL}/api/purchase/course`, {
             method: 'POST',
+            credentials: 'include',
             headers: {
                 'Content-Type': 'application/json'
             },
             body: JSON.stringify({
-                courseId: courseId,
-                userId: user.id
+                courseId: courseId
             })
         });
 

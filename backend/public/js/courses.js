@@ -271,7 +271,7 @@ async function enrollCourse(courseId, isFree) {
                 method: 'POST',
                 credentials: 'include',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ courseId, userId: user.id })
+                body: JSON.stringify({ courseId })
             });
             const result = await resp.json();
             if (resp.ok) {
@@ -297,7 +297,7 @@ async function enrollCourse(courseId, isFree) {
                 return;
             }
 
-            showPurchaseConfirmation(courseId, course.title, price, balance, user.id);
+            showPurchaseConfirmation(courseId, course.title, price, balance);
         }
 
     } catch (error) {
@@ -309,7 +309,7 @@ async function enrollCourse(courseId, isFree) {
 /**
  * Show purchase confirmation popup
  */
-function showPurchaseConfirmation(courseId, courseTitle, price, currentBalance, userId) {
+function showPurchaseConfirmation(courseId, courseTitle, price, currentBalance) {
     const popup = document.createElement('div');
     popup.style.cssText = `
         position: fixed;
@@ -372,7 +372,7 @@ function showPurchaseConfirmation(courseId, courseTitle, price, currentBalance, 
 
     document.getElementById('confirmBuyBtn').onclick = async () => {
         popup.remove();
-        await completePurchase(courseId, price, userId);
+        await completePurchase(courseId, price);
     };
 
     document.getElementById('cancelBuyBtn').onclick = () => { popup.remove(); };
@@ -383,13 +383,13 @@ function showPurchaseConfirmation(courseId, courseTitle, price, currentBalance, 
 /**
  * Complete the purchase after confirmation
  */
-async function completePurchase(courseId, price, userId) {
+async function completePurchase(courseId, price) {
     try {
         const response = await fetch('/api/purchase/course', {
             method: 'POST',
             credentials: 'include',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ courseId, userId })
+            body: JSON.stringify({ courseId })
         });
 
         const result = await response.json();

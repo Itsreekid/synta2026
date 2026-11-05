@@ -1,4 +1,5 @@
 import express from "express";
+import { authApiMiddleware } from "../middleware/requireAuth.js";
 
 const router = express.Router();
 
@@ -92,7 +93,7 @@ async function tryModelWithRetry(model, prompt, apiKey, isPrimary) {
 }
 
 // ── /api/ai/debug ────────────────────────────────────────────────
-router.post("/debug", async (req, res) => {
+router.post("/debug", authApiMiddleware, async (req, res) => {
     try {
         const { code, error } = req.body;
 
