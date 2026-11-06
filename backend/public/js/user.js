@@ -340,8 +340,12 @@ function resizeIframe() {
     }
 }
 
-// Global functions for iframe communication (called from iframe content)
+// Global functions for iframe communication / header onclick handlers
 window.loadPage = loadPage;
 window.loadPageWithDate = loadPageWithDate;
 window.logout = logout;
-window.resizeIframe = resizeIframe; 
+window.resizeIframe = resizeIframe;
+window.toggleMobileMenu = toggleMobileMenu;
+window.closeMobileMenu = closeMobileMenu;
+window.toggleNotifications = toggleNotifications;
+window.toggleProfileDropdown = toggleProfileDropdown; 
