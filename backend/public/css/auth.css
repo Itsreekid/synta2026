@@ -15,6 +15,10 @@
     box-sizing: border-box;
 }
 
+html {
+    height: 100%;
+}
+
 body {
     font-family: 'Tajawal', sans-serif;
     background-color: var(--light-bg);
@@ -23,26 +27,30 @@ body {
     display: flex;
     align-items: center;
     justify-content: center;
-    height: 100vh;
-    overflow: hidden;
+    min-height: 100vh;
+    min-height: 100dvh;
     margin: 0;
+    overflow-x: hidden;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
 }
 
 .auth-section {
     width: 100%;
-    height: 100%;
+    min-height: 100vh;
+    min-height: 100dvh;
     display: flex;
     align-items: center;
     justify-content: center;
+    padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
 }
 
 .container {
     width: 100%;
-    height: 100%;
     display: flex;
     align-items: center;
     justify-content: center;
-    padding: 2rem;
+    padding: 1.5rem;
 }
 
 .auth-container {
@@ -53,14 +61,117 @@ body {
     overflow: hidden;
     width: 100%;
     max-width: 1100px;
-    height: 85vh;
-    max-height: 800px;
+    min-height: min(85vh, 760px);
+    max-height: min(92vh, 860px);
 }
 
-/* Register page needs extra height to fit all fields */
+/* Register page: allow the form column to scroll instead of clipping fields */
 .auth-container.auth-container--register {
-    height: 92vh;
-    max-height: 900px;
+    min-height: min(90vh, 820px);
+    max-height: min(96vh, 940px);
+}
+.auth-container.auth-container--register .auth-form {
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+}
+
+.auth-brand-mobile {
+    display: none;
+    justify-content: center;
+    margin-bottom: 1rem;
+}
+.auth-brand-mobile img {
+    width: 72px;
+    height: auto;
+}
+
+[hidden] {
+    display: none !important;
+}
+
+.auth-message-mount:empty {
+    display: none;
+}
+.auth-message-mount {
+    margin-bottom: 1rem;
+}
+.auth-message-mount .message {
+    margin: 0;
+}
+
+.auth-form--status {
+    justify-content: center;
+}
+.auth-status-card {
+    width: 100%;
+    max-width: 420px;
+    margin: 0 auto;
+    text-align: center;
+}
+.auth-status-icon {
+    width: 72px;
+    height: 72px;
+    margin: 0 auto 1rem;
+    border-radius: 50%;
+    display: grid;
+    place-items: center;
+    font-size: 1.8rem;
+}
+.auth-status-icon.success {
+    background: #ecfdf5;
+    color: #059669;
+}
+.auth-status-icon.warn {
+    background: #fff7ed;
+    color: #ea580c;
+}
+.auth-email-highlight {
+    display: block;
+    margin-top: 0.45rem;
+    color: var(--primary-color);
+    font-size: 1.05rem;
+    word-break: break-word;
+}
+.auth-status-hint {
+    color: var(--gray-text) !important;
+    font-size: 0.92rem !important;
+    line-height: 1.55 !important;
+    margin-bottom: 1.4rem !important;
+}
+.auth-inline-feedback {
+    margin-top: 0.85rem;
+    font-size: 0.9rem;
+    font-weight: 700;
+}
+.auth-back-link {
+    display: inline-block;
+    margin-top: 1.5rem;
+    padding-top: 1.25rem;
+    border-top: 1px solid #e2e8f0;
+    width: 100%;
+    color: var(--secondary-color);
+    font-weight: 700;
+    text-decoration: none;
+}
+.auth-back-link:hover {
+    color: #e6740e;
+}
+.secondary-outline-btn {
+    background: #f8fafc;
+    color: var(--primary-color);
+    border: 2px solid #e2e8f0;
+    box-shadow: none;
+}
+.secondary-outline-btn:hover {
+    background: #fff;
+    border-color: #fdba74;
+    color: var(--secondary-color);
+    transform: none;
+    box-shadow: none;
+}
+.form-group--inline {
+    display: flex;
+    justify-content: flex-start;
 }
 
 .auth-image {
@@ -809,22 +920,111 @@ body {
 
 /* Responsive Design */
 @media (max-width: 768px) {
-    .container {
-        padding: 1rem;
+    body {
+        align-items: flex-start;
+        background: #ffffff;
     }
 
-    .auth-container {
-        height: 100%;
+    .auth-section {
+        align-items: stretch;
+        min-height: 100dvh;
+    }
+
+    .container {
+        padding: 0;
+        align-items: stretch;
+        min-height: 100dvh;
+    }
+
+    .auth-container,
+    .auth-container.auth-container--register {
+        flex-direction: column;
+        min-height: 100dvh;
         max-height: none;
-        border-radius: 15px;
+        height: auto;
+        border-radius: 0;
+        box-shadow: none;
+        overflow: visible;
     }
 
     .auth-image {
         display: none;
     }
 
-    .auth-form {
-        padding: 2rem;
+    .auth-brand-mobile {
+        display: flex;
+    }
+
+    .auth-form,
+    .auth-form--centered,
+    .auth-form--status {
+        flex: 1 1 auto;
+        width: 100%;
+        min-height: 100dvh;
+        padding: 1.25rem 1.15rem calc(1.5rem + env(safe-area-inset-bottom));
+        justify-content: flex-start !important;
+        overflow: visible;
+    }
+
+    .auth-form h2 {
+        font-size: 1.55rem;
+        padding-top: 0.25rem;
+        margin-bottom: 0.35rem;
+    }
+
+    .auth-form > p {
+        margin-bottom: 1rem;
+        font-size: 0.95rem;
+    }
+
+    .form-row {
+        flex-direction: column;
+        gap: 0;
+    }
+
+    .form-row .form-group,
+    .form-group {
+        margin-bottom: 0.85rem;
+    }
+
+    .form-group input,
+    .form-group select {
+        font-size: 16px; /* prevent iOS zoom on focus */
+        padding: 0.8rem 0.9rem;
+    }
+
+    .terms {
+        align-items: flex-start;
+        gap: 0.35rem;
+    }
+
+    .terms label {
+        line-height: 1.45;
+    }
+
+    .btn {
+        font-size: 1rem;
+        padding: 0.9rem 1.25rem;
+    }
+
+    .social-divider {
+        margin: 1rem 0 0.85rem;
+    }
+
+    .google-signin-container {
+        padding-bottom: 0.5rem;
+    }
+
+    .auth-status-card {
+        padding-top: 1.5rem;
+    }
+}
+
+@media (max-width: 420px) {
+    .auth-form,
+    .auth-form--centered,
+    .auth-form--status {
+        padding-inline: 1rem;
     }
 }
 
@@ -861,7 +1061,7 @@ body {
 }
 
 .google-btn {
-    display: flex;
+    display: flex !important;
     align-items: center;
     justify-content: center;
     gap: 0.65rem;
@@ -882,6 +1082,13 @@ body {
     min-height: 48px;
     -webkit-tap-highlight-color: transparent;
     touch-action: manipulation;
+}
+
+/* Label/icon must not block the GIS overlay hit target */
+.google-btn > .google-icon,
+.google-btn > span,
+.google-btn > svg {
+    pointer-events: none;
 }
 
 .google-btn:hover:not(.is-loading) {
@@ -920,11 +1127,13 @@ body {
 .gis-overlay {
     position: absolute;
     inset: 0;
-    z-index: 20;
-    opacity: 0.02;
+    z-index: 30;
+    /* Never use opacity:0 — Safari/iOS ignore taps on fully transparent layers */
+    opacity: 0.04;
     overflow: hidden;
     border-radius: inherit;
     cursor: pointer;
+    pointer-events: auto;
     -webkit-tap-highlight-color: transparent;
     touch-action: manipulation;
 }

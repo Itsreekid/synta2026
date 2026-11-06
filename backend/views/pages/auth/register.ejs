@@ -2,13 +2,14 @@
 <html lang="ar" dir="rtl">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <title>Synta Academy - إنشاء حساب</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700&display=swap" rel="stylesheet">
     <link rel="icon" href="/source/logoweb.png" type="image/x-icon">
-    <link rel="stylesheet" href="/css/auth.css?v=3">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <link rel="stylesheet" href="/css/auth.css?v=6">
     <script id="__SYNTA_CONFIG__">
         window.__SYNTA_CONFIG__ = {
             supabaseUrl: "<%- (typeof syntaConfig !== 'undefined' && syntaConfig.url) ? syntaConfig.url : '' %>",
@@ -16,14 +17,13 @@
         };
     </script>
     <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
-    <!-- Google Identity Services SDK -->
     <script src="https://accounts.google.com/gsi/client" async defer></script>
 </head>
-<body>
+<body class="auth-page auth-page--register">
     <section class="auth-section">
         <div class="container">
             <div class="auth-container auth-container--register">
-                <div class="auth-image theme-primary">
+                <div class="auth-image theme-primary" aria-hidden="true">
                     <div class="dynamic-auth-bg">
                         <div class="bubble bubble-1"></div>
                         <div class="bubble bubble-2"></div>
@@ -40,34 +40,40 @@
                         <div class="streak streak-8"></div>
                         <div class="rocket-glow"></div>
                         <div class="rocket-container">
-                            <img src="/source/rocket.svg" alt="Rocket" class="rocket-svg">
+                            <img src="/source/rocket.svg" alt="" class="rocket-svg">
                         </div>
                         <div class="logo-bubble-wrapper">
                             <img src="/source/logo.png" alt="Synta Academy" class="logo-bubble">
                         </div>
                     </div>
                 </div>
-                <div class="auth-form">
+
+                <div class="auth-form" id="registerFormPanel">
+                    <div class="auth-brand-mobile">
+                        <img src="/source/logo.png" alt="Synta Academy">
+                    </div>
                     <h2>إنشاء حساب جديد</h2>
                     <p>لديك حساب بالفعل؟ <a href="/login">تسجيل الدخول</a></p>
+                    <div id="authMessageMount" class="auth-message-mount" aria-live="polite"></div>
 
-                    <form id="registerForm" method="POST">
+                    <form id="registerForm" method="POST" novalidate>
                         <div class="form-row">
                             <div class="form-group">
                                 <label for="fullName">الاسم الكامل</label>
-                                <input type="text" id="fullName" name="fullName" required>
+                                <input type="text" id="fullName" name="fullName" autocomplete="name" required>
                             </div>
                             <div class="form-group">
                                 <label for="email">البريد الإلكتروني</label>
-                                <input type="email" id="email" name="email" required>
+                                <input type="email" id="email" name="email" autocomplete="email" inputmode="email" required>
                             </div>
                         </div>
                         <div class="form-group">
                             <label for="phone">رقم الهاتف</label>
                             <input type="tel" id="phone" name="phone" required minlength="8" maxlength="8"
+                                inputmode="numeric" autocomplete="tel"
                                 pattern="^[24579][0-9]{7}$"
                                 title="يرجى إدخال رقم هاتف تونسي صحيح (8 أرقام تبدأ بـ 2، 4، 5، 7، أو 9)">
-                            <span class="password-hint">رقم هاتف يجب أن يكون متكون من 8 أرقام</span>
+                            <span class="password-hint">8 أرقام تبدأ بـ 2 أو 4 أو 5 أو 7 أو 9</span>
                         </div>
                         <div class="form-row">
                             <div class="form-group">
@@ -99,30 +105,28 @@
                             <div class="form-group">
                                 <label for="password">كلمة المرور</label>
                                 <div class="password-input-wrapper">
-                                    <input type="password" id="password" name="password" required>
+                                    <input type="password" id="password" name="password" autocomplete="new-password" required minlength="6">
+                                    <i class="fas fa-eye toggle-password" id="togglePassword" role="button" tabindex="0" aria-label="إظهار كلمة المرور"></i>
                                 </div>
-                                <span class="password-hint">يجب أن تكون 6 أحرف على الأقل</span>
+                                <span class="password-hint">6 أحرف على الأقل</span>
                             </div>
                             <div class="form-group">
                                 <label for="confirmPassword">تأكيد كلمة المرور</label>
                                 <div class="password-input-wrapper">
-                                    <input type="password" id="confirmPassword" name="confirmPassword" required>
+                                    <input type="password" id="confirmPassword" name="confirmPassword" autocomplete="new-password" required minlength="6">
+                                    <i class="fas fa-eye toggle-password" id="toggleConfirmPassword" role="button" tabindex="0" aria-label="إظهار تأكيد كلمة المرور"></i>
                                 </div>
                             </div>
                         </div>
                         <div class="terms">
                             <input type="checkbox" id="terms" name="terms" required>
-                            <label for="terms">أوافق على <a href="#">الشروط والأحكام</a></label>
+                            <label for="terms">أوافق على <a href="/terms" target="_blank" rel="noopener">الشروط والأحكام</a></label>
                         </div>
                         <button type="submit" id="registerSubmitBtn" class="btn primary-btn btn-block">إنشاء الحساب</button>
                     </form>
 
-                    <!-- Social login divider -->
-                    <div class="social-divider">
-                        <span>أو سجّل بسرعة مع</span>
-                    </div>
+                    <div class="social-divider"><span>أو سجّل بسرعة مع</span></div>
 
-                    <!-- Google Sign-In (div wrapper — nesting GIS inside <button> breaks iPhone taps) -->
                     <div id="google-signin-container" class="google-signin-container">
                         <div id="googleSignInBtn" class="btn google-btn btn-block" role="button" tabindex="0" aria-label="إنشاء حساب بـ Google">
                             <svg class="google-icon" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
@@ -137,31 +141,25 @@
                         </div>
                         <p class="google-register-note">سيتم إنشاء حسابك تلقائياً باستخدام بريد Google الإلكتروني.</p>
                     </div>
-                    </div>
                 </div>
 
-                <!-- Registration Success State (Hidden by default) -->
-                <div id="registerSuccessState" class="auth-form" style="display: none; text-align: center;">
-                    <div style="font-size: 3rem; color: #10b981; margin-bottom: 1rem;">
-                        <i class="fas fa-envelope-open-text"></i>
-                    </div>
-                    <h2 style="color: #013047; margin-bottom: 1rem;">تم إنشاء الحساب بنجاح! 🎉</h2>
-                    <p style="color: #64748b; font-size: 1.05rem; line-height: 1.6; margin-bottom: 1.5rem;">
-                        لقد أرسلنا رابط التفعيل إلى بريدك الإلكتروني:<br>
-                        <strong id="registeredEmailDisplay" style="color: #013047; display: block; margin-top: 0.5rem; font-size: 1.1rem;"></strong>
-                    </p>
-                    <p style="color: #64748b; font-size: 0.95rem; margin-bottom: 2rem;">
-                        يرجى التحقق من صندوق الوارد (أو قسم الرسائل غير المرغوب فيها Spam) لتفعيل حسابك.
-                    </p>
-                    
-                    <button type="button" id="resendVerificationBtn" class="btn primary-btn btn-block" style="background: #f8fafc; color: #013047; border: 2px solid #e2e8f0; box-shadow: none;">
-                        <i class="fas fa-redo" style="margin-left: 0.5rem;"></i>
-                        إعادة إرسال بريد التفعيل
-                    </button>
-                    <p id="resendMessage" style="margin-top: 1rem; font-size: 0.9rem; font-weight: bold; display: none;"></p>
+                <div id="registerSuccessState" class="auth-form auth-form--status" hidden>
+                    <div class="auth-status-card">
+                        <div class="auth-status-icon success"><i class="fas fa-envelope-open-text"></i></div>
+                        <h2>تم إنشاء الحساب بنجاح</h2>
+                        <p>
+                            لقد أرسلنا رابط التفعيل إلى بريدك الإلكتروني:<br>
+                            <strong id="registeredEmailDisplay" class="auth-email-highlight"></strong>
+                        </p>
+                        <p class="auth-status-hint">افتح بريدك، ثم اضغط على رابط التفعيل. تحقّق أيضاً من مجلد الرسائل غير المرغوب فيها (Spam).</p>
 
-                    <div style="margin-top: 2rem; border-top: 1px solid #e2e8f0; padding-top: 1.5rem;">
-                        <a href="/login" style="color: #F6851F; font-weight: bold; text-decoration: none;">&rarr; العودة لتسجيل الدخول</a>
+                        <button type="button" id="resendVerificationBtn" class="btn secondary-outline-btn btn-block">
+                            <i class="fas fa-redo" aria-hidden="true"></i>
+                            إعادة إرسال بريد التفعيل
+                        </button>
+                        <p id="resendMessage" class="auth-inline-feedback" hidden></p>
+
+                        <a href="/login" class="auth-back-link">العودة لتسجيل الدخول</a>
                     </div>
                 </div>
             </div>
@@ -169,7 +167,7 @@
     </section>
 
     <script src="/js/authentication.js"></script>
-    <script src="/js/auth.js?v=3"></script>
-    <script src="/js/google-auth.js?v=3"></script>
+    <script src="/js/auth.js?v=5"></script>
+    <script src="/js/google-auth.js?v=4"></script>
 </body>
 </html>

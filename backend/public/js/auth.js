@@ -1,14 +1,10 @@
-// Auth Pages JavaScript
+// Auth Pages JavaScript — login / register / password-reset
 
-document.addEventListener('DOMContentLoaded', function() {
-    console.log('Auth.js loaded, checking authentication system...');
-    
-    // Check which form is present and set up event listeners
+document.addEventListener('DOMContentLoaded', function () {
     const loginForm = document.getElementById('loginForm');
     const registerForm = document.getElementById('registerForm');
     const passwordResetForm = document.getElementById('passwordResetForm');
 
-    // Surface Google redirect failures (iPhone UX) from ?google_error=
     try {
         const params = new URLSearchParams(window.location.search);
         const googleError = params.get('google_error');
@@ -18,75 +14,74 @@ document.addEventListener('DOMContentLoaded', function() {
             const clean = `${window.location.pathname}${params.toString() ? `?${params}` : ''}${window.location.hash || ''}`;
             window.history.replaceState({}, '', clean);
         }
-    } catch (_) {}
+    } catch (_) { /* ignore */ }
 
-    // Check if user is already logged in and redirect to dashboard
     if (loginForm || registerForm) {
         checkIfAlreadyLoggedIn();
     }
 
+    setupPasswordToggles();
+
     if (loginForm) {
         loginForm.addEventListener('submit', handleLogin);
-        // Setup password toggle
-        setupPasswordToggle();
     }
 
     if (registerForm) {
         registerForm.addEventListener('submit', handleRegister);
+        setupPhoneInput(document.getElementById('phone'));
     }
 
     if (passwordResetForm) {
         passwordResetForm.addEventListener('submit', handlePasswordReset);
     }
-    
-    // Check if auth is already available
-    if (window.auth) {
-        console.log('Auth system already available');
-    } else {
-        console.log('Auth system not yet available, will wait when needed');
-    }
 });
 
 async function checkIfAlreadyLoggedIn() {
     try {
-        // Wait for auth to be available
         await waitForAuth(5000);
-        
-        // Check if user is already logged in
         const result = await window.auth.getCurrentUser();
-        
         if (result.success && result.user) {
-            console.log('User already logged in, redirecting to dashboard...');
-            // Redirect to user dashboard
-            window.location.href = '../../user.html';
+            window.location.href = '/dashboard';
         }
-    } catch (error) {
-        // If there's an error checking auth, just continue to show login form
-        console.log('No active session found or auth check failed');
+    } catch (_) {
+        // No session — stay on auth page
     }
 }
 
-function setupPasswordToggle() {
-    const togglePassword = document.getElementById('togglePassword');
-    const passwordInput = document.getElementById('password');
-    
-    if (togglePassword && passwordInput) {
-        togglePassword.addEventListener('click', function() {
-            // Toggle password visibility
-            const type = passwordInput.getAttribute('type') === 'password' ? 'text' : 'password';
-            passwordInput.setAttribute('type', type);
-            
-            // Toggle icon
-            this.classList.toggle('fa-eye');
-            this.classList.toggle('fa-eye-slash');
+function setupPasswordToggles() {
+    document.querySelectorAll('.toggle-password').forEach((toggle) => {
+        const input = toggle.closest('.password-input-wrapper')?.querySelector('input');
+        if (!input) return;
+
+        const toggleVisibility = () => {
+            const show = input.getAttribute('type') === 'password';
+            input.setAttribute('type', show ? 'text' : 'password');
+            toggle.classList.toggle('fa-eye', !show);
+            toggle.classList.toggle('fa-eye-slash', show);
+            toggle.setAttribute('aria-label', show ? 'إخفاء كلمة المرور' : 'إظهار كلمة المرور');
+        };
+
+        toggle.addEventListener('click', toggleVisibility);
+        toggle.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault();
+                toggleVisibility();
+            }
         });
-    }
+    });
 }
 
-async function waitForAuth(maxWaitTime = 10000) { // Increased to 10 seconds
+function setupPhoneInput(input) {
+    if (!input) return;
+    input.addEventListener('input', () => {
+        input.value = input.value.replace(/\D/g, '').slice(0, 8);
+    });
+}
+
+async function waitForAuth(maxWaitTime = 10000) {
     const startTime = Date.now();
     while (!window.auth && Date.now() - startTime < maxWaitTime) {
-        await new Promise(resolve => setTimeout(resolve, 100));
+        await new Promise((resolve) => setTimeout(resolve, 100));
     }
     if (!window.auth) {
         throw new Error(`Authentication system not available after ${maxWaitTime}ms`);
@@ -94,93 +89,139 @@ async function waitForAuth(maxWaitTime = 10000) { // Increased to 10 seconds
     return window.auth;
 }
 
+function showPanel(panel) {
+    if (!panel) return;
+    panel.hidden = false;
+    panel.removeAttribute('hidden');
+    panel.style.display = '';
+}
+
+function hidePanel(panel) {
+    if (!panel) return;
+    panel.hidden = true;
+    panel.setAttribute('hidden', '');
+}
+
+function scrollAuthTop() {
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+    const form = document.querySelector('.auth-form:not([hidden])');
+    if (form) form.scrollTop = 0;
+}
+
+function wireResendButton(btn, msgEl, email) {
+    if (!btn || !email) return;
+
+    btn.onclick = async () => {
+        btn.disabled = true;
+        const originalHtml = btn.innerHTML;
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin" aria-hidden="true"></i> جاري الإرسال...';
+        if (msgEl) {
+            msgEl.hidden = true;
+            msgEl.textContent = '';
+        }
+
+        try {
+            const res = await fetch('/api/auth/resend-verification', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ email })
+            });
+            const data = await res.json().catch(() => ({}));
+
+            if (msgEl) {
+                msgEl.hidden = false;
+                if (res.ok) {
+                    msgEl.textContent = 'تم إرسال بريد التفعيل بنجاح! يرجى التحقق من بريدك.';
+                    msgEl.style.color = '#059669';
+                } else {
+                    msgEl.textContent = data.error || 'حدث خطأ. يرجى المحاولة مرة أخرى.';
+                    msgEl.style.color = '#ef4444';
+                    btn.disabled = false;
+                    btn.innerHTML = originalHtml;
+                }
+            }
+        } catch (_) {
+            if (msgEl) {
+                msgEl.hidden = false;
+                msgEl.textContent = 'خطأ في الاتصال بالخادم.';
+                msgEl.style.color = '#ef4444';
+            }
+            btn.disabled = false;
+            btn.innerHTML = originalHtml;
+        }
+    };
+}
+
+function showUnverifiedState(email) {
+    const formPanel = document.getElementById('loginFormPanel');
+    const unverifiedState = document.getElementById('unverifiedState');
+    const emailDisplay = document.getElementById('unverifiedEmailDisplay');
+
+    if (!unverifiedState || !emailDisplay) {
+        showMessage('يرجى التحقق من بريدك الإلكتروني لتفعيل حسابك قبل تسجيل الدخول.', 'error');
+        return;
+    }
+
+    hidePanel(formPanel);
+    emailDisplay.textContent = email;
+    showPanel(unverifiedState);
+    scrollAuthTop();
+    wireResendButton(
+        document.getElementById('resendVerificationBtnLogin'),
+        document.getElementById('resendMessageLogin'),
+        email
+    );
+}
+
+function showRegisterSuccessState(email) {
+    const formPanel = document.getElementById('registerFormPanel');
+    const successState = document.getElementById('registerSuccessState');
+    const emailDisplay = document.getElementById('registeredEmailDisplay');
+
+    if (!successState || !emailDisplay) {
+        showMessage('تم إنشاء الحساب بنجاح! يرجى التحقق من بريدك الإلكتروني لتفعيل حسابك.', 'success');
+        return;
+    }
+
+    hidePanel(formPanel);
+    emailDisplay.textContent = email;
+    showPanel(successState);
+    scrollAuthTop();
+    wireResendButton(
+        document.getElementById('resendVerificationBtn'),
+        document.getElementById('resendMessage'),
+        email
+    );
+}
+
 async function handleLogin(e) {
     e.preventDefault();
-    
+
     const email = document.getElementById('email').value.trim();
     const password = document.getElementById('password').value;
     const submitBtn = e.target.querySelector('button[type="submit"]');
-    
+
     if (!email || !password) {
         showMessage('يرجى ملء جميع الحقول', 'error');
         return;
     }
-    
-    // Show loading state
+
     submitBtn.classList.add('loading');
     submitBtn.disabled = true;
-    
+
     try {
-        // Wait for auth to be available with longer timeout
         await waitForAuth();
-        
-        // Additional check to ensure auth is fully initialized
-        if (!window.auth.isInitialized || !window.auth.isInitialized()) {
-            console.log('Auth not fully initialized, waiting a bit more...');
-            await new Promise(resolve => setTimeout(resolve, 1000));
-        }
-        
         const result = await window.auth.signIn(email, password);
-        
+
         if (result.success) {
             showMessage('تم تسجيل الدخول بنجاح!', 'success');
             setTimeout(() => {
                 window.location.href = '/dashboard';
-            }, 1500);
+            }, 800);
         } else if (result.unverified) {
-            // Hide login form and show unverified state
-            const authForm = e.target.closest('.auth-form');
-            const unverifiedState = document.getElementById('unverifiedState');
-            const emailDisplay = document.getElementById('unverifiedEmailDisplay');
-            
-            if (authForm && unverifiedState && emailDisplay) {
-                authForm.style.display = 'none';
-                emailDisplay.textContent = email;
-                unverifiedState.style.display = 'block';
-                
-                // Wire up the resend button
-                const resendBtn = document.getElementById('resendVerificationBtnLogin');
-                const resendMsg = document.getElementById('resendMessageLogin');
-                
-                if (resendBtn) {
-                    resendBtn.onclick = async () => {
-                        resendBtn.disabled = true;
-                        resendBtn.innerHTML = '<i class="fas fa-spinner fa-spin" style="margin-left: 0.5rem;"></i> جاري الإرسال...';
-                        resendMsg.style.display = 'none';
-                        
-                        try {
-                            const res = await fetch('/api/auth/resend-verification', {
-                                method: 'POST',
-                                headers: { 'Content-Type': 'application/json' },
-                                body: JSON.stringify({ email })
-                            });
-                            
-                            const data = await res.json();
-                            
-                            resendMsg.style.display = 'block';
-                            if (res.ok) {
-                                resendMsg.textContent = 'تم إرسال بريد التفعيل بنجاح! يرجى التحقق من بريدك.';
-                                resendMsg.style.color = '#10b981';
-                            } else {
-                                resendMsg.textContent = data.error || 'حدث خطأ. يرجى المحاولة مرة أخرى.';
-                                resendMsg.style.color = '#ef4444';
-                                resendBtn.disabled = false;
-                                resendBtn.innerHTML = '<i class="fas fa-redo" style="margin-left: 0.5rem;"></i> إعادة إرسال بريد التفعيل';
-                            }
-                        } catch (err) {
-                            resendMsg.style.display = 'block';
-                            resendMsg.textContent = 'خطأ في الاتصال بالخادم.';
-                            resendMsg.style.color = '#ef4444';
-                            resendBtn.disabled = false;
-                            resendBtn.innerHTML = '<i class="fas fa-redo" style="margin-left: 0.5rem;"></i> إعادة إرسال بريد التفعيل';
-                        }
-                    };
-                }
-            } else {
-                showMessage(result.message, 'error');
-            }
+            showUnverifiedState(email);
         } else {
-            showMessage(result.message, 'error');
+            showMessage(result.message || 'البريد الإلكتروني أو كلمة المرور غير صحيحة', 'error');
         }
     } catch (error) {
         console.error('Login error:', error);
@@ -191,84 +232,68 @@ async function handleLogin(e) {
     }
 }
 
+function validateTunisianPhone(phone) {
+    return /^[24579][0-9]{7}$/.test(phone);
+}
+
 async function handleRegister(e) {
     e.preventDefault();
-    
+
     const email = document.getElementById('email').value.trim();
     const password = document.getElementById('password').value;
+    const confirmPassword = document.getElementById('confirmPassword')?.value || '';
     const fullName = document.getElementById('fullName').value.trim();
     const phone = document.getElementById('phone').value.trim();
     const userClass = document.getElementById('userClass').value;
     const userBranch = document.getElementById('userBranch').value;
+    const terms = document.getElementById('terms');
     const submitBtn = e.target.querySelector('button[type="submit"]');
-    
-    // Validate inputs
+
     if (!email || !password || !fullName || !phone || !userClass || !userBranch) {
         showMessage('يرجى ملء جميع الحقول', 'error');
         return;
     }
-    
-    // Validate phone number - must not be empty or whitespace only
-    if (!phone || phone.trim() === '' || phone.trim().length === 0) {
-        showMessage('يرجى إدخال رقم هاتف', 'error');
-        return;
-    }
-    
-    // Validate phone number - must not be single zero or just zeros
-    if (phone.trim() === '0' || /^0+$/.test(phone.trim())) {
-        showMessage('يرجى إدخال رقم هاتف صحيح', 'error');
-        return;
-    }
-    
-    // Validate phone number has at least 8 digits
-    const phoneDigits = phone.replace(/[^0-9]/g, '');
-    if (phoneDigits.length < 8) {
-        showMessage('رقم الهاتف يجب أن يحتوي على 8 أرقام على الأقل', 'error');
-        return;
-    }
-    
-    // Additional check: phone must contain at least one non-zero digit (not all zeros)
-    if (/^0+$/.test(phoneDigits) || !/[1-9]/.test(phoneDigits)) {
-        showMessage('رقم الهاتف يجب أن يحتوي على رقم واحد على الأقل غير صفر', 'error');
-        return;
-    }
-    
+
     if (!validateEmail(email)) {
         showMessage('يرجى إدخال بريد إلكتروني صحيح', 'error');
         return;
     }
-    
+
+    if (!validateTunisianPhone(phone)) {
+        showMessage('يرجى إدخال رقم هاتف تونسي صحيح (8 أرقام تبدأ بـ 2، 4، 5، 7، أو 9)', 'error');
+        return;
+    }
+
     if (!validatePassword(password)) {
         showMessage('يجب أن تكون كلمة المرور 6 أحرف على الأقل', 'error');
         return;
     }
-    
-    // Show loading state
+
+    if (password !== confirmPassword) {
+        showMessage('كلمتا المرور غير متطابقتين', 'error');
+        return;
+    }
+
+    if (terms && !terms.checked) {
+        showMessage('يجب الموافقة على الشروط والأحكام', 'error');
+        return;
+    }
+
     submitBtn.classList.add('loading');
     submitBtn.disabled = true;
-    
+
     try {
-        // Wait for auth to be available with longer timeout
         await waitForAuth();
-        
-        // Additional check to ensure auth is fully initialized
-        if (!window.auth.isInitialized || !window.auth.isInitialized()) {
-            console.log('Auth not fully initialized, waiting a bit more...');
-            await new Promise(resolve => setTimeout(resolve, 1000));
-        }
-        
-        // Prepare user data for Supabase
-        const userData = {
+
+        const result = await window.auth.signUp(email, password, {
             fullname: fullName,
-            phone: phone,
-            userClass: userClass,
-            userBranch: userBranch
-        };
-        
-        const result = await window.auth.signUp(email, password, userData);
-        
+            name: fullName,
+            phone,
+            userClass,
+            userBranch
+        });
+
         if (result.success) {
-            // Track Facebook Pixel - CompleteRegistration event
             if (typeof fbq !== 'undefined') {
                 fbq('track', 'CompleteRegistration', {
                     content_name: 'Synta Student Signup',
@@ -277,64 +302,9 @@ async function handleRegister(e) {
                     currency: 'TND'
                 });
             }
-
-            // Registration is successful, but the user is NOT logged in yet.
-            // Hide the registration form and show the success state
-            const authForm = e.target.closest('.auth-form');
-            const successState = document.getElementById('registerSuccessState');
-            const emailDisplay = document.getElementById('registeredEmailDisplay');
-            
-            if (authForm && successState && emailDisplay) {
-                authForm.style.display = 'none';
-                emailDisplay.textContent = email;
-                successState.style.display = 'block';
-                
-                // Wire up the resend button
-                const resendBtn = document.getElementById('resendVerificationBtn');
-                const resendMsg = document.getElementById('resendMessage');
-                
-                if (resendBtn) {
-                    resendBtn.onclick = async () => {
-                        resendBtn.disabled = true;
-                        resendBtn.innerHTML = '<i class="fas fa-spinner fa-spin" style="margin-left: 0.5rem;"></i> جاري الإرسال...';
-                        resendMsg.style.display = 'none';
-                        
-                        try {
-                            const res = await fetch('/api/auth/resend-verification', {
-                                method: 'POST',
-                                headers: { 'Content-Type': 'application/json' },
-                                body: JSON.stringify({ email })
-                            });
-                            
-                            const data = await res.json();
-                            
-                            resendMsg.style.display = 'block';
-                            if (res.ok) {
-                                resendMsg.textContent = 'تم إرسال بريد التفعيل بنجاح! يرجى التحقق من بريدك.';
-                                resendMsg.style.color = '#10b981';
-                                // Keep button disabled to prevent spamming
-                            } else {
-                                resendMsg.textContent = data.error || 'حدث خطأ. يرجى المحاولة مرة أخرى.';
-                                resendMsg.style.color = '#ef4444';
-                                resendBtn.disabled = false;
-                                resendBtn.innerHTML = '<i class="fas fa-redo" style="margin-left: 0.5rem;"></i> إعادة إرسال بريد التفعيل';
-                            }
-                        } catch (err) {
-                            resendMsg.style.display = 'block';
-                            resendMsg.textContent = 'خطأ في الاتصال بالخادم.';
-                            resendMsg.style.color = '#ef4444';
-                            resendBtn.disabled = false;
-                            resendBtn.innerHTML = '<i class="fas fa-redo" style="margin-left: 0.5rem;"></i> إعادة إرسال بريد التفعيل';
-                        }
-                    };
-                }
-            } else {
-                // Fallback if elements are missing
-                showMessage('تم إنشاء الحساب بنجاح! يرجى التحقق من بريدك الإلكتروني لتفعيل حسابك.', 'success');
-                e.target.reset();
-            }
+            showRegisterSuccessState(email);
         } else {
-            showMessage(result.message, 'error');
+            showMessage(result.message || 'حدث خطأ أثناء إنشاء الحساب', 'error');
         }
     } catch (error) {
         console.error('Register error:', error);
@@ -347,39 +317,29 @@ async function handleRegister(e) {
 
 async function handlePasswordReset(e) {
     e.preventDefault();
-    
+
     const email = document.getElementById('email').value.trim();
     const submitBtn = e.target.querySelector('button[type="submit"]');
-    
+
     if (!email) {
         showMessage('يرجى إدخال بريدك الإلكتروني', 'error');
         return;
     }
-    
-    // Show loading state
+
     submitBtn.classList.add('loading');
     submitBtn.disabled = true;
-    
+
     try {
-        // Wait for auth to be available with longer timeout
         await waitForAuth();
-        
-        // Additional check to ensure auth is fully initialized
-        if (!window.auth.isInitialized || !window.auth.isInitialized()) {
-            console.log('Auth not fully initialized, waiting a bit more...');
-            await new Promise(resolve => setTimeout(resolve, 1000));
-        }
-        
         const result = await window.auth.resetPassword(email);
-        
         if (result.success) {
             showMessage('تم إرسال رابط إعادة التعيين إلى بريدك الإلكتروني', 'success');
         } else {
             showMessage(result.message, 'error');
         }
     } catch (error) {
-        showMessage('حدث خطأ أثناء إرسال رابط إعادة التعيين', 'error');
         console.error('Password reset error:', error);
+        showMessage('حدث خطأ أثناء إرسال رابط إعادة التعيين', 'error');
     } finally {
         submitBtn.classList.remove('loading');
         submitBtn.disabled = false;
@@ -387,86 +347,90 @@ async function handlePasswordReset(e) {
 }
 
 function showMessage(message, type = 'info') {
-    // Remove existing messages
-    const existingMessages = document.querySelectorAll('.message');
-    existingMessages.forEach(msg => msg.remove());
-    
-    // Create new message
+    document.querySelectorAll('.message').forEach((msg) => msg.remove());
+
     const messageDiv = document.createElement('div');
     messageDiv.className = `message ${type}`;
+    messageDiv.setAttribute('role', 'alert');
     messageDiv.textContent = message;
-    
-    // Insert message before the form
-    const form = document.querySelector('form');
-    form.parentNode.insertBefore(messageDiv, form);
-    
-    // Auto remove after 5 seconds
-    setTimeout(() => {
-        if (messageDiv.parentNode) {
-            messageDiv.remove();
+
+    const mount = document.getElementById('authMessageMount');
+    if (mount) {
+        mount.appendChild(messageDiv);
+    } else {
+        const form = document.querySelector('form');
+        if (form && form.parentNode) {
+            form.parentNode.insertBefore(messageDiv, form);
         }
-    }, 5000);
+    }
+
+    scrollAuthTop();
+
+    setTimeout(() => {
+        if (messageDiv.parentNode) messageDiv.remove();
+    }, 6000);
 }
 
-// Form validation helpers
 function validateEmail(email) {
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    return emailRegex.test(email);
+    return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
 }
 
 function validatePassword(password) {
     return password.length >= 6;
 }
 
-// Add real-time validation
-document.addEventListener('DOMContentLoaded', function() {
-    const emailInputs = document.querySelectorAll('input[type="email"]');
-    const passwordInputs = document.querySelectorAll('input[type="password"]');
-    
-    emailInputs.forEach(input => {
-        input.addEventListener('blur', function() {
+document.addEventListener('DOMContentLoaded', function () {
+    document.querySelectorAll('input[type="email"]').forEach((input) => {
+        input.addEventListener('blur', function () {
             if (this.value && !validateEmail(this.value)) {
                 this.style.borderColor = '#dc3545';
                 showFieldError(this, 'البريد الإلكتروني غير صحيح');
             } else {
-                this.style.borderColor = '#e0e0e0';
+                this.style.borderColor = '';
                 removeFieldError(this);
             }
         });
     });
-    
-    passwordInputs.forEach(input => {
-        input.addEventListener('blur', function() {
+
+    const passwordInput = document.getElementById('password');
+    if (passwordInput) {
+        passwordInput.addEventListener('blur', function () {
             if (this.value && !validatePassword(this.value)) {
                 this.style.borderColor = '#dc3545';
                 showFieldError(this, 'كلمة المرور يجب أن تكون 6 أحرف على الأقل');
             } else {
-                this.style.borderColor = '#e0e0e0';
+                this.style.borderColor = '';
                 removeFieldError(this);
             }
         });
-    });
+    }
+
+    const confirmInput = document.getElementById('confirmPassword');
+    if (confirmInput && passwordInput) {
+        confirmInput.addEventListener('blur', function () {
+            if (this.value && this.value !== passwordInput.value) {
+                this.style.borderColor = '#dc3545';
+                showFieldError(this, 'كلمتا المرور غير متطابقتين');
+            } else {
+                this.style.borderColor = '';
+                removeFieldError(this);
+            }
+        });
+    }
 });
 
 function showFieldError(input, message) {
     removeFieldError(input);
-    
     const errorDiv = document.createElement('div');
     errorDiv.className = 'field-error';
     errorDiv.textContent = message;
-    errorDiv.style.cssText = `
-        color: #dc3545;
-        font-size: 0.85rem;
-        margin-top: 0.25rem;
-        font-weight: 500;
-    `;
-    
-    input.parentNode.appendChild(errorDiv);
+    errorDiv.style.cssText = 'color:#dc3545;font-size:0.85rem;margin-top:0.25rem;font-weight:500;';
+    const wrapper = input.closest('.form-group') || input.parentNode;
+    wrapper.appendChild(errorDiv);
 }
 
 function removeFieldError(input) {
-    const existingError = input.parentNode.querySelector('.field-error');
-    if (existingError) {
-        existingError.remove();
-    }
-} 
+    const wrapper = input.closest('.form-group') || input.parentNode;
+    const existingError = wrapper.querySelector('.field-error');
+    if (existingError) existingError.remove();
+}

@@ -2,14 +2,14 @@
 <html lang="ar" dir="rtl">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <title>Synta Academy - تسجيل الدخول</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700&display=swap" rel="stylesheet">
     <link rel="icon" href="/source/logoweb.png" type="image/x-icon">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
-    <link rel="stylesheet" href="/css/auth.css?v=3">
+    <link rel="stylesheet" href="/css/auth.css?v=6">
     <script id="__SYNTA_CONFIG__">
         window.__SYNTA_CONFIG__ = {
             supabaseUrl: "<%- (typeof syntaConfig !== 'undefined' && syntaConfig.url) ? syntaConfig.url : '' %>",
@@ -17,14 +17,13 @@
         };
     </script>
     <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
-    <!-- Google Identity Services SDK -->
     <script src="https://accounts.google.com/gsi/client" async defer></script>
 </head>
-<body>
+<body class="auth-page auth-page--login">
     <section class="auth-section">
         <div class="container">
             <div class="auth-container">
-                <div class="auth-image">
+                <div class="auth-image" aria-hidden="true">
                     <div class="dynamic-auth-bg">
                         <div class="bubble bubble-1"></div>
                         <div class="bubble bubble-2"></div>
@@ -41,7 +40,7 @@
                         <div class="streak streak-8"></div>
                         <div class="rocket-glow"></div>
                         <div class="rocket-container">
-                            <img src="/source/rocket.svg" alt="Rocket" class="rocket-svg">
+                            <img src="/source/rocket.svg" alt="" class="rocket-svg">
                         </div>
                         <div class="logo-bubble-wrapper">
                             <img src="/source/logo.png" alt="Synta Academy" class="logo-bubble">
@@ -49,35 +48,34 @@
                     </div>
                 </div>
 
-                <!-- Login form: centered vertically (small content) -->
-                <div class="auth-form auth-form--centered">
+                <div class="auth-form auth-form--centered" id="loginFormPanel">
+                    <div class="auth-brand-mobile">
+                        <img src="/source/logo.png" alt="Synta Academy">
+                    </div>
                     <h2>تسجيل الدخول</h2>
                     <p>ليس لديك حساب؟ <a href="/register">إنشاء حساب جديد</a></p>
+                    <div id="authMessageMount" class="auth-message-mount" aria-live="polite"></div>
 
-                    <form id="loginForm" method="POST">
+                    <form id="loginForm" method="POST" novalidate>
                         <div class="form-group">
                             <label for="email">البريد الإلكتروني</label>
-                            <input type="email" id="email" name="email" required>
+                            <input type="email" id="email" name="email" autocomplete="email" inputmode="email" required>
                         </div>
                         <div class="form-group">
                             <label for="password">كلمة المرور</label>
                             <div class="password-input-wrapper">
-                                <input type="password" id="password" name="password" required>
-                                <i class="fas fa-eye toggle-password" id="togglePassword"></i>
+                                <input type="password" id="password" name="password" autocomplete="current-password" required>
+                                <i class="fas fa-eye toggle-password" id="togglePassword" role="button" tabindex="0" aria-label="إظهار كلمة المرور"></i>
                             </div>
                         </div>
-                        <div class="form-group">
+                        <div class="form-group form-group--inline">
                             <a href="/password-reset" class="forgot-password">نسيت كلمة المرور؟</a>
                         </div>
                         <button type="submit" id="loginSubmitBtn" class="btn primary-btn btn-block">تسجيل الدخول</button>
                     </form>
 
-                    <!-- Social login divider -->
-                    <div class="social-divider">
-                        <span>أو</span>
-                    </div>
+                    <div class="social-divider"><span>أو</span></div>
 
-                    <!-- Google Sign-In (div wrapper — never nest GIS controls inside <button>, breaks iPhone taps) -->
                     <div id="google-signin-container" class="google-signin-container">
                         <div id="googleSignInBtn" class="btn google-btn btn-block" role="button" tabindex="0" aria-label="تسجيل الدخول بـ Google">
                             <svg class="google-icon" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
@@ -93,28 +91,23 @@
                     </div>
                 </div>
 
-                <!-- Unverified Account State (Hidden by default) -->
-                <div id="unverifiedState" class="auth-form auth-form--centered" style="display: none; text-align: center;">
-                    <div style="font-size: 3rem; color: #F6851F; margin-bottom: 1rem;">
-                        <i class="fas fa-exclamation-circle"></i>
-                    </div>
-                    <h2 style="color: #013047; margin-bottom: 1rem;">حساب غير مفعل</h2>
-                    <p style="color: #64748b; font-size: 1.05rem; line-height: 1.6; margin-bottom: 1.5rem;">
-                        لقد أرسلنا رابط التفعيل إلى بريدك الإلكتروني:<br>
-                        <strong id="unverifiedEmailDisplay" style="color: #013047; display: block; margin-top: 0.5rem; font-size: 1.1rem;"></strong>
-                    </p>
-                    <p style="color: #64748b; font-size: 0.95rem; margin-bottom: 2rem;">
-                        يرجى التحقق من صندوق الوارد (أو قسم الرسائل غير المرغوب فيها Spam) لتفعيل حسابك قبل تسجيل الدخول.
-                    </p>
-                    
-                    <button type="button" id="resendVerificationBtnLogin" class="btn primary-btn btn-block" style="background: #f8fafc; color: #013047; border: 2px solid #e2e8f0; box-shadow: none;">
-                        <i class="fas fa-redo" style="margin-left: 0.5rem;"></i>
-                        إعادة إرسال بريد التفعيل
-                    </button>
-                    <p id="resendMessageLogin" style="margin-top: 1rem; font-size: 0.9rem; font-weight: bold; display: none;"></p>
+                <div id="unverifiedState" class="auth-form auth-form--status auth-form--centered" hidden>
+                    <div class="auth-status-card">
+                        <div class="auth-status-icon warn"><i class="fas fa-exclamation-circle"></i></div>
+                        <h2>حساب غير مفعل</h2>
+                        <p>
+                            لقد أرسلنا رابط التفعيل إلى بريدك الإلكتروني:<br>
+                            <strong id="unverifiedEmailDisplay" class="auth-email-highlight"></strong>
+                        </p>
+                        <p class="auth-status-hint">فعّل حسابك من الرابط في البريد، ثم عد لتسجيل الدخول. تحقّق أيضاً من Spam.</p>
 
-                    <div style="margin-top: 2rem; border-top: 1px solid #e2e8f0; padding-top: 1.5rem;">
-                        <a href="/login" style="color: #F6851F; font-weight: bold; text-decoration: none;">&rarr; العودة لتسجيل الدخول</a>
+                        <button type="button" id="resendVerificationBtnLogin" class="btn secondary-outline-btn btn-block">
+                            <i class="fas fa-redo" aria-hidden="true"></i>
+                            إعادة إرسال بريد التفعيل
+                        </button>
+                        <p id="resendMessageLogin" class="auth-inline-feedback" hidden></p>
+
+                        <a href="/login" class="auth-back-link">العودة لتسجيل الدخول</a>
                     </div>
                 </div>
             </div>
@@ -122,7 +115,7 @@
     </section>
 
     <script src="/js/authentication.js"></script>
-    <script src="/js/auth.js?v=3"></script>
-    <script src="/js/google-auth.js?v=3"></script>
+    <script src="/js/auth.js?v=5"></script>
+    <script src="/js/google-auth.js?v=4"></script>
 </body>
 </html>

@@ -46,7 +46,7 @@
                 body: JSON.stringify({
                     email,
                     password,
-                    name: userData.fullname,
+                    name: userData.name || userData.fullname || userData.fullName,
                     phone: userData.phone,
                     class: userData.userClass,
                     branch: userData.userBranch
@@ -56,7 +56,18 @@
             const data = await response.json();
 
             if (!response.ok) {
-                return { success: false, error: 'GENERAL_ERROR', message: data.error || 'حدث خطأ أثناء التسجيل' };
+                const arabicErrors = {
+                    'email, password, and name are required': 'يرجى ملء جميع الحقول المطلوبة',
+                    'Password must be at least 6 characters': 'يجب أن تكون كلمة المرور 6 أحرف على الأقل',
+                    'An account with this email already exists': 'يوجد حساب بهذا البريد الإلكتروني مسبقاً',
+                    'Internal server error': 'حدث خطأ في الخادم. يرجى المحاولة لاحقاً.'
+                };
+                const raw = data.error || '';
+                return {
+                    success: false,
+                    error: 'GENERAL_ERROR',
+                    message: arabicErrors[raw] || raw || 'حدث خطأ أثناء التسجيل'
+                };
             }
 
             return { success: true, user: data.user, message: 'تم إنشاء الحساب بنجاح!' };
