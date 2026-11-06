@@ -29,6 +29,7 @@
 - Code Pratique currently exposes the Python practice workspace only. The Python/Web mode switch is intentionally hidden while the core student website is being stabilized.
 - The HTML/CSS/JavaScript Web workspace is deferred, not cancelled. Do not re-enable the Web tab or spend time developing that workspace until the user explicitly says the core site is ready and asks to resume Web mode.
 - Preserve its existing source and drafts while deferred. When the user says to resume Code Pratique Web, restore the mode selector and verify HTML, CSS, JavaScript, and preview interactions before changing or replacing the implementation.
+- The “Aperçu” pane is the Web workspace's HTML/CSS/JavaScript iframe preview. It does not display Python output; it is expected to remain empty while Web mode is deferred and until a Web snippet is run after that mode is restored.
 - Keep the Code Pratique header compact: show the product name and green readiness dot, without visible “Python prêt” copy or mode labels while the Web mode is deferred.
 
 ---

@@ -45,6 +45,15 @@
 - Hid the Python/Web mode selector and stopped automatically running a Web preview during startup. Python remains active; existing HTML/CSS/JavaScript implementation and drafts are retained.
 - Recorded the user's decision to defer Web mode until the core student site is stable in `AGENTS.md` for future agent handoffs.
 
+## 2026-11-06 — Give the Python Editor More Workspace
+
+**Author:** Codex  
+**Type:** UX
+
+- Increased the Python editor's desktop share and minimum widths for the console and variables panels; raised code and console text sizing slightly.
+- Kept tablet layout as a full-width editor above the output panels.
+- Documented that “Aperçu” is the deferred Web iframe preview and is expected to be empty until Web mode is resumed and a Web snippet is run.
+
 ## 2026-11-06 — Align Course/Replay Player and Parallelize Course Loading
 
 **Author:** Codex  

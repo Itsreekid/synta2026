@@ -27,6 +27,8 @@ The backend is running in production on Coolify. Core features (login, course ac
 - The Code Pratique header shows a green readiness dot beside the product name; the “Python prêt” text is screen-reader announced only.
 - Python/Web mode tabs are hidden. Python remains the active student workspace; the existing HTML/CSS/JavaScript editor code is retained but dormant.
 - **Product decision:** Web mode is intentionally deferred until the rest of Synta’s student website is stable. Do not resume or expose it until the user explicitly asks to continue Code Pratique Web development. This decision is recorded in `AGENTS.md`.
+- The Python editor now receives the largest desktop column; console and variable panels have wider minimums and the code font scales slightly larger. Tablet keeps a full-width editor above the two output panels.
+- “Aperçu” is only the HTML/CSS/JavaScript iframe preview, not Python output. It is expected to be empty while Web mode is deferred; after Web mode returns, it displays content when the student runs a Web snippet.
 
 ---
 
