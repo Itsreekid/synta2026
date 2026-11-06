@@ -186,7 +186,7 @@ async function subscribeToOffer(offerId, title) {
             }
 
             // Fresh dashboard/course data after enrollment
-            ['swr_courses', 'swr_stats', 'swr_events', 'swr_replays'].forEach((key) => {
+            ['swr_courses', 'swr_courses_v2', 'swr_stats', 'swr_events', 'swr_replays'].forEach((key) => {
                 try { sessionStorage.removeItem(key); } catch (_) {}
             });
 

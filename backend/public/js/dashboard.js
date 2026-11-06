@@ -240,13 +240,16 @@ function renderPathStepper(pathSection, activeCourse, modules) {
 }
 
 function loadCoursePath() {
-    fetchWithSWR(`/api/courses/user/my-courses?t=${Date.now()}`, 'swr_courses', (courses) => {
+    fetchWithSWR(`/api/courses/user/my-courses?t=${Date.now()}`, 'swr_courses_v2', (payload) => {
+        const courses = (Array.isArray(payload) ? payload : [])
+            .filter(course => course && course.is_published !== false && course.course_id);
+
         const continueSection = document.getElementById('continue-content-container');
         const pathSection = document.getElementById('path-section');
         const dashboardContainer = document.querySelector('.dashboard-container');
         const levelSpan = document.querySelector('.level-info span');
 
-        if (!courses || !Array.isArray(courses) || courses.length === 0) {
+        if (courses.length === 0) {
             if (levelSpan) levelSpan.textContent = 'Débutant';
             if (continueSection) renderLockedContinueState(continueSection);
             if (pathSection) pathSection.style.display = 'none';

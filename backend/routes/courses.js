@@ -137,6 +137,7 @@ router.get("/user/my-courses", authMiddleware, async (req, res) => {
        JOIN enrollments e ON c.id = e.course_id AND e.user_id = $1
          AND (e.expires_at IS NULL OR e.expires_at > NOW())
        WHERE e.user_id = $1
+         AND c.is_published = true
        ORDER BY COALESCE(e.last_accessed, (
                 SELECT MAX(lp.updated_at)
                 FROM lessons l2
@@ -179,37 +180,33 @@ router.get("/:courseId", authMiddleware, async (req, res) => {
        FROM courses c
        LEFT JOIN users viewer ON viewer.id = $2
        WHERE c.id = $1
+         AND c.is_published = true
          AND (
-           EXISTS (
+           NOT EXISTS (SELECT 1 FROM offer_courses linked WHERE linked.course_id = c.id)
+           OR EXISTS (
+             SELECT 1 FROM offer_courses oc
+             JOIN offers o ON o.id = oc.offer_id
+             WHERE oc.course_id = c.id
+               AND o.is_active = true
+               AND (o.valid_from IS NULL OR o.valid_from <= NOW())
+               AND (o.valid_until IS NULL OR o.valid_until > NOW())
+               AND (cardinality(COALESCE(o.target_classes, ARRAY[]::TEXT[])) = 0 OR (
+                 viewer.class IS NOT NULL AND EXISTS (
+                   SELECT 1 FROM unnest(o.target_classes) AS target_class(value)
+                   WHERE lower(trim(target_class.value)) = lower(trim(viewer.class))
+                 )
+               ))
+               AND (cardinality(COALESCE(o.target_branches, ARRAY[]::TEXT[])) = 0 OR (
+                 viewer.branch IS NOT NULL AND EXISTS (
+                   SELECT 1 FROM unnest(o.target_branches) AS target_branch(value)
+                   WHERE lower(trim(target_branch.value)) = lower(trim(viewer.branch))
+                 )
+               ))
+           )
+           OR EXISTS (
              SELECT 1 FROM enrollments e
              WHERE e.course_id = c.id AND e.user_id = $2
                AND (e.expires_at IS NULL OR e.expires_at > NOW())
-           )
-           OR (
-             c.is_published = true
-             AND (
-               NOT EXISTS (SELECT 1 FROM offer_courses linked WHERE linked.course_id = c.id)
-               OR EXISTS (
-                 SELECT 1 FROM offer_courses oc
-                 JOIN offers o ON o.id = oc.offer_id
-                 WHERE oc.course_id = c.id
-                   AND o.is_active = true
-                   AND (o.valid_from IS NULL OR o.valid_from <= NOW())
-                   AND (o.valid_until IS NULL OR o.valid_until > NOW())
-                   AND (cardinality(COALESCE(o.target_classes, ARRAY[]::TEXT[])) = 0 OR (
-                     viewer.class IS NOT NULL AND EXISTS (
-                       SELECT 1 FROM unnest(o.target_classes) AS target_class(value)
-                       WHERE lower(trim(target_class.value)) = lower(trim(viewer.class))
-                     )
-                   ))
-                   AND (cardinality(COALESCE(o.target_branches, ARRAY[]::TEXT[])) = 0 OR (
-                     viewer.branch IS NOT NULL AND EXISTS (
-                       SELECT 1 FROM unnest(o.target_branches) AS target_branch(value)
-                       WHERE lower(trim(target_branch.value)) = lower(trim(viewer.branch))
-                     )
-                   ))
-               )
-             )
            )
          )`,
       [courseId, userId]

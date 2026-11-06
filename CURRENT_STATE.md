@@ -12,8 +12,8 @@ The backend is running in production on Coolify. Core features (login, course ac
 
 ### 2026-11-06 Dashboard Continue / Parcours Fix
 - Continuer ton apprentissage now features the last-watched / started course (`last_accessed` or lesson activity), with Commencer vs Continuer CTAs. Empty enrollments show an offers CTA and hide parcours.
-- Ton parcours no longer 404s for enrolled unpublished courses: course detail access is granted by active enrollment. Empty modules and load errors get explicit empty states.
-- Offer purchase clears dashboard SWR cache keys so enrolled courses appear after buy.
+- Unpublished courses (`Publier le cours` unchecked) are excluded from student my-courses / dashboard cards and student course detail access; enrollment alone no longer surfaces them.
+- Empty modules and load errors get explicit empty states. Offer purchase clears dashboard SWR cache keys so enrolled courses appear after buy.
 
 ### 2026-11-06 Code Pratique UX Update
 - Reworked the Code Pratique page layout for responsive desktop, tablet, and mobile panel navigation; added dedicated mobile tabs for editor/console/variables and editor/preview.
