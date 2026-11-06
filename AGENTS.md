@@ -29,8 +29,17 @@
 - Code Pratique currently exposes the Python practice workspace only. The Python/Web mode switch is intentionally hidden while the core student website is being stabilized.
 - The HTML/CSS/JavaScript Web workspace is deferred, not cancelled. Do not re-enable the Web tab or spend time developing that workspace until the user explicitly says the core site is ready and asks to resume Web mode.
 - Preserve its existing source and drafts while deferred. When the user says to resume Code Pratique Web, restore the mode selector and verify HTML, CSS, JavaScript, and preview interactions before changing or replacing the implementation.
-- The “Aperçu” pane is the Web workspace's HTML/CSS/JavaScript iframe preview. It does not display Python output; it is expected to remain empty while Web mode is deferred and until a Web snippet is run after that mode is restored.
+- Hide/remove the “Aperçu” control together with Web mode while Web is deferred. It is the HTML/CSS/JavaScript iframe preview, not Python output; restore it only when the user explicitly resumes Web mode.
 - Keep the Code Pratique header compact: show the product name and green readiness dot, without visible “Python prêt” copy or mode labels while the Web mode is deferred.
+
+## Product Requirement — School-Compatible Python Runtime
+
+- Code Pratique must let students run the Python syntax and common libraries taught in Synta's school curriculum, including `match/case` and NumPy examples; do not make students rewrite valid class exercises just to fit the current browser interpreter.
+- Keep execution in the browser. Prioritize lazy loading and caching so basic page navigation stays light; move long computations to a Web Worker when interactive input can be preserved safely.
+- Preserve current student workflows during any runtime change: course `.py` handoff, console output/errors, variables panel, and interactive `input()` prompts.
+- “Whatever Python they want” cannot mean every package or operating-system feature. Clearly surface unsupported packages, and support the syllabus and common scientific packages first.
+- Current implementation: basic Python without imports or `match/case` still uses Skulpt. Imports and `match/case` route to a lazily loaded Pyodide sandbox; NumPy packages load from the pinned Pyodide distribution when imported. The sandbox uses the browser's native prompt for `input()`.
+- Current limitation: Pyodide code runs in the sandboxed iframe's main thread, not a Web Worker. Long-running synchronous loops may still affect responsiveness; preserve `input()` while moving computation off the page thread before claiming support for unbounded student code.
 
 ---
 

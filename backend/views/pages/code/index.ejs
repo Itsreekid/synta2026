@@ -987,6 +987,8 @@
         .cp-export-btn { min-height:42px; padding:8px 12px !important; border-radius:9px !important; border-color:#39445d !important; }
         .cp-shortcut { color:#8b96aa; font-size:11px; white-space:nowrap; }
         .cp-console { padding:16px; background:#171d2a; color:#d5dbea; font-size:15px; line-height:1.7; overflow-wrap:anywhere; }
+        .cp-console-output { display:block; white-space:pre-wrap; overflow-wrap:anywhere; }
+        .pyodide-runner-frame { position:fixed; left:-20px; bottom:0; width:1px; height:1px; border:0; opacity:0; pointer-events:none; }
         .console-ready { display:block; margin-bottom:5px; color:#4ade80; }
         .console-comment { color:#8190aa; }
         .console-output { color:#e2e8f0; }
@@ -1021,8 +1023,8 @@
             #mode-web { grid-template-columns:minmax(0,1fr) minmax(0,1fr); }
         }
         @media (max-width:700px) {
-            .code-pratique-main { overflow:visible; }
-            .cp-page { height:auto; min-height:calc(100dvh - 64px); overflow:visible; padding:10px; gap:10px; }
+            .code-pratique-main { height:calc(100dvh - 70px); min-height:0; overflow:hidden; }
+            .cp-page { height:100%; min-height:0; box-sizing:border-box; overflow:hidden; padding:10px; gap:10px; }
             .ide-ribbon { grid-template-columns:minmax(0,1fr) auto; gap:9px 10px; padding:10px; }
             .cp-brand { gap:9px; }
             .cp-brand-icon { display:flex; width:38px; height:38px; font-size:15px; }
@@ -1033,20 +1035,19 @@
             .cp-select { min-width:0; flex:1; max-width:220px; padding:8px; font-size:12px; }
             .cp-btn-toolbar { min-width:38px; min-height:38px; padding:6px 9px; }
             .practice-file-notice { align-items:flex-start; padding:9px 11px; font-size:12px; }
-            .cp-workspace { display:flex; flex-direction:column; gap:10px; }
-            .mobile-workspace-tabs { display:grid !important; grid-template-columns:repeat(4,minmax(0,1fr)); gap:5px; margin:0 !important; padding:4px; border:1px solid #dce3ed; border-radius:11px; background:#fff; }
-            .mobile-workspace-tabs[data-mode="web"] { grid-template-columns:repeat(2,minmax(0,1fr)); }
+            .cp-workspace { display:flex; min-height:0; flex:1; flex-direction:column; gap:10px; }
+            .mobile-workspace-tabs { display:grid !important; grid-template-columns:repeat(3,minmax(0,1fr)); flex:none; gap:5px; margin:0 !important; padding:4px; border:1px solid #dce3ed; border-radius:11px; background:#fff; }
             .mobile-tab-btn { display:flex; min-width:0; min-height:42px; align-items:center; justify-content:center; gap:5px; padding:7px 3px; border:1px solid transparent; border-radius:8px; background:transparent; color:#526176; font:650 12px 'Tajawal',sans-serif; cursor:pointer; }
             .mobile-tab-btn i { flex:none; font-size:13px; }
             .mobile-tab-btn.active { border-color:#fed7aa; background:#fff7ed; color:#c2410c; }
             .mobile-tab-btn:focus-visible,.cp-run-btn:focus-visible,.cp-btn-toolbar:focus-visible,.cp-clear-btn:focus-visible,.cp-ai-btn:focus-visible { outline:3px solid rgba(249,115,22,.42); outline-offset:2px; }
-            .mode-panel.active { display:flex; flex-direction:column; gap:9px; }
-            .mode-panel .cp-panel { display:flex; width:100%; height:clamp(300px,52dvh,460px); min-height:300px !important; max-height:460px !important; flex:none; }
+            .mode-panel.active { display:flex; min-height:0; flex:1; flex-direction:column; gap:9px; }
+            .mode-panel .cp-panel { display:flex; width:100%; height:auto; min-height:0 !important; max-height:none !important; flex:1 1 auto; }
             .mode-panel .cp-panel.mobile-hidden { display:none !important; }
             .cp-panel-header { min-height:43px; padding:7px 10px; }
             .cp-editor-body { flex:1; min-height:0; }
             .cp-editor-body .CodeMirror,.web-pane .CodeMirror { font-size:15px; line-height:1.6; }
-            .cp-editor-footer { position:sticky; bottom:0; z-index:2; min-height:60px; padding:8px; }
+            .cp-editor-footer { position:relative; bottom:auto; z-index:2; min-height:60px; flex:none; padding:8px; }
             .cp-editor-footer > div { flex:1; }
             .cp-run-btn { width:48px; min-width:48px; min-height:48px; flex:0 0 48px; justify-content:center; padding:8px; font-size:18px; }
             .cp-export-btn { width:44px; min-width:44px; min-height:44px; justify-content:center; padding:8px !important; font-size:15px !important; }
@@ -1076,7 +1077,7 @@
             .cp-status #cp-status-text { position:absolute; width:1px; height:1px; overflow:hidden; clip:rect(0,0,0,0); white-space:nowrap; }
             .cp-status { width:36px; min-width:36px; justify-content:center; padding:6px; }
             .cp-brand-text p { display:none; }
-            .mode-panel .cp-panel { height:clamp(280px,48dvh,420px); min-height:280px !important; }
+            .mode-panel .cp-panel { min-height:0 !important; }
         }
         @media (prefers-reduced-motion:reduce) {
             .cp-panel,.cp-run-btn,.cp-tab,.input-modal,.input-modal-overlay { transition:none !important; animation:none !important; }
@@ -1162,7 +1163,6 @@
                 <button class="mobile-tab-btn active" type="button" role="tab" aria-label="Éditeur" title="Éditeur" aria-selected="true" data-pane="editor" data-modes="python,web" onclick="switchMobilePane('editor', this)"><i class="fas fa-code" aria-hidden="true"></i><span>Éditeur</span></button>
                 <button class="mobile-tab-btn" type="button" role="tab" aria-label="Console" title="Console" aria-selected="false" data-pane="console" data-modes="python" onclick="switchMobilePane('console', this)"><i class="fas fa-terminal" aria-hidden="true"></i><span>Console</span></button>
                 <button class="mobile-tab-btn" type="button" role="tab" aria-label="Variables" title="Variables" aria-selected="false" data-pane="visualizer" data-modes="python" onclick="switchMobilePane('visualizer', this)"><i class="fas fa-list-ul" aria-hidden="true"></i><span>Variables</span></button>
-                <button class="mobile-tab-btn" type="button" role="tab" aria-label="Aperçu" title="Aperçu" aria-selected="false" data-pane="preview" data-modes="web" onclick="switchMobilePane('preview', this)"><i class="fas fa-eye" aria-hidden="true"></i><span>Aperçu</span></button>
             </div>
 
             <!-- ===== PYTHON MODE ===== -->
@@ -1365,6 +1365,11 @@ let currentMode = 'python';
 let bugiEnabled  = false; // unlocked once first code context is sent
 let currentWebTab = 'html';
 let pythonRunInProgress = false;
+let pyodideRunnerFrame = null;
+let pyodideRunnerFramePromise = null;
+let activePyodideRun = null;
+let pyodideRunSequence = 0;
+let pyodideRuntimeReady = false;
 
 const CP_FIRST_USE_CODE = `nom = input("Quel est ton nom ? ")
 print("Marhbé bik", nom)`;
@@ -1828,6 +1833,11 @@ function runPython() {
         return;
     }
 
+    if (requiresSyllabusPythonRuntime(code)) {
+        runPythonWithPyodide(code);
+        return;
+    }
+
     clearConsole();
     pythonRunInProgress = true;
     if (runBtn) runBtn.disabled = true;
@@ -1928,6 +1938,223 @@ function runPython() {
         }
     );
 }
+
+function requiresSyllabusPythonRuntime(code) {
+    const importsModule = /^\s*(?:from\s+[A-Za-z_]\w*(?:\.[A-Za-z_]\w*)*\s+import\b|import\s+[A-Za-z_]\w*)/m.test(code);
+    const usesMatchCase = /^\s*match\s+.+:\s*(?:#.*)?$/m.test(code);
+    return importsModule || usesMatchCase;
+}
+
+function ensurePyodideRunnerFrame() {
+    if (pyodideRunnerFrame?.isConnected) return Promise.resolve(pyodideRunnerFrame);
+    if (pyodideRunnerFramePromise) return pyodideRunnerFramePromise;
+
+    pyodideRunnerFramePromise = new Promise((resolve, reject) => {
+        const frame = document.createElement('iframe');
+        frame.className = 'pyodide-runner-frame';
+        frame.title = 'Moteur Python isolé';
+        frame.setAttribute('sandbox', 'allow-scripts allow-modals');
+        frame.setAttribute('aria-hidden', 'true');
+        frame.referrerPolicy = 'no-referrer';
+        frame.onload = () => {
+            pyodideRunnerFrame = frame;
+            resolve(frame);
+        };
+        frame.onerror = () => {
+            frame.remove();
+            pyodideRunnerFramePromise = null;
+            reject(new Error('Le moteur Python complet ne peut pas être chargé. Vérifie ta connexion puis réessaie.'));
+        };
+        frame.src = '/pyodide-runner.html';
+        document.body.appendChild(frame);
+    });
+
+    return pyodideRunnerFramePromise;
+}
+
+function appendPythonRuntimeOutput(text, className = 'console-output cp-console-output') {
+    const consoleElement = document.getElementById('py-console');
+    if (!consoleElement || text == null || text === '') return;
+    const line = document.createElement('span');
+    line.className = className;
+    line.textContent = String(text);
+    consoleElement.appendChild(line);
+    consoleElement.scrollTop = consoleElement.scrollHeight;
+}
+
+function appendPyodideError(message) {
+    const bugiBtnHTML = `<button onclick="askAiDebugger()" style="margin-top:12px; padding:6px 12px; border:none; border-radius:6px; background:#a855f7; color:white; font-family:'Tajawal',sans-serif; cursor:pointer; font-size:13px; font-weight:600;"><i class="fas fa-magic"></i> 🐞 Voir l'explication de Bugi</button>`;
+    appendConsole(
+        '\n<span class="console-error" style="display:block; padding:8px; border-left:3px solid #ef4444; background:rgba(239,68,68,0.1); border-radius:0 4px 4px 0; margin-top:8px;">❌ <strong>Erreur :</strong><br>' +
+        escapeHtml(message || 'Erreur Python') +
+        '<br>' + bugiBtnHTML + '</span>\n'
+    );
+    triggerBugiError();
+}
+
+function renderPyodideVariables(variables) {
+    const visualizer = document.getElementById('py-visualizer');
+    if (!visualizer) return;
+    visualizer.replaceChildren();
+
+    if (!Array.isArray(variables) || variables.length === 0) {
+        visualizer.innerHTML = `
+            <div class="cp-visualizer-empty">
+                <span style="font-size: 32px; opacity: 0.8;">◇</span>
+                <span>Aucune variable affichable après cette exécution.</span>
+            </div>`;
+        return;
+    }
+
+    variables.forEach(variable => {
+        const card = document.createElement('div');
+        card.className = 'vis-card';
+
+        const info = document.createElement('div');
+        info.className = 'vis-info';
+
+        const name = document.createElement('span');
+        name.className = 'vis-var-name';
+        name.textContent = variable.name;
+
+        const type = document.createElement('span');
+        type.className = 'vis-var-type';
+        type.textContent = String(variable.type || 'OBJET').toUpperCase();
+
+        const value = document.createElement('div');
+        value.className = 'vis-var-value';
+        value.textContent = variable.value;
+        value.title = variable.value;
+
+        info.append(name, type);
+        card.append(info, value);
+        visualizer.appendChild(card);
+    });
+}
+
+function resetPythonRunButton(runButton, original) {
+    if (!runButton || !original) return;
+    runButton.disabled = false;
+    runButton.innerHTML = original.html;
+    runButton.title = original.title;
+    runButton.setAttribute('aria-label', original.label);
+    runButton.style.opacity = '1';
+    runButton.style.background = original.background;
+}
+
+async function runPythonWithPyodide(code) {
+    const runButton = document.getElementById('run-btn');
+    const statusText = document.getElementById('cp-status-text');
+    const runId = ++pyodideRunSequence;
+    const originalBtn = {
+        html: runButton?.innerHTML || '',
+        title: runButton?.title || 'Exécuter le code',
+        label: runButton?.getAttribute('aria-label') || 'Exécuter le code',
+        background: runButton?.style.background || ''
+    };
+
+    clearConsole();
+    pythonRunInProgress = true;
+    if (runButton) {
+        runButton.disabled = true;
+        runButton.innerHTML = '<i class="fas fa-spinner fa-spin" aria-hidden="true"></i>';
+        runButton.title = pyodideRuntimeReady ? 'Exécution en cours' : 'Chargement du moteur Python';
+        runButton.setAttribute('aria-label', runButton.title);
+        runButton.style.opacity = '0.8';
+    }
+    if (statusText) {
+        statusText.textContent = pyodideRuntimeReady
+            ? '⏳ Exécution...'
+            : 'Chargement du moteur Python compatible avec le programme scolaire…';
+    }
+    if (!pyodideRuntimeReady) {
+        appendPythonRuntimeOutput(
+            'Premier démarrage : chargement du moteur Python compatible avec NumPy et match/case…\n',
+            'console-comment cp-console-output'
+        );
+    }
+
+    try {
+        const frame = await ensurePyodideRunnerFrame();
+        const result = await new Promise((resolve, reject) => {
+            const timeout = window.setTimeout(() => {
+                if (activePyodideRun?.runId === runId) activePyodideRun = null;
+                reject(new Error('Le moteur Python ne répond pas. Réessaie avec un programme plus court.'));
+            }, 120000);
+            activePyodideRun = {
+                runId,
+                resolve: value => { window.clearTimeout(timeout); resolve(value); },
+                reject: error => { window.clearTimeout(timeout); reject(error); }
+            };
+            frame.contentWindow.postMessage({ channel: 'synta-pyodide', type: 'run', runId, code }, '*');
+        });
+
+        pyodideRuntimeReady = true;
+        if (result.variables) renderPyodideVariables(result.variables);
+
+        if (result.ok) {
+            appendConsole('\n<span class="console-comment" style="color:#10b981; font-weight:bold;">✓ Exécution réussie</span>\n');
+            if (statusText) statusText.textContent = 'Python prêt';
+            if (runButton) {
+                runButton.innerHTML = '<i class="fas fa-check" aria-hidden="true"></i>';
+                runButton.title = 'Exécution réussie';
+                runButton.setAttribute('aria-label', 'Exécution réussie');
+                runButton.style.background = '#10b981';
+                runButton.style.opacity = '1';
+                setTimeout(() => resetPythonRunButton(runButton, originalBtn), 2000);
+            }
+        } else {
+            appendPyodideError(result.error || 'Erreur Python');
+            if (statusText) statusText.textContent = 'Python prêt';
+            if (runButton) {
+                runButton.innerHTML = '<i class="fas fa-exclamation-triangle" aria-hidden="true"></i>';
+                runButton.title = 'Erreur d’exécution';
+                runButton.setAttribute('aria-label', 'Erreur d’exécution');
+                runButton.style.background = '#ef4444';
+                runButton.style.opacity = '1';
+                setTimeout(() => resetPythonRunButton(runButton, originalBtn), 2500);
+            }
+        }
+    } catch (error) {
+        appendPyodideError(error.message || 'Impossible de lancer ce programme.');
+        if (statusText) statusText.textContent = 'Python prêt';
+        if (runButton) {
+            runButton.innerHTML = '<i class="fas fa-exclamation-triangle" aria-hidden="true"></i>';
+            runButton.title = 'Erreur d’exécution';
+            runButton.setAttribute('aria-label', 'Erreur d’exécution');
+            runButton.style.background = '#ef4444';
+            runButton.style.opacity = '1';
+            setTimeout(() => resetPythonRunButton(runButton, originalBtn), 2500);
+        }
+    } finally {
+        pythonRunInProgress = false;
+        if (runButton) runButton.disabled = false;
+        if (runButton && !runButton.innerHTML.includes('fa-check') && !runButton.innerHTML.includes('fa-exclamation-triangle')) {
+            resetPythonRunButton(runButton, originalBtn);
+        }
+    }
+}
+
+window.addEventListener('message', event => {
+    if (!pyodideRunnerFrame || event.source !== pyodideRunnerFrame.contentWindow) return;
+    const message = event.data;
+    if (!message || message.channel !== 'synta-pyodide') return;
+
+    // iframe script loaded; Pyodide itself is still lazy until the first advanced run
+    if (message.type === 'ready') return;
+
+    if (!activePyodideRun || message.runId !== activePyodideRun.runId) return;
+
+    if (message.type === 'output') appendPythonRuntimeOutput(message.text);
+    if (message.type === 'stderr') {
+        appendPythonRuntimeOutput(message.text, 'console-error cp-console-output');
+    }
+    if (message.type === 'complete') {
+        const pending = activePyodideRun;
+        activePyodideRun = null;
+        pending.resolve(message);
+    }
+});
 
 function renderStateVisualizer(dict) {
     const vis = document.getElementById('py-visualizer');

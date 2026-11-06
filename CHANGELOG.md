@@ -54,6 +54,35 @@
 - Kept tablet layout as a full-width editor above the output panels.
 - Documented that “Aperçu” is the deferred Web iframe preview and is expected to be empty until Web mode is resumed and a Web snippet is run.
 
+## 2026-11-06 — Harden Code Pratique Pyodide Fallback
+
+**Author:** Auto  
+**Type:** FEATURE
+
+- Continued the Skulpt/Pyodide split: simple snippets stay on Skulpt; imports and `match/case` route to the sandboxed Pyodide runner.
+- Hardened iframe startup (shared load promise), first-load messaging, variable cards, and Skulpt-aligned success/error/Bugi feedback.
+- Pyodide still loads packages on demand via `loadPackagesFromImports()`; `input()` uses the browser prompt inside the sandbox.
+- Browser verification of a live NumPy + `match/case` run remains pending.
+
+## 2026-11-06 — Record School-Compatible Python Requirement
+
+**Author:** Codex  
+**Type:** PRODUCT_REQUIREMENT
+
+- Added a lazy Pyodide sandbox fallback for code containing imports or `match/case`; basic snippets remain on Skulpt.
+- Pyodide loads imported packages on demand, captures output/errors, and reports user variables. `input()` uses the browser's native prompt in this fallback.
+- Preserved the existing Skulpt input modal and course-file flow. Static EJS/JavaScript checks pass; browser execution of the supplied example remains pending.
+- Known limitation: advanced code currently executes on the iframe's main thread; long synchronous loops need a worker solution that preserves `input()`.
+
+## 2026-11-06 — Fill the Mobile Code Editor and Hide Web Preview
+
+**Author:** Codex  
+**Type:** UX
+
+- Removed the “Aperçu” mobile tab while the Web workspace is deferred.
+- Changed the mobile Code Pratique layout to use the available viewport height; the active editor, console, or variables panel now expands below the header and three panel tabs instead of stopping at a fixed height.
+- Recorded that the preview tab returns only when Web mode is resumed.
+
 ## 2026-11-06 — Align Course/Replay Player and Parallelize Course Loading
 
 **Author:** Codex  

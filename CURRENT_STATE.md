@@ -26,9 +26,17 @@ The backend is running in production on Coolify. Core features (login, course ac
 - Run and Export are compact icon-only controls on desktop and mobile, with accessible labels and tooltips.
 - The Code Pratique header shows a green readiness dot beside the product name; the “Python prêt” text is screen-reader announced only.
 - Python/Web mode tabs are hidden. Python remains the active student workspace; the existing HTML/CSS/JavaScript editor code is retained but dormant.
-- **Product decision:** Web mode is intentionally deferred until the rest of Synta’s student website is stable. Do not resume or expose it until the user explicitly asks to continue Code Pratique Web development. This decision is recorded in `AGENTS.md`.
+- **Product decision:** Web mode and its “Aperçu” tab are intentionally hidden until the rest of Synta’s student website is stable. Do not resume or expose either until the user explicitly asks to continue Code Pratique Web development. This decision is recorded in `AGENTS.md`.
 - The Python editor now receives the largest desktop column; console and variable panels have wider minimums and the code font scales slightly larger. Tablet keeps a full-width editor above the two output panels.
-- “Aperçu” is only the HTML/CSS/JavaScript iframe preview, not Python output. It is expected to be empty while Web mode is deferred; after Web mode returns, it displays content when the student runs a Web snippet.
+- On mobile, the editor panel now expands to fill the available viewport below the compact header and three panel tabs. “Aperçu” is removed from the visible tabs while Web mode is deferred and will return with Web mode.
+
+### Python Curriculum Compatibility — Implemented, Browser Verification Pending
+- Basic snippets remain on Skulpt. Snippets containing imports or `match/case` use a lazily initialized Pyodide 0.29.2 sandbox, with package loading from imports; NumPy is included in Pyodide's package distribution.
+- The Pyodide runner is in `backend/public/pyodide-runner.html` and `backend/public/js/pyodide-runner.js`. It runs in a sandboxed iframe (`allow-scripts allow-modals`), returns stdout/stderr and a variable snapshot, and uses the browser's native prompt for `input()`.
+- Parent page hardens iframe creation with a shared promise, keeps Skulpt-style success/error/Bugi feedback, and only shows the first-load NumPy message until Pyodide has completed once.
+- Course `.py` handoff and normal Skulpt input behavior remain unchanged. The first advanced run requires downloading the Pyodide runtime; NumPy is loaded only when imported.
+- **Known limitation:** synchronous Pyodide code runs in the sandbox iframe's main thread, not a Web Worker. Very long/infinite loops may affect responsiveness. A worker input bridge is future hardening work.
+- **Verification pending:** run a NumPy + `match/case` exercise on the live Code Pratique page and test multiple `input()` prompts. Routing regex and runner syntax checks pass locally; full browser execution against a running server is still pending.
 
 ---
 

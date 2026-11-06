@@ -215,6 +215,9 @@ Authenticated app navigation uses Turbo Drive from the shared head partial; the 
 
 The app is server-rendered EJS with vanilla JavaScript; no client-side bundler or framework is used. Keep navigation and page behavior compatible with Turbo page visits and `turbo:load` lifecycles.
 
+### Code Pratique Python runtimes
+Code Pratique keeps Skulpt for short Python exercises without imports or `match/case`. Code containing imports or structural pattern matching is sent to a lazily created sandboxed iframe at `backend/public/pyodide-runner.html`, which loads pinned Pyodide 0.29.2 from jsDelivr. The runner uses `loadPackagesFromImports()` so packages such as NumPy are downloaded only when the student imports them. It returns console output, errors, and a simple variable snapshot to the EJS page. `input()` in this path uses the browser's native prompt; the existing Skulpt path keeps the custom input modal. The iframe has `allow-scripts allow-modals` sandbox permissions and does not receive same-origin access. Pyodide currently runs on the iframe's main thread, so long synchronous code can still affect responsiveness; a Worker solution must preserve interactive input before replacing this approach. While Web mode is deferred, the HTML/CSS/JavaScript mode selector and its “Aperçu” tab are hidden; the preview control should return only with Web mode.
+
 ### Admin Panel
 Located at `admin/`. Entirely **static HTML + vanilla JS**, no server-side rendering. Authenticates by calling the same `/api/admin/*` endpoints as the backend. Main pages:
 - `dashboard.html` / `overview.html` — Stats overview
