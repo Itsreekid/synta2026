@@ -2,13 +2,19 @@
 
 > **Last updated:** 2026-11-06  
 > **Updated by:** Codex  
-> **Next recommended task:** Deploy and verify the Code Pratique lesson-file handoff and TASK-024; then continue TASK-004 in `IMPLEMENTATION_PLAN.md`
+> **Next recommended task:** Deploy and verify the Code Pratique workspace UX and lesson-file handoff at desktop, tablet, and mobile sizes; then continue TASK-004 in `IMPLEMENTATION_PLAN.md`
 
 ---
 
 ## Project Status: OPERATIONAL — CRITICAL PURCHASE AND AI AUTHORIZATION FIXES APPLIED
 
 The backend is running in production on Coolify. Core features (login, course access, payment flow) work. Purchase identity and the AI debugger endpoint require cookie JWT authentication. Course details now show real enrolled-course live sessions and replay state; other open issues remain listed below.
+
+### 2026-11-06 Code Pratique UX Update
+- Reworked the Code Pratique page layout for responsive desktop, tablet, and mobile panel navigation; added dedicated mobile tabs for editor/console/variables and editor/preview.
+- Added local draft persistence for Python and Web editors, an approachable default Python example, clearer French guidance, and run-button progress/error states.
+- Course-file startup remains idempotent; queued lesson files populate the editor and filename after CodeMirror mounts.
+- **Verification pending:** static checks and visual checks at 1920×1080, 1440×900, 1366×768, 1024×768, 390×844, and 360×800. Changes are local and require deployment before production verification.
 
 ---
 

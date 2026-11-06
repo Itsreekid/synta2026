@@ -15,6 +15,16 @@
 - Keep the pending `sessionStorage` file until the editor exists, and consume it on Turbo page load when the editor is already mounted.
 - EJS and inline JavaScript compile checks pass. Fix is in source and requires deployment for live verification.
 
+## 2026-11-06 — Improve Code Pratique Workspace UX
+
+**Author:** Codex  
+**Type:** UX / BUGFIX
+
+- Reworked the Code Pratique workspace into responsive editor, console, variables, and preview panels, with mobile panel tabs and tablet layouts.
+- Added keyboard focus styling, clearer French empty states and run feedback, and persisted Python/HTML/CSS/JavaScript drafts locally.
+- Kept the Python/Web execution engines and existing course-file handoff; loaded lesson files now update the editor filename and saved Python draft.
+- Browser verification at the requested viewport sizes remains pending; the source has not been deployed.
+
 ## 2026-11-06 — Align Course/Replay Player and Parallelize Course Loading
 
 **Author:** Codex  

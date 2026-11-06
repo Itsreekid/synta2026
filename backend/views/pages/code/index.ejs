@@ -939,6 +939,140 @@
             text-overflow: ellipsis;
             white-space: nowrap;
         }
+        /* ========= Synta Code Pratique workspace ========= */
+        .code-pratique-main { min-width:0; padding:0 !important; overflow:hidden; }
+        .cp-page { height:calc(100dvh - 70px); min-height:520px; overflow:hidden; padding:12px clamp(12px,1.35vw,24px); gap:10px; background:#f3f5fa; }
+        .ide-ribbon { display:grid; grid-template-columns:minmax(190px,1fr) auto minmax(250px,1fr); align-items:center; gap:clamp(10px,1.5vw,22px); flex:none; min-width:0; padding:10px 16px; background:#fff; border:1px solid #dfe5ef; border-radius:14px; box-shadow:0 5px 18px rgba(23,36,59,.06); }
+        .cp-brand { min-width:0; }
+        .cp-brand-icon { width:42px; height:42px; border-radius:12px; }
+        .cp-brand-text h2 { color:#172235; font-size:17px; }
+        .cp-brand-text p { margin-top:2px; color:#64748b; font-size:12px; line-height:1.4; }
+        .cp-mode-tabs { justify-self:center; border:1px solid #e1e7f0; background:#edf1f7; border-radius:11px; }
+        .cp-tab { min-height:40px; padding:8px clamp(12px,1.7vw,24px); border-radius:8px; }
+        .cp-tab.active { color:#18243a; box-shadow:0 2px 7px rgba(15,23,42,.1); }
+        .cp-toolbar-group { display:flex; align-items:center; justify-content:flex-end; gap:12px; min-width:0; }
+        .cp-toolbar { gap:7px; padding-left:12px !important; border-color:#e4e9f1 !important; }
+        .cp-select { min-width:150px; padding:8px 11px; border-color:#dfe5ef; background:#f8fafc; }
+        .cp-btn-toolbar { min-width:38px; min-height:38px; justify-content:center; border:1px solid #dfe5ef; color:#475569; }
+        .cp-btn-toolbar:hover { background:#f1f5f9; border-color:#cbd5e1; }
+        .cp-status { white-space:nowrap; padding:6px 11px; font-size:12px; }
+        .practice-file-notice { display:flex; align-items:center; gap:7px; flex:none; margin:0 !important; padding:10px 14px; border:1px solid #fed7aa; border-radius:11px; background:#fff8ef; color:#9a3412; font-size:13px; line-height:1.45; }
+        .practice-file-notice[hidden] { display:none !important; }
+        .cp-workspace { flex:1; min-height:0; gap:12px; }
+        .mobile-workspace-tabs { display:none !important; }
+        .mode-panel.active { display:grid; min-width:0; min-height:0; gap:12px; }
+        #mode-python { grid-template-columns:minmax(0,1.85fr) minmax(230px,.88fr) minmax(205px,.78fr); }
+        #mode-web { grid-template-columns:minmax(0,1fr) minmax(0,1fr); }
+        .cp-panel { min-width:0; min-height:0; border:1px solid #303b55; border-radius:13px; background:#191f2d; box-shadow:0 8px 24px rgba(19,29,47,.12); }
+        .cp-panel:focus-within { border-color:#f97316; box-shadow:0 0 0 1px rgba(249,115,22,.35),0 8px 24px rgba(19,29,47,.13); }
+        .cp-panel-header { min-height:44px; padding:8px 12px; background:#20283a; border-color:#303b55; gap:8px; }
+        .cp-panel-dots { flex:none; }
+        .cp-panel-dots span { width:10px; height:10px; }
+        .cp-panel-filename { min-width:0; overflow:hidden; color:#d7deeb; font-size:12px; text-overflow:ellipsis; white-space:nowrap; }
+        .cp-panel-badge,.cp-panel-badge-html { padding:3px 8px; border-radius:6px; }
+        .cp-editor-body { min-width:0; background:#191f2d; }
+        .cp-editor-body .CodeMirror,.web-pane .CodeMirror { height:100%; min-height:0; background:#191f2d; color:#d5dbea; font-size:clamp(14px,1vw,16px); line-height:1.65; letter-spacing:0; }
+        .cp-editor-body .CodeMirror-gutters,.web-pane .CodeMirror-gutters { background:#20283a; border-color:#303b55; }
+        .cp-editor-body .CodeMirror-linenumber,.web-pane .CodeMirror-linenumber { color:#77839a; font-size:12px; }
+        .cp-editor-body .CodeMirror-cursor,.web-pane .CodeMirror-cursor { border-left-color:#fb923c; }
+        .cp-editor-footer { min-height:58px; padding:9px 12px; background:#20283a; border-color:#303b55; gap:8px; }
+        .cp-editor-footer > div { min-width:0; gap:8px !important; }
+        .cp-run-btn { min-height:42px; padding:9px 16px; border-radius:9px; box-shadow:0 3px 10px rgba(249,115,22,.22); }
+        .cp-run-btn:disabled { cursor:wait; opacity:.72 !important; transform:none; }
+        .cp-export-btn { min-height:42px; padding:8px 12px !important; border-radius:9px !important; border-color:#39445d !important; }
+        .cp-shortcut { color:#8b96aa; font-size:11px; white-space:nowrap; }
+        .cp-console { padding:14px; background:#171d2a; color:#d5dbea; font-size:14px; line-height:1.7; overflow-wrap:anywhere; }
+        .console-ready { display:block; margin-bottom:5px; color:#4ade80; }
+        .console-comment { color:#8190aa; }
+        .console-output { color:#e2e8f0; }
+        .console-error { color:#fecaca; }
+        .cp-ai-btn { display:inline-flex; align-items:center; justify-content:center; gap:6px; min-height:34px; padding:6px 9px; border:1px solid #6941a5; border-radius:8px; background:#55358a; color:#f5edff; font:600 11px 'Tajawal',sans-serif; cursor:pointer; }
+        .cp-ai-btn:hover { background:#65409d; }
+        .cp-clear-btn { min-height:32px; padding:5px 9px; border-color:#414d64; border-radius:7px; color:#c0c9d8; }
+        .cp-clear-btn:hover { border-color:#718096; background:#293348; }
+        .cp-visualizer { min-width:0; background:#171d2a !important; padding:12px !important; }
+        .cp-visualizer-empty { display:flex; min-height:100%; align-items:center; justify-content:center; gap:10px; padding:14px; color:#94a3b8; text-align:center; font-size:13px; line-height:1.55; }
+        .cp-visualizer-empty > span:first-child { color:#64748b; }
+        .vis-card { margin-bottom:8px; padding:10px; border:1px solid #303b55; border-radius:9px; background:#20283a; }
+        .vis-var-name { color:#c4b5fd; }
+        .vis-var-type { color:#94a3b8; }
+        .vis-var-value { overflow-wrap:anywhere; color:#e2e8f0; }
+        .web-editor-tabs { background:#20283a; border-color:#303b55; }
+        .web-editor-tab { min-height:40px; color:#aab5c8; }
+        .web-editor-tab.active { color:#fff; }
+        .cp-preview { min-height:0; }
+        .input-modal-overlay { padding:16px; }
+        .input-modal { width:min(440px,100%); min-width:0; max-height:calc(100dvh - 32px); overflow:auto; border-color:#39445d; background:#20283a; }
+        .input-modal-prompt { overflow-wrap:anywhere; background:#171d2a; border-color:#39445d; color:#c4b5fd; }
+        .input-modal-field { min-height:48px; border-radius:9px; border-color:#f97316; background:#171d2a; color:#f8fafc; font-size:16px; }
+        .input-modal-ok { min-height:44px; border-radius:9px; background:linear-gradient(135deg,#f97316,#ea580c); }
+        @media (max-width:1100px) and (min-width:701px) {
+            .cp-page { padding:10px 12px; }
+            .ide-ribbon { grid-template-columns:minmax(0,1fr) auto; }
+            .cp-mode-tabs { grid-column:2; grid-row:1; }
+            .cp-toolbar-group { grid-column:1 / -1; justify-content:space-between; }
+            .cp-toolbar { border-left:0 !important; padding-left:0 !important; }
+            #mode-python { grid-template-columns:minmax(0,1fr) minmax(0,1fr); grid-template-rows:minmax(280px,1.5fr) minmax(190px,.8fr); }
+            #mode-python > .cp-panel:first-child { grid-column:1 / -1; }
+            #mode-web { grid-template-columns:minmax(0,1fr) minmax(0,1fr); }
+        }
+        @media (max-width:700px) {
+            .code-pratique-main { overflow:visible; }
+            .cp-page { height:auto; min-height:calc(100dvh - 64px); overflow:visible; padding:10px; gap:10px; }
+            .ide-ribbon { grid-template-columns:minmax(0,1fr) auto; gap:9px 10px; padding:10px; }
+            .cp-brand { gap:9px; }
+            .cp-brand-icon { display:flex; width:38px; height:38px; font-size:15px; }
+            .cp-brand-text h2 { font-size:15px; }
+            .cp-brand-text p { max-width:220px; font-size:11px; }
+            .cp-mode-tabs { grid-column:1 / -1; grid-row:2; width:100%; }
+            .cp-tab { min-height:42px; flex:1; justify-content:center; padding:8px; }
+            .cp-toolbar-group { grid-column:1 / -1; justify-content:space-between; flex-wrap:wrap; gap:8px; }
+            .cp-status { min-height:34px; }
+            .cp-toolbar { flex:1; justify-content:flex-end; gap:6px; }
+            .cp-select { min-width:0; flex:1; max-width:220px; padding:8px; font-size:12px; }
+            .cp-btn-toolbar { min-width:38px; min-height:38px; padding:6px 9px; }
+            .practice-file-notice { align-items:flex-start; padding:9px 11px; font-size:12px; }
+            .cp-workspace { display:flex; flex-direction:column; gap:10px; }
+            .mobile-workspace-tabs { display:grid !important; grid-template-columns:repeat(3,minmax(0,1fr)); gap:6px; margin:0 !important; padding:4px; border:1px solid #dce3ed; border-radius:11px; background:#fff; }
+            .mobile-workspace-tabs[data-mode="web"] { grid-template-columns:repeat(2,minmax(0,1fr)); }
+            .mobile-tab-btn { min-height:42px; padding:8px 5px; border:1px solid transparent; border-radius:8px; background:transparent; color:#526176; font:650 13px 'Tajawal',sans-serif; cursor:pointer; }
+            .mobile-tab-btn.active { border-color:#fed7aa; background:#fff7ed; color:#c2410c; }
+            .mobile-tab-btn:focus-visible,.cp-run-btn:focus-visible,.cp-btn-toolbar:focus-visible,.cp-clear-btn:focus-visible,.cp-ai-btn:focus-visible { outline:3px solid rgba(249,115,22,.42); outline-offset:2px; }
+            .mode-panel.active { display:flex; flex-direction:column; gap:9px; }
+            .mode-panel .cp-panel { display:flex; width:100%; height:clamp(300px,52dvh,460px); min-height:300px !important; max-height:460px !important; flex:none; }
+            .mode-panel .cp-panel.mobile-hidden { display:none !important; }
+            .cp-panel-header { min-height:43px; padding:7px 10px; }
+            .cp-editor-body { flex:1; min-height:0; }
+            .cp-editor-body .CodeMirror,.web-pane .CodeMirror { font-size:15px; line-height:1.6; }
+            .cp-editor-footer { position:sticky; bottom:0; z-index:2; min-height:60px; padding:8px; }
+            .cp-editor-footer > div { flex:1; }
+            .cp-run-btn { min-width:0; min-height:44px; flex:1; justify-content:center; padding:9px 10px; font-size:13px; }
+            .cp-export-btn { min-height:44px; padding:8px 10px !important; font-size:12px !important; }
+            .cp-shortcut { display:none; }
+            .cp-console { min-height:0; padding:12px; font-size:13px; }
+            .cp-ai-btn span { display:none; }
+            .cp-ai-btn { width:38px; min-height:34px; }
+            .cp-visualizer { flex:1; overflow-y:auto; }
+            .vis-card { padding:9px; }
+            .web-editor-tabs { overflow-x:auto; }
+            .web-editor-tab { flex:1; padding:8px; white-space:nowrap; }
+            .cp-preview { flex:1; min-height:0; }
+            .input-modal-overlay { align-items:flex-start; overflow-y:auto; padding:max(12px,env(safe-area-inset-top)) 12px max(12px,env(safe-area-inset-bottom)); }
+            .input-modal { width:100%; max-height:calc(100dvh - 24px); margin:auto; padding:18px 16px; }
+            .input-modal-field { font-size:16px; }
+        }
+        @media (max-width:380px) {
+            .cp-page { padding:8px; }
+            .ide-ribbon { padding:9px; }
+            .cp-brand-text p { max-width:185px; }
+            .cp-toolbar-group { gap:6px; }
+            .cp-select { max-width:180px; }
+            .mobile-tab-btn { font-size:12px; }
+            .mode-panel .cp-panel { height:clamp(280px,48dvh,420px); min-height:280px !important; }
+        }
+        @media (prefers-reduced-motion:reduce) {
+            .cp-panel,.cp-run-btn,.cp-tab,.input-modal,.input-modal-overlay { transition:none !important; animation:none !important; }
+        }
         .vis-val-string { color: #10b981; background: rgba(16, 185, 129, 0.1); }
         .vis-val-number { color: #ff7b1a; background: rgba(255, 123, 26, 0.1); }
         .vis-val-bool { color: #a855f7; background: rgba(168, 85, 247, 0.1); }
@@ -970,11 +1104,11 @@
 <div class="content-wrapper">
     <%- include('../../partials/sidebar', { active: 'code' }) %>
 
-    <section id="main-section" class="main-section" style="padding:0;overflow:hidden;">
+    <section id="main-section" class="main-section code-pratique-main">
     <div class="cp-page">
 
         <!-- IDE RIBBON HEADER -->
-        <div class="ide-ribbon" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 16px; padding: 14px 20px; background: white; border-radius: 12px; border: 1px solid #e2e8f0; box-shadow: 0 2px 10px rgba(0,0,0,0.03);">
+        <div class="ide-ribbon">
             
             <div class="cp-brand">
                 <div class="cp-brand-icon">&lt;/&gt;</div>
@@ -984,7 +1118,7 @@
                 </div>
             </div>
 
-            <div class="cp-mode-tabs" style="margin: 0 auto;">
+            <div class="cp-mode-tabs" role="tablist" aria-label="Environnement de programmation">
                 <button class="cp-tab active" id="tab-python" onclick="switchMode('python')">
                     <span class="cp-tab-dot-python">🐍</span> Python
                 </button>
@@ -993,13 +1127,13 @@
                 </button>
             </div>
 
-            <div style="display: flex; align-items: center; gap: 16px;">
+            <div class="cp-toolbar-group">
                 <div class="cp-status" id="cp-status">
                     <div class="cp-status-dot"></div>
                     <span id="cp-status-text">Python prêt</span>
                 </div>
 
-                <div class="cp-toolbar" style="border-left: 1px solid #e2e8f0; padding-left: 16px;">
+                <div class="cp-toolbar">
                     <select class="cp-select" id="examples-select" onchange="loadExample()">
                         <option value="">Exemples...</option>
                     </select>
@@ -1009,7 +1143,7 @@
             </div>
         </div>
 
-        <div id="practice-file-notice" hidden style="margin-top:12px;padding:12px 16px;border:1px solid #fed7aa;border-radius:10px;background:#fff7ed;color:#9a3412;font-size:14px;">
+        <div id="practice-file-notice" class="practice-file-notice" hidden>
             Exercice chargé depuis le cours : <strong id="practice-file-name"></strong>. Modifiez-le puis cliquez sur « Exécuter le code ».
         </div>
 
@@ -1017,17 +1151,18 @@
         <div class="cp-workspace">
             
             <!-- MOBILE WORKSPACE TABS -->
-            <div class="mobile-workspace-tabs" style="display: none; width: 100%; gap: 10px; margin-bottom: 10px;">
-                <button class="mobile-tab-btn active" onclick="switchMobilePane('editor')" style="flex: 1; padding: 12px; background: #1e293b; color: white; border: none; border-radius: 8px; font-weight: 600; cursor: pointer;">📝 Éditeur</button>
-                <button class="mobile-tab-btn" onclick="switchMobilePane('console')" style="flex: 1; padding: 12px; background: white; color: #64748b; border: 1px solid #e2e8f0; border-radius: 8px; font-weight: 600; cursor: pointer;">💻 Console</button>
-                <button class="mobile-tab-btn" onclick="switchMobilePane('visualizer')" style="flex: 1; padding: 12px; background: white; color: #64748b; border: 1px solid #e2e8f0; border-radius: 8px; font-weight: 600; cursor: pointer;">🔍 Variables</button>
+            <div class="mobile-workspace-tabs" role="tablist" aria-label="Panneaux de travail">
+                <button class="mobile-tab-btn active" type="button" role="tab" aria-selected="true" data-pane="editor" data-modes="python,web" onclick="switchMobilePane('editor', this)">Éditeur</button>
+                <button class="mobile-tab-btn" type="button" role="tab" aria-selected="false" data-pane="console" data-modes="python" onclick="switchMobilePane('console', this)">Console</button>
+                <button class="mobile-tab-btn" type="button" role="tab" aria-selected="false" data-pane="visualizer" data-modes="python" onclick="switchMobilePane('visualizer', this)">Variables</button>
+                <button class="mobile-tab-btn" type="button" role="tab" aria-selected="false" data-pane="preview" data-modes="web" onclick="switchMobilePane('preview', this)">Aperçu</button>
             </div>
 
             <!-- ===== PYTHON MODE ===== -->
-            <div class="mode-panel active" id="mode-python" style="flex:1;min-width:0;display:flex;gap:14px;">
+            <div class="mode-panel active" id="mode-python" style="flex:1;min-width:0;gap:14px;">
 
                 <!-- Editor panel -->
-                <div class="cp-panel" style="flex: 1 1 50%;">
+                <div class="cp-panel" data-mobile-pane="editor" role="tabpanel" aria-label="Éditeur Python">
                     <div class="cp-panel-header">
                         <div style="display:flex;align-items:center;gap:8px;">
                             <div class="cp-panel-dots">
@@ -1035,7 +1170,7 @@
                                 <span class="dot-yellow"></span>
                                 <span class="dot-green"></span>
                             </div>
-                            <span class="cp-panel-filename">main.py</span>
+                            <span class="cp-panel-filename" id="python-filename">main.py</span>
                         </div>
                         <span class="cp-panel-badge">Python 3</span>
                     </div>
@@ -1059,7 +1194,7 @@
                 </div>
 
                 <!-- Console panel -->
-                <div class="cp-panel" style="flex: 1 1 25%;">
+                <div class="cp-panel" data-mobile-pane="console" role="tabpanel" aria-label="Console Python">
                     <div class="cp-panel-header">
                         <div style="display:flex;align-items:center;gap:8px;">
                             <div class="cp-panel-dots">
@@ -1070,10 +1205,10 @@
                             <span class="cp-panel-filename">console</span>
                         </div>
                         <div style="display:flex; gap:8px;">
-                            <button class="cp-ai-btn" onclick="askAiDebugger()" title="Demander de l'aide à l'IA" style="background: linear-gradient(135deg, #a855f7, #8b5cf6); color: white; border: none; padding: 4px 10px; border-radius: 6px; font-size: 12px; cursor: pointer; font-weight: bold; display: flex; align-items: center; gap: 4px; transition: opacity 0.2s;">
-                                💡 إصلاح بالذكاء الاصطناعي
+                            <button class="cp-ai-btn" type="button" onclick="askAiDebugger()" title="Demander une explication à Bugi">
+                                <i class="fas fa-wand-magic-sparkles" aria-hidden="true"></i><span>Aide Bugi</span>
                             </button>
-                            <button class="cp-clear-btn" onclick="clearConsole()">clear</button>
+                            <button class="cp-clear-btn" type="button" onclick="clearConsole()" title="Effacer la sortie">Effacer</button>
                         </div>
                     </div>
                     <div class="cp-console" id="py-console">
@@ -1084,7 +1219,7 @@
                 </div>
                 
                 <!-- Visualizer panel -->
-                <div class="cp-panel" style="flex: 1 1 25%;">
+                <div class="cp-panel" data-mobile-pane="visualizer" role="tabpanel" aria-label="Variables en mémoire">
                     <div class="cp-panel-header">
                         <div style="display:flex;align-items:center;gap:8px;">
                             <div class="cp-panel-dots">
@@ -1105,10 +1240,10 @@
             </div>
 
             <!-- ===== WEB MODE ===== -->
-            <div class="mode-panel" id="mode-web" style="flex:1;min-width:0;display:none;gap:14px;">
+            <div class="mode-panel" id="mode-web" style="flex:1;min-width:0;gap:14px;">
 
                 <!-- Web editor panel -->
-                <div class="cp-panel" style="flex:1;">
+                <div class="cp-panel" data-mobile-pane="editor" role="tabpanel" aria-label="Éditeur Web">
                     <div class="cp-panel-header">
                         <div style="display:flex;align-items:center;gap:8px;">
                             <div class="cp-panel-dots">
@@ -1145,7 +1280,7 @@
                 </div>
 
                 <!-- Preview panel -->
-                <div class="cp-panel" style="flex:1;">
+                <div class="cp-panel" data-mobile-pane="preview" role="tabpanel" aria-label="Aperçu Web">
                     <div class="cp-panel-header">
                         <div style="display:flex;align-items:center;gap:8px;">
                             <div class="cp-panel-dots">
@@ -1222,6 +1357,21 @@ let pyEditor, webHtmlEditor, webCssEditor, webJsEditor;
 let currentMode = 'python';
 let bugiEnabled  = false; // unlocked once first code context is sent
 let currentWebTab = 'html';
+let pythonRunInProgress = false;
+
+const CP_FIRST_USE_CODE = `nom = input("Quel est ton nom ? ")
+print("Marhbé bik", nom)`;
+const CP_DRAFT_PREFIX = 'synta:code-pratique:draft:';
+
+function readCodeDraft(name, fallback) {
+    try { return localStorage.getItem(CP_DRAFT_PREFIX + name) ?? fallback; }
+    catch (_) { return fallback; }
+}
+
+function saveCodeDraft(name, value) {
+    try { localStorage.setItem(CP_DRAFT_PREFIX + name, value); }
+    catch (error) { console.warn('Could not save the local code draft:', error.message); }
+}
 
 // ----------------------------------------------------------------
 // PYTHON EXAMPLES
@@ -1483,6 +1633,10 @@ function switchMode(mode) {
 
     document.getElementById('tab-python').classList.toggle('active', mode === 'python');
     document.getElementById('tab-web').classList.toggle('active', mode === 'web');
+    document.getElementById('tab-python').setAttribute('aria-selected', String(mode === 'python'));
+    document.getElementById('tab-web').setAttribute('aria-selected', String(mode === 'web'));
+    try { localStorage.setItem(CP_DRAFT_PREFIX + 'mode', mode); } catch (_) {}
+    updateMobileWorkspaceTabs(mode);
 
     const statusText = document.getElementById('cp-status-text');
     const subtitle   = document.getElementById('cp-subtitle');
@@ -1503,26 +1657,40 @@ function switchMode(mode) {
 }
 
 // Mobile pane switching logic
-function switchMobilePane(pane) {
-    const tabs = document.querySelectorAll('.mobile-tab-btn');
-    tabs.forEach(t => t.classList.remove('active'));
-    
-    // Find panels in the active mode
+function updateMobileWorkspaceTabs(mode) {
+    const tabList = document.querySelector('.mobile-workspace-tabs');
+    if (!tabList) return;
+    tabList.dataset.mode = mode;
+    tabList.querySelectorAll('.mobile-tab-btn').forEach(button => {
+        button.hidden = !button.dataset.modes.split(',').includes(mode);
+    });
+    switchMobilePane('editor', tabList.querySelector('[data-pane="editor"]'));
+}
+
+function switchMobilePane(pane, selectedButton = null) {
     const activeMode = document.querySelector('.mode-panel.active');
-    if(!activeMode) return;
-    
-    const panels = activeMode.querySelectorAll('.cp-panel');
-    if(panels.length < 2) return;
-    
-    if (pane === 'editor') {
-        event.target.classList.add('active');
-        panels[0].classList.remove('mobile-hidden');
-        panels[1].classList.add('mobile-hidden');
-    } else {
-        event.target.classList.add('active');
-        panels[0].classList.add('mobile-hidden');
-        panels[1].classList.remove('mobile-hidden');
-    }
+    const tabList = document.querySelector('.mobile-workspace-tabs');
+    if (!activeMode || !tabList) return;
+
+    const button = selectedButton || tabList.querySelector(`[data-pane="${pane}"]`);
+    if (!button || button.hidden) return;
+    tabList.querySelectorAll('.mobile-tab-btn').forEach(tab => {
+        const selected = tab === button;
+        tab.classList.toggle('active', selected);
+        tab.setAttribute('aria-selected', String(selected));
+    });
+    activeMode.querySelectorAll('.cp-panel[data-mobile-pane]').forEach(panel => {
+        panel.classList.toggle('mobile-hidden', panel.dataset.mobilePane !== pane);
+        if (window.matchMedia('(max-width: 700px)').matches) {
+            panel.setAttribute('aria-hidden', String(panel.dataset.mobilePane !== pane));
+        } else {
+            panel.removeAttribute('aria-hidden');
+        }
+    });
+    window.setTimeout(() => {
+        if (pane === 'editor' && currentMode === 'python') pyEditor?.refresh();
+        if (currentMode === 'web') [webHtmlEditor, webCssEditor, webJsEditor].forEach(editor => editor?.refresh());
+    }, 30);
 }
 
 // Ensure initial mobile state hides the console
@@ -1643,17 +1811,26 @@ function exportPythonCode() {
 }
 
 function runPython() {
+    if (!pyEditor || pythonRunInProgress) return;
     const code = pyEditor.getValue().trim();
-    if (!code) return;
+    const runBtn = document.getElementById('run-btn');
+    if (!code) {
+        clearConsole();
+        appendConsole('<span class="console-comment">Écris du code ou choisis un exemple, puis lance l’exécution.</span>\n');
+        pyEditor.focus();
+        return;
+    }
 
     clearConsole();
+    pythonRunInProgress = true;
+    if (runBtn) runBtn.disabled = true;
+    const originalBtnHTML = runBtn?.innerHTML || '';
+    const originalBtnBg = runBtn?.style.background || '';
     
-    const runBtn = document.getElementById('run-btn');
-    const originalBtnHTML = runBtn.innerHTML;
-    const originalBtnBg = runBtn.style.background || '';
-    
-    runBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Exécution...';
-    runBtn.style.opacity = '0.8';
+    if (runBtn) {
+        runBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Exécution...';
+        runBtn.style.opacity = '0.8';
+    }
 
     const statusEl = document.getElementById('cp-status-text');
     statusEl.textContent = '⏳ Exécution...';
@@ -1666,16 +1843,20 @@ function runPython() {
         
         appendConsole('\n<span class="console-error" style="display:block; padding:8px; border-left:3px solid #ef4444; background:rgba(239,68,68,0.1); border-radius:0 4px 4px 0; margin-top:8px;">❌ <strong>Erreur :</strong><br>' + escapeHtml(msg) + '<br>' + bugiBtnHTML + '</span>\n');
         
-        runBtn.innerHTML = '<i class="fas fa-exclamation-triangle"></i> Erreur';
-        runBtn.style.background = '#ef4444';
-        runBtn.style.opacity = '1';
+        if (runBtn) {
+            runBtn.innerHTML = '<i class="fas fa-exclamation-triangle"></i> Erreur';
+            runBtn.style.background = '#ef4444';
+            runBtn.style.opacity = '1';
+        }
         
         // Highlight Bugi button but do not interrupt the student automatically
         triggerBugiError();
         
         setTimeout(() => {
-            runBtn.innerHTML = originalBtnHTML;
-            runBtn.style.background = originalBtnBg;
+            if (runBtn) {
+                runBtn.innerHTML = originalBtnHTML;
+                runBtn.style.background = originalBtnBg;
+            }
         }, 2500);
     }
 
@@ -1699,15 +1880,21 @@ function runPython() {
     promise.then(
         (module) => {
             appendConsole('\n<span class="console-comment" style="color:#10b981; font-weight:bold;">✓ Exécution réussie</span>\n');
+            pythonRunInProgress = false;
+            if (runBtn) runBtn.disabled = false;
             statusEl.textContent = 'Python prêt';
             
-            runBtn.innerHTML = '<i class="fas fa-check"></i> Exécuté';
-            runBtn.style.background = '#10b981';
-            runBtn.style.opacity = '1';
+            if (runBtn) {
+                runBtn.innerHTML = '<i class="fas fa-check"></i> Exécuté';
+                runBtn.style.background = '#10b981';
+                runBtn.style.opacity = '1';
+            }
             
             setTimeout(() => {
-                runBtn.innerHTML = originalBtnHTML;
-                runBtn.style.background = originalBtnBg;
+                if (runBtn) {
+                    runBtn.innerHTML = originalBtnHTML;
+                    runBtn.style.background = originalBtnBg;
+                }
             }, 2000);
             
             if(module && module.$d) {
@@ -1716,6 +1903,8 @@ function runPython() {
         },
         (err) => {
             errf(err);
+            pythonRunInProgress = false;
+            if (runBtn) runBtn.disabled = false;
             statusEl.textContent = 'Python prêt';
         }
     );
@@ -1793,9 +1982,9 @@ function clearConsole() {
 }
 
 function showConsoleWelcome() {
-    appendConsole('<span class="console-ready">Python 3.10 prêt !</span>\n');
-    appendConsole('<span class="console-comment"># Écrivez du code et Cliquez Exécuter</span>\n');
-    appendConsole('<span class="console-comment"># Raccourci : Ctrl + Enter</span>\n');
+    appendConsole('<span class="console-ready">Bienvenue dans Code Pratique</span>\n');
+    appendConsole('<span class="console-comment">Modifie le programme à gauche, puis clique sur « Exécuter le code ».</span>\n');
+    appendConsole('<span class="console-comment">Le résultat et les réponses à input() apparaissent ici. Raccourci : Ctrl + Entrée.</span>\n');
 }
 
 function appendConsole(html) {
@@ -2158,7 +2347,7 @@ function initEditors() {
 
     // ---- PYTHON editor ----
     pyEditor = CodeMirror(document.getElementById('py-editor-body'), {
-        value: '',
+        value: readCodeDraft('python', CP_FIRST_USE_CODE),
         placeholder: '# Ecrivez votre code Python ici...',
         mode: 'python',
         theme: 'dracula',
@@ -2192,7 +2381,7 @@ function initEditors() {
     var jsPane   = document.getElementById('web-pane-js');
 
     webHtmlEditor = CodeMirror(htmlPane, {
-        value: '<!-- Ecrivez votre HTML ici -->\n<h1>Bonjour, Synta Academy !</h1>\n<p>Testez votre page web ici.</p>',
+        value: readCodeDraft('html', '<!-- Écris ton HTML ici -->\n<h1>Bonjour, Synta Academy !</h1>\n<p>Teste ta page web ici.</p>'),
         mode: 'htmlmixed',
         theme: 'dracula',
         lineNumbers: true,
@@ -2205,7 +2394,7 @@ function initEditors() {
     });
 
     webCssEditor = CodeMirror(cssPane, {
-        value: '/* Votre CSS ici */\nbody {\n  font-family: sans-serif;\n  text-align: center;\n  padding: 40px;\n  background: #f0f4ff;\n}\nh1 { color: #ff7b1a; }',
+        value: readCodeDraft('css', '/* Ton CSS ici */\nbody {\n  font-family: sans-serif;\n  text-align: center;\n  padding: 40px;\n  background: #f0f4ff;\n}\nh1 { color: #ff7b1a; }'),
         mode: 'css',
         theme: 'dracula',
         lineNumbers: true,
@@ -2217,7 +2406,7 @@ function initEditors() {
     });
 
     webJsEditor = CodeMirror(jsPane, {
-        value: '// Votre JavaScript ici\nconsole.log("Page chargee !");',
+        value: readCodeDraft('javascript', '// Ton JavaScript ici\nconsole.log("Page chargée !");'),
         mode: 'javascript',
         theme: 'dracula',
         lineNumbers: true,
@@ -2227,6 +2416,11 @@ function initEditors() {
         tabSize: 2,
         extraKeys: { 'Ctrl-Enter': runWeb }
     });
+
+    pyEditor.on('change', editor => saveCodeDraft('python', editor.getValue()));
+    webHtmlEditor.on('change', editor => saveCodeDraft('html', editor.getValue()));
+    webCssEditor.on('change', editor => saveCodeDraft('css', editor.getValue()));
+    webJsEditor.on('change', editor => saveCodeDraft('javascript', editor.getValue()));
 
     // Refresh all editors after a short delay to fix hidden-pane sizing
     setTimeout(function() {
@@ -2291,9 +2485,10 @@ function loadPracticeStarterFile() {
     if (!starter || typeof starter.code !== 'string') return;
     switchMode('python');
     pyEditor.setValue(starter.code);
+    saveCodeDraft('python', starter.code);
     document.getElementById('practice-file-name').textContent = starter.fileName || 'exercice.py';
     document.getElementById('practice-file-notice').hidden = false;
-    document.querySelector('#mode-python .cp-panel-filename').textContent = starter.fileName || 'exercice.py';
+    document.getElementById('python-filename').textContent = starter.fileName || 'exercice.py';
 }
 
 if (document.readyState === 'loading') {
