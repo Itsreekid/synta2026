@@ -463,6 +463,21 @@
         iframe.course-replay-player { aspect-ratio:16/9; }
         video.course-replay-player { object-fit:contain; }
         .course-replay-view .course-player-frame { display:grid; place-items:center; }
+        .replay-sidebar-card { display:flex; flex-direction:column; gap:.7rem; min-width:0; padding:1rem; border:1px solid #e8edf4; border-radius:18px; background:#fff; box-shadow:0 4px 20px rgba(0,0,0,.03); }
+        .replay-sidebar-heading { display:flex; align-items:center; gap:.7rem; padding:.15rem .15rem .5rem; color:#4338ca; }
+        .replay-sidebar-heading > i { display:grid; place-items:center; width:40px; height:40px; flex:none; border-radius:12px; background:#eef2ff; }
+        .replay-sidebar-heading div { display:flex; flex-direction:column; gap:.1rem; min-width:0; }
+        .replay-sidebar-heading strong { color:#1e293b; }
+        .replay-sidebar-heading span,.replay-sidebar-empty { color:#64748b; font-size:.82rem; }
+        .replay-sidebar-month-content { display:flex; flex-direction:column; gap:.45rem; padding:.55rem; }
+        .replay-sidebar-item { display:flex; align-items:center; gap:.65rem; width:100%; min-width:0; padding:.65rem; border:1px solid #e8edf4; border-radius:12px; background:#fff; color:#334155; text-align:left; cursor:pointer; }
+        .replay-sidebar-item:hover { border-color:#c7d2fe; background:#f8faff; }
+        .replay-sidebar-item.is-active { border-color:#a5b4fc; background:#eef2ff; color:#3730a3; }
+        .replay-sidebar-item-icon { display:grid; place-items:center; width:32px; height:32px; flex:none; border-radius:50%; background:#eef2ff; color:#4f46e5; }
+        .replay-sidebar-item-text { display:flex; flex-direction:column; gap:.15rem; min-width:0; }
+        .replay-sidebar-item-text strong { overflow:hidden; font-size:.82rem; text-overflow:ellipsis; white-space:nowrap; }
+        .replay-sidebar-item-text small { color:#64748b; font-size:.72rem; }
+        .replay-sidebar-empty { margin:.2rem; line-height:1.5; }
         .replay-modal-content { width:min(1100px,94vw); max-width:1100px; max-height:92vh; overflow:auto; padding:clamp(1rem,3vw,2rem); background:#fff; border-radius:20px; }
         .replay-modal-title { margin:0 2.5rem 1rem 0; color:#1e293b; font-size:1.2rem; }
         .replay-modal-player { display:block; width:100%; aspect-ratio:16/9; border:0; border-radius:13px; background:#0f172a; }

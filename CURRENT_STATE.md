@@ -2,7 +2,7 @@
 
 > **Last updated:** 2026-11-06  
 > **Updated by:** Codex  
-> **Next recommended task:** Deploy and browser-verify TASK-024 (course/replay player UX and request concurrency); then continue TASK-004 in `IMPLEMENTATION_PLAN.md`
+> **Next recommended task:** Deploy and verify the Code Pratique lesson-file handoff and TASK-024; then continue TASK-004 in `IMPLEMENTATION_PLAN.md`
 
 ---
 
@@ -118,6 +118,7 @@ The backend is running in production on Coolify. Core features (login, course ac
 | BUG-009 | 🟠 MEDIUM | `server.js` | No rate limiting on any endpoint. Brute-force and abuse possible. |
 | BUG-010 | 🟠 MEDIUM | `routes/live.js` | `live_sessions.status` is never updated. `GET /api/live/upcoming` could show sessions that have already occurred (relies on `scheduled_at >= NOW()` filter). |
 | BUG-012 | ✅ FIXED 2026-11-05 | `public/js/course-details.js` | Course details previously substituted a random live count and had no session list. Count now matches the student's accessible course sessions; past sessions remain listed while replay is pending. |
+| BUG-013 | FIXED IN SOURCE 2026-11-06 | `views/pages/code/index.ejs` | Lesson Python file banner could appear while CodeMirror remained empty. CodeMirror boot is now idempotent and the starter remains queued until the editor is available; deploy and verify with an actual lesson file. |
 | BUG-011 | 🟠 MEDIUM | `server.js` | Temporary `/api/admin/init-db` and `/api/admin/promote` endpoints are unprotected and present in production. |
 
 ---
@@ -192,11 +193,18 @@ The backend is running in production on Coolify. Core features (login, course ac
 ### 2026-11-06 — Course Player UX and Loading
 - Replays now use the same in-page player area and chapter sidebar as lesson playback; player buttons switch between the live-session list and chapters.
 - Lesson playback resumes from the saved position and saves periodically, on pause, and before switching to live sessions. The position route checks enrollment/preview access and preserves completion state.
+- While a replay plays, the course sidebar now lists only available replays grouped by month, highlights the active session, and lets the student switch recordings without returning to the course session list.
 - Course details now request access status alongside course data, then load live sessions, resources, and progress concurrently. A failed secondary request no longer blocks the other sections.
 - Added `min-width: 0` constraints to the course grid and responsive player controls.
 - `node --check` passed for `course-details.js`, `courses.js`, and `api-client.js`.
 - Production page baseline captured on 2026-11-06: navigation duration 1,333 ms, HTML transfer 11,054 bytes; course API timing 111 ms, access 103 ms, live 83 ms, course resources 80 ms, progress 65 ms. These individual durations are not additive network timings. Lighthouse mobile audit: accessibility 97, best practices 100, SEO 92; CLS 0.096, with heading order, main landmark, and meta description flagged.
 - **Not yet verified:** the modified files have not been deployed to production, so browser interaction and after-change performance are pending deployment. The authenticated session was used to inspect production baseline data only.
+
+### 2026-11-06 — Code Pratique Lesson File Handoff
+- Reproduced the production symptom using temporary sample code: filename notice rendered but editor value was empty; invoking the starter loader after mount inserted the code.
+- Made `boot()` preserve an already-mounted CodeMirror instance, and made Turbo page load consume a queued file only after the active editor is confirmed.
+- `loadPracticeStarterFile()` now leaves session storage untouched until the editor exists.
+- EJS template compilation and inline JavaScript syntax checks pass. The production fix remains pending Coolify deployment and a live test with an uploaded `.py` resource.
 
 ---
 

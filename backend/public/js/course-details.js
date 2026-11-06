@@ -4,6 +4,7 @@
 
 let currentCourse = null;
 let currentEnrollment = null;
+let currentLiveSessions = [];
 
 async function initCourseDetailsPage() {
     const urlParams = new URLSearchParams(window.location.search);
@@ -33,7 +34,7 @@ if (document.readyState === 'loading') {
 document.addEventListener('click', (event) => {
     const replayButton = event.target.closest('[data-replay-url]');
     if (replayButton) {
-        openReplayPlayer(replayButton.dataset.replayUrl, replayButton.dataset.replayTitle, JSON.parse(replayButton.dataset.replayResources || '[]'));
+        openReplayPlayer(replayButton.dataset.replayUrl, replayButton.dataset.replayTitle, JSON.parse(replayButton.dataset.replayResources || '[]'), replayButton.dataset.sessionId);
         return;
     }
     const tab = event.target.closest('[data-course-tab]');
@@ -56,6 +57,7 @@ function setCourseContentTab(selected) {
 }
 
 async function switchCoursePlayerTo(panelName) {
+    document.querySelector('video.course-replay-player')?.pause();
     const video = document.getElementById('current-lesson-video');
     if (video && Number.isFinite(video.currentTime) && video.dataset.lessonId) {
         video.pause();
@@ -100,6 +102,7 @@ async function loadCourseDetails(courseId) {
         currentCourse = course;
 
         let liveSessions = [];
+        currentLiveSessions = [];
         let liveSessionsLoaded = false;
         let courseResources = [];
         let courseProgress = null;
@@ -118,6 +121,7 @@ async function loadCourseDetails(courseId) {
 
             if (liveResult.status === 'fulfilled') {
                 liveSessions = liveResult.value;
+                currentLiveSessions = liveSessions;
                 liveSessionsLoaded = true;
             } else console.error('Live sessions fetch error:', liveResult.reason);
             if (resourceResult.status === 'fulfilled') courseResources = resourceResult.value.resources || [];
@@ -335,7 +339,7 @@ function renderCourseLiveSessions(sessions, hasAccess, loaded) {
         const dateLabel = start.toLocaleString('fr-FR', { dateStyle: 'full', timeStyle: 'short' });
         let action = '<span style="color:#64748b">Replay bientôt disponible</span>';
         if (session.replay_url) {
-            action = `<button type="button" class="course-replay-button" data-replay-url="${escapeHtml(session.replay_url)}" data-replay-title="${escapeHtml(session.title)}" data-replay-resources="${escapeHtml(JSON.stringify(session.resources || []))}"><i class="fas fa-play-circle" aria-hidden="true"></i> Regarder le replay</button>`;
+            action = `<button type="button" class="course-replay-button" data-session-id="${escapeHtml(session.id)}" data-replay-url="${escapeHtml(session.replay_url)}" data-replay-title="${escapeHtml(session.title)}" data-replay-resources="${escapeHtml(JSON.stringify(session.resources || []))}"><i class="fas fa-play-circle" aria-hidden="true"></i> Regarder le replay</button>`;
         } else if ((isUpcoming || isLive) && session.zoom_join_url) {
             action = `<a href="${escapeHtml(session.zoom_join_url)}" target="_blank" rel="noopener noreferrer" style="color:#e11d48;font-weight:700">${isLive ? 'Rejoindre le direct' : 'Ouvrir le lien du direct'}</a>`;
         }
@@ -354,7 +358,46 @@ function renderCourseLiveSessions(sessions, hasAccess, loaded) {
     }).join('');
 }
 
-function openReplayPlayer(replayUrl, title, resources = []) {
+function renderReplaySidebar(sidebar, sessions, selectedSessionId = '') {
+    const escapeHtml = value => String(value ?? '').replace(/[&<>"']/g, char => ({
+        '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+    }[char]));
+    const replays = (sessions || []).filter(session => session.replay_url);
+    const monthGroups = new Map();
+    replays.forEach(session => {
+        const date = new Date(session.scheduled_at);
+        const key = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+        if (!monthGroups.has(key)) monthGroups.set(key, []);
+        monthGroups.get(key).push(session);
+    });
+
+    const monthsHtml = [...monthGroups.entries()].map(([key, monthSessions], index) => {
+        const [year, month] = key.split('-').map(Number);
+        const monthLabel = new Intl.DateTimeFormat('fr-FR', { month: 'long', year: 'numeric' })
+            .format(new Date(year, month - 1, 1));
+        const isSelectedMonth = monthSessions.some(session => String(session.id) === String(selectedSessionId));
+        const entries = monthSessions.map(session => {
+            const selected = String(session.id) === String(selectedSessionId);
+            const dateLabel = new Date(session.scheduled_at).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' });
+            return `<button type="button" class="replay-sidebar-item${selected ? ' is-active' : ''}" data-session-id="${escapeHtml(session.id)}" data-replay-url="${escapeHtml(session.replay_url)}" data-replay-title="${escapeHtml(session.title)}" data-replay-resources="${escapeHtml(JSON.stringify(session.resources || []))}" ${selected ? 'aria-current="true"' : ''}>
+                <span class="replay-sidebar-item-icon"><i class="fas fa-play" aria-hidden="true"></i></span>
+                <span class="replay-sidebar-item-text"><strong>${escapeHtml(session.title)}</strong><small>${escapeHtml(dateLabel)}</small></span>
+            </button>`;
+        }).join('');
+        return `<details class="course-live-month" ${isSelectedMonth || (!selectedSessionId && index === 0) ? 'open' : ''}>
+            <summary><span class="course-live-month-label"><i class="far fa-calendar" aria-hidden="true"></i><span>${escapeHtml(monthLabel)}</span></span><span class="course-live-month-count">${monthSessions.length}<i class="fas fa-chevron-down" aria-hidden="true"></i></span></summary>
+            <div class="replay-sidebar-month-content">${entries}</div>
+        </details>`;
+    }).join('');
+
+    sidebar.innerHTML = `<section class="replay-sidebar-card" aria-label="Replays disponibles">
+        <div class="replay-sidebar-heading"><i class="fas fa-video" aria-hidden="true"></i><div><strong>Replays</strong><span>Choisir une séance</span></div></div>
+        ${monthsHtml || '<p class="replay-sidebar-empty">Aucun replay disponible pour le moment.</p>'}
+    </section>`;
+}
+
+function openReplayPlayer(replayUrl, title, resources = [], sessionId = '') {
+    document.querySelector('video.course-replay-player')?.pause();
     let parsed;
     try { parsed = new URL(replayUrl, window.location.href); } catch { return showError('Lien du replay invalide'); }
     if (!['http:', 'https:'].includes(parsed.protocol)) return showError('Lien du replay invalide');
@@ -385,7 +428,6 @@ function openReplayPlayer(replayUrl, title, resources = []) {
 
     const courseMain = document.querySelector('.course-main');
     const courseSidebar = document.querySelector('.course-sidebar');
-    const modulesContainer = document.getElementById('modules-container');
     if (!courseMain || !courseSidebar) return;
     if (courseMain.dataset.originalContent) restoreCourseContent();
     courseMain.dataset.originalContent = courseMain.innerHTML;
@@ -413,11 +455,7 @@ function openReplayPlayer(replayUrl, title, resources = []) {
     courseMain.replaceChildren(wrapper);
 
     if (resources.length) details.appendChild(createResourceSection(resources, 'Fichiers utilisés pendant la séance'));
-    if (modulesContainer) {
-        const modulesClone = modulesContainer.cloneNode(true);
-        modulesClone.style.cssText = '';
-        courseSidebar.replaceChildren(modulesClone);
-    }
+    renderReplaySidebar(courseSidebar, currentLiveSessions, sessionId);
     if (window.matchMedia('(max-width: 768px)').matches) {
         document.getElementById('app-sidebar')?.classList.remove('active');
         document.getElementById('sidebar-overlay')?.classList.remove('active');

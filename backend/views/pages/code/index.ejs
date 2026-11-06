@@ -2251,7 +2251,17 @@ function initEditors() {
 // ----------------------------------------------------------------
 function boot() {
     // Guard: only run on the Code Pratique page
-    if (!document.getElementById('py-editor-body')) return;
+    const pyBody = document.getElementById('py-editor-body');
+    if (!pyBody) return;
+
+    // DOMContentLoaded and Turbo can both call boot for one visit. Rebuilding
+    // CodeMirror here would erase a lesson file applied by the first call.
+    const existingWrapper = pyEditor?.getWrapperElement?.();
+    if (existingWrapper && pyBody.contains(existingWrapper)) {
+        loadPracticeStarterFile();
+        pyEditor.refresh();
+        return;
+    }
 
     // Relocate AI wrapper to body root to prevent CSS clipping
     const aiWrapper = document.getElementById('ai-wrapper-global');
@@ -2267,6 +2277,8 @@ function boot() {
 }
 
 function loadPracticeStarterFile() {
+    // Leave the queued file untouched until CodeMirror is ready to receive it.
+    if (!pyEditor) return;
     let starter;
     try {
         starter = JSON.parse(sessionStorage.getItem('synta:practice-starter') || 'null');
@@ -2276,7 +2288,7 @@ function loadPracticeStarterFile() {
         console.error('Could not read the selected lesson file:', error);
         return;
     }
-    if (!starter || typeof starter.code !== 'string' || !pyEditor) return;
+    if (!starter || typeof starter.code !== 'string') return;
     switchMode('python');
     pyEditor.setValue(starter.code);
     document.getElementById('practice-file-name').textContent = starter.fileName || 'exercice.py';
@@ -2295,9 +2307,13 @@ document.addEventListener('turbo:load', function() {
     // Check if CodeMirror is actually mounted in the current DOM
     var pyBody = document.getElementById('py-editor-body');
     if (!pyBody) return; // not on this page
-    var alreadyMounted = !!pyBody.querySelector('.CodeMirror');
-    if (!alreadyMounted) { boot(); }
+    var existingWrapper = pyEditor?.getWrapperElement?.();
+    var editorMatchesCurrentPage = !!existingWrapper && pyBody.contains(existingWrapper);
+    if (!editorMatchesCurrentPage) { boot(); }
     else {
+        // A Turbo visit can carry a newly queued course file into an editor
+        // that is already mounted; consume it after the page becomes active.
+        loadPracticeStarterFile();
         // Editor is there — just refresh layout
         if (pyEditor) pyEditor.refresh();
         if (webHtmlEditor) webHtmlEditor.refresh();

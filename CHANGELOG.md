@@ -5,12 +5,23 @@
 
 ---
 
+## 2026-11-06 — Preserve Lesson Files During Code Pratique Startup
+
+**Author:** Codex  
+**Type:** BUGFIX
+
+- Reproduced the live issue with a temporary sample Python file: the loaded-file banner appeared while CodeMirror stayed empty; applying the queued file after editor initialization populated it.
+- Made CodeMirror boot idempotent so a repeated page initialization does not recreate the editor and erase the loaded source.
+- Keep the pending `sessionStorage` file until the editor exists, and consume it on Turbo page load when the editor is already mounted.
+- EJS and inline JavaScript compile checks pass. Fix is in source and requires deployment for live verification.
+
 ## 2026-11-06 — Align Course/Replay Player and Parallelize Course Loading
 
 **Author:** Codex  
 **Type:** UX / PERFORMANCE
 
 - Replaced the replay overlay with the same in-page course player area and chapter sidebar used by lesson playback.
+- During replay playback, the sidebar now lists available replays grouped by month, marks the selected session, and switches recordings directly in the player.
 - Added a player-level switch from lessons to live sessions and from a replay back to chapters. Lesson switching saves the current playback position first.
 - Fixed the player-position API mismatch by adding authenticated `POST /api/tracking/position`; it checks active enrollment or preview access and preserves completion state while updating `last_position`.
 - Parallelized the independent course access, live-session, resource, and progress requests to remove the serial request waterfall.
