@@ -247,32 +247,171 @@
             font-size: 1.2rem;
         }
 
-        .offer-picker { border:1px solid var(--border); border-radius:10px; overflow:hidden; background:#fff; }
-        .offer-picker-toolbar { display:flex; align-items:center; gap:.6rem; flex-wrap:wrap; padding:.65rem; border-bottom:1px solid var(--border); background:#f8fafc; }
-        .offer-picker-search { flex:1; min-width:160px; padding:.55rem .7rem; border:1px solid var(--border); border-radius:8px; font:inherit; }
-        .offer-picker-count { color:var(--text-muted); font-size:.8rem; font-weight:650; white-space:nowrap; }
-        .offer-picker-clear { padding:.45rem .6rem; border:0; border-radius:7px; background:#fff; color:#475569; font:inherit; font-size:.78rem; cursor:pointer; }
-        .offer-picker-clear:hover { color:var(--primary); background:#eff6ff; }
-        .offer-options { max-height:190px; overflow:auto; padding:.4rem; }
-        .offer-option { display:flex !important; align-items:flex-start; gap:.65rem; margin:0 !important; padding:.65rem; border-radius:8px; cursor:pointer; font-weight:500 !important; }
-        .offer-option:hover { background:#f8fafc; }
-        .offer-option input { flex:0 0 auto; width:18px; height:18px; margin:.05rem 0 0; accent-color:#f97316; }
-        .offer-option-title { min-width:0; overflow-wrap:anywhere; color:#1e293b; font-weight:650; line-height:1.35; }
-        .offer-picker-empty { margin:0; padding:.9rem; color:var(--text-muted); font-size:.88rem; }
-        .offer-picker-hint { display:block; margin-top:.45rem; color:var(--text-muted); font-size:.78rem; line-height:1.4; }
+        .offer-picker {
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            overflow: hidden;
+            background: #fff;
+        }
+        .offer-picker-toolbar {
+            display: flex;
+            align-items: center;
+            gap: .55rem;
+            flex-wrap: wrap;
+            padding: .7rem .75rem;
+            border-bottom: 1px solid var(--border);
+            background: #f8fafc;
+        }
+        .offer-picker-search {
+            flex: 1 1 180px;
+            min-width: 0;
+            width: auto !important;
+            padding: .55rem .75rem !important;
+            border: 1px solid var(--border) !important;
+            border-radius: 8px !important;
+            background: #fff;
+            font: inherit;
+            font-size: .88rem !important;
+            box-shadow: none !important;
+        }
+        .offer-picker-count {
+            color: var(--text-muted);
+            font-size: .78rem;
+            font-weight: 650;
+            white-space: nowrap;
+        }
+        .offer-picker-clear {
+            padding: .45rem .7rem;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            background: #fff;
+            color: #475569;
+            font: inherit;
+            font-size: .78rem;
+            font-weight: 600;
+            cursor: pointer;
+            white-space: nowrap;
+        }
+        .offer-picker-clear:hover {
+            color: var(--primary);
+            border-color: #fdba74;
+            background: #fff7ed;
+        }
+        .offer-options {
+            display: flex;
+            flex-direction: column;
+            gap: .35rem;
+            max-height: 220px;
+            overflow: auto;
+            padding: .55rem;
+            background: #fff;
+        }
+        .offer-option {
+            display: flex !important;
+            align-items: flex-start;
+            gap: .75rem;
+            width: 100%;
+            box-sizing: border-box;
+            margin: 0 !important;
+            padding: .7rem .75rem !important;
+            border: 1px solid #e2e8f0;
+            border-radius: 10px;
+            background: #fff;
+            cursor: pointer;
+            font-weight: 500 !important;
+            font-size: .9rem !important;
+            color: #1e293b;
+            transition: background .15s ease, border-color .15s ease, box-shadow .15s ease;
+        }
+        .offer-option:hover {
+            background: #f8fafc;
+            border-color: #cbd5e1;
+        }
+        .offer-option:has(input:checked),
+        .offer-option.is-selected {
+            background: #fff7ed;
+            border-color: #fdba74;
+            box-shadow: inset 0 0 0 1px rgba(249, 115, 22, .12);
+        }
+        .offer-option input[type="checkbox"] {
+            flex: 0 0 auto !important;
+            width: 18px !important;
+            height: 18px !important;
+            min-width: 18px;
+            margin: .15rem 0 0 !important;
+            padding: 0 !important;
+            border: none !important;
+            border-radius: 4px !important;
+            box-shadow: none !important;
+            accent-color: #f97316;
+            cursor: pointer;
+        }
+        .offer-option-body {
+            flex: 1 1 auto;
+            min-width: 0;
+            display: flex;
+            flex-direction: column;
+            gap: .2rem;
+        }
+        .offer-option-title {
+            display: block;
+            min-width: 0;
+            color: #0f172a;
+            font-weight: 700;
+            line-height: 1.35;
+            word-break: break-word;
+            overflow-wrap: anywhere;
+        }
+        .offer-option-meta {
+            display: flex;
+            flex-wrap: wrap;
+            gap: .35rem .55rem;
+            color: var(--text-muted);
+            font-size: .75rem;
+            font-weight: 600;
+            line-height: 1.3;
+        }
+        .offer-option-meta span {
+            display: inline-flex;
+            align-items: center;
+            gap: .25rem;
+            padding: .12rem .45rem;
+            border-radius: 999px;
+            background: #f1f5f9;
+            color: #475569;
+        }
+        .offer-option:has(input:checked) .offer-option-meta span,
+        .offer-option.is-selected .offer-option-meta span {
+            background: #ffedd5;
+            color: #9a3412;
+        }
+        .offer-picker-empty {
+            margin: 0;
+            padding: 1rem .75rem;
+            color: var(--text-muted);
+            font-size: .88rem;
+            text-align: center;
+        }
+        .offer-picker-hint {
+            display: block;
+            margin-top: .5rem;
+            color: var(--text-muted);
+            font-size: .78rem;
+            line-height: 1.45;
+        }
 
         .form-group { margin-bottom: 1.1rem; }
 
-        .form-group label {
+        .form-group > label {
             display: block;
             margin-bottom: 0.4rem;
             font-weight: 600;
             font-size: 0.85rem;
         }
 
-        .form-group input,
-        .form-group textarea,
-        .form-group select {
+        .form-group > input,
+        .form-group > textarea,
+        .form-group > select {
             width: 100%;
             padding: 0.7rem 0.9rem;
             border: 1px solid var(--border);
@@ -280,11 +419,12 @@
             font-family: inherit;
             font-size: 0.9rem;
             transition: border-color 0.2s;
+            box-sizing: border-box;
         }
 
-        .form-group input:focus,
-        .form-group textarea:focus,
-        .form-group select:focus {
+        .form-group > input:focus,
+        .form-group > textarea:focus,
+        .form-group > select:focus {
             outline: none;
             border-color: var(--primary);
             box-shadow: 0 0 0 3px rgba(255,123,26,0.1);
@@ -1152,23 +1292,57 @@
             const selected = new Set((selectedIds || []).map(String));
             search.value = '';
 
-            list.innerHTML = allOffers.length ? allOffers.map(offer => `
+            list.innerHTML = allOffers.length ? allOffers.map(offer => {
+                const title = escHtml(offer.title || 'Offre sans titre');
+                const price = offer.fixed_price != null && offer.fixed_price !== ''
+                    ? `${escHtml(String(offer.fixed_price))} DT`
+                    : 'Prix libre';
+                const status = offer.is_active === false ? 'Inactive' : 'Active';
+                return `
                 <label class="offer-option">
                     <input type="checkbox" name="offers_ids" value="${escHtml(String(offer.id))}" ${selected.has(String(offer.id)) ? 'checked' : ''}>
-                    <span class="offer-option-title">${escHtml(offer.title || 'Offre sans titre')}</span>
-                </label>
-            `).join('') : '<p class="offer-picker-empty">Aucune offre disponible. Créez d’abord une offre.</p>';
+                    <span class="offer-option-body">
+                        <span class="offer-option-title">${title}</span>
+                        <span class="offer-option-meta">
+                            <span>${price}</span>
+                            <span>${status}</span>
+                        </span>
+                    </span>
+                </label>`;
+            }).join('') : '<p class="offer-picker-empty">Aucune offre disponible. Créez d’abord une offre.</p>';
 
+            const syncOptionState = (option) => {
+                const input = option.querySelector('input[name="offers_ids"]');
+                option.classList.toggle('is-selected', !!(input && input.checked));
+            };
             const updateCount = () => {
+                list.querySelectorAll('.offer-option').forEach(syncOptionState);
                 const total = list.querySelectorAll('input[name="offers_ids"]:checked').length;
                 count.textContent = `${total} offre${total > 1 ? 's' : ''} sélectionnée${total > 1 ? 's' : ''}`;
             };
             list.onchange = updateCount;
             search.oninput = () => {
                 const query = search.value.trim().toLocaleLowerCase('fr');
+                let visible = 0;
                 list.querySelectorAll('.offer-option').forEach(option => {
-                    option.hidden = !option.textContent.toLocaleLowerCase('fr').includes(query);
+                    const match = !query || option.textContent.toLocaleLowerCase('fr').includes(query);
+                    option.hidden = !match;
+                    if (match) visible += 1;
                 });
+                let empty = list.querySelector('.offer-picker-empty');
+                if (!allOffers.length) return;
+                if (!visible) {
+                    if (!empty) {
+                        empty = document.createElement('p');
+                        empty.className = 'offer-picker-empty';
+                        empty.dataset.searchEmpty = '1';
+                        list.appendChild(empty);
+                    }
+                    empty.hidden = false;
+                    empty.textContent = 'Aucune offre ne correspond à cette recherche.';
+                } else if (empty?.dataset.searchEmpty) {
+                    empty.remove();
+                }
             };
             document.getElementById('offers-clear').onclick = () => {
                 list.querySelectorAll('input[name="offers_ids"]').forEach(input => { input.checked = false; });
