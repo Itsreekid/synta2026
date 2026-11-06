@@ -8,6 +8,18 @@ document.addEventListener('DOMContentLoaded', function() {
     const registerForm = document.getElementById('registerForm');
     const passwordResetForm = document.getElementById('passwordResetForm');
 
+    // Surface Google redirect failures (iPhone UX) from ?google_error=
+    try {
+        const params = new URLSearchParams(window.location.search);
+        const googleError = params.get('google_error');
+        if (googleError) {
+            showMessage(googleError, 'error');
+            params.delete('google_error');
+            const clean = `${window.location.pathname}${params.toString() ? `?${params}` : ''}${window.location.hash || ''}`;
+            window.history.replaceState({}, '', clean);
+        }
+    } catch (_) {}
+
     // Check if user is already logged in and redirect to dashboard
     if (loginForm || registerForm) {
         checkIfAlreadyLoggedIn();

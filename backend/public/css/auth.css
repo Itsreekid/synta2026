@@ -877,27 +877,32 @@ body {
     transition: background 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease, transform 0.12s ease;
     width: 100%;
     position: relative;
-    overflow: hidden;
+    overflow: visible;
+    box-sizing: border-box;
+    min-height: 48px;
+    -webkit-tap-highlight-color: transparent;
+    touch-action: manipulation;
 }
 
-.google-btn:hover:not(:disabled) {
+.google-btn:hover:not(.is-loading) {
     background: #f8f9fa;
     border-color: #c6cacc;
     box-shadow: 0 2px 10px rgba(60, 64, 67, 0.18);
     transform: translateY(-1px);
 }
 
-.google-btn:active:not(:disabled) {
+.google-btn:active:not(.is-loading) {
     transform: translateY(0);
     box-shadow: none;
     background: #f1f3f4;
 }
 
-.google-btn:disabled {
-    cursor: not-allowed;
+.google-btn.is-loading {
+    cursor: wait;
+    opacity: 0.75;
 }
 
-/* Ripple effect on click */
+/* Ripple must never steal taps from the Google iframe (especially iOS) */
 .google-btn::after {
     content: '';
     position: absolute;
@@ -906,9 +911,22 @@ body {
     border-radius: inherit;
     opacity: 0;
     transition: opacity 0.2s;
+    pointer-events: none;
 }
-.google-btn:active::after {
+.google-btn:active:not(.is-loading)::after {
     opacity: 1;
+}
+
+.gis-overlay {
+    position: absolute;
+    inset: 0;
+    z-index: 20;
+    opacity: 0.02;
+    overflow: hidden;
+    border-radius: inherit;
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+    touch-action: manipulation;
 }
 
 /* Google multicolor icon SVG */

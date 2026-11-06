@@ -1,15 +1,9 @@
 // =====================================================
-// GOOGLE SIGN-IN — Client-side handler (v2)
+// GOOGLE SIGN-IN — Client-side handler (v3)
 //
-// Strategy: "renderButton overlay"
-//  - google.accounts.id.renderButton() renders Google's official
-//    button inside a transparent div positioned over our custom button.
-//  - When the user clicks anywhere on our styled button, they actually
-//    click Google's rendered button, which opens the proper centered
-//    Google account-picker popup — NOT the One-Tap floating overlay.
-//
-// This gives the "official centered Google popup" UX the user expects,
-// while keeping our custom button design pixel-perfect.
+// Uses Google's official renderButton over a custom-looking
+// wrapper. On iPhone/iPad Safari, popup overlays often fail
+// silently, so we switch those devices to redirect UX mode.
 // =====================================================
 
 (function () {
@@ -17,11 +11,19 @@
 
     const GOOGLE_CLIENT_ID =
         '963391276270-li88ohh7vvvjivmoui64lo7mrip5cdal.apps.googleusercontent.com';
+    const REDIRECT_CALLBACK = `${window.location.origin}/api/auth/google/callback`;
 
-    let gisReady   = false;
+    let gisReady = false;
     let renderDone = false;
+    let initStarted = false;
 
-    // ── Utility: delegate to the existing auth.js showMessage() ──────────────
+    function isAppleTouchDevice() {
+        const ua = navigator.userAgent || '';
+        if (/iPad|iPhone|iPod/.test(ua)) return true;
+        // iPadOS desktop UA
+        return navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1;
+    }
+
     function showMsg(message, type) {
         if (typeof showMessage === 'function') {
             showMessage(message, type);
@@ -30,47 +32,40 @@
         }
     }
 
-    // ── Button loading state ──────────────────────────────────────────────────
     function setLoading(isLoading) {
-        const btn     = document.getElementById('googleSignInBtn');
-        const text    = document.getElementById('googleBtnText');
+        const btn = document.getElementById('googleSignInBtn');
+        const text = document.getElementById('googleBtnText');
         const spinner = document.getElementById('googleBtnSpinner');
+        const overlay = document.getElementById('__gis_overlay__');
         if (!btn) return;
 
-        if (isLoading) {
-            btn.disabled   = true;
-            btn.style.opacity = '0.75';
-            if (text)    text.style.display = 'none';
-            if (spinner) spinner.style.display = 'inline-block';
-        } else {
-            btn.disabled   = false;
-            btn.style.opacity = '1';
-            if (text)    text.style.display = 'inline';
-            if (spinner) spinner.style.display = 'none';
-        }
+        btn.classList.toggle('is-loading', isLoading);
+        btn.setAttribute('aria-busy', isLoading ? 'true' : 'false');
+        // Never disable the wrapper — that blocks Google's iframe taps on iOS.
+        if (text) text.style.display = isLoading ? 'none' : 'inline';
+        if (spinner) spinner.style.display = isLoading ? 'inline-block' : 'none';
+        if (overlay) overlay.style.pointerEvents = isLoading ? 'none' : 'auto';
     }
 
-    // ── Send the ID token to our Express backend ──────────────────────────────
     async function sendCredentialToBackend(credential) {
         const res = await fetch('/api/auth/google', {
-            method:      'POST',
-            headers:     { 'Content-Type': 'application/json' },
-            body:        JSON.stringify({ credential }),
-            credentials: 'include', // send/receive HttpOnly session cookies
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ credential }),
+            credentials: 'include',
         });
 
-        const data = await res.json();
+        const data = await res.json().catch(() => ({}));
         if (!res.ok) {
             throw new Error(data.error || 'فشل تسجيل الدخول بـ Google');
         }
         return data;
     }
 
-    // ── GIS callback — called after user picks their Google account ───────────
     async function handleGoogleCredential(response) {
-        // User closed the popup without choosing an account
         if (!response || !response.credential) {
             setLoading(false);
+            showMsg('تم إلغاء تسجيل الدخول بـ Google.', 'info');
             return;
         }
 
@@ -80,149 +75,181 @@
             const data = await sendCredentialToBackend(response.credential);
 
             if (data.needsOnboarding) {
-                // New Google user: redirect to profile completion before dashboard
                 showMsg('مرحباً! يرجى إكمال بياناتك للمتابعة.', 'success');
-                setTimeout(() => { window.location.href = '/auth/complete-profile'; }, 1000);
+                setTimeout(() => { window.location.href = '/auth/complete-profile'; }, 800);
             } else {
                 showMsg('تم تسجيل الدخول بـ Google بنجاح!', 'success');
-                setTimeout(() => { window.location.href = '/dashboard'; }, 1200);
+                setTimeout(() => { window.location.href = '/dashboard'; }, 800);
             }
         } catch (err) {
             console.error('[google-auth] Backend error:', err);
             showMsg(err.message || 'حدث خطأ أثناء تسجيل الدخول بـ Google.', 'error');
             setLoading(false);
+            // Allow another tap after failure
+            renderDone = false;
+            scheduleRerender();
         }
     }
 
-    // ── Render the transparent GIS button overlay ─────────────────────────────
-    // google.accounts.id.renderButton() renders an official Google sign-in
-    // button (with its own click handler that opens a proper popup window).
-    // We size it to cover our custom button and make it invisible, so our
-    // button looks custom while Google's popup logic fires on click.
     function renderGISOverlay() {
-        if (renderDone) return;
-
-        const overlay  = document.getElementById('__gis_overlay__');
+        const overlay = document.getElementById('__gis_overlay__');
         const outerBtn = document.getElementById('googleSignInBtn');
 
-        if (!overlay || !outerBtn) return;
-        if (!window.google || !window.google.accounts || !window.google.accounts.id) return;
+        if (!overlay || !outerBtn) return false;
+        if (!window.google?.accounts?.id) return false;
 
-        const btnWidth = outerBtn.offsetWidth;
-        if (btnWidth === 0) return; // Wait for layout to stabilize
+        const btnWidth = Math.max(outerBtn.offsetWidth || 0, Math.floor(outerBtn.getBoundingClientRect().width) || 0);
+        if (btnWidth < 40) return false;
+
+        // Clear previous GIS markup before re-render (orientation / resize)
+        overlay.innerHTML = '';
 
         window.google.accounts.id.renderButton(overlay, {
-            type:  'standard',
+            type: 'standard',
             theme: 'outline',
-            size:  'large',
-            text:  'signin_with',
-            width: btnWidth,
+            size: 'large',
+            text: 'signin_with',
+            shape: 'rectangular',
+            logo_alignment: 'left',
+            width: Math.min(btnWidth, 400),
         });
 
         renderDone = true;
-        
-        // Hide spinner once loaded
+
         const spinner = document.getElementById('googleBtnSpinner');
         const text = document.getElementById('googleBtnText');
-        if (spinner && text) {
+        if (spinner && text && !outerBtn.classList.contains('is-loading')) {
             spinner.style.display = 'none';
             text.style.opacity = '1';
         }
 
-        console.log('[google-auth] GIS overlay button rendered (width:', btnWidth, ')');
+        return true;
     }
 
-    // ── Initialize GIS ─────────────────────────────────────────────────────────
     function initGIS() {
-        if (!window.google || !window.google.accounts || !window.google.accounts.id) return;
+        if (!window.google?.accounts?.id || initStarted) return;
+        initStarted = true;
 
-        // Cancel any One-Tap auto-prompt — we use renderButton instead
-        window.google.accounts.id.cancel();
+        try {
+            window.google.accounts.id.cancel();
+        } catch (_) {}
 
-        window.google.accounts.id.initialize({
-            client_id:          GOOGLE_CLIENT_ID,
-            callback:           handleGoogleCredential,
-            auto_select:        false,  // never silently sign in
+        const useRedirect = isAppleTouchDevice();
+        const config = {
+            client_id: GOOGLE_CLIENT_ID,
+            callback: handleGoogleCredential,
+            auto_select: false,
             cancel_on_tap_outside: true,
-            // itp_support: true,       // uncomment if targeting Safari ITP
-        });
+            itp_support: true,
+            use_fedcm_for_prompt: false,
+        };
 
+        // iPhone/iPad: popup/iframe taps are unreliable — use full-page redirect.
+        if (useRedirect) {
+            config.ux_mode = 'redirect';
+            config.login_uri = REDIRECT_CALLBACK;
+        }
+
+        window.google.accounts.id.initialize(config);
         gisReady = true;
-        renderGISOverlay();
-        console.log('[google-auth] GIS initialized');
+
+        if (!renderGISOverlay()) {
+            // Layout may not be ready yet (fonts / RTL).
+            setTimeout(() => {
+                renderDone = false;
+                renderGISOverlay();
+            }, 250);
+        }
+
+        console.log('[google-auth] GIS initialized', useRedirect ? '(redirect/iOS)' : '(popup)');
     }
 
-    // ── CSS for the overlay div ───────────────────────────────────────────────
-    // Appended once to <head>
     function injectOverlayCSS() {
         if (document.getElementById('__gis_overlay_style__')) return;
 
         const style = document.createElement('style');
         style.id = '__gis_overlay_style__';
         style.textContent = `
-            /* The button wrapper must be position:relative for the overlay to cover it */
             #googleSignInBtn {
-                position: relative;
+                position: relative !important;
                 overflow: visible !important;
+                -webkit-tap-highlight-color: transparent;
+                touch-action: manipulation;
+                user-select: none;
             }
-
-            /* Transparent overlay that GIS renders its button into */
+            #googleSignInBtn.is-loading {
+                opacity: 0.75;
+                cursor: wait;
+            }
+            /* Ripple must never steal taps from the Google iframe */
+            .google-btn::after {
+                pointer-events: none !important;
+            }
             .gis-overlay {
-                position: absolute;
-                inset: 0;
-                opacity: 0;
-                pointer-events: all;
-                z-index: 10;
-                overflow: hidden;
-                border-radius: inherit;
-                /* stretch the inner GIS button to fill the overlay */
-                display: flex;
-                align-items: stretch;
+                position: absolute !important;
+                inset: 0 !important;
+                /* iOS ignores taps on opacity:0 layers — keep a tiny opacity */
+                opacity: 0.02 !important;
+                z-index: 20 !important;
+                overflow: hidden !important;
+                border-radius: inherit !important;
+                display: block !important;
+                cursor: pointer !important;
+                -webkit-tap-highlight-color: transparent;
+                touch-action: manipulation;
             }
-
-            /* Force the GIS-rendered div/iframe to fill the overlay */
             .gis-overlay > div,
+            .gis-overlay > div > div,
             .gis-overlay iframe {
+                position: absolute !important;
+                inset: 0 !important;
                 width: 100% !important;
                 height: 100% !important;
-                min-width: unset !important;
-                max-width: unset !important;
+                min-width: 100% !important;
+                max-width: none !important;
+                margin: 0 !important;
+                border: 0 !important;
+            }
+            .gis-overlay iframe {
+                opacity: 0.02 !important;
             }
         `;
         document.head.appendChild(style);
     }
 
-    // ── Wait for GIS SDK to load (it's async defer) ───────────────────────────
-    function waitForGIS(maxWaitMs = 8000) {
+    function hideGoogleButton(reason) {
+        console.error('[google-auth]', reason);
+        const container = document.getElementById('google-signin-container');
+        const divider = container?.previousElementSibling;
+        if (container) {
+            container.innerHTML = `<p class="google-register-note" style="color:#b91c1c;">تعذّر تحميل تسجيل Google. حدّث الصفحة أو جرّب شبكة أخرى.</p>`;
+        }
+        if (divider && divider.classList.contains('social-divider')) {
+            divider.style.display = 'none';
+        }
+    }
+
+    function waitForGIS(maxWaitMs = 10000) {
         const start = Date.now();
-        const poll  = setInterval(() => {
-            if (window.google && window.google.accounts && window.google.accounts.id) {
+        const poll = setInterval(() => {
+            if (window.google?.accounts?.id) {
                 clearInterval(poll);
                 initGIS();
             } else if (Date.now() - start > maxWaitMs) {
                 clearInterval(poll);
-                console.error('[google-auth] GIS SDK did not load in', maxWaitMs, 'ms — hiding button.');
-                const container = document.getElementById('google-signin-container');
-                const divider   = container?.previousElementSibling;
-                if (container) container.style.display = 'none';
-                if (divider && divider.classList.contains('social-divider')) {
-                    divider.style.display = 'none';
-                }
+                hideGoogleButton('GIS SDK did not load in time');
             }
         }, 100);
     }
 
-    // ── Re-render overlay after any dynamic resize ───────────────────────────
-    // (e.g. on mobile where the button width changes after paint)
     function scheduleRerender() {
-        // Run once after paint to catch the real rendered button width
         requestAnimationFrame(() => {
+            if (!gisReady) return;
             renderDone = false;
             renderGISOverlay();
         });
     }
 
-    // ── Entry point ───────────────────────────────────────────────────────────
     function setup() {
         injectOverlayCSS();
 
@@ -230,36 +257,41 @@
         const spinner = document.getElementById('googleBtnSpinner');
         const text = document.getElementById('googleBtnText');
 
-        // Show spinner initially until GIS renders
         if (spinner && text) {
             spinner.style.display = 'inline-block';
             text.style.opacity = '0.7';
         }
 
         if (outerBtn) {
-            outerBtn.addEventListener('click', () => {
-                if (!renderDone) {
-                    // This function is defined in login.html/register.html
-                    if (typeof showMsg === 'function') {
-                        showMsg('جاري الاتصال بخدمات Google، يرجى الانتظار لحظة...', 'info');
-                    }
+            // Keyboard activation for the wrapper (actual sign-in still via GIS iframe)
+            outerBtn.addEventListener('keydown', (event) => {
+                if (event.key === 'Enter' || event.key === ' ') {
+                    event.preventDefault();
+                    const frame = document.querySelector('#__gis_overlay__ iframe, #__gis_overlay__ div[role="button"]');
+                    frame?.click?.();
                 }
             });
         }
 
-        // If GIS SDK already loaded before this script executed, init immediately
-        if (window.google && window.google.accounts && window.google.accounts.id) {
+        if (window.google?.accounts?.id) {
             initGIS();
         } else {
             waitForGIS();
         }
 
-        // Re-render the overlay after layout stabilises (correct button width)
         if (document.readyState === 'complete') {
             scheduleRerender();
         } else {
             window.addEventListener('load', scheduleRerender, { once: true });
         }
+
+        window.addEventListener('resize', () => {
+            clearTimeout(window.__gisResizeTimer);
+            window.__gisResizeTimer = setTimeout(scheduleRerender, 200);
+        });
+        window.addEventListener('orientationchange', () => {
+            setTimeout(scheduleRerender, 350);
+        });
     }
 
     if (document.readyState === 'loading') {
@@ -267,5 +299,4 @@
     } else {
         setup();
     }
-
 })();

@@ -10,6 +10,12 @@
 
 The backend is running in production on Coolify. Core features (login, course access, payment flow) work. Purchase identity and the AI debugger endpoint require cookie JWT authentication. Course details now show real enrolled-course live sessions and replay state; other open issues remain listed below.
 
+### 2026-11-06 Google Sign-In iPhone Fix
+- Custom Google button no longer nests GIS controls inside a `<button>` (invalid HTML that blocked iPhone taps).
+- Overlay uses non-zero opacity and `pointer-events: none` on the ripple layer so taps reach Google’s iframe.
+- iPhone/iPad uses GIS `ux_mode: 'redirect'` to `POST /api/auth/google/callback` (needs that URI in Google Cloud Authorized redirect URIs).
+- Failed redirect sign-in returns to `/login?google_error=…` with a visible message.
+
 ### 2026-11-06 Dashboard Continue / Parcours Fix
 - Continuer ton apprentissage now features the last-watched / started course (`last_accessed` or lesson activity), with Commencer vs Continuer CTAs. Empty enrollments show an offers CTA and hide parcours.
 - Unpublished courses (`Publier le cours` unchecked) are excluded from student my-courses / dashboard cards and student course detail access; enrollment alone no longer surfaces them.

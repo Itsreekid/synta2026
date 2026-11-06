@@ -616,19 +616,20 @@ iframe {
         right: -4px;
     }
 
-    .mobile-menu-toggle {
-        display: flex;
-        position: relative;
-        top: auto;
-        left: auto;
-        z-index: 1002;
-        margin-right: auto;
-        flex: 0 0 auto;
-        pointer-events: auto;
+    .header-top {
+        z-index: 150;
+        padding-left: 3.75rem; /* room for fixed menu button */
     }
 
-    .header-top {
-        z-index: 1100;
+    .mobile-menu-toggle {
+        display: flex;
+        position: fixed;
+        top: 5px;
+        left: 10px;
+        z-index: 1300; /* above open sidebar so ✕ stays clickable */
+        margin-right: 0;
+        flex: 0 0 auto;
+        pointer-events: auto;
     }
 
     .profile-picture {
@@ -646,7 +647,8 @@ iframe {
         top: 0;
         width: 280px;
         height: 100vh;
-        z-index: 1000;
+        height: 100dvh;
+        z-index: 1200; /* above header so logo/menu are not clipped */
         transform: translateX(-100%);
         border-right: 1px solid rgba(255, 255, 255, 0.2);
         border-bottom: none;
@@ -664,7 +666,7 @@ iframe {
         position: fixed;
         inset: 0;
         background: rgba(0, 0, 0, 0.4);
-        z-index: 999;
+        z-index: 1150;
     }
     .sidebar-overlay.active { display: block; }
 
