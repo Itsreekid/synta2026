@@ -25,6 +25,16 @@
 - Kept the Python/Web execution engines and existing course-file handoff; loaded lesson files now update the editor filename and saved Python draft.
 - Browser verification at the requested viewport sizes remains pending; the source has not been deployed.
 
+## 2026-11-06 — Compact Code Pratique Mobile Controls
+
+**Author:** Codex  
+**Type:** UX
+
+- Kept the four workspace tabs on one row on phones, using icons with accessible names and tooltips; the narrowest phones hide the redundant visible tab words.
+- Changed mobile Run and Export controls to compact icon buttons with accessible names and tooltips, giving the editor footer more room.
+- Hid the redundant subtitle and Python-ready words on very narrow screens while retaining the status indicator.
+- Existing lesson resource actions already use accessible icon-only controls for download, preview, and opening Python files in Code Pratique.
+
 ## 2026-11-06 — Align Course/Replay Player and Parallelize Course Loading
 
 **Author:** Codex  

@@ -16,6 +16,12 @@ The backend is running in production on Coolify. Core features (login, course ac
 - Course-file startup remains idempotent; queued lesson files populate the editor and filename after CodeMirror mounts.
 - **Verification pending:** static checks and visual checks at 1920×1080, 1440×900, 1366×768, 1024×768, 390×844, and 360×800. Changes are local and require deployment before production verification.
 
+### 2026-11-06 Mobile Control Density Update
+- On mobile, workspace tabs now remain in one row; narrow phones use icon-only tabs with accessible labels/tooltips.
+- Python Run and Export are compact icon-only buttons on mobile; screen-reader labels/tooltips remain. Redundant status/subtitle copy is hidden only on the narrowest screens.
+- Lesson resource download/preview/Code Pratique actions were already icon-only and accessible.
+- Visual verification on-device remains pending; deploy before checking real mobile behavior.
+
 ---
 
 ## 1. Working Features (Verified in Source Code)
