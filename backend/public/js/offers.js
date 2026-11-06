@@ -185,6 +185,11 @@ async function subscribeToOffer(offerId, title) {
                 updateBalanceInUI(data.newBalance);
             }
 
+            // Fresh dashboard/course data after enrollment
+            ['swr_courses', 'swr_stats', 'swr_events', 'swr_replays'].forEach((key) => {
+                try { sessionStorage.removeItem(key); } catch (_) {}
+            });
+
             showMessage(data.message || 'Offre achetée avec succès!', 'success');
 
             // Redirect to wallet after a short delay

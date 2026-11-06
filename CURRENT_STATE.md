@@ -1,14 +1,19 @@
 # CURRENT_STATE.md — Synta Academy
 
 > **Last updated:** 2026-11-06  
-> **Updated by:** Codex  
-> **Next recommended task:** Deploy and verify the Code Pratique workspace UX and lesson-file handoff at desktop, tablet, and mobile sizes; then continue TASK-004 in `IMPLEMENTATION_PLAN.md`
+> **Updated by:** Auto  
+> **Next recommended task:** Deploy and verify dashboard continue/parcours on a student with no courses, one unstarted enrollment, and a last-watched course; then continue TASK-004 in `IMPLEMENTATION_PLAN.md`
 
 ---
 
 ## Project Status: OPERATIONAL — CRITICAL PURCHASE AND AI AUTHORIZATION FIXES APPLIED
 
 The backend is running in production on Coolify. Core features (login, course access, payment flow) work. Purchase identity and the AI debugger endpoint require cookie JWT authentication. Course details now show real enrolled-course live sessions and replay state; other open issues remain listed below.
+
+### 2026-11-06 Dashboard Continue / Parcours Fix
+- Continuer ton apprentissage now features the last-watched / started course (`last_accessed` or lesson activity), with Commencer vs Continuer CTAs. Empty enrollments show an offers CTA and hide parcours.
+- Ton parcours no longer 404s for enrolled unpublished courses: course detail access is granted by active enrollment. Empty modules and load errors get explicit empty states.
+- Offer purchase clears dashboard SWR cache keys so enrolled courses appear after buy.
 
 ### 2026-11-06 Code Pratique UX Update
 - Reworked the Code Pratique page layout for responsive desktop, tablet, and mobile panel navigation; added dedicated mobile tabs for editor/console/variables and editor/preview.

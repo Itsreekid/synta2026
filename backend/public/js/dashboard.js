@@ -105,103 +105,209 @@ function loadStats() {
     });
 }
 
+function escapeDashboardHtml(value) {
+    return String(value ?? '').replace(/[&<>"']/g, char => (
+        { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[char]
+    ));
+}
+
+function courseActivityDate(course) {
+    const raw = course?.last_accessed || course?.last_lesson_activity || null;
+    const time = raw ? Date.parse(raw) : NaN;
+    return Number.isFinite(time) ? time : 0;
+}
+
+function pickActiveCourse(courses) {
+    if (!Array.isArray(courses) || courses.length === 0) return null;
+
+    const started = courses.filter(course =>
+        courseActivityDate(course) > 0 || (Number(course.progress) || 0) > 0 || (Number(course.completed_lessons) || 0) > 0
+    );
+
+    const pool = started.length ? started : courses;
+    return [...pool].sort((a, b) => {
+        const activityDiff = courseActivityDate(b) - courseActivityDate(a);
+        if (activityDiff) return activityDiff;
+
+        const progressA = Number(a.progress) || 0;
+        const progressB = Number(b.progress) || 0;
+        const aIncomplete = progressA < 100 ? 1 : 0;
+        const bIncomplete = progressB < 100 ? 1 : 0;
+        if (bIncomplete !== aIncomplete) return bIncomplete - aIncomplete;
+        if (progressB !== progressA) return progressB - progressA;
+
+        return Date.parse(b.enrolled_at || 0) - Date.parse(a.enrolled_at || 0);
+    })[0];
+}
+
+function courseIconFor(course) {
+    const emojiMap = { informatique: '💻', algorithmique: '🧭', python: '🐍', math: '📐', programmation: '💻' };
+    const haystack = `${course?.category || ''} ${course?.title || ''}`.toLowerCase();
+    for (const key in emojiMap) {
+        if (haystack.includes(key)) return emojiMap[key];
+    }
+    return '📚';
+}
+
+function renderLockedContinueState(continueSection) {
+    const dashboardContainer = document.querySelector('.dashboard-container');
+    if (dashboardContainer) dashboardContainer.classList.add('locked-mode');
+
+    continueSection.innerHTML = `
+        <div class="locked-state" style="display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;gap:1.5rem;background:#fff7ed;padding:2rem;border-radius:var(--radius-lg);border:2px dashed #fdba74;cursor:pointer;transition:all .3s ease;flex:1;height:100%;min-height:250px;" onclick="window.location.href='/app/offers'">
+            <div style="width:80px;height:80px;background:white;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:2.5rem;color:var(--orange-primary);box-shadow:0 4px 15px rgba(249,115,22,.15);">🔒</div>
+            <div>
+                <h4 style="margin:0 0 .5rem;color:#1e293b;font-size:1.3rem;font-weight:800;">Aucune formation pour le moment</h4>
+                <p style="margin:0;color:var(--text-muted);font-size:1rem;max-width:300px;">Choisis une offre pour débloquer tes cours. Rien n’apparaît ici tant que tu n’as pas commencé.</p>
+            </div>
+            <button class="btn-primary" style="padding:.75rem 1.5rem;font-size:1rem;margin-top:.5rem;">Découvrir les offres &rarr;</button>
+        </div>
+    `;
+}
+
+function renderContinueCourseCard(course, { featured = false } = {}) {
+    const progress = Number(course.progress) || 0;
+    const started = courseActivityDate(course) > 0 || progress > 0 || (Number(course.completed_lessons) || 0) > 0;
+    const cta = started ? (progress >= 100 ? 'Revoir la formation' : 'Continuer') : 'Commencer';
+    const category = String(course.category || 'Formation');
+
+    return `<article class="continue-course-card${featured ? ' is-featured' : ''}">
+        <div class="course-logo">${courseIconFor(course)}</div>
+        <div class="course-details">
+            <h4>${escapeDashboardHtml(course.title || 'Formation')}</h4>
+            <p>${escapeDashboardHtml(category)}${started ? '' : ' · Pas encore commencé'}</p>
+            <div class="course-progress-container">
+                <div class="progress-bar-bg"><div class="progress-bar-fill" style="width:${progress}%"></div></div>
+                <span class="course-progress-text">${progress}%</span>
+            </div>
+        </div>
+        <button class="btn-primary" type="button" onclick="window.location.href='/app/course-details?id=${encodeURIComponent(course.course_id)}'">${cta} &rarr;</button>
+    </article>`;
+}
+
+function renderPathEmpty(pathSection, title, message) {
+    if (!pathSection) return;
+    pathSection.style.display = '';
+    const titleEl = pathSection.querySelector('.path-title');
+    const progressEl = pathSection.querySelector('.path-progress-text');
+    const track = pathSection.querySelector('.stepper-track');
+    if (titleEl) titleEl.textContent = title || '';
+    if (progressEl) progressEl.textContent = '';
+    if (track) {
+        track.innerHTML = `<div class="path-empty-state">${escapeDashboardHtml(message)}</div>`;
+    }
+}
+
+function renderPathStepper(pathSection, activeCourse, modules) {
+    const progress = Number(activeCourse.progress) || 0;
+    pathSection.style.display = '';
+    pathSection.querySelector('.path-title').textContent = activeCourse.title || 'Ton parcours';
+    pathSection.querySelector('.path-progress-text').textContent = `${progress}% complété`;
+
+    const stepperTrack = pathSection.querySelector('.stepper-track');
+    if (!modules.length) {
+        stepperTrack.innerHTML = `<div class="path-empty-state">Les chapitres de cette formation apparaîtront ici dès qu’ils seront publiés.</div>`;
+        return;
+    }
+
+    const totalModules = modules.length;
+    const completedIndex = Math.min(totalModules - 1, Math.floor((progress / 100) * totalModules));
+    let html = `<div class="stepper-line"><div class="stepper-line-fill" style="width:${progress}%;"></div></div>`;
+
+    modules.forEach((mod, index) => {
+        let statusClass = '';
+        let iconHtml = index + 1;
+        if (progress >= 100 || index < completedIndex) {
+            statusClass = 'completed';
+            iconHtml = '✓';
+        } else if (index === completedIndex) {
+            statusClass = 'current';
+            iconHtml = '📍';
+        }
+
+        let shortName = mod.title || `Chapitre ${index + 1}`;
+        if (shortName.length > 15) shortName = `${shortName.substring(0, 12)}...`;
+
+        html += `
+            <div class="step ${statusClass}">
+                <div class="step-circle">${iconHtml}</div>
+                <span>${escapeDashboardHtml(shortName)}</span>
+            </div>
+        `;
+    });
+
+    stepperTrack.innerHTML = html;
+}
+
 function loadCoursePath() {
-    fetchWithSWR(`/api/courses/user/my-courses?t=${Date.now()}`, 'swr_courses', async (courses) => {
+    fetchWithSWR(`/api/courses/user/my-courses?t=${Date.now()}`, 'swr_courses', (courses) => {
+        const continueSection = document.getElementById('continue-content-container');
+        const pathSection = document.getElementById('path-section');
+        const dashboardContainer = document.querySelector('.dashboard-container');
+        const levelSpan = document.querySelector('.level-info span');
+
         if (!courses || !Array.isArray(courses) || courses.length === 0) {
-            const levelSpan = document.querySelector('.level-info span');
-            if (levelSpan) levelSpan.textContent = "Débutant";
-            
-            const continueSection = document.getElementById('continue-content-container');
-            if (continueSection) {
-                const dashboardContainer = document.querySelector('.dashboard-container');
-                if (dashboardContainer) dashboardContainer.classList.add('locked-mode');
-                
-                continueSection.innerHTML = `
-                    <div class="locked-state" style="display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; gap: 1.5rem; background: #fff7ed; padding: 2rem; border-radius: var(--radius-lg); border: 2px dashed #fdba74; cursor: pointer; transition: all 0.3s ease; flex: 1; height: 100%; min-height: 250px;" onclick="window.location.href='/app/offers'" onmouseover="this.style.transform='translateY(-3px)'; this.style.boxShadow='0 8px 25px rgba(249, 115, 22, 0.15)';" onmouseout="this.style.transform='none'; this.style.boxShadow='none';">
-                        <div style="width: 80px; height: 80px; background: white; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 2.5rem; color: var(--orange-primary); box-shadow: 0 4px 15px rgba(249, 115, 22, 0.15);">
-                            🔒
-                        </div>
-                        <div>
-                            <h4 style="margin: 0 0 0.5rem; color: #1e293b; font-size: 1.3rem; font-weight: 800;">Programme Verrouillé</h4>
-                            <p style="margin: 0; color: var(--text-muted); font-size: 1rem; max-width: 300px;">Tu n'as pas encore d'offre active. Débloque ton plein potentiel dès maintenant !</p>
-                        </div>
-                        <button class="btn-primary" style="padding: 0.75rem 1.5rem; font-size: 1rem; margin-top: 0.5rem;">Découvrir les offres &rarr;</button>
-                    </div>
-                `;
-            }
-            
-            const pathSection = document.getElementById('path-section');
+            if (levelSpan) levelSpan.textContent = 'Débutant';
+            if (continueSection) renderLockedContinueState(continueSection);
             if (pathSection) pathSection.style.display = 'none';
-            
             return;
         }
-        
-        const activeCourse = courses.find(c => c.progress < 100) || courses[0];
-        document.querySelector('.level-info span').textContent = activeCourse.title || "Apprenti";
-        
-        const continueSection = document.getElementById('continue-content-container');
-        const emojiMap = { 'informatique': '💻', 'algorithmique': '🧭', 'python': '🐍', 'math': '📐' };
-        const cat = (activeCourse.category || '').toLowerCase();
-        let icon = '📚';
-        for (const key in emojiMap) {
-            if (cat.includes(key) || (activeCourse.title && activeCourse.title.toLowerCase().includes(key))) icon = emojiMap[key];
+
+        if (dashboardContainer) dashboardContainer.classList.remove('locked-mode');
+
+        const activeCourse = pickActiveCourse(courses);
+        if (!activeCourse?.course_id) {
+            if (levelSpan) levelSpan.textContent = 'Débutant';
+            if (continueSection) renderLockedContinueState(continueSection);
+            if (pathSection) pathSection.style.display = 'none';
+            return;
         }
 
-        const escapeHtml = value => String(value ?? '').replace(/[&<>"']/g, char => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[char]));
-        continueSection.innerHTML = `<div class="continue-course-grid">${courses.map(course => {
-            const courseCategory = String(course.category || 'Formation');
-            let courseIcon = '📚';
-            for (const key in emojiMap) if (courseCategory.toLowerCase().includes(key) || course.title.toLowerCase().includes(key)) courseIcon = emojiMap[key];
-            return `<article class="continue-course-card">
-                <div class="course-logo">${courseIcon}</div>
-                <div class="course-details"><h4>${escapeHtml(course.title)}</h4><p>${escapeHtml(courseCategory)}</p>
-                    <div class="course-progress-container"><div class="progress-bar-bg"><div class="progress-bar-fill" style="width:${Number(course.progress)||0}%"></div></div><span class="course-progress-text">${Number(course.progress)||0}%</span></div>
-                </div><button class="btn-primary" onclick="window.location.href='/app/course-details?id=${encodeURIComponent(course.course_id)}'">Ouvrir la formation &rarr;</button>
-            </article>`;
-        }).join('')}</div>`;
+        if (levelSpan) levelSpan.textContent = activeCourse.title || 'Apprenti';
 
-        fetchWithSWR(`/api/courses/${activeCourse.course_id}?t=${Date.now()}`, `swr_course_${activeCourse.course_id}`, (courseDetails) => {
-            const pathSection = document.getElementById('path-section');
-            pathSection.querySelector('.path-title').textContent = activeCourse.title;
-            pathSection.querySelector('.path-progress-text').textContent = `${activeCourse.progress}% complété`;
-            
-            const modules = courseDetails.modules || [];
-            if (modules.length === 0) return;
-            
-            const totalModules = modules.length;
-            const completedIndex = Math.floor((activeCourse.progress / 100) * totalModules);
-            
-            const stepperTrack = pathSection.querySelector('.stepper-track');
-            let html = `<div class="stepper-line"><div class="stepper-line-fill" style="width: ${activeCourse.progress}%;"></div></div>`;
-            
-            modules.forEach((mod, index) => {
-                let statusClass = '';
-                let iconHtml = index < completedIndex ? '✓' : index === completedIndex ? '📍' : (index + 1);
-                if (index < completedIndex) statusClass = 'completed';
-                else if (index === completedIndex) statusClass = 'current';
-                
-                let shortName = mod.title;
-                if (shortName.length > 15) shortName = shortName.substring(0, 12) + '...';
-                
-                html += `
-                    <div class="step ${statusClass}">
-                        <div class="step-circle">${iconHtml}</div>
-                        <span>${escapeHtml(shortName)}</span>
-                    </div>
-                `;
-            });
-            
-            stepperTrack.innerHTML = html;
-        }, (err) => {
-            document.querySelector('.stepper-track').innerHTML = `<div style="color:#ef4444; font-size:0.8rem;">Erreur de chargement. <a href="#" onclick="loadCoursePath(); return false;">Réessayer</a></div>`;
-        });
+        const otherCourses = courses.filter(course => String(course.course_id) !== String(activeCourse.course_id));
+        if (continueSection) {
+            continueSection.innerHTML = `
+                <div class="continue-course-grid">
+                    ${renderContinueCourseCard(activeCourse, { featured: true })}
+                    ${otherCourses.map(course => renderContinueCourseCard(course)).join('')}
+                </div>
+            `;
+        }
+
+        if (pathSection) {
+            pathSection.style.display = '';
+            const track = pathSection.querySelector('.stepper-track');
+            if (track) track.innerHTML = '<div class="loading-state">Chargement du parcours…</div>';
+        }
+
+        fetchWithSWR(
+            `/api/courses/${encodeURIComponent(activeCourse.course_id)}?t=${Date.now()}`,
+            `swr_course_${activeCourse.course_id}`,
+            (courseDetails) => {
+                if (!pathSection) return;
+                renderPathStepper(pathSection, activeCourse, courseDetails?.modules || []);
+            },
+            () => {
+                if (!pathSection) return;
+                pathSection.style.display = '';
+                const titleEl = pathSection.querySelector('.path-title');
+                const progressEl = pathSection.querySelector('.path-progress-text');
+                const track = pathSection.querySelector('.stepper-track');
+                if (titleEl) titleEl.textContent = activeCourse.title || 'Ton parcours';
+                if (progressEl) progressEl.textContent = '';
+                if (track) {
+                    track.innerHTML = `<div class="path-empty-state path-empty-state-error">Erreur de chargement. <a href="#" onclick="sessionStorage.removeItem('swr_course_${activeCourse.course_id}'); loadCoursePath(); return false;">Réessayer</a></div>`;
+                }
+            }
+        );
     }, (err) => {
         const continueSection = document.getElementById('continue-content-container');
         if (continueSection) {
             continueSection.innerHTML = `
-                <div style="padding:1rem; text-align:center; color:#ef4444; background:#fef2f2; border-radius:12px; width:100%;">
-                    <p style="margin-bottom:0.5rem; font-weight:600;">Erreur de chargement: ${err}</p>
-                    <button class="btn-primary" style="padding: 0.4rem 0.8rem; font-size: 0.8rem; background: #ef4444;" onclick="loadCoursePath()">Réessayer</button>
+                <div style="padding:1rem;text-align:center;color:#ef4444;background:#fef2f2;border-radius:12px;width:100%;">
+                    <p style="margin-bottom:.5rem;font-weight:600;">Erreur de chargement: ${escapeDashboardHtml(err)}</p>
+                    <button class="btn-primary" style="padding:.4rem .8rem;font-size:.8rem;background:#ef4444;" onclick="loadCoursePath()">Réessayer</button>
                 </div>
             `;
         }

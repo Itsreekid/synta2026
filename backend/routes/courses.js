@@ -110,9 +110,9 @@ router.get("/user/my-courses", authMiddleware, async (req, res) => {
     if (!userId) return res.status(401).json({ error: "Unauthorized" });
 
     const result = await pool.query(
-      `SELECT e.id as enrollment_id, e.enrolled_at, e.expires_at, 
+      `SELECT e.id as enrollment_id, e.enrolled_at, e.expires_at, e.last_accessed,
               (e.id IS NOT NULL) as is_enrolled,
-              c.id as course_id, c.title, c.description, c.category, c.level, c.thumbnail_url,
+              c.id as course_id, c.title, c.description, c.category, c.level, c.thumbnail_url, c.is_published,
               COALESCE(
                 (SELECT COUNT(lp.id) FILTER (WHERE lp.completed = true)
                  FROM lessons l2
@@ -125,12 +125,25 @@ router.get("/user/my-courses", authMiddleware, async (req, res) => {
                  FROM lessons l2
                  JOIN course_modules cm2 ON l2.module_id = cm2.module_id
                  WHERE cm2.course_id = c.id AND l2.type IS DISTINCT FROM 'quiz'), 0
-              ) as total_lessons
+              ) as total_lessons,
+              (
+                SELECT MAX(lp.updated_at)
+                FROM lessons l2
+                JOIN course_modules cm2 ON l2.module_id = cm2.module_id
+                JOIN lesson_progress lp ON lp.lesson_id = l2.id AND lp.user_id = $1
+                WHERE cm2.course_id = c.id
+              ) as last_lesson_activity
        FROM courses c
-       LEFT JOIN enrollments e ON c.id = e.course_id AND e.user_id = $1
+       JOIN enrollments e ON c.id = e.course_id AND e.user_id = $1
          AND (e.expires_at IS NULL OR e.expires_at > NOW())
        WHERE e.user_id = $1
-       ORDER BY COALESCE(e.enrolled_at, '2000-01-01'::timestamp) DESC`,
+       ORDER BY COALESCE(e.last_accessed, (
+                SELECT MAX(lp.updated_at)
+                FROM lessons l2
+                JOIN course_modules cm2 ON l2.module_id = cm2.module_id
+                JOIN lesson_progress lp ON lp.lesson_id = l2.id AND lp.user_id = $1
+                WHERE cm2.course_id = c.id
+              ), e.enrolled_at) DESC NULLS LAST`,
       [userId]
     );
 
@@ -165,33 +178,38 @@ router.get("/:courseId", authMiddleware, async (req, res) => {
           WHERE cm.course_id = c.id AND l.type = 'quiz')::int AS quizzes_count
        FROM courses c
        LEFT JOIN users viewer ON viewer.id = $2
-       WHERE c.id = $1 AND c.is_published = true
+       WHERE c.id = $1
          AND (
-           NOT EXISTS (SELECT 1 FROM offer_courses linked WHERE linked.course_id = c.id)
-           OR EXISTS (
-             SELECT 1 FROM offer_courses oc
-             JOIN offers o ON o.id = oc.offer_id
-             WHERE oc.course_id = c.id
-               AND o.is_active = true
-               AND (o.valid_from IS NULL OR o.valid_from <= NOW())
-               AND (o.valid_until IS NULL OR o.valid_until > NOW())
-               AND (cardinality(COALESCE(o.target_classes, ARRAY[]::TEXT[])) = 0 OR (
-                 viewer.class IS NOT NULL AND EXISTS (
-                   SELECT 1 FROM unnest(o.target_classes) AS target_class(value)
-                   WHERE lower(trim(target_class.value)) = lower(trim(viewer.class))
-                 )
-               ))
-               AND (cardinality(COALESCE(o.target_branches, ARRAY[]::TEXT[])) = 0 OR (
-                 viewer.branch IS NOT NULL AND EXISTS (
-                   SELECT 1 FROM unnest(o.target_branches) AS target_branch(value)
-                   WHERE lower(trim(target_branch.value)) = lower(trim(viewer.branch))
-                 )
-               ))
-           )
-           OR EXISTS (
+           EXISTS (
              SELECT 1 FROM enrollments e
              WHERE e.course_id = c.id AND e.user_id = $2
                AND (e.expires_at IS NULL OR e.expires_at > NOW())
+           )
+           OR (
+             c.is_published = true
+             AND (
+               NOT EXISTS (SELECT 1 FROM offer_courses linked WHERE linked.course_id = c.id)
+               OR EXISTS (
+                 SELECT 1 FROM offer_courses oc
+                 JOIN offers o ON o.id = oc.offer_id
+                 WHERE oc.course_id = c.id
+                   AND o.is_active = true
+                   AND (o.valid_from IS NULL OR o.valid_from <= NOW())
+                   AND (o.valid_until IS NULL OR o.valid_until > NOW())
+                   AND (cardinality(COALESCE(o.target_classes, ARRAY[]::TEXT[])) = 0 OR (
+                     viewer.class IS NOT NULL AND EXISTS (
+                       SELECT 1 FROM unnest(o.target_classes) AS target_class(value)
+                       WHERE lower(trim(target_class.value)) = lower(trim(viewer.class))
+                     )
+                   ))
+                   AND (cardinality(COALESCE(o.target_branches, ARRAY[]::TEXT[])) = 0 OR (
+                     viewer.branch IS NOT NULL AND EXISTS (
+                       SELECT 1 FROM unnest(o.target_branches) AS target_branch(value)
+                       WHERE lower(trim(target_branch.value)) = lower(trim(viewer.branch))
+                     )
+                   ))
+               )
+             )
            )
          )`,
       [courseId, userId]
