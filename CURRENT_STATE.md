@@ -22,6 +22,12 @@ The backend is running in production on Coolify. Core features (login, course ac
 - Lesson resource download/preview/Code Pratique actions were already icon-only and accessible.
 - Visual verification on-device remains pending; deploy before checking real mobile behavior.
 
+### 2026-11-06 Desktop Controls and Deferred Web Mode
+- Run and Export are compact icon-only controls on desktop and mobile, with accessible labels and tooltips.
+- The Code Pratique header shows a green readiness dot beside the product name; the “Python prêt” text is screen-reader announced only.
+- Python/Web mode tabs are hidden. Python remains the active student workspace; the existing HTML/CSS/JavaScript editor code is retained but dormant.
+- **Product decision:** Web mode is intentionally deferred until the rest of Synta’s student website is stable. Do not resume or expose it until the user explicitly asks to continue Code Pratique Web development. This decision is recorded in `AGENTS.md`.
+
 ---
 
 ## 1. Working Features (Verified in Source Code)

@@ -35,6 +35,16 @@
 - Hid the redundant subtitle and Python-ready words on very narrow screens while retaining the status indicator.
 - Existing lesson resource actions already use accessible icon-only controls for download, preview, and opening Python files in Code Pratique.
 
+## 2026-11-06 — Compact Desktop Controls and Defer Web Mode
+
+**Author:** Codex  
+**Type:** UX / PRODUCT_DECISION
+
+- Run and Export now use accessible icon-only buttons on desktop as well as mobile.
+- Moved the green editor-ready dot beside the Code Pratique title and removed visible “Python prêt” status text.
+- Hid the Python/Web mode selector and stopped automatically running a Web preview during startup. Python remains active; existing HTML/CSS/JavaScript implementation and drafts are retained.
+- Recorded the user's decision to defer Web mode until the core student site is stable in `AGENTS.md` for future agent handoffs.
+
 ## 2026-11-06 — Align Course/Replay Player and Parallelize Course Loading
 
 **Author:** Codex  

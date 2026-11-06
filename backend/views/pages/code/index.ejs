@@ -942,12 +942,15 @@
         /* ========= Synta Code Pratique workspace ========= */
         .code-pratique-main { min-width:0; padding:0 !important; overflow:hidden; }
         .cp-page { height:calc(100dvh - 70px); min-height:520px; overflow:hidden; padding:12px clamp(12px,1.35vw,24px); gap:10px; background:#f3f5fa; }
-        .ide-ribbon { display:grid; grid-template-columns:minmax(190px,1fr) auto minmax(250px,1fr); align-items:center; gap:clamp(10px,1.5vw,22px); flex:none; min-width:0; padding:10px 16px; background:#fff; border:1px solid #dfe5ef; border-radius:14px; box-shadow:0 5px 18px rgba(23,36,59,.06); }
+        .ide-ribbon { display:grid; grid-template-columns:minmax(190px,1fr) minmax(250px,auto); align-items:center; gap:clamp(10px,1.5vw,22px); flex:none; min-width:0; padding:10px 16px; background:#fff; border:1px solid #dfe5ef; border-radius:14px; box-shadow:0 5px 18px rgba(23,36,59,.06); }
         .cp-brand { min-width:0; }
         .cp-brand-icon { width:42px; height:42px; border-radius:12px; }
+        .cp-brand-heading { display:flex; align-items:center; gap:9px; }
+        .cp-brand-heading .cp-status-dot { width:9px; height:9px; flex:none; }
+        .cp-status-announcement { position:absolute; width:1px; height:1px; padding:0; margin:-1px; overflow:hidden; clip:rect(0,0,0,0); white-space:nowrap; border:0; }
         .cp-brand-text h2 { color:#172235; font-size:17px; }
-        .cp-brand-text p { margin-top:2px; color:#64748b; font-size:12px; line-height:1.4; }
-        .cp-mode-tabs { justify-self:center; border:1px solid #e1e7f0; background:#edf1f7; border-radius:11px; }
+        .cp-brand-text p { display:none !important; }
+        .cp-mode-tabs { display:none !important; }
         .cp-tab { min-height:40px; padding:8px clamp(12px,1.7vw,24px); border-radius:8px; }
         .cp-tab.active { color:#18243a; box-shadow:0 2px 7px rgba(15,23,42,.1); }
         .cp-toolbar-group { display:flex; align-items:center; justify-content:flex-end; gap:12px; min-width:0; }
@@ -955,7 +958,7 @@
         .cp-select { min-width:150px; padding:8px 11px; border-color:#dfe5ef; background:#f8fafc; }
         .cp-btn-toolbar { min-width:38px; min-height:38px; justify-content:center; border:1px solid #dfe5ef; color:#475569; }
         .cp-btn-toolbar:hover { background:#f1f5f9; border-color:#cbd5e1; }
-        .cp-status { white-space:nowrap; padding:6px 11px; font-size:12px; }
+        .cp-status { display:none !important; }
         .practice-file-notice { display:flex; align-items:center; gap:7px; flex:none; margin:0 !important; padding:10px 14px; border:1px solid #fed7aa; border-radius:11px; background:#fff8ef; color:#9a3412; font-size:13px; line-height:1.45; }
         .practice-file-notice[hidden] { display:none !important; }
         .cp-workspace { flex:1; min-height:0; gap:12px; }
@@ -977,7 +980,9 @@
         .cp-editor-body .CodeMirror-cursor,.web-pane .CodeMirror-cursor { border-left-color:#fb923c; }
         .cp-editor-footer { min-height:58px; padding:9px 12px; background:#20283a; border-color:#303b55; gap:8px; }
         .cp-editor-footer > div { min-width:0; gap:8px !important; }
-        .cp-run-btn { min-height:42px; padding:9px 16px; border-radius:9px; box-shadow:0 3px 10px rgba(249,115,22,.22); }
+        .cp-run-btn { width:44px; min-width:44px; min-height:44px; flex:0 0 44px; justify-content:center; padding:8px; border-radius:9px; box-shadow:0 3px 10px rgba(249,115,22,.22); font-size:17px; }
+        .cp-export-btn { width:44px; min-width:44px; justify-content:center; padding:8px !important; }
+        .cp-action-label { display:none; }
         .cp-run-btn:disabled { cursor:wait; opacity:.72 !important; transform:none; }
         .cp-export-btn { min-height:42px; padding:8px 12px !important; border-radius:9px !important; border-color:#39445d !important; }
         .cp-shortcut { color:#8b96aa; font-size:11px; white-space:nowrap; }
@@ -1009,7 +1014,6 @@
         @media (max-width:1100px) and (min-width:701px) {
             .cp-page { padding:10px 12px; }
             .ide-ribbon { grid-template-columns:minmax(0,1fr) auto; }
-            .cp-mode-tabs { grid-column:2; grid-row:1; }
             .cp-toolbar-group { grid-column:1 / -1; justify-content:space-between; }
             .cp-toolbar { border-left:0 !important; padding-left:0 !important; }
             #mode-python { grid-template-columns:minmax(0,1fr) minmax(0,1fr); grid-template-rows:minmax(280px,1.5fr) minmax(190px,.8fr); }
@@ -1024,10 +1028,7 @@
             .cp-brand-icon { display:flex; width:38px; height:38px; font-size:15px; }
             .cp-brand-text h2 { font-size:15px; }
             .cp-brand-text p { max-width:220px; font-size:11px; }
-            .cp-mode-tabs { grid-column:1 / -1; grid-row:2; width:100%; }
-            .cp-tab { min-height:42px; flex:1; justify-content:center; padding:8px; }
             .cp-toolbar-group { grid-column:1 / -1; justify-content:space-between; flex-wrap:wrap; gap:8px; }
-            .cp-status { min-height:34px; }
             .cp-toolbar { flex:1; justify-content:flex-end; gap:6px; }
             .cp-select { min-width:0; flex:1; max-width:220px; padding:8px; font-size:12px; }
             .cp-btn-toolbar { min-width:38px; min-height:38px; padding:6px 9px; }
@@ -1047,7 +1048,7 @@
             .cp-editor-body .CodeMirror,.web-pane .CodeMirror { font-size:15px; line-height:1.6; }
             .cp-editor-footer { position:sticky; bottom:0; z-index:2; min-height:60px; padding:8px; }
             .cp-editor-footer > div { flex:1; }
-            .cp-run-btn { width:48px; min-width:48px; min-height:44px; flex:0 0 48px; justify-content:center; padding:8px; font-size:17px; }
+            .cp-run-btn { width:48px; min-width:48px; min-height:48px; flex:0 0 48px; justify-content:center; padding:8px; font-size:18px; }
             .cp-export-btn { width:44px; min-width:44px; min-height:44px; justify-content:center; padding:8px !important; font-size:15px !important; }
             .cp-action-label { display:none; }
             .cp-shortcut { display:none; }
@@ -1120,7 +1121,11 @@
             <div class="cp-brand">
                 <div class="cp-brand-icon">&lt;/&gt;</div>
                 <div class="cp-brand-text">
-                    <h2 id="cp-title" style="margin: 0; font-size: 18px; color: #0f172a;">Code Pratique</h2>
+                    <div class="cp-brand-heading">
+                        <h2 id="cp-title" style="margin: 0; font-size: 18px; color: #0f172a;">Code Pratique</h2>
+                        <span class="cp-status-dot" aria-hidden="true" title="Éditeur prêt"></span>
+                    </div>
+                    <span id="cp-status-text" class="cp-status-announcement" aria-live="polite">Éditeur prêt</span>
                     <p id="cp-subtitle" style="margin: 0; font-size: 13px; color: #64748b; font-weight: 500;">Éditeur interactif</p>
                 </div>
             </div>
@@ -1135,17 +1140,12 @@
             </div>
 
             <div class="cp-toolbar-group">
-                <div class="cp-status" id="cp-status">
-                    <div class="cp-status-dot"></div>
-                    <span id="cp-status-text">Python prêt</span>
-                </div>
-
                 <div class="cp-toolbar">
                     <select class="cp-select" id="examples-select" onchange="loadExample()">
                         <option value="">Exemples...</option>
                     </select>
-                    <button class="cp-btn-toolbar" onclick="clearEditor()" title="Vider l'éditeur"><i class="fas fa-eraser"></i></button>
-                    <button class="cp-btn-toolbar" onclick="copyCode()" title="Copier le code"><i class="fas fa-copy"></i></button>
+                    <button class="cp-btn-toolbar" onclick="clearEditor()" title="Vider l'éditeur" aria-label="Vider l'éditeur"><i class="fas fa-eraser" aria-hidden="true"></i></button>
+                    <button class="cp-btn-toolbar" onclick="copyCode()" title="Copier le code" aria-label="Copier le code"><i class="fas fa-copy" aria-hidden="true"></i></button>
                 </div>
             </div>
         </div>
@@ -1212,10 +1212,10 @@
                             <span class="cp-panel-filename">console</span>
                         </div>
                         <div style="display:flex; gap:8px;">
-                            <button class="cp-ai-btn" type="button" onclick="askAiDebugger()" title="Demander une explication à Bugi">
-                                <i class="fas fa-wand-magic-sparkles" aria-hidden="true"></i><span>Aide Bugi</span>
+                            <button class="cp-ai-btn" type="button" onclick="askAiDebugger()" title="Demander une explication à Bugi" aria-label="Demander une explication à Bugi">
+                                <i class="fas fa-wand-magic-sparkles" aria-hidden="true"></i>
                             </button>
-                            <button class="cp-clear-btn" type="button" onclick="clearConsole()" title="Effacer la sortie">Effacer</button>
+                            <button class="cp-clear-btn" type="button" onclick="clearConsole()" title="Effacer la sortie" aria-label="Effacer la sortie"><i class="fas fa-trash-can" aria-hidden="true"></i></button>
                         </div>
                     </div>
                     <div class="cp-console" id="py-console">
@@ -1279,8 +1279,8 @@
                         </div>
                     </div>
                     <div class="cp-editor-footer">
-                        <button class="cp-run-btn" onclick="runWeb()">
-                            <i class="fas fa-play"></i> Exécuter le code
+                        <button class="cp-run-btn" onclick="runWeb()" title="Exécuter le code" aria-label="Exécuter le code">
+                            <i class="fas fa-play" aria-hidden="true"></i>
                         </button>
                         <span class="cp-shortcut">Ctrl + Enter</span>
                     </div>
@@ -1297,7 +1297,7 @@
                             </div>
                             <span class="cp-panel-filename">aperçu</span>
                         </div>
-                        <button class="cp-clear-btn" onclick="clearPreview()">clear</button>
+                        <button class="cp-clear-btn" onclick="clearPreview()" title="Effacer l’aperçu" aria-label="Effacer l’aperçu"><i class="fas fa-trash-can" aria-hidden="true"></i></button>
                     </div>
                     <iframe class="cp-preview" id="web-preview" sandbox="allow-scripts allow-same-origin"></iframe>
                 </div>
@@ -1833,9 +1833,13 @@ function runPython() {
     if (runBtn) runBtn.disabled = true;
     const originalBtnHTML = runBtn?.innerHTML || '';
     const originalBtnBg = runBtn?.style.background || '';
+    const originalBtnTitle = runBtn?.title || 'Exécuter le code';
+    const originalBtnLabel = runBtn?.getAttribute('aria-label') || 'Exécuter le code';
     
     if (runBtn) {
-        runBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Exécution...';
+        runBtn.innerHTML = '<i class="fas fa-spinner fa-spin" aria-hidden="true"></i>';
+        runBtn.title = 'Exécution en cours';
+        runBtn.setAttribute('aria-label', 'Exécution en cours');
         runBtn.style.opacity = '0.8';
     }
 
@@ -1851,7 +1855,9 @@ function runPython() {
         appendConsole('\n<span class="console-error" style="display:block; padding:8px; border-left:3px solid #ef4444; background:rgba(239,68,68,0.1); border-radius:0 4px 4px 0; margin-top:8px;">❌ <strong>Erreur :</strong><br>' + escapeHtml(msg) + '<br>' + bugiBtnHTML + '</span>\n');
         
         if (runBtn) {
-            runBtn.innerHTML = '<i class="fas fa-exclamation-triangle"></i> Erreur';
+            runBtn.innerHTML = '<i class="fas fa-exclamation-triangle" aria-hidden="true"></i>';
+            runBtn.title = 'Erreur d’exécution';
+            runBtn.setAttribute('aria-label', 'Erreur d’exécution');
             runBtn.style.background = '#ef4444';
             runBtn.style.opacity = '1';
         }
@@ -1862,6 +1868,8 @@ function runPython() {
         setTimeout(() => {
             if (runBtn) {
                 runBtn.innerHTML = originalBtnHTML;
+                runBtn.title = originalBtnTitle;
+                runBtn.setAttribute('aria-label', originalBtnLabel);
                 runBtn.style.background = originalBtnBg;
             }
         }, 2500);
@@ -1892,7 +1900,9 @@ function runPython() {
             statusEl.textContent = 'Python prêt';
             
             if (runBtn) {
-                runBtn.innerHTML = '<i class="fas fa-check"></i> Exécuté';
+                runBtn.innerHTML = '<i class="fas fa-check" aria-hidden="true"></i>';
+                runBtn.title = 'Exécution réussie';
+                runBtn.setAttribute('aria-label', 'Exécution réussie');
                 runBtn.style.background = '#10b981';
                 runBtn.style.opacity = '1';
             }
@@ -1900,6 +1910,8 @@ function runPython() {
             setTimeout(() => {
                 if (runBtn) {
                     runBtn.innerHTML = originalBtnHTML;
+                    runBtn.title = originalBtnTitle;
+                    runBtn.setAttribute('aria-label', originalBtnLabel);
                     runBtn.style.background = originalBtnBg;
                 }
             }, 2000);
@@ -2442,9 +2454,8 @@ function initEditors() {
         webJsEditor.setCursor(0, 0);
     }, 50);
 
-    // Populate examples + run initial web preview
+    // Keep the deferred Web workspace dormant until its mode is reintroduced.
     populateExamples('python');
-    runWeb();
 }
 
 // ----------------------------------------------------------------
