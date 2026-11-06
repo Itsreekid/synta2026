@@ -75,23 +75,25 @@
                     </div>
                 </div>
 
-                <!-- ══ UPCOMING EVENTS ══ -->
-                <div class="dash-card session-card" id="session-section">
-                    <div class="card-header flex-between">
-                        <h3>📅 Prochaine session</h3>
-                        <a href="/app/calendar" class="link-view-all">Voir toutes &rarr;</a>
+                <!-- ══ SESSIONS + REPLAYS (stacked right rail) ══ -->
+                <div class="session-rail" id="session-rail">
+                    <div class="dash-card session-card" id="session-section">
+                        <div class="card-header flex-between">
+                            <h3>📅 Prochaine session</h3>
+                            <a href="/app/calendar" class="link-view-all">Voir toutes &rarr;</a>
+                        </div>
+                        <div id="events-list">
+                            <div class="loading-state">Chargement...</div>
+                        </div>
                     </div>
-                    <div id="events-list">
-                        <div class="loading-state">Chargement...</div>
-                    </div>
-                </div>
 
-                <div class="dash-card session-card" id="replay-section">
-                    <div class="card-header flex-between">
-                        <h3>▶️ Replays disponibles</h3>
-                        <a href="/app/courses" class="link-view-all">Mes cours &rarr;</a>
+                    <div class="dash-card session-card replay-card" id="replay-section">
+                        <div class="card-header flex-between">
+                            <h3>▶️ Replays disponibles</h3>
+                            <a href="/app/courses" class="link-view-all">Mes cours &rarr;</a>
+                        </div>
+                        <div id="replay-list"><div class="loading-state">Chargement...</div></div>
                     </div>
-                    <div id="replay-list"><div class="loading-state">Chargement...</div></div>
                 </div>
 
                 <!-- ══ TON PARCOURS ══ -->
