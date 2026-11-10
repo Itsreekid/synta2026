@@ -1,5 +1,11 @@
 # CURRENT_STATE.md — Synta Academy
 
+### 2026-11-10 — Legacy payments deployment recovery
+
+- Production logs confirmed migration 202611100003 failed because the existing payments table lacks status. This prevents Node startup and causes the proxy's Bad Gateway response.
+- Added 202611100002_ensure_offer_payment_status.sql, ordered before the failing index migration. It adds the documented status column with pending as its default and preserves existing rows. Already-applied migration contents are untouched.
+- Redeploy the recovery commit through Coolify. Verify the compatibility migration and active-offer index both apply, then confirm the server starts and /health responds.
+
 ### 2026-11-10 — French authentication experience
 
 - Login, two-step email signup, Google profile completion, email confirmation and account recovery guidance use a shared French layout with responsive styling and reduced-motion support. Native cross-document transitions progressively enhance navigation.

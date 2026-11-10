@@ -1,5 +1,9 @@
 # CHANGELOG.md — Synta Academy
 
+## 2026-11-10 — Fix startup with legacy payments schema
+
+- Added a compatibility migration for the documented payments.status column before the active-offer index. Production logs confirmed the missing column stopped deployment before the app could start.
+
 ## 2026-11-10 — French login and registration redesign
 
 - Added a shared responsive auth layout, two-step signup, school and independent learner choices, inline validation and reduced-motion transitions.

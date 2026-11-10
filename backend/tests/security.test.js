@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import crypto from "node:crypto";
-import { readFile } from "node:fs/promises";
+import { readFile, readdir } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 import test from "node:test";
 import vm from "node:vm";
@@ -500,4 +500,65 @@ test("shared session authorization requires active course and offer rights, audi
   assert.match(predicate, /revoked\.status IN \('refunded', 'cancelled', 'canceled', 'expired'\)/);
   assert.match(predicate, /ANY\(ls\.audience_student_ids\)/);
   assert.match(predicate, /ls\.status <> 'cancelled'/);
+});
+
+test("deployment reconciles legacy payments status before the index and safely skips applied migrations", async () => {
+  const migrations = new URL("../../database/migrations/", import.meta.url);
+  const recovery = "202611100002_ensure_offer_payment_status.sql";
+  const index = "202611100003_unique_active_offer_payments.sql";
+  const files = (await readdir(migrations)).filter(name => name.endsWith(".sql")).sort();
+  assert.ok(files.indexOf(recovery) < files.indexOf(index));
+  const applied = new Map();
+  for (const filename of files.filter(name => ![recovery, index].includes(name))) {
+    applied.set(filename, crypto.createHash("sha256").update(await readFile(new URL(filename, migrations), "utf8")).digest("hex"));
+  }
+  let hasStatus = false;
+  let indexCreated = false;
+  let schemaChanges = 0;
+  const client = {
+    release() {},
+    async query(sql, args = []) {
+      if (sql.startsWith("SELECT checksum")) {
+        return { rowCount: Number(applied.has(args[0])), rows: applied.has(args[0]) ? [{ checksum: applied.get(args[0]) }] : [] };
+      }
+      if (sql.includes("ALTER TABLE payments")) {
+        assert.match(sql, /ADD COLUMN IF NOT EXISTS status TEXT NOT NULL DEFAULT 'pending'/);
+        hasStatus = true;
+        schemaChanges++;
+      }
+      if (sql.includes("CREATE UNIQUE INDEX IF NOT EXISTS idx_payments_active_offer")) {
+        assert.ok(hasStatus, "The index cannot run before legacy status reconciliation");
+        indexCreated = true;
+        schemaChanges++;
+      }
+      if (sql.startsWith("INSERT INTO schema_migrations")) applied.set(args[0], args[1]);
+      return { rows: [] };
+    },
+  };
+  async function run() {
+    let finish;
+    const finished = new Promise(resolve => { finish = resolve; });
+    const errors = [];
+    const pool = { connect: async () => client, end: async () => finish() };
+    const context = vm.createContext({ console: { log() {}, error: (...args) => errors.push(args) }, process: {} });
+    const file = new URL("../scripts/migrate.js", import.meta.url);
+    const module = new vm.SourceTextModule(await readFile(file, "utf8"), {
+      context, initializeImportMeta: meta => { meta.url = file.href; },
+    });
+    await module.link(async specifier => {
+      const exports = specifier === "../config/db.js" ? { default: pool } : await import(specifier);
+      return new vm.SyntheticModule(Object.keys(exports), function () {
+        for (const [key, value] of Object.entries(exports)) this.setExport(key, value);
+      }, { context });
+    });
+    await module.evaluate();
+    await finished;
+    assert.deepEqual(errors, []);
+  }
+  await run();
+  assert.equal(hasStatus, true);
+  assert.equal(indexCreated, true);
+  assert.equal(schemaChanges, 2);
+  await run();
+  assert.equal(schemaChanges, 2);
 });

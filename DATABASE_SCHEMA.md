@@ -523,6 +523,7 @@ Placement email proofs bind this registration ID, purpose and the exact `updated
 | `add_email_verification.sql` | Adds `email_verified`, `verification_token`, `token_expires_at` | ✅ Required |
 | `add_google_auth.sql` | Adds `google_id`, makes `password_hash` nullable | Legacy script. The versioned migration below applies these changes automatically. |
 | `202611100002_ensure_google_auth_schema.sql` | Reconciles the documented Google account and email verification fields | Applied by the Docker migration runner |
+| `202611100002_ensure_offer_payment_status.sql` | Adds the documented status column on legacy payments tables before the active-offer index | Pending recovery deployment |
 | `202611100003_unique_active_offer_payments.sql` | Adds uniqueness for active wallet/admin offer grants | Pending authorized deployment |
 | `add_feedback_table.sql` | Creates `lesson_feedback` | ✅ Required |
 | `add_lesson_content.sql` | UNKNOWN | NEEDS CLARIFICATION |
