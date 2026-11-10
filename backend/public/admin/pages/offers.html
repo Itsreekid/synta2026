@@ -432,7 +432,10 @@
                     <div style="display: flex; align-items: center; gap: 2rem;">
                         <div class="offer-price">${offer.fixed_price} DT</div>
                         <div class="actions">
-                            <button class="btn-icon edit-btn" data-id="${offer.id}">
+                            <button class="btn-icon copy-btn" data-id="${offer.id}" title="Dupliquer l'offre">
+                                <i class="fas fa-copy" style="pointer-events: none;"></i>
+                            </button>
+                            <button class="btn-icon edit-btn" data-id="${offer.id}" title="Modifier l'offre">
                                 <i class="fas fa-edit" style="pointer-events: none;"></i>
                             </button>
                         </div>
@@ -481,6 +484,12 @@
                 const id = editBtn.getAttribute('data-id');
                 console.log('Event Delegation: Edit clicked for ID:', id);
                 editOffer(id);
+            }
+            const copyBtn = e.target.closest('.copy-btn');
+            if (copyBtn) {
+                const id = copyBtn.getAttribute('data-id');
+                console.log('Event Delegation: Copy clicked for ID:', id);
+                copyOffer(id);
             }
         });
 
@@ -606,6 +615,19 @@
             } catch (err) {
                 console.error('editOffer error:', err);
                 alert('Erreur lors de l\'ouverture: ' + err.message);
+            }
+        }
+
+        function copyOffer(id) {
+            console.log('Duplicating offer ID:', id);
+            try {
+                editOffer(id);
+                // Clear the offer ID so the form submission performs an INSERT (creates a new offer)
+                document.getElementById('offerId').value = '';
+                document.getElementById('modalTitle').textContent = 'Dupliquer l\'offre';
+            } catch (err) {
+                console.error('copyOffer error:', err);
+                alert('Erreur lors de la duplication: ' + err.message);
             }
         }
 
