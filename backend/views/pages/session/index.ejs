@@ -158,6 +158,8 @@
                         <input id="phone" type="tel" placeholder="+216 XX XXX XXX" required class="synta-input">
                     </div>
                     <div id="identity-error" class="error-box hidden"></div>
+                    <p id="identity-notice" role="status" hidden></p>
+                    <a href="/login">J’ai déjà un compte</a>
                     <div class="pt-2">
                         <button type="submit" id="identity-submit" class="btn-primary">احجز مكانك مجاناً ←</button>
                     </div>
@@ -382,10 +384,9 @@
 
     <!-- Backend config passed to JS -->
     <script>
-        window.__SYNTA_CONFIG__ = <%- JSON.stringify(syntaConfig || {}) %>;
         window.__SESSION_DATE__ = '<%= sessionConfig.session_date_raw || "" %>';
     </script>
-    <script src="/js/session.js"></script>
+    <script src="/js/session.js?v=2"></script>
     <script>
         // ── Particle cursor effect ──────────────────────────────────────
         const particlesContainer = document.getElementById('particles-container');

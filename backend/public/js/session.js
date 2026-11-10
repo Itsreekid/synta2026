@@ -1,7 +1,6 @@
 document.addEventListener('DOMContentLoaded', () => {
     // State
     let currentStep = 1;
-    let registrationId = null;
     let track = null;
     let filier = null;
     let questions = [];
@@ -38,28 +37,27 @@ document.addEventListener('DOMContentLoaded', () => {
     const successScore = document.getElementById('success-score');
     const successPerks = document.getElementById('success-perks');
 
-    // --- Session Restoration ---
-    function getCookie(name) {
-        const value = `; ${document.cookie}`;
-        const parts = value.split(`; ${name}=`);
-        if (parts.length === 2) return parts.pop().split(';').shift();
-        return null;
-    }
-
-    const token = localStorage.getItem('synta_session_token') || getCookie('synta_session_token');
-    if (token) {
-        registrationId = token;
-        const storedScore = localStorage.getItem('synta_session_score') || 0;
-        const storedTier = localStorage.getItem('synta_session_tier') || 'explorer';
-        const isCompleted = localStorage.getItem('synta_session_completed') === 'true';
-        
-        if (isCompleted) {
-            showSuccess(storedScore, storedTier, true);
-            // Don't execute the rest of the initialization if we jump to success
-        } else {
-            goToStep(2);
+    async function restorePlacement() {
+        const params = new URLSearchParams(window.location.hash.slice(1));
+        const token = params.get('placement');
+        if (token) window.history.replaceState(null, '', window.location.pathname + window.location.search);
+        try {
+            const response = await fetch(token ? '/api/session/verify' : '/api/session/status', token ? {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ token })
+            } : {});
+            if (!token && (response.status === 401 || response.status === 404)) return;
+            const data = await response.json();
+            if (!response.ok) throw new Error(data.error || 'Impossible de reprendre le quiz.');
+            const registration = data.registration;
+            if (registration.completed) showSuccess(registration.score, registration.tier, true, registration.group);
+            else goToStep(2);
+        } catch (err) {
+            showError(identityError, err.message);
         }
     }
+    restorePlacement();
 
     // --- STEP 1: Registration ---
     identityForm.addEventListener('submit', async (e) => {
@@ -89,18 +87,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
             if (!response.ok) throw new Error(data.error || 'Erreur lors de l\'inscription');
 
-            registrationId = data.registration.id;
-            localStorage.setItem('synta_session_token', data.token || data.registration.id);
-            
-            // If already completed in the past, jump to success?
-            if (data.registration.completed) {
-                localStorage.setItem('synta_session_score', data.registration.score);
-                localStorage.setItem('synta_session_tier', data.registration.tier);
-                localStorage.setItem('synta_session_completed', 'true');
-                showSuccess(data.registration.score, data.registration.tier, true);
-            } else {
-                goToStep(2);
-            }
+            const notice = document.getElementById('identity-notice');
+            notice.textContent = 'Si ton adresse peut être utilisée pour le quiz, tu recevras un lien de confirmation. Si tu as déjà un compte, connecte-toi.';
+            notice.hidden = false;
         } catch (err) {
             showError(identityError, err.message);
         } finally {
@@ -296,16 +285,12 @@ document.addEventListener('DOMContentLoaded', () => {
             const response = await fetch('/api/session/submit', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ registration_id: registrationId, answers, track, branch: filier })
+                body: JSON.stringify({ answers, track, branch: filier })
             });
 
             const data = await response.json();
             if (!response.ok) throw new Error(data.error || 'خطأ في الإرسال');
 
-            localStorage.setItem('synta_session_score', data.score);
-            localStorage.setItem('synta_session_tier', data.tier);
-            localStorage.setItem('synta_session_completed', 'true');
-            localStorage.setItem('synta_session_group', data.group || 'beginner');
             showSuccess(data.score, data.tier, false, data.group);
         } catch (err) {
             showError(quizError, err.message);
@@ -318,8 +303,7 @@ document.addEventListener('DOMContentLoaded', () => {
     function showSuccess(score, tier, isReturning = false, group = null) {
         goToStep(5);
 
-        // Restore group from localStorage if returning
-        if (!group) group = localStorage.getItem('synta_session_group') || 'beginner';
+        group ||= "beginner";
         
         // Throw confetti
         if (typeof confetti === 'function' && !isReturning) {
@@ -456,13 +440,6 @@ async function submitPassword() {
         return;
     }
 
-    const registrationId = localStorage.getItem('synta_session_token');
-    if (!registrationId) {
-        errBox.textContent = 'انتهت الحصة. يرجى إعادة تحميل الصفحة.';
-        errBox.classList.remove('hidden');
-        return;
-    }
-
     btn.textContent = 'جارٍ التفعيل...';
     btn.disabled = true;
 
@@ -470,17 +447,11 @@ async function submitPassword() {
         const res = await fetch('/api/session/set-password', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ registration_id: registrationId, password })
+            body: JSON.stringify({ password })
         });
         const data = await res.json();
 
         if (!res.ok) throw new Error(data.error || 'Erreur serveur');
-
-        // Clear wizard localStorage now that we have a real account
-        localStorage.removeItem('synta_session_token');
-        localStorage.removeItem('synta_session_score');
-        localStorage.removeItem('synta_session_tier');
-        localStorage.removeItem('synta_session_completed');
 
         window.location.href = data.redirectUrl || '/dashboard';
     } catch (err) {

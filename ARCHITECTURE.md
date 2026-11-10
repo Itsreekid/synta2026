@@ -8,6 +8,14 @@
 
 ## 1. Project Overview
 
+### Security remediation — 2026-11-10
+
+Placement email proofs and verified placement cookies use a purpose-specific key derived from `JWT_SECRET`. The email proof binds a registration revision and expires after 30 minutes. An atomic revision update consumes it. Activation uses a transaction and row lock, creates only a new verified user and links the registration. The public registration response contains no registration credentials.
+
+Wallet checkout is authoritative for paid courses. Offer checkout additionally writes an independent `payments` grant, linked to the wallet ledger by a server-generated `wallet-offer:<payment UUID>` transaction code. The user row lock serializes purchases; a partial unique index enforces one active grant per user/offer. Shared SQL authorization in `utils/offerAccess.js` enforces course expiry, offer rights, selected audiences and cancellation across student surfaces.
+
+Recurring Zoom meetings use shared no-fixed-time IDs. Cancellation serializes on an advisory transaction lock for that meeting ID. A local occurrence can be cancelled while the meeting remains for other dates. Final-date or series cancellation confirms provider deletion before committing local cancelled status. An already-deleted Zoom meeting is safe to retry after an interrupted database commit.
+
 Synta Academy is a **Tunisian e-learning platform** targeting high-school students (Bac Informatique, Bac Mathématiques, etc.) and their parents. It sells structured courses (video + PDF + quiz), bundled as "Offers", with live Zoom sessions for enrolled students. The platform is built in **French/Arabic** (UI multilingual) and uses **Tunisian Dinars (TND)** as currency.
 
 **Core value propositions:**

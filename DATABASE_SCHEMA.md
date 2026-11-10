@@ -269,7 +269,7 @@ Check constraint `learning_resources_single_owner` ensures exactly one parent. I
 
 ### 2.9 `payments`
 
-**Purpose:** Offer-level payment record. **Largely unused in current code.**
+**Purpose:** Offer payment and authorization record. Wallet checkout writes `wallet_completed`; authorized admin installment enrollment writes `admin_authorized`. These records grant offer benefits independently of the single enrollment per user/course.
 
 | Column | Type | Constraints | Notes |
 |--------|------|-------------|-------|
@@ -277,11 +277,10 @@ Check constraint `learning_resources_single_owner` ensures exactly one parent. I
 | `user_id` | UUID | NOT NULL REFERENCES users(id) ON DELETE CASCADE | |
 | `offer_id` | UUID | NULLABLE REFERENCES offers(id) | |
 | `amount` | NUMERIC(10,2) | NOT NULL | |
-| `status` | TEXT | NOT NULL DEFAULT 'pending' | |
+| `status` | TEXT | NOT NULL DEFAULT 'pending' | Active grants use `wallet_completed` or `admin_authorized`. `refunded`, `cancelled`, `canceled` and `expired` revoke legacy offer fallback. |
 | `created_at` | TIMESTAMPTZ | NOT NULL DEFAULT NOW() | |
 
-> [!WARNING]
-> This table appears in the schema but is NOT written to by any active route. It may be a legacy artifact from an earlier design.
+Migration `202611100003_unique_active_offer_payments.sql` adds a partial unique index on `(user_id, offer_id)` for the two active grant statuses. Historical rows are preserved. These dedicated statuses avoid reinterpreting unverified legacy payment rows as paid access. Currency remains the platform's fixed TND.
 
 ---
 
@@ -345,7 +344,7 @@ Check constraint `learning_resources_single_owner` ensures exactly one parent. I
 | `description` | TEXT | NULLABLE | |
 | `scheduled_at` | TIMESTAMPTZ | NOT NULL | |
 | `duration_minutes` | INTEGER | NOT NULL DEFAULT 60 | |
-| `status` | TEXT | NOT NULL DEFAULT 'scheduled' | `'scheduled'`, `'live'`, `'completed'` |
+| `status` | TEXT | NOT NULL DEFAULT 'scheduled' | `'scheduled'`, `'live'`, `'completed'`, `'cancelled'` |
 | `zoom_meeting_id` | TEXT | NULLABLE | Zoom meeting ID |
 | `zoom_join_url` | TEXT | NULLABLE | Student join link |
 | `zoom_start_url` | TEXT | NULLABLE | 🔒 Host-only link — NEVER expose to students |
@@ -445,7 +444,7 @@ Migration `202611100001_add_live_session_audience.sql` adds the nullable audienc
 
 | Column | Type | Constraints | Notes |
 |--------|------|-------------|-------|
-| `id` | UUID | PK, DEFAULT gen_random_uuid() | Also used as the session cookie token |
+| `id` | UUID | PK, DEFAULT gen_random_uuid() | Identifier only. Browser authorization requires a signed, verified placement cookie. |
 | `full_name` | TEXT | NOT NULL | |
 | `email` | TEXT | UNIQUE NOT NULL | |
 | `phone` | TEXT | NOT NULL | |
@@ -459,6 +458,8 @@ Migration `202611100001_add_live_session_audience.sql` adds the nullable audienc
 | `auth_user_id` | UUID | NULLABLE REFERENCES users(id) | Link to users table |
 | `created_at` | TIMESTAMPTZ | NOT NULL DEFAULT NOW() | |
 | `updated_at` | TIMESTAMPTZ | NOT NULL DEFAULT NOW() | |
+
+Placement email proofs bind this registration ID, purpose and the exact `updated_at` revision. An atomic revision change consumes the proof once. JWTs use a placement-specific derived signing key, expire after 30 minutes and are never stored in the database. The verified HttpOnly cookie lasts one hour; activation locks the registration and sets `account_activated` and `auth_user_id` atomically.
 
 ---
 
@@ -522,6 +523,7 @@ Migration `202611100001_add_live_session_audience.sql` adds the nullable audienc
 | `add_email_verification.sql` | Adds `email_verified`, `verification_token`, `token_expires_at` | ✅ Required |
 | `add_google_auth.sql` | Adds `google_id`, makes `password_hash` nullable | Legacy script. The versioned migration below applies these changes automatically. |
 | `202611100002_ensure_google_auth_schema.sql` | Reconciles the documented Google account and email verification fields | Applied by the Docker migration runner |
+| `202611100003_unique_active_offer_payments.sql` | Adds uniqueness for active wallet/admin offer grants | Pending authorized deployment |
 | `add_feedback_table.sql` | Creates `lesson_feedback` | ✅ Required |
 | `add_lesson_content.sql` | UNKNOWN | NEEDS CLARIFICATION |
 | `add_offers_features.sql` | Adds `features` JSONB to offers | ✅ Required |

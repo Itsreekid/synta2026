@@ -1,5 +1,19 @@
 # CHANGELOG.md — Synta Academy
 
+## 2026-11-10 — French login and registration redesign
+
+- Added a shared responsive auth layout, two-step signup, school and independent learner choices, inline validation and reduced-motion transitions.
+- Translated Google onboarding, verification pages and emails. Removed unused third-party auth assets and replaced the unavailable password recovery form with support guidance.
+- Fixed resend-button cooldown handling. Regression, template rendering and syntax checks pass; browser visual verification remains pending.
+
+## 2026-11-10 — Critical placement, payment and Zoom remediation
+
+- Required email confirmation before placement quiz access and single-use account activation. Removed existing-account password replacement, linked registrations, and added authentication rate limits.
+- Closed unverified paid enrollment and prevented client-defined wallet transaction status/type. Wallet checkout records paid access and serializes offer retries.
+- Added durable independent offer grants, a partial unique index, and shared live authorization for overlapping offers.
+- Preserved recurring Zoom meetings when cancelling one date, added explicit series cancellation, retained cancelled records and surfaced provider failures.
+- Added automated security regression coverage. Real PostgreSQL, email and Zoom validation remain staging tasks.
+
 > **Format:** Reverse chronological. Each entry includes date, type, description, and agent/author.  
 > **Types:** SECURITY | SCHEMA | FEATURE | BUGFIX | ARCHITECTURE | BUSINESS_RULE | BREAKING
 

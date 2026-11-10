@@ -9,6 +9,7 @@ import { requireAdmin } from "../middleware/requireAdmin.js";
 import { createZoomMeeting, deleteZoomMeeting } from "../utils/zoomClient.js";
 import { createR2UploadUrl, generateSignedUrl } from "../utils/r2Utils.js";
 import { r2Client, R2_BUCKET } from "../config/r2.js";
+import { liveSessionAccess, offerEntitlement } from "../utils/offerAccess.js";
 
 const router = express.Router();
 const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -19,7 +20,7 @@ async function getEligibleStudents(courseId, offerId, studentIds = null) {
      FROM enrollments e
      JOIN users u ON u.id = e.user_id
      WHERE e.course_id = $1 AND u.role = 'user'
-       AND ($2::uuid IS NULL OR e.offer_id = $2)
+       AND ($2::uuid IS NULL OR ${offerEntitlement("u.id", "$2", "e.course_id")})
        AND (e.expires_at IS NULL OR e.expires_at > NOW())
        AND ($3::uuid[] IS NULL OR u.id = ANY($3))
      ORDER BY u.name, u.email`,
@@ -85,14 +86,7 @@ router.get("/course/:courseId", authApiMiddleware, async (req, res) => {
               ls.duration_minutes, ls.status, ls.zoom_join_url, ls.replay_url
        FROM live_sessions ls
        WHERE ls.course_id = $1
-         AND (ls.audience_student_ids IS NULL OR $2 = ANY(ls.audience_student_ids))
-         AND EXISTS (
-           SELECT 1 FROM enrollments e
-           WHERE e.user_id = $2
-             AND e.course_id = ls.course_id
-             AND (e.expires_at IS NULL OR e.expires_at > NOW())
-             AND (ls.offer_id IS NULL OR e.offer_id = ls.offer_id)
-         )
+         AND ${liveSessionAccess("$2")}
        ORDER BY ls.scheduled_at DESC`,
       [courseId, userId]
     );
@@ -118,14 +112,7 @@ router.get("/resources/:resourceId/code", authApiMiddleware, async (req, res) =>
        JOIN live_sessions ls ON ls.id = lr.live_session_id
        WHERE lr.id = $1
          AND lower(lr.file_name) LIKE '%.py'
-         AND (ls.audience_student_ids IS NULL OR $2 = ANY(ls.audience_student_ids))
-         AND EXISTS (
-           SELECT 1 FROM enrollments e
-           WHERE e.user_id = $2
-             AND e.course_id = ls.course_id
-             AND (e.expires_at IS NULL OR e.expires_at > NOW())
-             AND (ls.offer_id IS NULL OR e.offer_id = ls.offer_id)
-         )`,
+         AND ${liveSessionAccess("$2")}`,
       [req.params.resourceId, req.user.id]
     );
     if (!result.rowCount) return res.status(404).json({ error: "Python resource not found" });
@@ -155,21 +142,6 @@ router.get("/upcoming", authApiMiddleware, async (req, res) => {
   try {
     const userId = req.user.id;
 
-    const enrollResult = await pool.query(
-      `SELECT course_id, offer_id FROM enrollments
-       WHERE user_id = $1 AND (expires_at IS NULL OR expires_at > NOW())`,
-      [userId]
-    );
-
-    const enrolledCourseIds = enrollResult.rows.map((e) => e.course_id);
-    if (enrolledCourseIds.length === 0) return res.json([]);
-
-    const offerMap = {};
-    for (const e of enrollResult.rows) {
-      if (!offerMap[e.course_id]) offerMap[e.course_id] = new Set();
-      if (e.offer_id) offerMap[e.course_id].add(e.offer_id);
-    }
-
     const sessionResult = await pool.query(
       `SELECT ls.id, ls.title, ls.description, ls.scheduled_at, ls.duration_minutes,
               ls.status, ls.offer_id, ls.zoom_join_url, ls.replay_url,
@@ -177,18 +149,13 @@ router.get("/upcoming", authApiMiddleware, async (req, res) => {
               c.title AS course_title, c.thumbnail_url AS course_thumbnail
        FROM live_sessions ls
        JOIN courses c ON c.id = ls.course_id
-       WHERE ls.course_id = ANY($1)
-         AND (ls.audience_student_ids IS NULL OR $2 = ANY(ls.audience_student_ids))
+       WHERE ${liveSessionAccess("$1")}
          AND ls.scheduled_at >= NOW()
        ORDER BY ls.scheduled_at ASC`,
-      [enrolledCourseIds, userId]
+      [userId]
     );
 
-    const accessible = sessionResult.rows.filter(
-      (s) => !s.offer_id || (offerMap[s.course_id]?.has(s.offer_id) ?? false)
-    );
-
-    const response = await Promise.all(accessible.map(async ({ offer_id, course_id, course_title, course_thumbnail, ...s }) => ({
+    const response = await Promise.all(sessionResult.rows.map(async ({ offer_id, course_id, course_title, course_thumbnail, ...s }) => ({
       ...s,
       replay_url: s.replay_url && !/^https?:\/\//i.test(s.replay_url) ? await generateSignedUrl(s.replay_url, 3600) : s.replay_url,
       course: { title: course_title, thumbnail_url: course_thumbnail },
@@ -213,11 +180,8 @@ router.get("/replays", authApiMiddleware, async (req, res) => {
               ls.duration_minutes, ls.replay_url, c.title AS course_title
        FROM live_sessions ls
        JOIN courses c ON c.id = ls.course_id
-       JOIN enrollments e ON e.course_id = ls.course_id AND e.user_id = $1
-         AND (e.expires_at IS NULL OR e.expires_at > NOW())
-         AND (ls.offer_id IS NULL OR ls.offer_id = e.offer_id)
        WHERE ls.scheduled_at < NOW()
-         AND (ls.audience_student_ids IS NULL OR $1 = ANY(ls.audience_student_ids))
+         AND ${liveSessionAccess("$1")}
          AND ls.replay_url IS NOT NULL
        ORDER BY ls.scheduled_at DESC`,
       [userId]
@@ -240,18 +204,22 @@ router.get("/replays", authApiMiddleware, async (req, res) => {
  * POST /api/live/schedule — ADMIN ONLY
  */
 router.post("/schedule", requireAdmin, async (req, res) => {
-  const { courseId, offerId, title, description, startTime, startTimes, durationMinutes = 60, audienceStudentIds = null } = req.body;
-  const times = startTimes?.length > 0 ? startTimes : startTime ? [startTime] : [];
+  const { courseId, offerId, title, description, startTime, startTimes, durationMinutes = 60, audienceStudentIds = null } = req.body || {};
+  const dates = startTimes ?? (startTime ? [startTime] : []);
 
-  if (!courseId || !title || times.length === 0) {
+  if (!uuidPattern.test(courseId) || (offerId && !uuidPattern.test(offerId)) ||
+      typeof title !== "string" || !title.trim() || !Array.isArray(dates) ||
+      !dates.length || dates.length > 84 ||
+      dates.some(date => typeof date !== "string" || !Number.isFinite(Date.parse(date))) ||
+      !Number.isInteger(Number(durationMinutes)) || Number(durationMinutes) < 1) {
     return res.status(400).json({ error: "courseId, title, and at least one startTime are required" });
   }
+  const times = [...new Set(dates.map(date => new Date(date).toISOString()))].sort();
 
   try {
     let audience = null;
     if (audienceStudentIds !== null) {
-      if (!uuidPattern.test(courseId) || (offerId && !uuidPattern.test(offerId)) ||
-          !Array.isArray(audienceStudentIds) || !audienceStudentIds.length ||
+      if (!Array.isArray(audienceStudentIds) || !audienceStudentIds.length ||
           !audienceStudentIds.every(id => typeof id === "string" && uuidPattern.test(id))) {
         return res.status(400).json({ error: "Sélectionnez au moins un étudiant valide." });
       }
@@ -293,7 +261,7 @@ router.post("/schedule", requireAdmin, async (req, res) => {
     res.status(201).json({ success: true, sessions: result.rows });
   } catch (error) {
     console.error("Error scheduling live session:", error);
-    res.status(500).json({ error: error.message || "Failed to create session" });
+    res.status(500).json({ error: "Failed to create session" });
   }
 });
 
@@ -302,22 +270,55 @@ router.post("/schedule", requireAdmin, async (req, res) => {
  */
 router.delete("/:sessionId", requireAdmin, async (req, res) => {
   const { sessionId } = req.params;
+  const wholeSeries = req.query.series === "true";
+  if (!uuidPattern.test(sessionId)) return res.status(400).json({ error: "Séance invalide." });
+  let client;
   try {
-    const result = await pool.query(
-      `SELECT zoom_meeting_id FROM live_sessions WHERE id = $1`,
+    client = await pool.connect();
+    await client.query("BEGIN");
+    const result = await client.query(
+      "SELECT zoom_meeting_id FROM live_sessions WHERE id = $1",
       [sessionId]
     );
-    if (result.rowCount === 0) return res.status(404).json({ error: "Session not found" });
-
-    if (result.rows[0].zoom_meeting_id) {
-      await deleteZoomMeeting(result.rows[0].zoom_meeting_id);
+    if (!result.rowCount) {
+      await client.query("ROLLBACK");
+      return res.status(404).json({ error: "Session not found" });
     }
 
-    await pool.query(`DELETE FROM live_sessions WHERE id = $1`, [sessionId]);
-    res.json({ success: true });
+    const meetingId = result.rows[0].zoom_meeting_id;
+    await client.query("SELECT pg_advisory_xact_lock(hashtext($1))", [`zoom-cancel:${meetingId || sessionId}`]);
+    const current = await client.query("SELECT status FROM live_sessions WHERE id = $1", [sessionId]);
+    if (!wholeSeries && current.rows[0]?.status === "cancelled") {
+      await client.query("COMMIT");
+      return res.json({ success: true, cancelledIds: [sessionId] });
+    }
+    const siblings = meetingId ? await client.query(
+      `SELECT id FROM live_sessions WHERE zoom_meeting_id = $1 AND id <> $2 AND status <> 'cancelled'
+       AND scheduled_at + duration_minutes * INTERVAL '1 minute' > NOW()`,
+      [meetingId, sessionId]
+    ) : { rows: [] };
+
+    if (meetingId && (wholeSeries || !siblings.rows.length)) {
+      try {
+        await deleteZoomMeeting(meetingId);
+      } catch {
+        await client.query("ROLLBACK");
+        return res.status(502).json({ error: "Zoom n’a pas confirmé l’annulation. Réessayez." });
+      }
+    }
+
+    const cancelled = await client.query(
+      "UPDATE live_sessions SET status = 'cancelled' WHERE id = ANY($1::uuid[]) RETURNING id",
+      [wholeSeries ? [sessionId, ...siblings.rows.map(row => row.id)] : [sessionId]]
+    );
+    await client.query("COMMIT");
+    res.json({ success: true, cancelledIds: cancelled.rows.map(row => row.id) });
   } catch (error) {
-    console.error("Error deleting live session:", error);
+    if (client) await client.query("ROLLBACK").catch(() => {});
+    console.error("Error cancelling live session:", error.code);
     res.status(500).json({ error: "Failed to delete session" });
+  } finally {
+    client?.release();
   }
 });
 
@@ -397,9 +398,12 @@ router.post("/:sessionId/replay-upload-url", requireAdmin, async (req, res) => {
 router.get("/admin/sessions", requireAdmin, async (req, res) => {
   try {
     const result = await pool.query(
-      `SELECT ls.*, c.title AS course_title
+      `SELECT ls.id, ls.course_id, ls.offer_id, ls.title, ls.description, ls.scheduled_at,
+              ls.duration_minutes, ls.status, ls.zoom_meeting_id, ls.replay_url, ls.audience_student_ids,
+              ls.zoom_start_url IS NOT NULL AS has_host_link, c.title AS course_title
        FROM live_sessions ls
        JOIN courses c ON c.id = ls.course_id
+       WHERE ls.status <> 'cancelled'
        ORDER BY ls.scheduled_at DESC`
     );
 

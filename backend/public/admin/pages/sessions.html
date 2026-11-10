@@ -475,9 +475,13 @@ function renderCard(s, status) {
         ? `<span class="meta-chip badge-offer"><i class="fas fa-ticket-alt"></i> Offre requise</span>`
         : audienceCount ? '' : '<span class="meta-chip"><i class="fas fa-users"></i> Inscrits au cours</span>';
 
-    const hostBtn = s.zoom_start_url
-        ? `<a href="${s.zoom_start_url}" target="_blank" class="btn-host"><i class="fas fa-video"></i> Lancer (Hôte)</a>`
+    const hostBtn = s.has_host_link
+        ? `<a href="/admin/sessions/${encodeURIComponent(s.id)}/host" target="_blank" rel="noopener noreferrer" class="btn-host"><i class="fas fa-video"></i> Lancer (Hôte)</a>`
         : '<span class="meta-chip" style="color:#e53e3e"><i class="fas fa-exclamation"></i> Pas de lien Zoom</span>';
+    const hasUpcomingSibling = s.zoom_meeting_id && allSessions.some(other =>
+        other.id !== s.id && other.zoom_meeting_id === s.zoom_meeting_id &&
+        new Date(other.scheduled_at).getTime() + other.duration_minutes * 60000 > Date.now()
+    );
 
     return `
     <div class="session-card ${status}" id="card-${s.id}">
@@ -498,6 +502,7 @@ function renderCard(s, status) {
             <button class="btn-secondary" onclick="uploadSessionFiles('${s.id}')"><i class="fas fa-paperclip"></i> Ajouter des fichiers (${(s.resources || []).length})</button>
             ${status === 'completed' ? `<button class="btn-secondary" onclick="uploadReplay('${s.id}')"><i class="fas fa-cloud-upload-alt"></i> ${s.replay_url ? 'Remplacer le replay' : 'Téléverser le replay'}</button><button class="btn-secondary" onclick="updateReplay('${s.id}')"><i class="fas fa-link"></i> Lien externe</button>` : ''}
             ${status !== 'completed' ? `<button class="btn-danger" onclick="deleteSession('${s.id}')"><i class="fas fa-trash"></i></button>` : ''}
+            ${status !== 'completed' && hasUpcomingSibling ? `<button class="btn-secondary" onclick="deleteSession('${s.id}', true)">Annuler la série</button>` : ''}
         </div>
         ${(s.resources || []).length ? `<div class="session-resource-list"><strong>Fichiers de la séance</strong>${s.resources.map(resource => `<div class="session-resource-item"><span><i class="fas fa-file-code"></i> ${escT(resource.title || resource.file_name)}</span><button class="btn-danger" title="Supprimer le fichier" onclick="deleteSessionResource('${resource.id}')"><i class="fas fa-trash"></i></button></div>`).join('')}</div>` : ''}
     </div>`;
@@ -619,9 +624,9 @@ async function uploadReplay(sessionId) {
 // ── Load Offers & Courses for form dropdowns ──────────────────────────
 async function loadOffers() {
     try {
-        const res = await fetch(`${API}/api/offers`, { credentials: 'include' });
+        const res = await fetch(`${API}/api/admin/offers`, { credentials: 'include' });
         const data = await res.json();
-        allOffers = data.offers || [];
+        allOffers = data.data || [];
         const sel = document.getElementById('f-offer');
         allOffers.forEach(o => {
             const opt = document.createElement('option');
@@ -743,18 +748,18 @@ async function createSession() {
 }
 
 // ── Delete Session ─────────────────────────────────────────────────────
-async function deleteSession(sessionId) {
-    if (!confirm('Supprimer cette séance ? La réunion Zoom sera aussi annulée.')) return;
+async function deleteSession(sessionId, series = false) {
+    const message = series ? 'Annuler toutes les séances restantes de cette série ?' : 'Annuler cette séance ?';
+    if (!confirm(message)) return;
 
     try {
-        const res = await fetch(`${API}/api/live/${sessionId}`, {
+        const res = await fetch(`${API}/api/live/${sessionId}${series ? '?series=true' : ''}`, {
             method: 'DELETE',
             credentials: 'include',
         });
         if (!res.ok) { const d = await res.json(); throw new Error(d.error); }
-        showToast('Séance supprimée.', 'success');
-        allSessions = allSessions.filter(s => s.id !== sessionId);
-        renderSessions();
+        showToast(series ? 'Série annulée.' : 'Séance annulée.', 'success');
+        await loadSessions();
     } catch (e) {
         showToast(`Erreur: ${e.message}`, 'error');
     }

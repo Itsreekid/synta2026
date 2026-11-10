@@ -34,6 +34,7 @@ export async function getZoomAccessToken() {
     `https://zoom.us/oauth/token?grant_type=account_credentials&account_id=${ZOOM_ACCOUNT_ID}`,
     {
       method: 'POST',
+      signal: AbortSignal.timeout(10000),
       headers: {
         Authorization: `Basic ${credentials}`,
         'Content-Type': 'application/x-www-form-urlencoded',
@@ -42,8 +43,7 @@ export async function getZoomAccessToken() {
   );
 
   if (!response.ok) {
-    const body = await response.text();
-    throw new Error(`Zoom token request failed (${response.status}): ${body}`);
+    throw new Error(`Zoom token request failed (${response.status})`);
   }
 
   const data = await response.json();
@@ -70,6 +70,7 @@ export async function createZoomMeeting({ topic, startTime, durationMinutes, isR
 
   const response = await fetch('https://api.zoom.us/v2/users/me/meetings', {
     method: 'POST',
+    signal: AbortSignal.timeout(10000),
     headers: {
       Authorization: `Bearer ${token}`,
       'Content-Type': 'application/json',
@@ -92,8 +93,7 @@ export async function createZoomMeeting({ topic, startTime, durationMinutes, isR
   });
 
   if (!response.ok) {
-    const body = await response.text();
-    throw new Error(`Zoom meeting creation failed (${response.status}): ${body}`);
+    throw new Error(`Zoom meeting creation failed (${response.status})`);
   }
 
   const data = await response.json();
@@ -113,13 +113,15 @@ export async function createZoomMeeting({ topic, startTime, durationMinutes, isR
 export async function deleteZoomMeeting(meetingId) {
   const token = await getZoomAccessToken();
 
-  const response = await fetch(`https://api.zoom.us/v2/meetings/${meetingId}`, {
+  const response = await fetch(`https://api.zoom.us/v2/meetings/${encodeURIComponent(meetingId)}`, {
     method: 'DELETE',
+    signal: AbortSignal.timeout(10000),
     headers: { Authorization: `Bearer ${token}` },
   });
 
-  if (!response.ok && response.status !== 204) {
-    const body = await response.text();
-    console.warn(`[Zoom] Delete meeting ${meetingId} failed (${response.status}): ${body}`);
-  }
+  if (response.ok) return;
+  const problem = await response.json().catch(() => ({}));
+  // Zoom 3001 means the desired state was already reached, including after a retry.
+  if (response.status === 404 && problem.code === 3001) return;
+  throw new Error(`Zoom meeting cancellation failed (${response.status})`);
 }

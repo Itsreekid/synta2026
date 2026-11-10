@@ -6,6 +6,21 @@
     // =====================================================
 
     let authInitialized = true;
+    const french = document.documentElement.lang === 'fr';
+    const frenchErrors = {
+        'email, password, and name are required': 'Renseigne ton nom, ton adresse e-mail et ton mot de passe.',
+        'Password must be at least 6 characters': 'Choisis un mot de passe d’au moins 6 caractères.',
+        'An account with this email already exists': 'Un compte utilise déjà cette adresse. Connecte-toi ou utilise une autre adresse.',
+        'Internal server error': 'Le service est momentanément indisponible. Réessaie dans un instant.',
+        'Le mot de passe est trop long.': 'Ce mot de passe est trop long. Choisis un mot de passe plus court.',
+        'Vérifie ton nom et ton adresse e-mail.': 'Vérifie ton nom et ton adresse e-mail.',
+        'Indique un numéro tunisien valide de 8 chiffres.': 'Indique un numéro tunisien valide de 8 chiffres.',
+        'Choisis une année scolaire valide.': 'Choisis une année scolaire valide.',
+        'Choisis une section valide.': 'Choisis une section valide.',
+        'Invalid email or password': 'L’adresse e-mail ou le mot de passe est incorrect.',
+        'البريد الإلكتروني أو كلمة المرور غير صحيحة': 'L’adresse e-mail ou le mot de passe est incorrect.',
+        'يرجى التحقق من بريدك الإلكتروني لتفعيل حسابك قبل تسجيل الدخول.': 'Confirme ton adresse e-mail pour activer ton compte.',
+    };
     window._authInitialized = true;
 
     window.authLoading = {
@@ -35,7 +50,7 @@
     // --------------------------------------------------
     async function signUp(email, password, userData = {}) {
         if (window.authLoading.isRegistering) {
-            return { success: false, error: 'جاري التسجيل بالفعل، يرجى الانتظار...' };
+            return { success: false, message: french ? 'Création du compte en cours…' : 'جاري التسجيل بالفعل، يرجى الانتظار...' };
         }
         window.authLoading.isRegistering = true;
 
@@ -66,13 +81,15 @@
                 return {
                     success: false,
                     error: 'GENERAL_ERROR',
-                    message: arabicErrors[raw] || raw || 'حدث خطأ أثناء التسجيل'
+                    message: french
+                        ? response.status === 429 ? 'Trop de tentatives. Réessaie dans quelques minutes.' : frenchErrors[raw] || 'Impossible de créer ton compte. Réessaie dans un instant.'
+                        : arabicErrors[raw] || raw || 'حدث خطأ أثناء التسجيل'
                 };
             }
 
             return { success: true, user: data.user, message: 'تم إنشاء الحساب بنجاح!' };
         } catch (error) {
-            return { success: false, error: 'NETWORK_ERROR', message: 'خطأ في الاتصال بالخادم.' };
+            return { success: false, error: 'NETWORK_ERROR', message: french ? 'Connexion interrompue. Vérifie ton réseau et réessaie.' : 'خطأ في الاتصال بالخادم.' };
         } finally {
             window.authLoading.isRegistering = false;
         }
@@ -80,7 +97,7 @@
 
     async function signIn(email, password) {
         if (window.authLoading.isLoggingIn) {
-            return { success: false, error: 'جاري تسجيل الدخول بالفعل، يرجى الانتظار...' };
+            return { success: false, message: french ? 'Connexion en cours…' : 'جاري تسجيل الدخول بالفعل، يرجى الانتظار...' };
         }
         window.authLoading.isLoggingIn = true;
 
@@ -94,12 +111,18 @@
             const data = await response.json();
 
             if (!response.ok) {
-                return { success: false, error: 'INVALID_CREDENTIALS', message: data.error || 'البريد الإلكتروني أو كلمة المرور غير صحيحة.', unverified: data.unverified };
+                return {
+                    success: false, error: 'INVALID_CREDENTIALS',
+                    message: french
+                        ? response.status === 429 ? 'Trop de tentatives. Réessaie dans quelques minutes.' : frenchErrors[data.error] || 'La connexion a échoué. Vérifie tes informations et réessaie.'
+                        : data.error || 'البريد الإلكتروني أو كلمة المرور غير صحيحة.',
+                    unverified: data.unverified
+                };
             }
 
             return { success: true, user: data.user, message: 'تم تسجيل الدخول بنجاح!' };
         } catch (error) {
-            return { success: false, error: 'NETWORK_ERROR', message: 'خطأ في الاتصال بالخادم.' };
+            return { success: false, error: 'NETWORK_ERROR', message: french ? 'Connexion interrompue. Vérifie ton réseau et réessaie.' : 'خطأ في الاتصال بالخادم.' };
         } finally {
             window.authLoading.isLoggingIn = false;
         }

@@ -60,6 +60,8 @@ Two roles exist: `user` (student) and `admin`.
 | Student cannot log in until email is verified | ✅ | `auth-api.js` checks `email_verified` |
 | Student can resend verification email | ✅ | `POST /api/auth/resend-verification` |
 | Verification token expires in 24 hours | ✅ | `generateVerificationToken()` |
+| French signup separates account information and learning profile | ✅ | Two-step form. School year and section use existing schema values; independent learners use other/other. |
+| Profile selections and Tunisian phone numbers are validated on the server | ✅ | Shared learnerProfile validation for email signup and Google onboarding. |
 
 ### BR-03: Google Sign-In Registration
 | Behavior | Status | Evidence |
@@ -73,13 +75,13 @@ Two roles exist: `user` (student) and `admin`.
 ### BR-04: Placement Quiz Session (Onboarding Alternative)
 | Behavior | Status | Evidence |
 |----------|--------|----------|
-| Student can register for a placement quiz session | ✅ | `POST /api/session/register` |
+| Student can register for a placement quiz session | ✅ | `POST /api/session/register` returns the same generic response for valid addresses. A confirmation email enables the quiz for new users. Existing accounts use login. |
 | Returning students (same email) resume their session | ✅ | `session.js`: check existing |
 | Student submits answers to placement questions | ✅ | `POST /api/session/submit` |
 | Score determines tier: explorer (<50%), challenger (50-79%), elite (≥80%) | ✅ | `computeTier()` in `session.js` |
 | Perfect score → `group = 'advanced'`, otherwise `'beginner'` | ✅ | `session.js` |
-| Student sets password to activate account | ✅ | `POST /api/session/set-password` |
-| Session registrations are linked to `users` table via `auth_user_id` | ⚠️ | `session_registrations.auth_user_id` column exists but `set-password` does NOT update it after creating user |
+| Student sets password to activate account | ✅ | Requires email verification, completed quiz and a single activation. Existing user credentials are never overwritten. |
+| Session registrations are linked to `users` table via `auth_user_id` | ✅ | Activation sets the link and creates the verified account in one transaction. |
 
 > ❓ **NEEDS CLARIFICATION:** The `beginner`/`advanced` group assignment from the placement quiz currently has no effect on course access or live session access. Is this intentional?
 
@@ -166,6 +168,7 @@ Two roles exist: `user` (student) and `admin`.
 | Balance is checked atomically (FOR UPDATE lock) | ✅ | `purchase.js` |
 | Insufficient balance is rejected | ✅ | `purchase.js` |
 | Purchase creates enrollment and transaction record | ✅ | `purchase.js` |
+| Legacy enrollment cannot authorize a paid purchase | ✅ | Paid requests to `/api/enrollment/enroll` return 403. The wallet course endpoint ignores payment references and client prices. |
 | Course purchase requires a valid cookie JWT and uses the authenticated user's ID | ✅ | `purchase.js`: `authApiMiddleware`; `req.user.id` |
 
 ### BR-13: Offer Purchase (Balance Deduction)
@@ -173,6 +176,10 @@ Two roles exist: `user` (student) and `admin`.
 |----------|--------|----------|
 | Student can purchase an offer bundle at fixed price | ✅ | `POST /api/purchase/offer` |
 | Offer purchase enrolls in all associated courses | ✅ | `purchase.js` |
+| Repeated active offer purchases do not debit again | ✅ | User row lock, durable offer payment record and partial unique index. The authenticated user/offer pair is the idempotency key. Repeat requests return success with `alreadyPurchased`. |
+| Offer benefits are independent of course ownership | ✅ | Each new purchase or admin installment grant has its own `payments` row. Overlapping offers share a course enrollment. |
+| Legacy offer enrollments preserve existing access | ✅ | Active `enrollments.offer_id` remain a fallback unless an explicit revoked payment exists. Historical charges without reliable offer IDs require operator review. |
+| Offer sale dates do not expire purchased access | ✅ | Checkout enforces sale dates. Access follows active grant status and course enrollment expiry. Refund/cancellation operations must revoke the offer grant and evaluate course entitlement separately. |
 | Offer purchase requires a valid cookie JWT and uses the authenticated user's ID | ✅ | `purchase.js`: `authApiMiddleware`; `req.user.id` |
 
 ### BR-14: Partial / Installment Enrollment (Admin Only)
@@ -221,9 +228,11 @@ Two roles exist: `user` (student) and `admin`.
 | Course details live count matches the sessions shown to that enrolled student | ✅ | Count is derived from the authenticated course-session response; no random fallback |
 | Admin can add or clear a replay URL after teaching | ✅ | `PATCH /api/live/:sessionId/replay` |
 | `zoom_start_url` (host link) is never sent to students | ✅ | `live.js`: filtered from response |
+| Admin host launch uses a protected page redirect | ✅ | Admin session JSON exposes only host-link availability. `GET /admin/sessions/:sessionId/host` requires `requireAdmin`. |
 | Admin can schedule sessions (single or recurring) | ✅ | `POST /api/live/schedule` |
-| Recurring sessions share one Zoom meeting ID | ✅ | `createZoomMeeting({isRecurring})` |
-| Admin can delete sessions (also deletes from Zoom) | ✅ | `DELETE /api/live/:sessionId` |
+| Recurring sessions share one Zoom meeting ID | ✅ | Existing no-fixed-time recurring meetings retain their shared join link. |
+| Admin can cancel a date or the remaining series | ✅ | `DELETE /api/live/:sessionId` cancels one local occurrence. `?series=true` cancels the remaining dates sharing its Zoom ID. Cancelled rows and resources remain stored. |
+| Shared Zoom meetings remain available for other active dates | ✅ | Meeting-level transaction advisory lock. Zoom deletion is required only for the last active date or a series cancellation. Provider failure returns 502 before changing local state. |
 
 ### BR-18: Live Session Attendance
 | Behavior | Status | Evidence |

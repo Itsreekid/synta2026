@@ -2,6 +2,7 @@
 // OFFERS API ROUTES
 // =====================================================
 import express from "express";
+import { matchesOfferTarget, offerEntitlement } from "../utils/offerAccess.js";
 import pool from "../config/db.js";
 import { authMiddleware } from "../middleware/auth.js";
 
@@ -24,7 +25,7 @@ router.get("/", authMiddleware, async (req, res) => {
       userProfile = profileResult.rows[0] || null;
 
       const payResult = await pool.query(
-        `SELECT DISTINCT offer_id FROM enrollments WHERE user_id = $1 AND offer_id IS NOT NULL`,
+        `SELECT o.id AS offer_id FROM offers o WHERE ${offerEntitlement("$1", "o.id")}`,
         [userId]
       );
       purchasedOfferIds = payResult.rows.map((p) => p.offer_id).filter(Boolean);
@@ -46,19 +47,7 @@ router.get("/", authMiddleware, async (req, res) => {
        ORDER BY o.fixed_price ASC, o.created_at DESC`
     );
 
-    let offers = offersResult.rows;
-
-    offers = offers.filter((offer) => {
-      const targetClasses = offer.target_classes || [];
-      const targetBranches = offer.target_branches || [];
-      const classMatch = targetClasses.length === 0 || (
-        userProfile?.class && targetClasses.some(c => String(c).trim().toLowerCase() === userProfile.class.trim().toLowerCase())
-      );
-      const branchMatch = targetBranches.length === 0 || (
-        userProfile?.branch && targetBranches.some(b => String(b).trim().toLowerCase() === userProfile.branch.trim().toLowerCase())
-      );
-      return Boolean(classMatch && branchMatch);
-    });
+    const offers = offersResult.rows.filter(offer => matchesOfferTarget(offer, userProfile));
 
     const userBalance = userProfile?.balance || 0;
 

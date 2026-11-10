@@ -5,6 +5,8 @@
 // POST /api/auth/logout    — clear session cookies
 // =====================================================
 import express from "express";
+import { authRateLimit } from "../middleware/authRateLimit.js";
+import { normalizeTunisianPhone, validateLearnerProfile } from "../utils/learnerProfile.js";
 import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
 import pool from "../config/db.js";
@@ -40,16 +42,25 @@ function signRefreshToken(userId) {
  * The user gets a session cookie immediately but email_verified = false
  * until they click the link.
  */
-router.post("/api/auth/register", async (req, res) => {
+router.post("/api/auth/register", authRateLimit(10), async (req, res) => {
   try {
-    const { email, password, name, phone, class: userClass, branch } = req.body;
+    const { email, password, name, phone, class: userClass, branch } = req.body || {};
 
-    if (!email || !password || !name) {
+    if (![email, password, name].every(value => typeof value === "string" && value.trim())) {
       return res.status(400).json({ error: "email, password, and name are required" });
     }
     if (password.length < 6) {
       return res.status(400).json({ error: "Password must be at least 6 characters" });
     }
+
+    if (Buffer.byteLength(password) > 72) {
+      return res.status(400).json({ error: "Le mot de passe est trop long." });
+    }
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim()) || email.length > 254 || name.trim().length > 150) {
+      return res.status(400).json({ error: "Vérifie ton nom et ton adresse e-mail." });
+    }
+    const profileError = validateLearnerProfile({ phone, userClass, userBranch: branch }, false);
+    if (profileError) return res.status(400).json({ error: profileError });
 
     const existing = await pool.query("SELECT id FROM users WHERE email = $1", [
       email.toLowerCase().trim(),
@@ -74,9 +85,9 @@ router.post("/api/auth/register", async (req, res) => {
         email.toLowerCase().trim(),
         passwordHash,
         name.trim(),
-        phone?.trim()     || null,
-        userClass?.trim() || null,
-        branch?.trim()    || null,
+        normalizeTunisianPhone(phone) || null,
+        userClass || null,
+        branch || null,
         verificationToken,
         tokenExpiresAt,
       ]
@@ -104,7 +115,7 @@ router.post("/api/auth/register", async (req, res) => {
 /**
  * POST /api/auth/login
  */
-router.post("/api/auth/login", async (req, res) => {
+router.post("/api/auth/login", authRateLimit(30), async (req, res) => {
   try {
     const { email, password } = req.body;
 
@@ -159,7 +170,7 @@ router.post("/api/auth/logout", (req, res) => {
  * POST /api/auth/resend-verification
  * Resends the verification email for an unverified account.
  */
-router.post("/api/auth/resend-verification", async (req, res) => {
+router.post("/api/auth/resend-verification", authRateLimit(10), async (req, res) => {
   try {
     const { email } = req.body;
     if (!email) {

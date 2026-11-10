@@ -11,13 +11,14 @@ const router = express.Router();
  * POST /api/enrollment/enroll — PROTECTED
  */
 router.post("/enroll", authApiMiddleware, async (req, res) => {
-  const client = await pool.connect();
+  let client;
   try {
-    const { courseId, paymentId, amountPaid } = req.body;
+    const { courseId } = req.body;
     const userId = req.user.id;
 
     if (!courseId) return res.status(400).json({ error: "Course ID is required" });
 
+    client = await pool.connect();
     await client.query("BEGIN");
 
     const courseResult = await client.query(
@@ -39,25 +40,21 @@ router.post("/enroll", authApiMiddleware, async (req, res) => {
       return res.status(400).json({ error: "Already enrolled in this course" });
     }
 
-    if (!course.is_free && !paymentId) {
+    if (!course.is_free) {
       await client.query("ROLLBACK");
-      return res.status(400).json({ error: "Payment required for this course" });
+      return res.status(403).json({ error: "Achetez ce cours avec le solde de votre portefeuille." });
     }
 
     const enrollResult = await client.query(
-      `INSERT INTO enrollments (user_id, course_id, payment_id, amount_paid, enrolled_at)
-       VALUES ($1, $2, $3, $4, NOW()) RETURNING *`,
-      [userId, courseId, paymentId || null, amountPaid ?? course.price]
+      `INSERT INTO enrollments (user_id, course_id, amount_paid, enrolled_at)
+       VALUES ($1, $2, 0, NOW()) ON CONFLICT (user_id, course_id) DO NOTHING RETURNING *`,
+      [userId, courseId]
     );
 
-    if (!course.is_free) {
-      await client.query(
-        `INSERT INTO purchases (user_id, course_id, amount, payment_status, transaction_id, purchased_at, confirmed_at)
-         VALUES ($1, $2, $3, 'completed', $4, NOW(), NOW())`,
-        [userId, courseId, amountPaid ?? course.price, paymentId]
-      );
+    if (!enrollResult.rowCount) {
+      await client.query("ROLLBACK");
+      return res.status(409).json({ error: "Already enrolled in this course" });
     }
-
     await client.query("COMMIT");
 
     res.json({
@@ -66,11 +63,11 @@ router.post("/enroll", authApiMiddleware, async (req, res) => {
       message: `Successfully enrolled in ${course.title}`,
     });
   } catch (error) {
-    await client.query("ROLLBACK");
+    if (client) await client.query("ROLLBACK").catch(() => {});
     console.error("Error in enrollment:", error);
     res.status(500).json({ error: "Internal server error" });
   } finally {
-    client.release();
+    client?.release();
   }
 });
 
@@ -100,7 +97,7 @@ router.post("/free-enroll/:courseId", authApiMiddleware, async (req, res) => {
 
     await pool.query(
       `INSERT INTO enrollments (user_id, course_id, amount_paid, enrolled_at)
-       VALUES ($1, $2, 0, NOW())`,
+       VALUES ($1, $2, 0, NOW()) ON CONFLICT (user_id, course_id) DO NOTHING`,
       [userId, courseId]
     );
 

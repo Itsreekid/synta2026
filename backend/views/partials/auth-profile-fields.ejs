@@ -1,0 +1,42 @@
+<fieldset class="profile-choice">
+    <legend>Tu apprends dans quel cadre ?</legend>
+    <div class="choice-grid">
+        <label class="choice-card"><input type="radio" name="learnerType" value="school" checked><span><strong>Au lycée</strong><small>Un parcours selon mon niveau</small></span></label>
+        <label class="choice-card"><input type="radio" name="learnerType" value="independent"><span><strong>Autre parcours</strong><small>Études, projets ou curiosité</small></span></label>
+    </div>
+</fieldset>
+<div id="schoolFields" class="field-row">
+    <div class="form-group">
+        <label for="userClass">Année scolaire</label>
+        <select id="userClass" name="userClass" required aria-describedby="userClass-error">
+            <option value="">Choisir mon année</option>
+            <option value="1ere">1ère année secondaire</option>
+            <option value="2eme">2ème année secondaire</option>
+            <option value="3eme">3ème année secondaire</option>
+            <option value="bac">Baccalauréat</option>
+            <option value="other">Autre niveau</option>
+        </select>
+        <span class="field-error" id="userClass-error"></span>
+    </div>
+    <div class="form-group">
+        <label for="userBranch">Section</label>
+        <select id="userBranch" name="userBranch" required aria-describedby="section-hint userBranch-error">
+            <option value="">Choisir ma section</option>
+            <option value="informatique">Sciences de l’informatique</option>
+            <option value="mathematiques">Mathématiques</option>
+            <option value="sciences">Sciences expérimentales</option>
+            <option value="technique">Sciences techniques</option>
+            <option value="economie">Économie et gestion</option>
+            <option value="lettres">Lettres</option>
+            <option value="other">Tronc commun / autre</option>
+        </select>
+        <span class="field-error" id="userBranch-error"></span>
+    </div>
+</div>
+<p class="field-hint profile-hint" id="section-hint">Choisis ton niveau actuel pour retrouver les formations qui te correspondent.</p>
+<div class="form-group">
+    <label for="phone">Numéro de téléphone</label>
+    <div class="phone-input"><span aria-hidden="true">+216</span><input type="tel" id="phone" name="phone" inputmode="tel" autocomplete="tel-national" placeholder="20 123 456" required aria-describedby="phone-hint phone-error"></div>
+    <span class="field-hint" id="phone-hint">Un numéro tunisien de 8 chiffres.</span>
+    <span class="field-error" id="phone-error"></span>
+</div>

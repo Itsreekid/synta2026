@@ -15,6 +15,7 @@ import { fileURLToPath } from "url";
 import jwt from "jsonwebtoken";
 import pool from "../config/db.js";
 import { requireAuth } from "../middleware/requireAuth.js";
+import { requireAdmin } from "../middleware/requireAdmin.js";
 import { attachUserProfile } from "../middleware/attachUserProfile.js";
 
 const router = express.Router();
@@ -59,6 +60,22 @@ router.get("/pages/auth/register.html", (req, res) => res.redirect(301, "/regist
 router.get("/admin",                (req, res) => res.redirect(301, "/admin/login.html"));
 router.get("/admin/login",          (req, res) => res.redirect(301, "/admin/login.html"));
 router.get("/admin/dashboard",      (req, res) => res.redirect(301, "/admin/dashboard.html"));
+
+router.get("/admin/sessions/:sessionId/host", requireAdmin, async (req, res, next) => {
+  try {
+    const result = await pool.query(
+      "SELECT zoom_start_url FROM live_sessions WHERE id = $1 AND status <> 'cancelled'",
+      [req.params.sessionId]
+    );
+    const hostUrl = result.rows[0]?.zoom_start_url;
+    if (!hostUrl) return res.sendStatus(404);
+    res.set("Cache-Control", "no-store");
+    res.set("Referrer-Policy", "no-referrer");
+    return res.redirect(303, hostUrl);
+  } catch (error) {
+    return next(error);
+  }
+});
 
 
 router.get("/accueil", (req, res) => {
@@ -171,7 +188,7 @@ router.get("/auth/verify-email", async (req, res) => {
   const token = req.query.token;
 
   if (!token) {
-    return renderPage(res, "pages/auth/verify-email", { status: "error", message: "رابط التحقق مفقود." });
+    return renderPage(res, "pages/auth/verify-email", { status: "error", message: "Ce lien de confirmation est incomplet." });
   }
 
   try {
@@ -181,17 +198,17 @@ router.get("/auth/verify-email", async (req, res) => {
     );
 
     if (result.rowCount === 0) {
-      return renderPage(res, "pages/auth/verify-email", { status: "error", message: "رابط التحقق غير صالح." });
+      return renderPage(res, "pages/auth/verify-email", { status: "error", message: "Ce lien de confirmation est invalide ou a déjà été utilisé." });
     }
 
     const user = result.rows[0];
 
     if (user.email_verified) {
-      return renderPage(res, "pages/auth/verify-email", { status: "success", message: "تم تأكيد بريدك الإلكتروني مسبقاً!" });
+      return renderPage(res, "pages/auth/verify-email", { status: "success", message: "Ton adresse e-mail est déjà confirmée. Tu peux te connecter." });
     }
 
     if (new Date() > new Date(user.token_expires_at)) {
-      return renderPage(res, "pages/auth/verify-email", { status: "error", message: "انتهت صلاحية رابط التحقق. يرجى طلب رابط جديد." });
+      return renderPage(res, "pages/auth/verify-email", { status: "error", message: "Ce lien a expiré. Demande un nouveau lien depuis la connexion." });
     }
 
     await pool.query(
@@ -199,10 +216,10 @@ router.get("/auth/verify-email", async (req, res) => {
       [user.id]
     );
 
-    return renderPage(res, "pages/auth/verify-email", { status: "success", message: "تم تأكيد بريدك الإلكتروني بنجاح!" });
+    return renderPage(res, "pages/auth/verify-email", { status: "success", message: "Ton adresse e-mail est confirmée. Connecte-toi pour découvrir tes formations." });
   } catch (err) {
     console.error("[verify-email] Route error:", err.message);
-    return renderPage(res, "pages/auth/verify-email", { status: "error", message: "حدث خطأ غير متوقع. يرجى المحاولة مرة أخرى." });
+    return renderPage(res, "pages/auth/verify-email", { status: "error", message: "La confirmation a été interrompue. Réessaie dans un instant." });
   }
 });
 

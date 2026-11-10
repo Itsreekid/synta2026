@@ -4,6 +4,7 @@ import { requireAdmin } from "../middleware/requireAdmin.js";
 import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
 import { createR2UploadUrl, deleteFromR2 } from "../utils/r2Utils.js";
+import { offerEntitlement } from "../utils/offerAccess.js";
 
 const router = express.Router();
 const SALT_ROUNDS = 12;
@@ -156,11 +157,16 @@ router.get("/api/admin/students", requireAdmin, async (req, res) => {
 router.post("/api/admin/change-student-password", requireAdmin, async (req, res) => {
   try {
     const { studentId, newPassword } = req.body;
-    if (!studentId || !newPassword || newPassword.length < 6) {
+    if (!studentId || typeof newPassword !== "string" || newPassword.length < 6 || Buffer.byteLength(newPassword) > 72) {
       return res.status(400).json({ success: false, error: "Invalid parameters" });
     }
     const hash = await bcrypt.hash(newPassword, SALT_ROUNDS);
-    await pool.query(`UPDATE users SET password_hash = $1 WHERE id = $2 AND role = 'user'`, [hash, studentId]);
+    const result = await pool.query(
+      `UPDATE users SET password_hash = $1, verification_token = NULL, token_expires_at = NULL,
+                       updated_at = NOW()
+       WHERE id = $2 AND role = 'user'`, [hash, studentId]
+    );
+    if (!result.rowCount) return res.status(404).json({ success: false, error: "Student not found" });
     return res.json({ success: true });
   } catch (err) {
     console.error("Error changing password:", err.message);
@@ -190,10 +196,7 @@ router.get("/api/admin/student/:id", requireAdmin, async (req, res) => {
     if (studentRes.rowCount === 0) return res.status(404).json({ success: false, error: "Student not found" });
 
     const offersRes = await pool.query(
-      `SELECT o.id, o.title, e.enrolled_at 
-       FROM enrollments e 
-       JOIN offers o ON e.offer_id = o.id 
-       WHERE e.user_id = $1`, 
+      `SELECT o.id, o.title FROM offers o WHERE ${offerEntitlement("$1", "o.id")}`,
       [req.params.id]
     );
 
@@ -280,12 +283,24 @@ router.post("/api/admin/student/:id/enroll-partial", requireAdmin, async (req, r
     const price = parseFloat(offer.fixed_price || 0);
     const paid = parseFloat(amountPaid);
 
-    if (paid < 0 || paid > price) {
+    const courseIds = (offer.course_ids || []).filter(Boolean);
+    if (!courseIds.length || !Number.isFinite(paid) || !Number.isFinite(price) || paid < 0 || paid > price) {
       await client.query("ROLLBACK");
       return res.status(400).json({ success: false, error: "Invalid amount paid" });
     }
 
     const userResult = await client.query(`SELECT balance FROM users WHERE id = $1 FOR UPDATE`, [userId]);
+    if (!userResult.rowCount) {
+      await client.query("ROLLBACK");
+      return res.status(404).json({ success: false, error: "Student not found" });
+    }
+    const owned = await client.query(
+      `SELECT ${offerEntitlement("$1", "$2")} AS owned`, [userId, offerId]
+    );
+    if (owned.rows[0].owned) {
+      await client.query("ROLLBACK");
+      return res.status(409).json({ success: false, error: "Cet étudiant a déjà accès à cette offre." });
+    }
     const balance = parseFloat(userResult.rows[0].balance || 0);
 
     const debtAmount = price - paid;
@@ -305,10 +320,15 @@ router.post("/api/admin/student/:id/enroll-partial", requireAdmin, async (req, r
       [userId, paid, isExternal ? `Paiement externe partiel (Tranche) pour l'offre: ${offer.title}` : `Paiement partiel (Tranche) pour l'offre: ${offer.title}`]
     );
 
-    const courseIds = (offer.course_ids || []).filter(Boolean);
+    await client.query(
+      `INSERT INTO payments (user_id, offer_id, amount, status)
+       VALUES ($1, $2, $3, 'admin_authorized')`, [userId, offerId, paid]
+    );
     for (const courseId of courseIds) {
       await client.query(
-        `INSERT INTO enrollments (user_id, course_id, amount_paid, offer_id, enrolled_at) VALUES ($1, $2, 0, $3, NOW()) ON CONFLICT (user_id, course_id) DO NOTHING`,
+        `INSERT INTO enrollments (user_id, course_id, amount_paid, offer_id, enrolled_at)
+         VALUES ($1, $2, 0, $3, NOW()) ON CONFLICT (user_id, course_id) DO UPDATE
+         SET expires_at = NULL, offer_id = EXCLUDED.offer_id WHERE enrollments.expires_at <= NOW()`,
         [userId, courseId, offerId]
       );
     }
@@ -447,9 +467,9 @@ router.post("/api/admin/courses", requireAdmin, async (req, res) => {
         // Retroactively enroll users who bought this offer
         await pool.query(
           `INSERT INTO enrollments (user_id, course_id, amount_paid, offer_id, enrolled_at)
-           SELECT DISTINCT user_id, $1::uuid, 0, $2::uuid, NOW()
-           FROM enrollments
-           WHERE offer_id = $2
+           SELECT u.id, $1::uuid, 0, $2::uuid, NOW()
+           FROM users u
+           WHERE ${offerEntitlement("u.id", "$2")}
            ON CONFLICT (user_id, course_id) DO NOTHING`,
           [courseId, oid]
         );

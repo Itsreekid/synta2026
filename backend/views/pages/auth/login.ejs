@@ -1,111 +1,40 @@
 <!DOCTYPE html>
-<html lang="ar" dir="rtl">
+<html lang="fr" dir="ltr">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-    <title>Synta Academy - تسجيل الدخول</title>
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700&display=swap" rel="stylesheet">
-    <link rel="icon" href="/source/logoweb.png" type="image/x-icon">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
-    <link rel="stylesheet" href="/css/auth.css?v=6">
-    <script id="__SYNTA_CONFIG__">
-        window.__SYNTA_CONFIG__ = {
-            supabaseUrl: "<%- (typeof syntaConfig !== 'undefined' && syntaConfig.url) ? syntaConfig.url : '' %>",
-            supabaseAnonKey: "<%- (typeof syntaConfig !== 'undefined' && syntaConfig.anonKey) ? syntaConfig.anonKey : '' %>"
-        };
-    </script>
-    <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
-    <script src="https://accounts.google.com/gsi/client" async defer></script>
+    <%- include('../../partials/auth-head', { title: 'Connexion' }) %>
+    <% if (googleClientId) { %><script src="https://accounts.google.com/gsi/client?hl=fr" async></script><% } %>
 </head>
-<body class="auth-page auth-page--login">
-    <section class="auth-section">
-        <div class="container">
-            <div class="auth-container">
-                <div class="auth-image" aria-hidden="true">
-                    <div class="dynamic-auth-bg">
-                        <div class="bubble bubble-1"></div>
-                        <div class="bubble bubble-2"></div>
-                        <div class="bubble bubble-3"></div>
-                        <div class="bubble bubble-4"></div>
-                        <div class="bubble bubble-5"></div>
-                        <div class="streak streak-1"></div>
-                        <div class="streak streak-2"></div>
-                        <div class="streak streak-3"></div>
-                        <div class="streak streak-4"></div>
-                        <div class="streak streak-5"></div>
-                        <div class="streak streak-6"></div>
-                        <div class="streak streak-7"></div>
-                        <div class="streak streak-8"></div>
-                        <div class="rocket-glow"></div>
-                        <div class="rocket-container">
-                            <img src="/source/rocket.svg" alt="" class="rocket-svg">
-                        </div>
-                        <div class="logo-bubble-wrapper">
-                            <img src="/source/logo.png" alt="Synta Academy" class="logo-bubble">
-                        </div>
-                    </div>
-                </div>
-
-                <div class="auth-form auth-form--centered" id="loginFormPanel">
-                    <div class="auth-brand-mobile">
-                        <img src="/source/logo.png" alt="Synta Academy">
-                    </div>
-                    <h2>تسجيل الدخول</h2>
-                    <p>ليس لديك حساب؟ <a href="/register">إنشاء حساب جديد</a></p>
-                    <div id="authMessageMount" class="auth-message-mount" aria-live="polite"></div>
-
-                    <form id="loginForm" method="POST" novalidate>
-                        <div class="form-group">
-                            <label for="email">البريد الإلكتروني</label>
-                            <input type="email" id="email" name="email" autocomplete="email" inputmode="email" required>
-                        </div>
-                        <div class="form-group">
-                            <label for="password">كلمة المرور</label>
-                            <div class="password-input-wrapper">
-                                <input type="password" id="password" name="password" autocomplete="current-password" required>
-                                <i class="fas fa-eye toggle-password" id="togglePassword" role="button" tabindex="0" aria-label="إظهار كلمة المرور"></i>
-                            </div>
-                        </div>
-                        <div class="form-group form-group--inline">
-                            <a href="/password-reset" class="forgot-password">نسيت كلمة المرور؟</a>
-                        </div>
-                        <button type="submit" id="loginSubmitBtn" class="btn primary-btn btn-block">تسجيل الدخول</button>
+<body class="auth-entry">
+    <a class="skip-link" href="#auth-content">Aller à la connexion</a>
+    <div class="auth-layout">
+        <%- include('../../partials/auth-story') %>
+        <main class="auth-main" id="auth-content">
+            <header class="auth-topbar"><a class="mobile-brand brand" href="/"><span class="brand-mark" aria-hidden="true">s.</span><span>synta<span class="brand-academy">academy</span></span></a><a class="back-home" href="/">↖ Retour à l’accueil</a><span class="topbar-note">Ton espace d’apprentissage</span></header>
+            <div class="auth-card">
+                <nav class="auth-tabs" aria-label="Accès à ton compte"><a href="/login" aria-current="page">Connexion</a><a href="/register" data-auth-link>Inscription</a></nav>
+                <div id="authMessageMount" aria-live="polite" aria-atomic="true"></div>
+                <section id="loginFormPanel">
+                    <div class="form-intro"><span class="eyebrow">Heureux de te retrouver</span><h1>On reprend ?</h1><p>Connecte-toi et continue à faire des progrès.</p></div>
+                    <div class="google-signin-container"><div id="googleSignInBtn" data-client-id="<%= googleClientId || '' %>" data-button-text="continue_with"></div></div>
+                    <div class="divider"><span>ou avec ton e-mail</span></div>
+                    <form id="loginForm" method="post" novalidate>
+                        <div class="form-group"><label for="email">Adresse e-mail</label><input type="email" id="email" name="email" autocomplete="username" inputmode="email" autocapitalize="none" spellcheck="false" placeholder="toi@exemple.com" required aria-describedby="email-error"><span class="field-error" id="email-error"></span></div>
+                        <div class="form-group"><div class="label-row"><label for="password">Mot de passe</label><a href="/password-reset">Mot de passe oublié ?</a></div><div class="password-input"><input type="password" id="password" name="password" autocomplete="current-password" placeholder="Ton mot de passe" required aria-describedby="password-error"><button class="password-toggle" type="button" aria-label="Afficher le mot de passe" aria-pressed="false">Afficher</button></div><span class="field-error" id="password-error"></span></div>
+                        <button type="submit" class="button button-primary" id="loginSubmitBtn" data-idle="Me connecter">Me connecter <span aria-hidden="true">↗</span></button>
                     </form>
-
-                    <div class="social-divider"><span>أو</span></div>
-
-                    <div id="google-signin-container" class="google-signin-container">
-                        <div id="googleSignInBtn" data-client-id="<%= googleClientId || '' %>" data-button-text="signin_with"></div>
-                    </div>
-                </div>
-
-                <div id="unverifiedState" class="auth-form auth-form--status auth-form--centered" hidden>
-                    <div class="auth-status-card">
-                        <div class="auth-status-icon warn"><i class="fas fa-exclamation-circle"></i></div>
-                        <h2>حساب غير مفعل</h2>
-                        <p>
-                            لقد أرسلنا رابط التفعيل إلى بريدك الإلكتروني:<br>
-                            <strong id="unverifiedEmailDisplay" class="auth-email-highlight"></strong>
-                        </p>
-                        <p class="auth-status-hint">فعّل حسابك من الرابط في البريد، ثم عد لتسجيل الدخول. تحقّق أيضاً من Spam.</p>
-
-                        <button type="button" id="resendVerificationBtnLogin" class="btn secondary-outline-btn btn-block">
-                            <i class="fas fa-redo" aria-hidden="true"></i>
-                            إعادة إرسال بريد التفعيل
-                        </button>
-                        <p id="resendMessageLogin" class="auth-inline-feedback" hidden></p>
-
-                        <a href="/login" class="auth-back-link">العودة لتسجيل الدخول</a>
-                    </div>
-                </div>
+                    <p class="form-switch">Tu découvres Synta ? <a href="/register" data-auth-link>Créer mon compte</a></p>
+                </section>
+                <section id="unverifiedState" class="status-panel" hidden tabindex="-1">
+                    <div class="status-icon" aria-hidden="true">✉</div><h1>Un dernier clic.</h1><p>Confirme ton adresse avec le lien envoyé à <strong id="unverifiedEmailDisplay"></strong>.</p><p class="field-hint">Pense à regarder dans les courriers indésirables.</p>
+                    <button type="button" class="button button-primary" id="resendVerificationBtnLogin">Renvoyer le lien</button><p id="resendMessageLogin" class="inline-status" role="status"></p><button type="button" class="text-button" data-return-login>Revenir à la connexion</button>
+                </section>
+                <noscript><p class="message error">Active JavaScript pour te connecter à ton compte.</p></noscript>
             </div>
-        </div>
-    </section>
-
-    <script src="/js/authentication.js"></script>
-    <script src="/js/auth.js?v=5"></script>
-    <script src="/js/google-auth.js?v=5"></script>
+            <footer class="auth-footer"><span>Un peu de curiosité. Beaucoup de possibilités.</span><a href="mailto:contact@syntaacademy.tn">Besoin d’aide ?</a></footer>
+        </main>
+    </div>
+    <script src="/js/authentication.js?v=3" defer></script>
+    <script src="/js/auth-entry.js?v=1" defer></script>
+    <script src="/js/google-auth.js?v=6" defer></script>
 </body>
 </html>

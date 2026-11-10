@@ -47,6 +47,24 @@ NODE_ENV=production
 
 Set `GOOGLE_CLIENT_ID` in the Coolify app's runtime environment to the Google OAuth **Web application** client ID. The same ID is rendered into the login and registration pages and used to verify the returned token. In Google Cloud, add each production origin that actually serves those pages under **Authorized JavaScript origins**. Add the matching full URL ending in `/api/auth/google/callback` under **Authorized redirect URIs** for iPhone and iPad. The origin and callback must use the same hostname the learner sees, including `www` if applicable. The Google schema migration runs during the normal Coolify deploy.
 
+### Security remediation rollout
+
+1. Use an isolated staging app and test database. Run `npm test` inside `backend/`. Tests use synthetic accounts and external-service doubles. Validate migration and concurrency against staging PostgreSQL with separate connections before release.
+2. Verify runtime `JWT_SECRET`, `RESEND_API_KEY` and `APP_URL`. Use at least 32 random bytes for the JWT signing secret. `APP_URL` must be the canonical HTTPS origin used by learners opening placement email links. Verify the Resend sender domain.
+3. Set `TRUST_PROXY_HOPS` to the exact number of trusted proxy hops reaching Express. Its default is zero. Avoid direct public access to Express when trusting proxy headers. Current authentication limits are per process; multiple replicas need a shared limiter.
+4. On an authorized release, back up PostgreSQL and deploy the image with migration `202611100003_unique_active_offer_payments.sql`. It adds a partial unique index using existing columns, preserves historical rows and runs before app startup. Replace all older application instances together so they cannot continue using the insecure checkout and activation paths.
+5. Test a new placement signup, email confirmation, quiz and activation. Confirm an existing account retains its password, repeated/expired links fail, and ordinary login and Google login still work. Older UUID-only placement sessions must restart using an email link.
+6. Test wallet-funded course checkout, simultaneous same-offer requests, overlapping offers and a declined purchase. Verify database balance, ledger rows, independent offer grants and live/replay access. Admin installment enrollment should create one `admin_authorized` grant.
+7. Cancel one recurring date and verify another date still opens. Cancel the remaining series. Simulate a Zoom timeout and retry after a provider deletion followed by an interrupted database commit. Look for sustained 429, 409, 500 or 502 responses and email delivery failures.
+
+The existing Zoom meeting type is recurring without fixed times and has no stored occurrence IDs. Cancelling one Synta date hides that date and preserves the shared meeting for other dates. Previously shared join links remain usable while that meeting exists. The admin host button now uses an authenticated page redirect; raw host URLs are omitted from API JSON.
+
+Historical overlapping purchases may lack a reliable offer identifier. Review them against operator records before issuing compensating grants or refunds. No automatic historical balance changes are included. Refunded, cancelled or expired grants must use the matching payment status; review course enrollment expiry separately when other valid offers share a course.
+
+Existing access JWTs remain valid until expiry after a password change. An approved `JWT_SECRET` rotation invalidates sessions and pending placement links if incident review requires it. Expired course enrollments and ongoing offer grants require an operator decision for renewal; duplicate checkout does not charge for an automatic renewal.
+
+Retain the new payment records and migration during rollback. An older application image loses the independent offer-grant behavior and restores the vulnerabilities. Prefer a forward patch or a maintenance window over serving that image to learners.
+
 ### Deployment checks
 
 - [ ] Required environment variables set in Coolify

@@ -2,6 +2,8 @@
 // USER API ROUTES
 // =====================================================
 import express from "express";
+import { liveSessionAccess } from "../utils/offerAccess.js";
+import { normalizeTunisianPhone, validateLearnerProfile } from "../utils/learnerProfile.js";
 import pool from "../config/db.js";
 import { authApiMiddleware } from "../middleware/requireAuth.js";
 
@@ -128,27 +130,10 @@ router.put("/api/user/me", authApiMiddleware, async (req, res) => {
 router.post("/api/auth/complete-profile", authApiMiddleware, async (req, res) => {
   try {
     const userId = req.user.id;
-    const { phone, user_class, user_branch } = req.body;
+    const { phone, user_class, user_branch } = req.body || {};
 
-    // --- Validate ---
-    if (!phone || !user_class || !user_branch) {
-      return res.status(400).json({ error: "يرجى ملء جميع الحقول المطلوبة" });
-    }
-
-    const phoneDigits = phone.replace(/[^0-9]/g, "");
-    if (phoneDigits.length < 8 || !/[1-9]/.test(phoneDigits)) {
-      return res.status(400).json({ error: "يرجى إدخال رقم هاتف تونسي صحيح (8 أرقام)" });
-    }
-
-    const allowedClasses  = ["1ere", "2eme", "3eme", "bac", "other"];
-    const allowedBranches = ["lettres", "mathematiques", "informatique", "sciences", "technique", "economie", "other"];
-
-    if (!allowedClasses.includes(user_class)) {
-      return res.status(400).json({ error: "المستوى الدراسي غير صحيح" });
-    }
-    if (!allowedBranches.includes(user_branch)) {
-      return res.status(400).json({ error: "الفرع غير صحيح" });
-    }
+    const profileError = validateLearnerProfile({ phone, userClass: user_class, userBranch: user_branch });
+    if (profileError) return res.status(400).json({ error: profileError });
 
     // --- Persist ---
     await pool.query(
@@ -158,7 +143,7 @@ router.post("/api/auth/complete-profile", authApiMiddleware, async (req, res) =>
               branch     = $3,
               updated_at = NOW()
         WHERE id = $4`,
-      [phone.trim(), user_class, user_branch, userId]
+      [normalizeTunisianPhone(phone), user_class, user_branch, userId]
     );
 
     console.log("[complete-profile] Profile completed for user:", userId);
@@ -301,7 +286,7 @@ router.get("/api/user/transactions", authApiMiddleware, async (req, res) => {
 router.post("/api/user/transactions", authApiMiddleware, async (req, res) => {
   try {
     const userId = req.user.id;
-    const { amount, type, status, payment_method, transaction_code, description, receipt_url } = req.body;
+    const { amount, payment_method, transaction_code, description, receipt_url } = req.body;
 
     if (!amount || isNaN(amount) || amount <= 0) {
       return res.status(400).json({ error: "Invalid amount" });
@@ -344,13 +329,11 @@ router.post("/api/user/transactions", authApiMiddleware, async (req, res) => {
     const result = await pool.query(
       `INSERT INTO transactions
          (user_id, amount, type, status, payment_method, transaction_code, description, created_at, receipt_url)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, NOW(), $8)
+       VALUES ($1, $2, 'deposit', 'pending', $3, $4, $5, NOW(), $6)
        RETURNING *`,
       [
         userId,
         parseFloat(amount),
-        type || "deposit",
-        status || "pending",
         payment_method || "En attente de confirmation",
         transaction_code || ("TXN-" + Date.now()),
         description || "Demande de dépôt",
@@ -389,47 +372,24 @@ router.get("/api/events", authApiMiddleware, async (req, res) => {
 
     let liveEvents = [];
     if (userId) {
-      const enrollResult = await pool.query(
-        `SELECT course_id, offer_id FROM enrollments
-         WHERE user_id = $1 AND (expires_at IS NULL OR expires_at > NOW())`,
+      const sessionResult = await pool.query(
+        `SELECT ls.id, ls.title, ls.description, ls.scheduled_at, ls.zoom_join_url
+         FROM live_sessions ls
+         WHERE ls.scheduled_at >= NOW() AND ${liveSessionAccess("$1")}`,
         [userId]
       );
-
-      if (enrollResult.rowCount > 0) {
-        const enrolledCourseIds = enrollResult.rows.map((e) => e.course_id);
-        const offerMap = {};
-        for (const e of enrollResult.rows) {
-          if (!offerMap[e.course_id]) offerMap[e.course_id] = new Set();
-          if (e.offer_id) offerMap[e.course_id].add(e.offer_id);
-        }
-
-        const sessionResult = await pool.query(
-          `SELECT ls.id, ls.title, ls.description, ls.scheduled_at, ls.duration_minutes,
-                  ls.offer_id, ls.zoom_join_url, ls.course_id
-           FROM live_sessions ls
-           WHERE ls.course_id = ANY($1)
-             AND (ls.audience_student_ids IS NULL OR $2 = ANY(ls.audience_student_ids))
-             AND ls.scheduled_at >= NOW()`,
-          [enrolledCourseIds, userId]
-        );
-
-        const accessible = sessionResult.rows.filter(
-          (s) => !s.offer_id || (offerMap[s.course_id]?.has(s.offer_id) ?? false)
-        );
-
-        liveEvents = accessible.map((s) => {
-          const d = new Date(s.scheduled_at);
-          return {
-            id: s.id,
-            date: d.toISOString().split("T")[0],
-            time: d.toTimeString().substring(0, 5),
-            title: s.title,
-            description: s.description || "Séance en direct sur Zoom",
-            icon: "🎥",
-            zoomLink: s.zoom_join_url,
-          };
-        });
-      }
+      liveEvents = sessionResult.rows.map((s) => {
+        const d = new Date(s.scheduled_at);
+        return {
+          id: s.id,
+          date: d.toISOString().split("T")[0],
+          time: d.toTimeString().substring(0, 5),
+          title: s.title,
+          description: s.description || "Séance en direct sur Zoom",
+          icon: "🎥",
+          zoomLink: s.zoom_join_url,
+        };
+      });
     }
 
     const allEvents = [...filteredStatic, ...liveEvents].sort(

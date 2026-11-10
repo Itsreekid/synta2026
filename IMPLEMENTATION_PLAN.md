@@ -108,9 +108,9 @@
 
 ### TASK-007: Fix session_registrations → users Linkage
 - **Priority:** HIGH  
-- **Status:** NOT STARTED
+- **Status:** COMPLETED 2026-11-10
 - **Objective:** Link placement quiz registrations to created user accounts
-- **Current situation:** `session_registrations.auth_user_id` column exists but `POST /api/session/set-password` creates the user and does NOT update `auth_user_id` on the registration record.
+- **Current situation:** Verified placement activation creates the account, links `auth_user_id` and consumes activation in a transaction. Existing credentials are never replaced.
 - **Required changes:**
   1. After user upsert in `set-password`, run `UPDATE session_registrations SET auth_user_id = $1 WHERE id = $2`
 - **Dependencies:** None

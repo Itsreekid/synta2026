@@ -12,14 +12,14 @@
 
     const clientId = button.dataset.clientId;
     if (!clientId) {
-        status.textContent = 'تسجيل الدخول بـ Google غير متاح حالياً. يمكنك المتابعة بالبريد الإلكتروني.';
+        status.textContent = 'La connexion Google est indisponible. Continue avec ton e-mail.';
         return;
     }
 
     async function handleCredential({ credential } = {}) {
         if (!credential || button.inert) return;
         button.inert = true;
-        status.textContent = 'جارٍ تسجيل الدخول…';
+        status.textContent = 'Connexion en cours…';
 
         try {
             const response = await fetch('/api/auth/google', {
@@ -29,13 +29,13 @@
             });
             const result = await response.json().catch(() => ({}));
             if (!response.ok || !result.success) {
-                status.textContent = result.error || 'تعذّر تسجيل الدخول بـ Google. حاول مجدداً.';
+                status.textContent = 'La connexion Google n’a pas abouti. Réessaie ou continue avec ton e-mail.';
                 button.inert = false;
                 return;
             }
             window.location.assign(result.needsOnboarding ? '/auth/complete-profile' : '/dashboard');
         } catch {
-            status.textContent = 'تعذّر تسجيل الدخول بـ Google. حاول مجدداً.';
+            status.textContent = 'Connexion interrompue. Réessaie dans un instant.';
             button.inert = false;
         }
     }
@@ -45,7 +45,7 @@
         const accounts = window.google?.accounts?.id;
         if (!accounts) {
             if (Date.now() < deadline) return setTimeout(renderWhenReady, 200);
-            status.textContent = 'تعذّر تحميل تسجيل الدخول بـ Google. حدّث الصفحة أو تابع بالبريد الإلكتروني.';
+            status.textContent = 'Google n’a pas pu se charger. Tu peux continuer avec ton e-mail.';
             return;
         }
 
@@ -62,7 +62,7 @@
             theme: 'outline',
             size: 'large',
             text: button.dataset.buttonText,
-            locale: 'ar',
+            locale: 'fr',
             width: Math.min(button.parentElement.clientWidth || 280, 400),
         });
     }

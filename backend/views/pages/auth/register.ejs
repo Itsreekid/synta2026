@@ -1,163 +1,50 @@
 <!DOCTYPE html>
-<html lang="ar" dir="rtl">
+<html lang="fr" dir="ltr">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-    <title>Synta Academy - إنشاء حساب</title>
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700&display=swap" rel="stylesheet">
-    <link rel="icon" href="/source/logoweb.png" type="image/x-icon">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
-    <link rel="stylesheet" href="/css/auth.css?v=6">
-    <script id="__SYNTA_CONFIG__">
-        window.__SYNTA_CONFIG__ = {
-            supabaseUrl: "<%- (typeof syntaConfig !== 'undefined' && syntaConfig.url) ? syntaConfig.url : '' %>",
-            supabaseAnonKey: "<%- (typeof syntaConfig !== 'undefined' && syntaConfig.anonKey) ? syntaConfig.anonKey : '' %>"
-        };
-    </script>
-    <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
-    <script src="https://accounts.google.com/gsi/client" async defer></script>
+    <%- include('../../partials/auth-head', { title: 'Créer mon compte' }) %>
+    <% if (googleClientId) { %><script src="https://accounts.google.com/gsi/client?hl=fr" async></script><% } %>
 </head>
-<body class="auth-page auth-page--register">
-    <section class="auth-section">
-        <div class="container">
-            <div class="auth-container auth-container--register">
-                <div class="auth-image theme-primary" aria-hidden="true">
-                    <div class="dynamic-auth-bg">
-                        <div class="bubble bubble-1"></div>
-                        <div class="bubble bubble-2"></div>
-                        <div class="bubble bubble-3"></div>
-                        <div class="bubble bubble-4"></div>
-                        <div class="bubble bubble-5"></div>
-                        <div class="streak streak-1"></div>
-                        <div class="streak streak-2"></div>
-                        <div class="streak streak-3"></div>
-                        <div class="streak streak-4"></div>
-                        <div class="streak streak-5"></div>
-                        <div class="streak streak-6"></div>
-                        <div class="streak streak-7"></div>
-                        <div class="streak streak-8"></div>
-                        <div class="rocket-glow"></div>
-                        <div class="rocket-container">
-                            <img src="/source/rocket.svg" alt="" class="rocket-svg">
-                        </div>
-                        <div class="logo-bubble-wrapper">
-                            <img src="/source/logo.png" alt="Synta Academy" class="logo-bubble">
-                        </div>
-                    </div>
-                </div>
-
-                <div class="auth-form" id="registerFormPanel">
-                    <div class="auth-brand-mobile">
-                        <img src="/source/logo.png" alt="Synta Academy">
-                    </div>
-                    <h2>إنشاء حساب جديد</h2>
-                    <p>لديك حساب بالفعل؟ <a href="/login">تسجيل الدخول</a></p>
-                    <div id="authMessageMount" class="auth-message-mount" aria-live="polite"></div>
-
-                    <form id="registerForm" method="POST" novalidate>
-                        <div class="form-row">
-                            <div class="form-group">
-                                <label for="fullName">الاسم الكامل</label>
-                                <input type="text" id="fullName" name="fullName" autocomplete="name" required>
+<body class="auth-entry">
+    <a class="skip-link" href="#auth-content">Aller à l’inscription</a>
+    <div class="auth-layout">
+        <%- include('../../partials/auth-story') %>
+        <main class="auth-main" id="auth-content">
+            <header class="auth-topbar"><a class="mobile-brand brand" href="/"><span class="brand-mark" aria-hidden="true">s.</span><span>synta<span class="brand-academy">academy</span></span></a><a class="back-home" href="/">↖ Retour à l’accueil</a><span class="topbar-note">Ton espace d’apprentissage</span></header>
+            <div class="auth-card">
+                <nav class="auth-tabs" aria-label="Accès à ton compte"><a href="/login" data-auth-link>Connexion</a><a href="/register" aria-current="page">Inscription</a></nav>
+                <div id="authMessageMount" aria-live="polite" aria-atomic="true"></div>
+                <section id="registerFormPanel">
+                    <div class="form-intro"><span class="eyebrow">Le début de quelque chose</span><h1>À toi de commencer.</h1><p>Un compte pour comprendre, pratiquer et progresser.</p></div>
+                    <div id="registerGoogle"><div class="google-signin-container"><div id="googleSignInBtn" data-client-id="<%= googleClientId || '' %>" data-button-text="continue_with"></div></div><div class="divider"><span>ou avec ton e-mail</span></div></div>
+                    <ol class="step-indicator" aria-label="Étapes de l’inscription"><li id="accountStepLabel" aria-current="step"><span>1</span> Ton compte</li><li id="profileStepLabel"><span>2</span> Ton parcours</li></ol>
+                    <form id="registerForm" method="post" novalidate>
+                        <div id="accountStep">
+                            <div class="form-group"><label for="fullName">Prénom et nom</label><input type="text" id="fullName" name="fullName" autocomplete="name" placeholder="Comment t’appelles-tu ?" required maxlength="150" aria-describedby="fullName-error"><span class="field-error" id="fullName-error"></span></div>
+                            <div class="form-group"><label for="email">Adresse e-mail</label><input type="email" id="email" name="email" autocomplete="username" inputmode="email" autocapitalize="none" spellcheck="false" placeholder="toi@exemple.com" required aria-describedby="email-hint email-error"><span class="field-hint" id="email-hint">Tu recevras un lien pour activer ton compte.</span><span class="field-error" id="email-error"></span></div>
+                            <div class="field-row">
+                                <div class="form-group"><label for="password">Mot de passe</label><div class="password-input"><input type="password" id="password" name="password" autocomplete="new-password" required minlength="6" aria-describedby="password-hint password-error"><button class="password-toggle" type="button" aria-label="Afficher le mot de passe" aria-pressed="false">Afficher</button></div><span class="field-hint" id="password-hint">6 caractères minimum.</span><span class="field-error" id="password-error"></span></div>
+                                <div class="form-group"><label for="confirmPassword">Confirmer</label><div class="password-input"><input type="password" id="confirmPassword" name="confirmPassword" autocomplete="new-password" required aria-describedby="confirmPassword-error"><button class="password-toggle" type="button" aria-label="Afficher la confirmation" aria-pressed="false">Afficher</button></div><span class="field-error" id="confirmPassword-error"></span></div>
                             </div>
-                            <div class="form-group">
-                                <label for="email">البريد الإلكتروني</label>
-                                <input type="email" id="email" name="email" autocomplete="email" inputmode="email" required>
-                            </div>
+                            <button type="button" class="button button-primary" id="nextStep">Continuer <span aria-hidden="true">→</span></button>
                         </div>
-                        <div class="form-group">
-                            <label for="phone">رقم الهاتف</label>
-                            <input type="tel" id="phone" name="phone" required minlength="8" maxlength="8"
-                                inputmode="numeric" autocomplete="tel"
-                                pattern="^[24579][0-9]{7}$"
-                                title="يرجى إدخال رقم هاتف تونسي صحيح (8 أرقام تبدأ بـ 2، 4، 5، 7، أو 9)">
-                            <span class="password-hint">8 أرقام تبدأ بـ 2 أو 4 أو 5 أو 7 أو 9</span>
+                        <div id="profileStep" hidden>
+                            <%- include('../../partials/auth-profile-fields') %>
+                            <div class="form-actions"><button type="button" class="button button-back" id="previousStep" aria-label="Revenir aux informations du compte">← Retour</button><button type="submit" class="button button-primary" id="registerSubmitBtn" data-idle="Créer mon compte">Créer mon compte <span aria-hidden="true">↗</span></button></div>
+                            <p class="field-hint account-note">Tu pourras modifier ces informations dans ton profil.</p>
                         </div>
-                        <div class="form-row">
-                            <div class="form-group">
-                                <label for="userClass">المستوى الدراسي</label>
-                                <select id="userClass" name="userClass" required>
-                                    <option value="" disabled selected>اختر المستوى</option>
-                                    <option value="1ere">1ère année</option>
-                                    <option value="2eme">2ème année</option>
-                                    <option value="3eme">3ème année</option>
-                                    <option value="bac">Bac</option>
-                                    <option value="other">أخرى</option>
-                                </select>
-                            </div>
-                            <div class="form-group">
-                                <label for="userBranch">الفرع</label>
-                                <select id="userBranch" name="userBranch" required>
-                                    <option value="" disabled selected>اختر الشعبة</option>
-                                    <option value="lettres">شعبة الآداب</option>
-                                    <option value="mathematiques">شعبة الرياضيات</option>
-                                    <option value="informatique">شعبة العلوم الإعلامية</option>
-                                    <option value="sciences">شعبة العلوم التجريبية</option>
-                                    <option value="technique">شعبة العلوم التقنية</option>
-                                    <option value="economie">شعبة الاقتصاد والتصرف</option>
-                                    <option value="other">أخرى</option>
-                                </select>
-                            </div>
-                        </div>
-                        <div class="form-row">
-                            <div class="form-group">
-                                <label for="password">كلمة المرور</label>
-                                <div class="password-input-wrapper">
-                                    <input type="password" id="password" name="password" autocomplete="new-password" required minlength="6">
-                                    <i class="fas fa-eye toggle-password" id="togglePassword" role="button" tabindex="0" aria-label="إظهار كلمة المرور"></i>
-                                </div>
-                                <span class="password-hint">6 أحرف على الأقل</span>
-                            </div>
-                            <div class="form-group">
-                                <label for="confirmPassword">تأكيد كلمة المرور</label>
-                                <div class="password-input-wrapper">
-                                    <input type="password" id="confirmPassword" name="confirmPassword" autocomplete="new-password" required minlength="6">
-                                    <i class="fas fa-eye toggle-password" id="toggleConfirmPassword" role="button" tabindex="0" aria-label="إظهار تأكيد كلمة المرور"></i>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="terms">
-                            <input type="checkbox" id="terms" name="terms" required>
-                            <label for="terms">أوافق على <a href="/terms" target="_blank" rel="noopener">الشروط والأحكام</a></label>
-                        </div>
-                        <button type="submit" id="registerSubmitBtn" class="btn primary-btn btn-block">إنشاء الحساب</button>
                     </form>
-
-                    <div class="social-divider"><span>أو سجّل بسرعة مع</span></div>
-
-                    <div id="google-signin-container" class="google-signin-container">
-                        <div id="googleSignInBtn" data-client-id="<%= googleClientId || '' %>" data-button-text="signup_with"></div>
-                        <p class="google-register-note">سيتم إنشاء حسابك تلقائياً باستخدام بريد Google الإلكتروني.</p>
-                    </div>
-                </div>
-
-                <div id="registerSuccessState" class="auth-form auth-form--status" hidden>
-                    <div class="auth-status-card">
-                        <div class="auth-status-icon success"><i class="fas fa-envelope-open-text"></i></div>
-                        <h2>تم إنشاء الحساب بنجاح</h2>
-                        <p>
-                            لقد أرسلنا رابط التفعيل إلى بريدك الإلكتروني:<br>
-                            <strong id="registeredEmailDisplay" class="auth-email-highlight"></strong>
-                        </p>
-                        <p class="auth-status-hint">افتح بريدك، ثم اضغط على رابط التفعيل. تحقّق أيضاً من مجلد الرسائل غير المرغوب فيها (Spam).</p>
-
-                        <button type="button" id="resendVerificationBtn" class="btn secondary-outline-btn btn-block">
-                            <i class="fas fa-redo" aria-hidden="true"></i>
-                            إعادة إرسال بريد التفعيل
-                        </button>
-                        <p id="resendMessage" class="auth-inline-feedback" hidden></p>
-
-                        <a href="/login" class="auth-back-link">العودة لتسجيل الدخول</a>
-                    </div>
-                </div>
+                    <p class="form-switch">Déjà un compte ? <a href="/login" data-auth-link>Me connecter</a></p>
+                </section>
+                <section id="registerSuccessState" class="status-panel" hidden tabindex="-1">
+                    <div class="status-icon" aria-hidden="true">✉</div><span class="eyebrow">Ton compte est créé</span><h1>Un petit tour<br>dans ta boîte mail.</h1><p>Ouvre le lien de confirmation envoyé à <strong id="registeredEmailDisplay"></strong> pour activer ton compte.</p><p class="field-hint">Rien reçu ? Vérifie aussi les courriers indésirables.</p><a href="/login" class="button button-primary" data-auth-link>Aller à la connexion <span aria-hidden="true">→</span></a><button type="button" id="resendVerificationBtn" class="text-button">Renvoyer le lien de confirmation</button><p id="resendMessage" class="inline-status" role="status"></p>
+                </section>
+                <noscript><p class="message error">Active JavaScript pour créer ton compte.</p></noscript>
             </div>
-        </div>
-    </section>
-
-    <script src="/js/authentication.js"></script>
-    <script src="/js/auth.js?v=5"></script>
-    <script src="/js/google-auth.js?v=5"></script>
+            <footer class="auth-footer"><span>Un peu de curiosité. Beaucoup de possibilités.</span><a href="mailto:contact@syntaacademy.tn">Besoin d’aide ?</a></footer>
+        </main>
+    </div>
+    <script src="/js/authentication.js?v=3" defer></script>
+    <script src="/js/auth-entry.js?v=1" defer></script>
+    <script src="/js/google-auth.js?v=6" defer></script>
 </body>
 </html>

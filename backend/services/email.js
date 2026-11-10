@@ -26,91 +26,22 @@ export function generateVerificationToken() {
 
 // ── Email template ─────────────────────────────────────────────────────────
 function buildVerificationEmailHtml(name, verifyUrl) {
-  const firstName = name?.split(" ")[0] || "طالب";
-
-  return /* html */`
-<!DOCTYPE html>
-<html lang="ar" dir="rtl">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>تأكيد البريد الإلكتروني - Synta Academy</title>
-</head>
-<body style="margin: 0; padding: 0; background-color: #f0f4f8; font-family: Arial, sans-serif; direction: rtl; text-align: right;">
-  <table border="0" cellpadding="0" cellspacing="0" width="100%" style="background-color: #f0f4f8; padding: 20px 0;">
-    <tr>
-      <td align="center">
-        <!-- Main Container -->
-        <table border="0" cellpadding="0" cellspacing="0" width="100%" style="max-width: 600px; background-color: #ffffff; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 12px rgba(0,0,0,0.1);">
-          
-          <!-- Header -->
-          <tr>
-            <td align="center" style="background-color: #013047; padding: 30px 20px;">
-              <img src="https://syntaacademy.tn/source/whiteorangeweb.png" alt="Synta Academy" style="width: 120px; height: auto; display: block;">
-            </td>
-          </tr>
-
-          <!-- Body -->
-          <tr>
-            <td style="padding: 40px 30px;">
-              <h1 style="color: #013047; font-size: 24px; margin: 0 0 16px 0;">أهلاً بك، ${firstName}! 👋</h1>
-              <p style="color: #475569; font-size: 16px; line-height: 1.6; margin: 0 0 24px 0;">
-                مرحباً بك في <strong>Synta Academy</strong> — منصتك المتخصصة في علوم الإعلامية والبرمجة.
-                <br><br>
-                لتفعيل حسابك والوصول إلى جميع الدروس والمحتوى التعليمي، يرجى تأكيد عنوان بريدك الإلكتروني بالنقر على الزر أدناه.
-              </p>
-
-              <!-- Button -->
-              <table border="0" cellpadding="0" cellspacing="0" width="100%">
-                <tr>
-                  <td align="center" style="padding-bottom: 30px;">
-                    <a href="${verifyUrl}" style="display: inline-block; background-color: #F6851F; color: #ffffff; text-decoration: none; font-size: 16px; font-weight: bold; padding: 14px 32px; border-radius: 8px;">
-                      تأكيد البريد الإلكتروني
-                    </a>
-                  </td>
-                </tr>
-              </table>
-
-              <!-- Info Box -->
-              <table border="0" cellpadding="0" cellspacing="0" width="100%" style="background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px;">
-                <tr>
-                  <td style="padding: 16px;">
-                    <p style="color: #013047; font-size: 14px; font-weight: bold; margin: 0 0 8px 0;">معلومات مهمة:</p>
-                    <ul style="color: #64748b; font-size: 13px; line-height: 1.6; margin: 0; padding-right: 20px;">
-                      <li>الرابط صالح لمدة <strong>24 ساعة</strong> فقط.</li>
-                      <li>يمكن استخدامه مرة واحدة.</li>
-                      <li>إذا لم تقم بالتسجيل، يمكنك تجاهل هذا البريد.</li>
-                    </ul>
-                  </td>
-                </tr>
-              </table>
-
-              <p style="color: #94a3b8; font-size: 12px; margin: 24px 0 0 0; text-align: center; word-break: break-all;">
-                إذا لم يعمل الزر، انسخ الرابط التالي:<br>
-                <a href="${verifyUrl}" style="color: #219EBC; text-decoration: underline;">${verifyUrl}</a>
-              </p>
-            </td>
-          </tr>
-
-          <!-- Footer -->
-          <tr>
-            <td align="center" style="background-color: #f8fafc; padding: 24px 30px; border-top: 1px solid #e2e8f0;">
-              <p style="color: #94a3b8; font-size: 12px; line-height: 1.6; margin: 0 0 8px 0;">
-                تم إرسال هذا البريد لأنك سجلت في <a href="${BASE_URL}" style="color: #F6851F; text-decoration: none;">Synta Academy</a>.
-              </p>
-              <p style="color: #94a3b8; font-size: 12px; line-height: 1.6; margin: 0;">
-                © ${new Date().getFullYear()} Synta Academy. جميع الحقوق محفوظة.
-              </p>
-            </td>
-          </tr>
-
-        </table>
-      </td>
-    </tr>
-  </table>
-</body>
-</html>
-  `.trim();
+  const firstName = String(name?.split(" ")[0] || "toi").replace(/[&<>"']/g, char => ({
+    "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;",
+  }[char]));
+  return `<!DOCTYPE html>
+<html lang="fr" dir="ltr"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
+<body style="margin:0;background:#f3f5ef;font-family:Arial,sans-serif;color:#173e3c">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr><td style="padding:32px 16px">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:520px;margin:auto;background:white;border-radius:16px">
+<tr><td style="padding:36px"><p style="font-size:21px;font-weight:bold;margin:0 0 32px">synta academy<span style="color:#ec773b">.</span></p>
+<h1 style="font-size:27px;line-height:1.25">Bienvenue, ${firstName}.</h1>
+<p style="color:#65766d;line-height:1.7">Ton compte est créé. Confirme ton adresse e-mail pour commencer à apprendre sur Synta Academy.</p>
+<p style="margin:28px 0"><a href="${verifyUrl}" style="display:inline-block;background:#d9672f;color:white;text-decoration:none;padding:15px 24px;border-radius:8px;font-weight:bold">Confirmer mon adresse e-mail →</a></p>
+<p style="font-size:13px;color:#65766d;line-height:1.7">Ce lien est valable 24 heures. Une fois ton adresse confirmée, connecte-toi avec ton e-mail et ton mot de passe.</p>
+<p style="font-size:12px;color:#7f8d83;line-height:1.7">Tu n’as pas demandé ce compte ? Tu peux ignorer cet e-mail.</p>
+<p style="border-top:1px solid #e4e9df;padding-top:20px;margin-top:28px;font-size:12px">Besoin d’aide ? <a href="mailto:contact@syntaacademy.tn" style="color:#3a6b4e">Contacte l’équipe Synta</a>.</p>
+</td></tr></table></td></tr></table></body></html>`;
 }
 
 // ── Main export ────────────────────────────────────────────────────────────
@@ -128,7 +59,7 @@ export async function sendVerificationEmail(to, name, token) {
   const { error } = await resend.emails.send({
     from:    FROM_ADDRESS,
     to:      [to],
-    subject: "✉️ أكد بريدك الإلكتروني للوصول إلى Synta Academy",
+    subject: "Confirme ton adresse e-mail · Synta Academy",
     html:    buildVerificationEmailHtml(name, verifyUrl),
   });
 
@@ -139,4 +70,16 @@ export async function sendVerificationEmail(to, name, token) {
   }
 
   console.log("[email] Verification email sent to:", to);
+}
+
+export async function sendPlacementVerificationEmail(to, token) {
+  const url = new URL("/session", BASE_URL);
+  url.hash = new URLSearchParams({ placement: token }).toString();
+  const { error } = await resend.emails.send({
+    from: FROM_ADDRESS,
+    to: [to],
+    subject: "Synta Academy · Confirmation de ton inscription au quiz",
+    text: `Ouvre ce lien dans les 30 minutes pour confirmer ton adresse et accéder au quiz de placement : ${url}`,
+  });
+  if (error) throw new Error("Placement verification email delivery failed");
 }

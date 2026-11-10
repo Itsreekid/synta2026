@@ -1,5 +1,24 @@
 # CURRENT_STATE.md — Synta Academy
 
+### 2026-11-10 — French authentication experience
+
+- Login, two-step email signup, Google profile completion, email confirmation and account recovery guidance use a shared French layout with responsive styling and reduced-motion support. Native cross-document transitions progressively enhance navigation.
+- Signup separates account details from the learning profile. School learners choose an existing year and section; independent learners use the existing other/other profile values. Phone normalization accepts the Tunisian country prefix. Signup and Google onboarding share server-side profile validation.
+- Removed the unused Supabase SDK and external font/icon downloads from these pages. Verification email copy is French. The unavailable password-reset form is replaced by direct support guidance. The old terms checkbox linked to an absent /terms page; that dead control was removed pending real terms content.
+- Thirteen regression tests, five EJS auth template renders and JS syntax checks pass. Desktop/mobile browser visual verification is incomplete because Computer Use could not reliably identify the Windows browser URL. Verify the two signup steps, focus, Google handoff and mail resend on staging before claiming visual sign-off.
+
+### 2026-11-10 — Critical security remediation and payment integrity
+
+- Placement registration returns generic acceptance and sends a 30-minute email proof for eligible new users. Email confirmation consumes the signed proof by atomically changing the registration revision. The resulting HttpOnly cookie authorizes quiz submission and one account activation. Activation never changes an existing user's password, requires quiz completion and links `auth_user_id` in a transaction. Old UUID-based placement credentials are rejected. TASK-007 is complete.
+- Legacy enrollment permits free courses only. Paid course access uses the authenticated wallet checkout and a recorded debit. User-submitted wallet requests are forced to pending deposits.
+- Offer purchases lock the user before duplicate checks, record an independent offer grant and debit the configured database price atomically. A repeat active user/offer pair returns success without a charge. Admin installment enrollment uses the same lock and independent offer grant. Shared course enrollment no longer drops a newly purchased offer's live benefits.
+- Migration `202611100003_unique_active_offer_payments.sql` adds uniqueness for new active offer grant statuses without rewriting historical rows. Existing active offer enrollments retain access. Older overlapping purchases with no reliable stored offer ID need operator review; no balances or historic charges were modified.
+- Live lists, replays, resource code, calendar and eligible student selection share the same authorization predicate. Cancelled sessions are hidden. Cancellation preserves records and only deletes a shared Zoom meeting after its final active local date, or for an explicit series cancellation. Zoom errors abort the local operation; retries accept Zoom's already-deleted code.
+- Thirteen regression tests use Node's test runner and service/database doubles and pass locally. Actual PostgreSQL locking/SQL, real Resend delivery, browser behavior and Zoom integration still need isolated staging verification. No production operations were performed. Run `node --experimental-vm-modules --test backend/tests/security.test.js` from the repository root, or `npm test` in backend when npm is installed.
+- Configure `RESEND_API_KEY`, `APP_URL` and exact `TRUST_PROXY_HOPS` for the deployment topology. Auth rate limits are per process. Existing JWT sessions are not globally revoked by password changes; TASK-003/TASK-006 should address session renewal and revocation. Admin password changes clear pending email verification credentials.
+- Next step is isolated staging validation of the migration, duplicate checkout from separate connections, new placement activation, overlapping offers and cancellation retries. Do not deploy or push these changes without the user's release instruction.
+- API compatibility changes are intentional. Placement registration no longer returns an ID/token; email confirmation creates an HttpOnly session before the quiz. Legacy paid enrollment returns 403; paid browser callers use the wallet endpoint. Admin session JSON returns `has_host_link` instead of the host URL; the host button uses a protected page redirect. Existing no-fixed-time Zoom meetings have no stored occurrence identifiers, so cancellation of one date is local while its shared meeting remains for other dates.
+
 ### 2026-11-10 — Google sign-in and learner journey review
 
 - Login and registration use Google's visible button and the same `GOOGLE_CLIENT_ID` as the backend. The iPhone/iPad callback validates Google's CSRF token. The numbered migration reconciles existing auth fields that previously depended on legacy SQL scripts.

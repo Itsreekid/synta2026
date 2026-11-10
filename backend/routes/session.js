@@ -9,18 +9,37 @@ import jwt from "jsonwebtoken";
 import crypto from "crypto";
 import { requireAdmin } from "../middleware/requireAdmin.js";
 import { setSessionCookies } from "../middleware/requireAuth.js";
+import { authRateLimit } from "../middleware/authRateLimit.js";
+import { sendPlacementVerificationEmail } from "../services/email.js";
 
 const router = express.Router();
 const JWT_SECRET = process.env.JWT_SECRET;
 const SALT_ROUNDS = 12;
+const placementKey = () => crypto.createHmac("sha256", JWT_SECRET).update("synta-placement-v1").digest();
 
-function setSessionCookie(res, registrationId) {
-  res.cookie("synta_session_token", registrationId, {
-    maxAge: 30 * 24 * 60 * 60 * 1000,
-    httpOnly: false,
-    secure: process.env.NODE_ENV === "production",
-    sameSite: "lax",
-  });
+const placementCookie = {
+  httpOnly: true,
+  secure: process.env.NODE_ENV === "production",
+  sameSite: "strict",
+  path: "/api/session",
+};
+
+function readPlacementToken(token, audience) {
+  try {
+    return jwt.verify(token, placementKey(), { algorithms: ["HS256"], audience, issuer: "synta-placement" });
+  } catch {
+    return null;
+  }
+}
+
+function requirePlacement(req, res, next) {
+  if (req.method !== "GET" && !req.is("application/json")) {
+    return res.status(415).json({ error: "Requête invalide." });
+  }
+  const proof = readPlacementToken(req.cookies?.synta_placement, "placement-verified");
+  if (!proof?.sub) return res.status(401).json({ error: "Confirme ton adresse e-mail pour continuer." });
+  req.placementId = proof.sub;
+  next();
 }
 
 function computeTier(score, total) {
@@ -34,36 +53,79 @@ function computeTier(score, total) {
 // -------------------------------------------------------
 // POST /api/session/register
 // -------------------------------------------------------
-router.post("/register", async (req, res) => {
-  const { full_name, email, phone } = req.body;
-
-  if (!full_name || !email || !phone) {
+router.post("/register", authRateLimit(10), async (req, res) => {
+  const { full_name, email, phone } = req.body || {};
+  if (![full_name, email, phone].every(value => typeof value === "string" && value.trim()) ||
+      full_name.length > 150 || email.length > 254 || phone.length > 40 || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) {
     return res.status(400).json({ error: "Champs requis manquants." });
   }
 
   try {
-    const existing = await pool.query(
-      `SELECT id, full_name, email, track, tier, score, completed
-       FROM session_registrations
-       WHERE email = $1`,
-      [email.toLowerCase().trim()]
-    );
-
-    if (existing.rowCount > 0) {
-      setSessionCookie(res, existing.rows[0].id);
-      return res.json({ success: true, returning: true, registration: existing.rows[0], token: existing.rows[0].id });
-    }
-
-    const result = await pool.query(
+    const address = email.trim().toLowerCase();
+    await pool.query(
       `INSERT INTO session_registrations (full_name, email, phone)
-       VALUES ($1, $2, $3) RETURNING *`,
-      [full_name.trim(), email.toLowerCase().trim(), phone.trim()]
+       SELECT $1, $2, $3 WHERE NOT EXISTS (SELECT 1 FROM users WHERE lower(email) = $2)
+       ON CONFLICT (email) DO NOTHING`,
+      [full_name.trim(), address, phone.trim()]
     );
-
-    setSessionCookie(res, result.rows[0].id);
-    return res.json({ success: true, returning: false, registration: result.rows[0], token: result.rows[0].id });
+    const result = await pool.query(
+      `SELECT id, updated_at::text AS revision FROM session_registrations r
+       WHERE email = $1 AND NOT account_activated
+         AND NOT EXISTS (SELECT 1 FROM users WHERE lower(email) = r.email)`,
+      [address]
+    );
+    const registration = result.rows[0];
+    if (registration) {
+      const token = jwt.sign({ revision: registration.revision }, placementKey(), {
+        issuer: "synta-placement", audience: "placement-email", subject: registration.id,
+        jwtid: crypto.randomUUID(), expiresIn: "30m",
+      });
+      sendPlacementVerificationEmail(address, token).catch(() => console.error("[placement] Verification delivery failed"));
+    }
+    return res.status(202).json({ success: true });
   } catch (err) {
-    console.error("❌ Session register error:", err);
+    console.error("[placement] Registration failed:", err.code);
+    return res.status(500).json({ error: "Erreur serveur." });
+  }
+});
+
+router.post("/verify", authRateLimit(20), async (req, res) => {
+  if (!req.is("application/json")) return res.status(415).json({ error: "Requête invalide." });
+  const proof = readPlacementToken(req.body?.token, "placement-email");
+  if (!proof?.sub || !proof.revision) return res.status(400).json({ error: "Lien invalide ou expiré." });
+  try {
+    const result = await pool.query(
+      `UPDATE session_registrations r
+       SET updated_at = GREATEST(clock_timestamp(), updated_at + INTERVAL '1 microsecond')
+       WHERE id = $1 AND updated_at = $2::timestamptz AND NOT account_activated
+         AND NOT EXISTS (SELECT 1 FROM users WHERE lower(email) = r.email)
+       RETURNING completed, score, tier, "group"`,
+      [proof.sub, proof.revision]
+    );
+    if (!result.rowCount) return res.status(400).json({ error: "Lien invalide ou déjà utilisé." });
+    const token = jwt.sign({}, placementKey(), {
+      issuer: "synta-placement", audience: "placement-verified", subject: proof.sub, expiresIn: "1h",
+    });
+    res.cookie("synta_placement", token, { ...placementCookie, maxAge: 3600000 });
+    res.set("Cache-Control", "no-store");
+    return res.json({ registration: result.rows[0] });
+  } catch (err) {
+    console.error("[placement] Verification failed:", err.code);
+    return res.status(500).json({ error: "Erreur serveur." });
+  }
+});
+
+router.get("/status", requirePlacement, async (req, res) => {
+  try {
+    const result = await pool.query(
+      `SELECT completed, score, tier, "group" FROM session_registrations
+       WHERE id = $1 AND NOT account_activated`, [req.placementId]
+    );
+    if (!result.rowCount) return res.status(404).json({ error: "Inscription indisponible." });
+    res.set("Cache-Control", "no-store");
+    return res.json({ registration: result.rows[0] });
+  } catch (err) {
+    console.error("[placement] Status failed:", err.code);
     return res.status(500).json({ error: "Erreur serveur." });
   }
 });
@@ -89,16 +151,12 @@ router.get("/questions", async (req, res) => {
 // -------------------------------------------------------
 // POST /api/session/submit
 // -------------------------------------------------------
-router.post("/submit", async (req, res) => {
-  const { registration_id, answers, track, branch: filier } = req.body;
+router.post("/submit", requirePlacement, async (req, res) => {
+  const { answers, track, branch: filier } = req.body || {};
+  const registration_id = req.placementId;
 
   if (!registration_id || !answers || !track) {
     return res.status(400).json({ error: "Données manquantes." });
-  }
-
-  const cookieToken = req.cookies?.synta_session_token;
-  if (!cookieToken || cookieToken !== registration_id) {
-    return res.status(403).json({ error: "Unauthorized: session token mismatch." });
   }
 
   try {
@@ -146,11 +204,12 @@ router.post("/submit", async (req, res) => {
     const updated = await pool.query(
       `UPDATE session_registrations
        SET score = $1, tier = $2, completed = true, "group" = $3, track = $4, filier = $5, updated_at = NOW()
-       WHERE id = $6
-       RETURNING id, full_name, email, track, score, tier, completed`,
+       WHERE id = $6 AND NOT account_activated
+       RETURNING track, score, tier, completed`,
       [score, tier, group, track, filier, registration_id]
     );
 
+    if (!updated.rowCount) return res.status(409).json({ error: "Inscription indisponible." });
     return res.json({
       success: true,
       score,
@@ -169,58 +228,55 @@ router.post("/submit", async (req, res) => {
 // POST /api/session/set-password
 // Creates a user account and issues session cookies
 // -------------------------------------------------------
-router.post("/set-password", async (req, res) => {
-  const { registration_id, password } = req.body;
-
-  if (!registration_id || !password) {
-    return res.status(400).json({ error: "Données manquantes." });
-  }
-  if (password.length < 6) {
-    return res.status(400).json({ error: "Le mot de passe doit contenir au moins 6 caractères." });
+router.post("/set-password", authRateLimit(10), requirePlacement, async (req, res) => {
+  const { password } = req.body || {};
+  if (typeof password !== "string" || password.length < 6 || Buffer.byteLength(password) > 72) {
+    return res.status(400).json({ error: "Le mot de passe doit contenir au moins 6 caractères et au plus 72 octets." });
   }
 
+  let client;
   try {
-    const regResult = await pool.query(
-      `SELECT id, email, full_name, phone FROM session_registrations WHERE id = $1`,
-      [registration_id]
+    const passwordHash = await bcrypt.hash(password, SALT_ROUNDS);
+    client = await pool.connect();
+    await client.query("BEGIN");
+    const registration = await client.query(
+      `SELECT email, full_name, phone FROM session_registrations
+       WHERE id = $1 AND completed AND NOT account_activated FOR UPDATE`, [req.placementId]
     );
-    if (regResult.rowCount === 0) {
-      return res.status(404).json({ error: "Inscription introuvable." });
+    if (!registration.rowCount) {
+      await client.query("ROLLBACK");
+      return res.status(409).json({ error: "Termine le quiz ou connecte-toi à ton compte." });
+    }
+    const { email, full_name, phone } = registration.rows[0];
+    const result = await client.query(
+      `INSERT INTO users (email, password_hash, name, phone, role, email_verified)
+       SELECT $1, $2, $3, $4, 'user', true WHERE NOT EXISTS (SELECT 1 FROM users WHERE lower(email) = $1)
+       ON CONFLICT (email) DO NOTHING RETURNING id, email, name, role`,
+      [email, passwordHash, full_name, phone]
+    );
+    if (!result.rowCount) {
+      await client.query("ROLLBACK");
+      return res.status(409).json({ error: "Connecte-toi avec la méthode de ton compte existant." });
     }
 
-    const reg = regResult.rows[0];
-    const passwordHash = await bcrypt.hash(password, SALT_ROUNDS);
-
-    // Upsert user account
-    const userResult = await pool.query(
-      `INSERT INTO users (email, password_hash, name, phone, role)
-       VALUES ($1, $2, $3, $4, 'user')
-       ON CONFLICT (email) DO UPDATE SET password_hash = EXCLUDED.password_hash
-       RETURNING id, email, name, role`,
-      [reg.email, passwordHash, reg.full_name, reg.phone]
+    const user = result.rows[0];
+    await client.query(
+      `UPDATE session_registrations
+       SET account_activated = true, auth_user_id = $2, updated_at = NOW() WHERE id = $1`,
+      [req.placementId, user.id]
     );
-
-    const user = userResult.rows[0];
-
-    await pool.query(
-      `UPDATE session_registrations SET account_activated = true WHERE id = $1`,
-      [registration_id]
-    );
-
-    // Issue JWT session cookies
-    const access_token = jwt.sign(
-      { id: user.id, email: user.email, name: user.name, role: user.role },
-      JWT_SECRET,
-      { expiresIn: "1h" }
-    );
+    const access_token = jwt.sign(user, JWT_SECRET, { expiresIn: "1h" });
     const refresh_token = jwt.sign({ id: user.id, type: "refresh" }, JWT_SECRET, { expiresIn: "7d" });
-
+    await client.query("COMMIT");
+    res.clearCookie("synta_placement", placementCookie);
     setSessionCookies(res, { access_token, refresh_token });
-
     return res.json({ success: true, redirectUrl: "/dashboard" });
   } catch (err) {
-    console.error("❌ set-password error:", err.message);
-    return res.status(500).json({ error: "Erreur serveur: " + err.message });
+    if (client) await client.query("ROLLBACK").catch(() => {});
+    console.error("[placement] Activation failed:", err.code);
+    return res.status(500).json({ error: "Erreur serveur." });
+  } finally {
+    client?.release();
   }
 });
 

@@ -112,16 +112,11 @@ async function fetchCourseProgress(courseId) {
 /**
  * Purchase a course (paid)
  * @param {string} courseId
- * @param {Object} paymentInfo - { paymentId, amount }
  */
-async function purchaseCourse(courseId, paymentInfo = {}) {
-    return apiFetch('/api/enrollment/enroll', {
+async function purchaseCourse(courseId) {
+    return apiFetch('/api/purchase/course', {
         method: 'POST',
-        body: JSON.stringify({
-            courseId,
-            paymentId:  paymentInfo.paymentId  || null,
-            amountPaid: paymentInfo.amount      || null,
-        }),
+        body: JSON.stringify({ courseId }),
     });
 }
 
