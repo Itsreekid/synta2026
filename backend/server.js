@@ -68,7 +68,7 @@ const allowedOrigins = process.env.ALLOWED_ORIGINS?.split(",").map(o => o.trim()
 
 const corsOptions = {
   origin: function (origin, callback) {
-    // Allow server-to-server (no Origin header) and same-origin requests
+    // Requests without an Origin header do not need an allowlist match.
     if (!origin) return callback(null, true);
     // FIX #3: If no allowlist configured, default-deny. Otherwise check list.
     if (allowedOrigins.length > 0 && allowedOrigins.includes(origin)) {
@@ -84,8 +84,15 @@ const corsOptions = {
   optionsSuccessStatus: 200
 };
 
-app.use(cors(corsOptions));
-app.options('*', cors(corsOptions));
+// GIS uses same-origin JSON or a redirect form POST with its own CSRF check.
+// Neither flow requires cross-origin API access or CORS response headers.
+app.use(cors((req, callback) => {
+  if (req.get("Sec-Fetch-Site") === "same-origin" ||
+      /^\/api\/auth\/google(?:\/callback)?\/?$/i.test(req.path)) {
+    return callback(null, { origin: false });
+  }
+  return callback(null, corsOptions);
+}));
 
 // Security headers
 app.use(helmet({
@@ -126,42 +133,6 @@ app.use((req, res, next) => {
 // Health check
 app.get("/health", (req, res) => {
   res.json({ status: "healthy", timestamp: new Date().toISOString() });
-});
-
-import fs from "fs";
-import pool from "./config/db.js";
-
-// TEMPORARY ENDPOINT TO INITIALIZE THE DATABASE SCHEMA
-app.get("/api/admin/init-db", async (req, res) => {
-  try {
-    const schemaPath = path.join(__dirname, "..", "database", "schema_postgres.sql");
-    const sql = fs.readFileSync(schemaPath, "utf8");
-    await pool.query(sql);
-    res.send("<h1>Database initialized successfully!</h1><p>You can now login.</p>");
-  } catch (error) {
-    console.error("Error initializing DB:", error);
-    res.status(500).send(`<h1>Error initializing DB</h1><pre>${error.message}</pre>`);
-  }
-});
-
-// TEMPORARY ENDPOINT TO PROMOTE A USER TO ADMIN
-app.get("/api/admin/promote", async (req, res) => {
-  try {
-    const email = req.query.email;
-    if (!email) {
-      return res.send("<h1>Error</h1><p>Please provide an email in the URL, like this: <code>/api/admin/promote?email=your@email.com</code></p>");
-    }
-    const result = await pool.query("UPDATE users SET role = 'admin' WHERE email = $1 RETURNING id", [email.toLowerCase().trim()]);
-    
-    if (result.rowCount === 0) {
-      return res.send(`<h1>User not found!</h1><p>No account exists with the email <strong>${email}</strong>. Please register first.</p>`);
-    }
-    
-    res.send(`<h1>Success! 🎉</h1><p><strong>${email}</strong> has been promoted to an admin.</p><p>If you are currently logged in, please <strong>log out and log back in</strong> to apply the changes, then go to <a href="/admin/login">Admin Portal</a>.</p>`);
-  } catch (error) {
-    console.error("Error promoting user:", error);
-    res.status(500).send(`<h1>Error promoting user</h1><pre>${error.message}</pre>`);
-  }
 });
 
 // Auth cookie routes (must come before page routes)

@@ -406,7 +406,7 @@ Both mechanisms work in `requireAdmin.js`. This can lead to situations where a u
 ### Google OAuth
 - Used for: Google Sign-In on login/register pages
 - Library: `google-auth-library` (server-side token verification)
-- Flow: One-tap / redirect, verifies Google ID token server-side
+- Flow: Google-rendered button on login and registration, with a same-origin JSON popup callback or iOS form redirect. The redirect validates Google's CSRF cookie and form field before verifying the ID token. The browser and verifier share Coolify's `GOOGLE_CLIENT_ID`.
 
 ---
 
@@ -440,7 +440,7 @@ Cloudflare R2 Bucket
 
 ### 🟡 High
 4. **Duplicate middleware for auth** — Two separate auth systems (`authMiddleware` in `auth.js` using Bearer + Cookie, `authApiMiddleware` in `requireAuth.js` using Cookie only). Inconsistently applied.
-5. **No group/cohort concept** — `live_sessions` link to `courses`, not groups. No group membership table. The `session_registrations.group` field (`beginner`/`advanced`) is not connected to live session access.
+5. **Session audiences** — `live_sessions` link to courses and can include a list of eligible student IDs. The live API and student calendar enforce this audience alongside active course and optional offer enrollment. Reusable group memberships remain part of TASK-013.
 6. **No versioned migration system** — SQL files in `/database/` are not tracked, ordered, or reversible.
 7. **Admin panel is unauthenticated on first load** — The admin HTML files are served as static files with no server-side auth check. Auth is enforced only via API calls.
 8. **`purchases` table is partially duplicated** — Both `purchases` and `transactions` track financial operations inconsistently.

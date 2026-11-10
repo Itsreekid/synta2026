@@ -280,7 +280,7 @@
         </div>
         
         <div class="form-group">
-            <label>Offre requise <span style="color:#718096;font-weight:400">(laisser vide = accès libre aux inscrits)</span></label>
+            <label>Offre requise <span style="color:#718096;font-weight:400">(facultatif)</span></label>
             <select id="f-offer">
                 <option value="">— Accès libre pour les inscrits du cours —</option>
             </select>
@@ -290,6 +290,18 @@
             <select id="f-course">
                 <option value="">Chargement…</option>
             </select>
+        </div>
+        <div class="form-group">
+            <label for="f-audience">Participants</label>
+            <select id="f-audience">
+                <option value="all">Tous les inscrits admissibles</option>
+                <option value="selected">Étudiants sélectionnés</option>
+            </select>
+            <div id="student-picker" hidden style="margin-top:0.6rem">
+                <input type="search" id="student-search" placeholder="Rechercher un étudiant" aria-label="Rechercher un étudiant">
+                <p id="student-picker-status" role="status"></p>
+                <div id="student-options" style="max-height:12rem;overflow:auto"></div>
+            </div>
         </div>
         <div class="form-group">
             <label>Description (optionnel)</label>
@@ -314,6 +326,63 @@ const API = window.location.origin;
 let allSessions = [];
 let allOffers = [];
 let allCourses = [];
+let studentRequest = 0;
+const audienceMode = document.getElementById('f-audience');
+const studentPicker = document.getElementById('student-picker');
+const studentSearch = document.getElementById('student-search');
+const studentOptions = document.getElementById('student-options');
+const studentStatus = document.getElementById('student-picker-status');
+
+for (const id of ['f-audience', 'f-course', 'f-offer']) {
+    document.getElementById(id).addEventListener('change', loadEligibleStudents);
+}
+studentSearch.addEventListener('input', () => {
+    const search = studentSearch.value.trim().toLowerCase();
+    for (const row of studentOptions.children) {
+        row.hidden = !row.textContent.toLowerCase().includes(search);
+    }
+});
+
+async function loadEligibleStudents() {
+    const request = ++studentRequest;
+    studentOptions.replaceChildren();
+    studentSearch.value = '';
+    studentPicker.hidden = audienceMode.value !== 'selected';
+    if (studentPicker.hidden) return;
+
+    const courseId = document.getElementById('f-course').value;
+    const offerId = document.getElementById('f-offer').value;
+    if (!courseId) {
+        studentStatus.textContent = 'Sélectionnez d’abord un cours.';
+        return;
+    }
+
+    studentStatus.textContent = 'Chargement des étudiants…';
+    const params = new URLSearchParams({ courseId, offerId });
+    try {
+        const res = await fetch(`${API}/api/live/admin/eligible-students?${params}`, { credentials: 'include' });
+        if (!res.ok) throw new Error('Échec du chargement');
+        const students = await res.json();
+        if (request !== studentRequest) return;
+        for (const student of students) {
+            const row = document.createElement('div');
+            const label = document.createElement('label');
+            const checkbox = document.createElement('input');
+            checkbox.type = 'checkbox';
+            checkbox.value = student.id;
+            checkbox.style.width = 'auto';
+            label.append(checkbox, ` ${student.name || student.email} (${student.email})`);
+            row.appendChild(label);
+            studentOptions.appendChild(row);
+        }
+        studentStatus.textContent = students.length
+            ? 'Cochez un étudiant pour une séance individuelle ou plusieurs pour un groupe.'
+            : 'Aucun étudiant admissible pour ce cours et cette offre.';
+        studentSearch.dispatchEvent(new Event('input'));
+    } catch {
+        if (request === studentRequest) studentStatus.textContent = 'Impossible de charger les étudiants. Réessayez en sélectionnant de nouveau le cours.';
+    }
+}
 
 // ── Init ──────────────────────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', async () => {
@@ -398,9 +467,13 @@ function renderCard(s, status) {
         ? '<span class="meta-chip badge-completed"><i class="fas fa-check"></i> Terminée</span>'
         : '<span class="meta-chip badge-scheduled"><i class="fas fa-clock"></i> Planifiée</span>';
 
+    const audienceCount = s.audience_student_ids?.length;
+    const audienceBadge = audienceCount
+        ? `<span class="meta-chip badge-offer">${audienceCount === 1 ? 'Individuel' : `Groupe · ${audienceCount} étudiants`}</span>`
+        : '';
     const offerBadge = s.offer_id
         ? `<span class="meta-chip badge-offer"><i class="fas fa-ticket-alt"></i> Offre requise</span>`
-        : '<span class="meta-chip"><i class="fas fa-users"></i> Inscrits au cours</span>';
+        : audienceCount ? '' : '<span class="meta-chip"><i class="fas fa-users"></i> Inscrits au cours</span>';
 
     const hostBtn = s.zoom_start_url
         ? `<a href="${s.zoom_start_url}" target="_blank" class="btn-host"><i class="fas fa-video"></i> Lancer (Hôte)</a>`
@@ -416,6 +489,7 @@ function renderCard(s, status) {
                 <span class="meta-chip"><i class="fas fa-clock"></i> ${timeStr} · ${s.duration_minutes} min</span>
                 ${s.course ? `<span class="meta-chip"><i class="fas fa-book"></i> ${escT(s.course.title)}</span>` : ''}
                 ${offerBadge}
+                ${audienceBadge}
                 ${s.zoom_meeting_id ? `<span class="meta-chip" style="color:#718096;font-size:0.72rem">Meeting ID: ${escT(s.zoom_meeting_id)}</span>` : ''}
             </div>
         </div>
@@ -589,6 +663,10 @@ async function createSession() {
     if (!title) return showToast('Veuillez entrer un titre.', 'error');
     if (!datetimeVal) return showToast('Veuillez choisir une date/heure.', 'error');
     if (!courseId) return showToast('Veuillez sélectionner un cours.', 'error');
+    const audienceStudentIds = audienceMode.value === 'selected'
+        ? Array.from(studentOptions.querySelectorAll('input:checked'), input => input.value)
+        : null;
+    if (audienceStudentIds?.length === 0) return showToast('Veuillez sélectionner au moins un étudiant.', 'error');
 
     // Handle Dates calculation
     const isRecurring = document.getElementById('f-is-recurring').checked;
@@ -640,6 +718,7 @@ async function createSession() {
             body: JSON.stringify({
                 courseId,
                 offerId: offerId || null,
+                audienceStudentIds,
                 title,
                 description,
                 startTimes,
@@ -652,6 +731,7 @@ async function createSession() {
         if (!res.ok) throw new Error(data.error || 'Erreur serveur');
 
         closeCreateModal();
+        studentOptions.querySelectorAll('input:checked').forEach(input => { input.checked = false; });
         showToast('✅ Séance créée et planifiée sur Zoom !', 'success');
         await loadSessions();
     } catch (e) {

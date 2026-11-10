@@ -390,7 +390,8 @@ router.get("/api/events", authApiMiddleware, async (req, res) => {
     let liveEvents = [];
     if (userId) {
       const enrollResult = await pool.query(
-        `SELECT course_id, offer_id FROM enrollments WHERE user_id = $1`,
+        `SELECT course_id, offer_id FROM enrollments
+         WHERE user_id = $1 AND (expires_at IS NULL OR expires_at > NOW())`,
         [userId]
       );
 
@@ -407,8 +408,9 @@ router.get("/api/events", authApiMiddleware, async (req, res) => {
                   ls.offer_id, ls.zoom_join_url, ls.course_id
            FROM live_sessions ls
            WHERE ls.course_id = ANY($1)
+             AND (ls.audience_student_ids IS NULL OR $2 = ANY(ls.audience_student_ids))
              AND ls.scheduled_at >= NOW()`,
-          [enrolledCourseIds]
+          [enrolledCourseIds, userId]
         );
 
         const accessible = sessionResult.rows.filter(

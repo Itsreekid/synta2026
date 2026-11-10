@@ -38,7 +38,7 @@ Two roles exist: `user` (student) and `admin`.
 | Behavior | Status | Evidence |
 |----------|--------|----------|
 | Default role on registration is `user` | ✅ | `auth-api.js`: INSERT with role='user' |
-| Admin can be set via DB UPDATE | ✅ | `server.js` `/api/admin/promote` endpoint |
+| Admin access is granted by an authorized operator | ✅ | Set the account role directly in PostgreSQL or configure `ADMIN_EMAILS`. |
 | Admin can be set via `ADMIN_EMAILS` env var | ✅ | `requireAdmin.js` |
 | No `instructor` role exists | ✅ (gap) | No evidence of instructor distinction |
 | No `parent` role exists | ✅ (gap) | — |
@@ -66,7 +66,7 @@ Two roles exist: `user` (student) and `admin`.
 |----------|--------|----------|
 | Student can sign up / sign in with Google | ✅ | `google-auth.js` |
 | Google accounts are pre-verified (no email verification needed) | ✅ | `google-auth.js`: email_verified=true |
-| Google login links to existing email/password account | ✅ | `google-auth.js`: UPSERT by email |
+| Google login can link an existing email/password account | ✅ | A verified Gmail or Google Workspace address can link an account without a Google identity. Previously linked accounts are matched by Google subject. |
 | Google users must complete phone/class/branch onboarding | ✅ | `google-auth.js`: needsOnboarding check |
 | `GET /auth/complete-profile` redirects to dashboard if already complete | ✅ | `pages.js` |
 
@@ -213,6 +213,7 @@ Two roles exist: `user` (student) and `admin`.
 | Live sessions are linked to a course | ✅ | `live_sessions.course_id` |
 | Students must be enrolled in the course to see its sessions | ✅ | `GET /api/live/upcoming` filters by enrollment |
 | Sessions can be restricted to a specific offer | ✅ | `live_sessions.offer_id` filter logic |
+| Admins can select one or more eligible students for a session | ✅ | A per-session audience further restricts the session, calendar entry, replay, and resources. Active course and optional offer enrollment are required. |
 | Students see only sessions they have access to | ✅ | `accessible` filter in `live.js` |
 | Students can see past sessions with replays | ✅ | `GET /api/live/replays` |
 | Enrolled students can see all sessions for a course, including completed sessions waiting for a replay | ✅ | `GET /api/live/course/:courseId` (course and offer enrollment checked) |

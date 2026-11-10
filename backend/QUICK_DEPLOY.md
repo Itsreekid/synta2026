@@ -36,11 +36,18 @@ R2_ACCESS_KEY=
 R2_SECRET_KEY=
 R2_BUCKET=synta-content
 JWT_SECRET=
-ALLOWED_ORIGINS=https://syntaacademy.com,https://www.syntaacademy.com
+ALLOWED_ORIGINS=https://syntaacademy.tn,https://www.syntaacademy.tn
+GOOGLE_CLIENT_ID=
 NODE_ENV=production
 ```
 
 ## Deploy checklist
+
+### Google sign-in
+
+Set `GOOGLE_CLIENT_ID` in the Coolify app's runtime environment to the Google OAuth **Web application** client ID. The same ID is rendered into the login and registration pages and used to verify the returned token. In Google Cloud, add each production origin that actually serves those pages under **Authorized JavaScript origins**. Add the matching full URL ending in `/api/auth/google/callback` under **Authorized redirect URIs** for iPhone and iPad. The origin and callback must use the same hostname the learner sees, including `www` if applicable. The Google schema migration runs during the normal Coolify deploy.
+
+### Deployment checks
 
 - [ ] Required environment variables set in Coolify
 - [ ] Code pushed to GitHub

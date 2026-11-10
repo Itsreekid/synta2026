@@ -47,7 +47,16 @@ router.get("/", authMiddleware, async (req, res) => {
       SELECT c.*,
         (SELECT COUNT(l.id) FROM lessons l JOIN course_modules cm ON cm.module_id = l.module_id WHERE cm.course_id = c.id AND l.type IS DISTINCT FROM 'quiz')::int AS lessons_count,
         (SELECT COUNT(l.id) FROM lessons l JOIN course_modules cm ON cm.module_id = l.module_id WHERE cm.course_id = c.id AND l.type = 'quiz')::int AS quizzes_count,
-        (SELECT COUNT(ls.id) FROM live_sessions ls WHERE ls.course_id = c.id)::int AS lives_count
+        (SELECT COUNT(ls.id) FROM live_sessions ls WHERE ls.course_id = c.id
+          AND (ls.audience_student_ids IS NULL OR (
+            $1 = ANY(ls.audience_student_ids)
+            AND EXISTS (
+              SELECT 1 FROM enrollments e
+              WHERE e.course_id = c.id AND e.user_id = $1
+                AND (e.expires_at IS NULL OR e.expires_at > NOW())
+                AND (ls.offer_id IS NULL OR e.offer_id = ls.offer_id)
+            )
+          )))::int AS lives_count
       FROM courses c
       LEFT JOIN users viewer ON viewer.id = $1
       WHERE c.is_published = true

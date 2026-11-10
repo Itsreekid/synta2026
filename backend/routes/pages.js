@@ -21,6 +21,7 @@ const router = express.Router();
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const JWT_SECRET = process.env.JWT_SECRET;
+const googleClientId = process.env.GOOGLE_CLIENT_ID?.trim();
 
 function renderPage(res, view, locals = {}) {
   res.render(view, { ...locals });
@@ -118,11 +119,11 @@ function redirectIfLoggedIn(req, res, next) {
 }
 
 router.get("/login", redirectIfLoggedIn, (req, res) => {
-  renderPage(res, "pages/auth/login");
+  renderPage(res, "pages/auth/login", { googleClientId });
 });
 
 router.get("/register", redirectIfLoggedIn, (req, res) => {
-  renderPage(res, "pages/auth/register");
+  renderPage(res, "pages/auth/register", { googleClientId });
 });
 
 router.get("/password-reset", (req, res) => {

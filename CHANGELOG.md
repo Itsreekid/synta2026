@@ -5,6 +5,20 @@
 
 ---
 
+## 2026-11-10 — Google sign-in and public admin route removal
+
+- Replaced the custom Google overlay with Google's button and unified client configuration. Validated redirect CSRF and added a Coolify migration for the existing Google account schema.
+- Removed public maintenance routes for database initialization and role promotion.
+
+## 2026-11-10 — Individual and group live sessions
+
+**Author:** Codex
+
+**Type:** FEATURE / SCHEMA
+
+- Admins can select one or more enrolled students when scheduling a session. Session lists, calendars, replays, and resources respect the audience.
+- The production Docker migration runner adds the session audience column before startup.
+
 ## 2026-11-06 — Preserve Lesson Files During Code Pratique Startup
 
 **Author:** Codex  

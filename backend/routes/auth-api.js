@@ -122,7 +122,7 @@ router.post("/api/auth/login", async (req, res) => {
     }
 
     const user  = result.rows[0];
-    const valid = await bcrypt.compare(password, user.password_hash);
+    const valid = user.password_hash && await bcrypt.compare(password, user.password_hash);
 
     if (!valid) {
       return res.status(401).json({ error: "البريد الإلكتروني أو كلمة المرور غير صحيحة" });

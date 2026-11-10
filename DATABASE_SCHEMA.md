@@ -340,6 +340,7 @@ Check constraint `learning_resources_single_owner` ensures exactly one parent. I
 | `id` | UUID | PK, DEFAULT gen_random_uuid() | |
 | `course_id` | UUID | NOT NULL REFERENCES courses(id) ON DELETE CASCADE | |
 | `offer_id` | UUID | NULLABLE REFERENCES offers(id) | If set, only offer enrollees see this session |
+| `audience_student_ids` | UUID[] | NULLABLE, nonempty when set | Further restricts access to the selected students with eligible enrollments |
 | `title` | TEXT | NOT NULL | |
 | `description` | TEXT | NULLABLE | |
 | `scheduled_at` | TIMESTAMPTZ | NOT NULL | |
@@ -353,6 +354,8 @@ Check constraint `learning_resources_single_owner` ensures exactly one parent. I
 | `created_at` | TIMESTAMPTZ | NOT NULL DEFAULT NOW() | |
 
 **Indexes:** `idx_live_sessions_course`, `idx_live_sessions_scheduled`
+
+Migration `202611100001_add_live_session_audience.sql` adds the nullable audience. Existing sessions retain their course and offer access rules. Audience IDs are validated against eligible enrollments when scheduling. Keeping the audience explicit after account deletion prevents a restricted session from becoming course-wide.
 
 > [!CAUTION]
 > `zoom_start_url` grants full host control of the Zoom meeting. It is correctly filtered from student-facing API responses but is stored in plaintext in the database.
@@ -517,7 +520,8 @@ Check constraint `learning_resources_single_owner` ensures exactly one parent. I
 | `schema-with-users.sql` | Supabase schema with users | ⚠️ Legacy |
 | `add_admin_role.sql` | Adds `role` column (references old `"Users"` table) | ⚠️ May target wrong table |
 | `add_email_verification.sql` | Adds `email_verified`, `verification_token`, `token_expires_at` | ✅ Required |
-| `add_google_auth.sql` | Adds `google_id`, makes `password_hash` nullable | ✅ Required |
+| `add_google_auth.sql` | Adds `google_id`, makes `password_hash` nullable | Legacy script. The versioned migration below applies these changes automatically. |
+| `202611100002_ensure_google_auth_schema.sql` | Reconciles the documented Google account and email verification fields | Applied by the Docker migration runner |
 | `add_feedback_table.sql` | Creates `lesson_feedback` | ✅ Required |
 | `add_lesson_content.sql` | UNKNOWN | NEEDS CLARIFICATION |
 | `add_offers_features.sql` | Adds `features` JSONB to offers | ✅ Required |

@@ -4,6 +4,7 @@
 // POST /api/auth/google/callback — form POST credential (iOS redirect)
 // =====================================================
 import express from "express";
+import { timingSafeEqual } from "node:crypto";
 import { OAuth2Client } from "google-auth-library";
 import pool from "../config/db.js";
 import { setSessionCookies } from "../middleware/requireAuth.js";
@@ -11,7 +12,7 @@ import jwt from "jsonwebtoken";
 
 const router = express.Router();
 
-const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID;
+const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID?.trim();
 const JWT_SECRET = process.env.JWT_SECRET;
 const isProd = process.env.NODE_ENV === "production";
 
@@ -57,8 +58,8 @@ function setGoogleSessionCookies(res, tokens) {
 }
 
 async function authenticateWithGoogleCredential(credential) {
-  if (!credential) {
-    const error = new Error("Google credential token is required");
+  if (typeof credential !== "string" || !credential) {
+    const error = new Error("بيانات تسجيل الدخول بـ Google مفقودة.");
     error.status = 400;
     throw error;
   }
@@ -77,63 +78,48 @@ async function authenticateWithGoogleCredential(credential) {
       audience: GOOGLE_CLIENT_ID,
     });
     payload = ticket.getPayload();
-  } catch (err) {
-    console.error("[google-auth] Token verification failed:", err.message);
-    const error = new Error("Invalid Google token. Please try again.");
+  } catch {
+    console.warn("[google-auth] Token verification failed");
+    const error = new Error("تعذّر التحقق من تسجيل الدخول بـ Google. حاول مجدداً.");
     error.status = 401;
     throw error;
   }
 
-  const { sub: googleId, email, name } = payload;
+  const { sub: googleId, email, name, email_verified, hd } = payload ?? {};
 
-  if (!email) {
-    const error = new Error("Could not retrieve email from Google account");
+  if (!googleId || !email || email_verified !== true) {
+    const error = new Error("يرجى استخدام حساب Google ببريد إلكتروني مؤكّد.");
     error.status = 400;
     throw error;
   }
-
-  let user = null;
 
   const byGoogleId = await pool.query(
     "SELECT id, email, name, role, phone, class, branch FROM users WHERE google_id = $1",
     [googleId]
   );
-  if (byGoogleId.rowCount > 0) {
-    user = byGoogleId.rows[0];
-  }
+  let user = byGoogleId.rows[0];
 
   if (!user) {
-    const byEmail = await pool.query(
-      "SELECT id, email, name, role FROM users WHERE email = $1",
-      [email.toLowerCase().trim()]
-    );
-
-    if (byEmail.rowCount > 0) {
-      user = byEmail.rows[0];
-      await pool.query("UPDATE users SET google_id = $1, updated_at = NOW() WHERE id = $2", [
-        googleId,
-        user.id,
-      ]);
-      const reloaded = await pool.query(
-        "SELECT id, email, name, role, phone, class, branch FROM users WHERE id = $1",
-        [user.id]
-      );
-      if (reloaded.rowCount > 0) user = reloaded.rows[0];
-    }
-  }
-
-  if (!user) {
-    const displayName = name || email.split("@")[0];
+    const normalizedEmail = email.toLowerCase().trim();
+    const canLinkByEmail = normalizedEmail.endsWith("@gmail.com") || Boolean(hd);
     const insert = await pool.query(
       `INSERT INTO users (email, name, google_id, role, password_hash, email_verified)
        VALUES ($1, $2, $3, 'user', NULL, true)
+       ON CONFLICT (email) DO UPDATE SET
+         google_id = EXCLUDED.google_id,
+         email_verified = true,
+         updated_at = NOW()
+       WHERE users.google_id = EXCLUDED.google_id
+          OR (users.google_id IS NULL AND $4)
        RETURNING id, email, name, role, phone, class, branch`,
-      [email.toLowerCase().trim(), displayName, googleId]
+      [normalizedEmail, name || normalizedEmail.split("@")[0], googleId, canLinkByEmail]
     );
     user = insert.rows[0];
-    console.log("[google-auth] Created new user via Google:", user.email);
-  } else {
-    console.log("[google-auth] Authenticated existing user via Google:", user.email);
+    if (!user) {
+      const error = new Error("يرجى تسجيل الدخول باستخدام طريقة تسجيلك الأصلية.");
+      error.status = 409;
+      throw error;
+    }
   }
 
   const access_token = signAccessToken(user);
@@ -153,6 +139,9 @@ async function authenticateWithGoogleCredential(credential) {
  * Body JSON: { credential }
  */
 router.post("/api/auth/google", async (req, res) => {
+  if (!req.is("application/json")) {
+    return res.status(415).json({ error: "طلب تسجيل دخول غير صالح." });
+  }
   try {
     const result = await authenticateWithGoogleCredential(req.body?.credential);
     setSessionCookies(res, {
@@ -171,9 +160,9 @@ router.post("/api/auth/google", async (req, res) => {
     });
   } catch (err) {
     const status = err.status || 500;
-    if (status >= 500) console.error("[google-auth] Error:", err.message);
+    if (status >= 500) console.error("[google-auth] Backend failure:", err.code || status);
     return res.status(status).json({
-      error: err.message || "Internal server error during Google authentication",
+      error: status >= 500 ? "تسجيل الدخول بـ Google غير متاح حالياً. حاول مجدداً." : err.message,
     });
   }
 });
@@ -186,6 +175,16 @@ router.post("/api/auth/google", async (req, res) => {
  */
 router.post("/api/auth/google/callback", async (req, res) => {
   try {
+    const fromCookie = req.cookies?.g_csrf_token;
+    const fromBody = req.body?.g_csrf_token;
+    if (typeof fromCookie !== "string" || typeof fromBody !== "string" || !fromCookie || !fromBody) {
+      return res.redirect(303, "/login?google_error=" + encodeURIComponent("انتهت محاولة تسجيل الدخول. حاول مجدداً."));
+    }
+    const cookieToken = Buffer.from(fromCookie);
+    const formToken = Buffer.from(fromBody);
+    if (cookieToken.length !== formToken.length || !timingSafeEqual(cookieToken, formToken)) {
+      return res.redirect(303, "/login?google_error=" + encodeURIComponent("انتهت محاولة تسجيل الدخول. حاول مجدداً."));
+    }
     const credential = req.body?.credential;
     const result = await authenticateWithGoogleCredential(credential);
     setGoogleSessionCookies(res, {
@@ -195,8 +194,8 @@ router.post("/api/auth/google/callback", async (req, res) => {
     const next = result.needsOnboarding ? "/auth/complete-profile" : "/dashboard";
     return res.redirect(303, next);
   } catch (err) {
-    console.error("[google-auth] Redirect callback failed:", err.message);
-    const message = encodeURIComponent(err.message || "Google sign-in failed");
+    if (!err.status || err.status >= 500) console.error("[google-auth] Callback failure:", err.code || 500);
+    const message = encodeURIComponent(err.status < 500 ? err.message : "تسجيل الدخول بـ Google غير متاح حالياً. حاول مجدداً.");
     return res.redirect(303, `/login?google_error=${message}`);
   }
 });

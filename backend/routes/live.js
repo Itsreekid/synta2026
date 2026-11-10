@@ -11,6 +11,35 @@ import { createR2UploadUrl, generateSignedUrl } from "../utils/r2Utils.js";
 import { r2Client, R2_BUCKET } from "../config/r2.js";
 
 const router = express.Router();
+const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+async function getEligibleStudents(courseId, offerId, studentIds = null) {
+  const result = await pool.query(
+    `SELECT DISTINCT u.id, u.name, u.email
+     FROM enrollments e
+     JOIN users u ON u.id = e.user_id
+     WHERE e.course_id = $1 AND u.role = 'user'
+       AND ($2::uuid IS NULL OR e.offer_id = $2)
+       AND (e.expires_at IS NULL OR e.expires_at > NOW())
+       AND ($3::uuid[] IS NULL OR u.id = ANY($3))
+     ORDER BY u.name, u.email`,
+    [courseId, offerId || null, studentIds]
+  );
+  return result.rows;
+}
+
+router.get("/admin/eligible-students", requireAdmin, async (req, res) => {
+  const { courseId, offerId } = req.query;
+  if (!uuidPattern.test(courseId) || (offerId && !uuidPattern.test(offerId))) {
+    return res.status(400).json({ error: "Cours ou offre invalide." });
+  }
+  try {
+    res.json(await getEligibleStudents(courseId, offerId));
+  } catch (error) {
+    console.error("Error fetching eligible session students:", error.message);
+    res.status(500).json({ error: "Impossible de charger les étudiants." });
+  }
+});
 
 async function attachSessionResources(sessions, includeSignedUrls = false) {
   if (!sessions.length) return [];
@@ -56,6 +85,7 @@ router.get("/course/:courseId", authApiMiddleware, async (req, res) => {
               ls.duration_minutes, ls.status, ls.zoom_join_url, ls.replay_url
        FROM live_sessions ls
        WHERE ls.course_id = $1
+         AND (ls.audience_student_ids IS NULL OR $2 = ANY(ls.audience_student_ids))
          AND EXISTS (
            SELECT 1 FROM enrollments e
            WHERE e.user_id = $2
@@ -88,6 +118,7 @@ router.get("/resources/:resourceId/code", authApiMiddleware, async (req, res) =>
        JOIN live_sessions ls ON ls.id = lr.live_session_id
        WHERE lr.id = $1
          AND lower(lr.file_name) LIKE '%.py'
+         AND (ls.audience_student_ids IS NULL OR $2 = ANY(ls.audience_student_ids))
          AND EXISTS (
            SELECT 1 FROM enrollments e
            WHERE e.user_id = $2
@@ -147,9 +178,10 @@ router.get("/upcoming", authApiMiddleware, async (req, res) => {
        FROM live_sessions ls
        JOIN courses c ON c.id = ls.course_id
        WHERE ls.course_id = ANY($1)
+         AND (ls.audience_student_ids IS NULL OR $2 = ANY(ls.audience_student_ids))
          AND ls.scheduled_at >= NOW()
        ORDER BY ls.scheduled_at ASC`,
-      [enrolledCourseIds]
+      [enrolledCourseIds, userId]
     );
 
     const accessible = sessionResult.rows.filter(
@@ -185,6 +217,7 @@ router.get("/replays", authApiMiddleware, async (req, res) => {
          AND (e.expires_at IS NULL OR e.expires_at > NOW())
          AND (ls.offer_id IS NULL OR ls.offer_id = e.offer_id)
        WHERE ls.scheduled_at < NOW()
+         AND (ls.audience_student_ids IS NULL OR $1 = ANY(ls.audience_student_ids))
          AND ls.replay_url IS NOT NULL
        ORDER BY ls.scheduled_at DESC`,
       [userId]
@@ -207,7 +240,7 @@ router.get("/replays", authApiMiddleware, async (req, res) => {
  * POST /api/live/schedule — ADMIN ONLY
  */
 router.post("/schedule", requireAdmin, async (req, res) => {
-  const { courseId, offerId, title, description, startTime, startTimes, durationMinutes = 60 } = req.body;
+  const { courseId, offerId, title, description, startTime, startTimes, durationMinutes = 60, audienceStudentIds = null } = req.body;
   const times = startTimes?.length > 0 ? startTimes : startTime ? [startTime] : [];
 
   if (!courseId || !title || times.length === 0) {
@@ -215,28 +248,49 @@ router.post("/schedule", requireAdmin, async (req, res) => {
   }
 
   try {
+    let audience = null;
+    if (audienceStudentIds !== null) {
+      if (!uuidPattern.test(courseId) || (offerId && !uuidPattern.test(offerId)) ||
+          !Array.isArray(audienceStudentIds) || !audienceStudentIds.length ||
+          !audienceStudentIds.every(id => typeof id === "string" && uuidPattern.test(id))) {
+        return res.status(400).json({ error: "Sélectionnez au moins un étudiant valide." });
+      }
+      audience = [...new Set(audienceStudentIds.map(id => id.toLowerCase()))];
+      const eligibleStudents = await getEligibleStudents(courseId, offerId, audience);
+      if (eligibleStudents.length !== audience.length) {
+        return res.status(400).json({ error: "Tous les étudiants sélectionnés doivent être inscrits au cours et à l’offre choisie, le cas échéant." });
+      }
+    }
+
     const isRecurring = times.length > 1;
     const { zoom_meeting_id, zoom_join_url, zoom_start_url, zoom_password } =
       await createZoomMeeting({ topic: title, startTime: times[0], durationMinutes, isRecurring });
 
-    const insertedSessions = [];
-    for (const time of times) {
-      const result = await pool.query(
+    let result;
+    try {
+      result = await pool.query(
         `INSERT INTO live_sessions
            (course_id, offer_id, title, description, scheduled_at, duration_minutes,
-            zoom_meeting_id, zoom_join_url, zoom_start_url, zoom_password, status)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, 'scheduled')
-         RETURNING id, title, scheduled_at, zoom_meeting_id, zoom_start_url, zoom_join_url, offer_id`,
+            zoom_meeting_id, zoom_join_url, zoom_start_url, zoom_password, status, audience_student_ids)
+         SELECT $1, $2, $3, $4, occurrence, $6, $7, $8, $9, $10, 'scheduled', $11
+         FROM unnest($5::timestamptz[]) AS dates(occurrence)
+         RETURNING id, title, scheduled_at, zoom_meeting_id, zoom_join_url, offer_id`,
         [
           courseId, offerId || null, title, description || null,
-          time, durationMinutes, zoom_meeting_id, zoom_join_url,
-          zoom_start_url, zoom_password,
+          times, durationMinutes, zoom_meeting_id, zoom_join_url,
+          zoom_start_url, zoom_password, audience,
         ]
       );
-      insertedSessions.push(result.rows[0]);
+    } catch (error) {
+      try {
+        await deleteZoomMeeting(zoom_meeting_id);
+      } catch (cleanupError) {
+        console.error("Error cleaning up unscheduled Zoom meeting:", cleanupError.message);
+      }
+      throw error;
     }
 
-    res.status(201).json({ success: true, sessions: insertedSessions });
+    res.status(201).json({ success: true, sessions: result.rows });
   } catch (error) {
     console.error("Error scheduling live session:", error);
     res.status(500).json({ error: error.message || "Failed to create session" });

@@ -1,5 +1,18 @@
 # CURRENT_STATE.md — Synta Academy
 
+### 2026-11-10 — Google sign-in and learner journey review
+
+- Login and registration use Google's visible button and the same `GOOGLE_CLIENT_ID` as the backend. The iPhone/iPad callback validates Google's CSRF token. The numbered migration reconciles existing auth fields that previously depended on legacy SQL scripts.
+- The temporary public database initialization and admin promotion routes were removed. After deploying, review existing admin accounts since older builds exposed the promotion route.
+- Verify both existing and new Google users on desktop and iPhone after Coolify deployment. Check the exact production origins and redirect URIs in Google Cloud. Then prioritize TASK-003 for session renewal and TASK-012 for password recovery.
+- Learner journey reviewed across public entry, registration/placement, profile, dashboard, catalog, wallet, course player, live/replay, progress and Python practice. The next product decisions are an explicit onboarding path for learners outside school and reusable cohorts. Define paid individual access and offer-included group access separately before changing billing or enrollment. Per-session audiences shipped as the first step toward TASK-013.
+
+### 2026-11-10 — Individual and group session audiences
+
+- Admin → Sessions → Participants supports selecting one or several currently eligible students when scheduling a Zoom session. Recurring dates share the selected audience. This is a per-session selection.
+- Student session lists, calendar entries, replays and resources enforce the audience alongside enrollment. Existing sessions keep their course and offer access.
+- The production Docker command applies migration `202611100001_add_live_session_audience.sql` before starting Node. After deploying, verify a restricted session with one selected and one unselected student account. TASK-013 remains open for reusable cohorts.
+
 > **Last updated:** 2026-11-06  
 > **Updated by:** Auto  
 > **Next recommended task:** Deploy and verify dashboard continue/parcours on a student with no courses, one unstarted enrollment, and a last-watched course; then continue TASK-004 in `IMPLEMENTATION_PLAN.md`
@@ -158,7 +171,7 @@ The backend is running in production on Coolify. Core features (login, course ac
 | BUG-010 | 🟠 MEDIUM | `routes/live.js` | `live_sessions.status` is never updated. `GET /api/live/upcoming` could show sessions that have already occurred (relies on `scheduled_at >= NOW()` filter). |
 | BUG-012 | ✅ FIXED 2026-11-05 | `public/js/course-details.js` | Course details previously substituted a random live count and had no session list. Count now matches the student's accessible course sessions; past sessions remain listed while replay is pending. |
 | BUG-013 | FIXED IN SOURCE 2026-11-06 | `views/pages/code/index.ejs` | Lesson Python file banner could appear while CodeMirror remained empty. CodeMirror boot is now idempotent and the starter remains queued until the editor is available; deploy and verify with an actual lesson file. |
-| BUG-011 | 🟠 MEDIUM | `server.js` | Temporary `/api/admin/init-db` and `/api/admin/promote` endpoints are unprotected and present in production. |
+| BUG-011 | ✅ FIXED 2026-11-10 | `server.js` | Removed the temporary public database initialization and admin promotion routes. Production protection takes effect after deployment. |
 
 ---
 
