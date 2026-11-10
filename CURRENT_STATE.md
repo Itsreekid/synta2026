@@ -1,5 +1,23 @@
 # CURRENT_STATE.md — Synta Academy
 
+### 2026-11-11 — Footer/menu pre-release review
+
+- Fixed a closed-menu visibility inheritance conflict and reserved the footer logo's intrinsic aspect ratio to avoid a lazy-load layout jump.
+- Review checks include visible text/image preservation, balanced homepage HTML, asset hashes, script syntax and the full regression suite. Actual mobile-browser animation remains a manual follow-up.
+
+### 2026-11-11 — Unified mobile menu transition
+
+- Grouped the existing navigation and account links in one header-menu container. Desktop keeps its flex layout through display:contents. Mobile uses one fixed scrollable panel with a short coordinated fade/6px transition.
+- Removed separate fixed positioning and transition behavior from the mobile navigation/account sections. Account buttons now sit inside the panel and remain reachable on short screens. Selected links use a restrained navy/orange highlight.
+- Kept the 44px toggle, Escape/Tab handling, scroll restoration, reduced-motion support and existing link text/destinations. Expanded state now controls the combined panel and closed panels are inert.
+- Browser animation verification remains pending. The regression suite covers the combined panel state, DOM grouping, focus and scroll behavior.
+
+### 2026-11-11 — Footer alignment follow-up
+
+- Fixed the screenshot's heading/social-icon misalignment by aligning the RTL social row to its contact heading. Constrained the footer width and sized its brand/link/contact columns deliberately.
+- Set consistent logo sizing, description width, readable link spacing and 44px social targets. Tablet layout groups the brand above two columns; phone layout centers the brand/contact blocks and arranges quick links in two columns.
+- Existing footer copy, imagery, destinations and copyright content are preserved. Refresh the homepage stylesheet hash after stylesheet edits. Browser visual verification remains pending.
+
 ### 2026-11-11 — Homepage UI refinements
 
 - Retained all visible homepage text, images, section order and the existing animated hero concept. Added root-only styles for consistent spacing, aligned course cards, balanced feature/testimonial grids, restrained hover feedback and higher-contrast orange buttons.

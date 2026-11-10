@@ -44,7 +44,7 @@
     <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" media="print" onload="this.media='all'">
     <noscript><link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"></noscript>
-    <link rel="stylesheet" href="style.css?v=8a1baa01a34a">
+    <link rel="stylesheet" href="style.css?v=f988acd30ed9">
 </head>
 <body class="home-page">
     <header>
@@ -52,22 +52,24 @@
             <div class="logo">
                 <a href="/"><img src="source/logo.webp?v=d7cfc03676be" alt="سينتى أكادمي" width="80" height="80" loading="eager"></a>
             </div>
-            <button class="mobile-menu-btn" type="button" aria-label="القائمة الرئيسية" aria-expanded="false" aria-controls="homepage-navigation">
+            <button class="mobile-menu-btn" type="button" aria-label="القائمة الرئيسية" aria-expanded="false" aria-controls="homepage-menu">
                 <span class="menu-icon"></span>
                 <span class="menu-icon"></span>
                 <span class="menu-icon"></span>
             </button>
-            <nav id="homepage-navigation" aria-label="التنقل الرئيسي">
-                <ul>
-                    <li><a href="/" class="active">الرئيسية</a></li>
-                    <li><a href="/app/courses">عروضنا</a></li>
-                    <li><a href="#about-academy">عن الأكاديمية</a></li>
-                    <li><a href="/app/contact">تواصل معنا</a></li>
-                </ul>
-            </nav>
-            <div class="auth-buttons">
-                <a href="/login" class="btn login-btn">تسجيل الدخول</a>
-                <a href="/register" class="btn register-btn">إنشاء حساب</a>
+            <div class="header-menu" id="homepage-menu">
+                <nav id="homepage-navigation" aria-label="التنقل الرئيسي">
+                    <ul>
+                        <li><a href="/" class="active">الرئيسية</a></li>
+                        <li><a href="/app/courses">عروضنا</a></li>
+                        <li><a href="#about-academy">عن الأكاديمية</a></li>
+                        <li><a href="/app/contact">تواصل معنا</a></li>
+                    </ul>
+                </nav>
+                <div class="auth-buttons">
+                    <a href="/login" class="btn login-btn">تسجيل الدخول</a>
+                    <a href="/register" class="btn register-btn">إنشاء حساب</a>
+                </div>
             </div>
         </div>
     </header>
@@ -281,6 +283,6 @@
             }
         })();
     </script>
-    <script src="main.js?v=05e3cad4e4a1" defer></script>
+    <script src="main.js?v=9de0d2d89833" defer></script>
 </body>
 </html>

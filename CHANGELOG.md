@@ -1,5 +1,13 @@
 # CHANGELOG.md — Synta Academy
 
+## 2026-11-11 — Unify the mobile homepage menu
+
+- Navigation and account buttons now open and close inside one scrollable panel with coordinated motion, replacing the separate moving/fixed sections.
+
+## 2026-11-11 — Correct homepage footer alignment
+
+- Aligned the contact heading and social icons, tightened desktop column spacing and improved footer grouping on phones and tablets.
+
 ## 2026-11-11 — Refine homepage layout and mobile navigation
 
 - Kept the existing copy, images and hero concept while improving card alignment, spacing, button contrast, responsive grids and focus states.

@@ -99,20 +99,24 @@ test("mobile navigation preserves scroll, excludes closed links, supports Escape
     return {
       events, attributes, inert: false, style: {},
       addEventListener: (event, handler) => events.set(event, handler),
-      classList: { toggle: (name, enabled) => enabled ? classes.add(name) : classes.delete(name) },
+      classList: {
+        toggle: (name, enabled) => enabled ? classes.add(name) : classes.delete(name),
+        contains: name => classes.has(name),
+      },
       setAttribute: (name, value) => attributes.set(name, value),
       getClientRects: () => [{}],
       focus() { document.activeElement = this; },
     };
   }
   const button = element();
+  const panel = element();
   const links = [element(), element()];
   const accountLink = element();
   const nav = Object.assign(element(), { querySelector: () => links[0], querySelectorAll: () => links });
   const accounts = Object.assign(element(), { querySelectorAll: () => [accountLink] });
   document.body = element();
   document.querySelector = selector => ({
-    ".mobile-menu-btn": button, "header nav": nav, ".auth-buttons": accounts,
+    ".mobile-menu-btn": button, ".header-menu": panel, "header nav": nav, ".auth-buttons": accounts,
   })[selector];
   document.querySelectorAll = () => [...links, accountLink];
   const media = { matches: true, addEventListener: (event, handler) => mediaEvents.set(event, handler) };
@@ -124,8 +128,11 @@ test("mobile navigation preserves scroll, excludes closed links, supports Escape
   vm.runInNewContext(source, { document, window });
   documentEvents.get("DOMContentLoaded")();
   assert.equal(nav.inert, true);
+  assert.equal(panel.inert, true);
   button.events.get("click")();
   assert.equal(nav.inert, false);
+  assert.equal(panel.inert, false);
+  assert.equal(panel.classList.contains("active"), true);
   assert.equal(button.attributes.get("aria-expanded"), "true");
   assert.equal(document.body.style.top, "-731px");
   assert.equal(document.activeElement, links[0]);
@@ -138,10 +145,19 @@ test("mobile navigation preserves scroll, excludes closed links, supports Escape
   assert.deepEqual(scrolls, [731]);
   assert.equal(document.body.style.top, "");
   assert.equal(nav.inert, true);
+  assert.equal(panel.inert, true);
+  assert.equal(panel.classList.contains("active"), false);
   button.events.get("click")();
   media.matches = false;
   mediaEvents.get("change")();
   assert.equal(button.attributes.get("aria-expanded"), "false");
   assert.equal(nav.inert, false);
   assert.equal(accounts.inert, false);
+  assert.equal(panel.inert, false);
+  const html = await readFile(new URL("../public/index.html", import.meta.url), "utf8");
+  const menu = html.match(/<div class="header-menu" id="homepage-menu">([\s\S]*?)\n            <\/div>/);
+  assert.ok(menu, "The homepage menu must have one shared panel");
+  assert.match(menu[1], /<nav/);
+  assert.match(menu[1], /class="auth-buttons"/);
+  assert.match(html, /aria-controls="homepage-menu"/);
 });

@@ -1,6 +1,7 @@
 document.addEventListener('DOMContentLoaded', function() {
     const menuBtn = document.querySelector('.mobile-menu-btn');
     const nav = document.querySelector('header nav');
+    const panel = document.querySelector('.header-menu');
     const authButtons = document.querySelector('.auth-buttons');
     const body = document.body;
 
@@ -12,6 +13,7 @@ document.addEventListener('DOMContentLoaded', function() {
     let savedScroll = 0;
 
     function syncNavigation() {
+        if (panel) panel.inert = mobile.matches && !open;
         nav.inert = mobile.matches && !open;
         if (authButtons) authButtons.inert = mobile.matches && !open;
         menuBtn.setAttribute('aria-expanded', String(open));
@@ -25,6 +27,7 @@ document.addEventListener('DOMContentLoaded', function() {
         }
         open = next;
         menuBtn.classList.toggle('open', open);
+        if (panel) panel.classList.toggle('active', open);
         nav.classList.toggle('active', open);
         if (authButtons) authButtons.classList.toggle('active', open);
         body.classList.toggle('menu-open', open);
