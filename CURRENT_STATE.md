@@ -1,5 +1,12 @@
 # CURRENT_STATE.md — Synta Academy
 
+### 2026-11-11 — Restore academy branding on authentication pages
+
+- Auth pages now reuse the official logo.webp and whiteorangeweb.webp assets. Removed the invented s. mark.
+- The shared auth palette follows public/css/style.css brand tokens: navy #013047, orange #F6851F, cyan #219EBC, neutral slate and white. Typography follows the shared site head using Tajawal with display=swap. The French login and signup copy remains in place.
+- No separate graphic charter document was found in the repository; existing brand tokens, shared typography and supplied logo assets were used as the source of truth.
+- All 14 security tests pass. All five auth templates render with the official logos, French copy and no Arabic characters in the rendered test pages. Verification emails also use the official logo and palette. Browser visual verification remains pending.
+
 ### 2026-11-10 — Legacy payments deployment recovery
 
 - Production logs confirmed migration 202611100003 failed because the existing payments table lacks status. This prevents Node startup and causes the proxy's Bad Gateway response.

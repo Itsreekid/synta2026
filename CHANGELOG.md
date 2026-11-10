@@ -1,5 +1,9 @@
 # CHANGELOG.md — Synta Academy
 
+## 2026-11-11 — Restore academy branding on auth pages
+
+- Replaced the invented auth mark with official academy logo assets and restored the site's navy, orange, cyan and Tajawal styling across the shared French auth layouts.
+
 ## 2026-11-10 — Fix startup with legacy payments schema
 
 - Added a compatibility migration for the documented payments.status column before the active-offer index. Production logs confirmed the missing column stopped deployment before the app could start.

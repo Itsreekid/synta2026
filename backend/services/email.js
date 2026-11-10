@@ -31,16 +31,16 @@ function buildVerificationEmailHtml(name, verifyUrl) {
   }[char]));
   return `<!DOCTYPE html>
 <html lang="fr" dir="ltr"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
-<body style="margin:0;background:#f3f5ef;font-family:Arial,sans-serif;color:#173e3c">
+<body style="margin:0;background:#f8fafc;font-family:Arial,sans-serif;color:#013047">
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr><td style="padding:32px 16px">
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:520px;margin:auto;background:white;border-radius:16px">
-<tr><td style="padding:36px"><p style="font-size:21px;font-weight:bold;margin:0 0 32px">synta academy<span style="color:#ec773b">.</span></p>
+<tr><td style="padding:36px"><p style="margin:0 0 24px"><img src="${BASE_URL}/source/logo.png" alt="Synta Academy" width="120" height="111" style="display:block;border:0;max-width:100%;height:auto"></p>
 <h1 style="font-size:27px;line-height:1.25">Bienvenue, ${firstName}.</h1>
-<p style="color:#65766d;line-height:1.7">Ton compte est créé. Confirme ton adresse e-mail pour commencer à apprendre sur Synta Academy.</p>
-<p style="margin:28px 0"><a href="${verifyUrl}" style="display:inline-block;background:#d9672f;color:white;text-decoration:none;padding:15px 24px;border-radius:8px;font-weight:bold">Confirmer mon adresse e-mail →</a></p>
-<p style="font-size:13px;color:#65766d;line-height:1.7">Ce lien est valable 24 heures. Une fois ton adresse confirmée, connecte-toi avec ton e-mail et ton mot de passe.</p>
-<p style="font-size:12px;color:#7f8d83;line-height:1.7">Tu n’as pas demandé ce compte ? Tu peux ignorer cet e-mail.</p>
-<p style="border-top:1px solid #e4e9df;padding-top:20px;margin-top:28px;font-size:12px">Besoin d’aide ? <a href="mailto:contact@syntaacademy.tn" style="color:#3a6b4e">Contacte l’équipe Synta</a>.</p>
+<p style="color:#64748b;line-height:1.7">Ton compte est créé. Confirme ton adresse e-mail pour commencer à apprendre sur Synta Academy.</p>
+<p style="margin:28px 0"><a href="${verifyUrl}" style="display:inline-block;background:#F6851F;color:#013047;text-decoration:none;padding:15px 24px;border-radius:8px;font-weight:bold">Confirmer mon adresse e-mail →</a></p>
+<p style="font-size:13px;color:#64748b;line-height:1.7">Ce lien est valable 24 heures. Une fois ton adresse confirmée, connecte-toi avec ton e-mail et ton mot de passe.</p>
+<p style="font-size:12px;color:#64748b;line-height:1.7">Tu n’as pas demandé ce compte ? Tu peux ignorer cet e-mail.</p>
+<p style="border-top:1px solid #e2e8f0;padding-top:20px;margin-top:28px;font-size:12px">Besoin d’aide ? <a href="mailto:contact@syntaacademy.tn" style="color:#013047">Contacte l’équipe Synta</a>.</p>
 </td></tr></table></td></tr></table></body></html>`;
 }
 
