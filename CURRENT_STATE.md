@@ -1,5 +1,27 @@
 # CURRENT_STATE.md — Synta Academy
 
+### 2026-11-11 — Homepage UI refinements
+
+- Retained all visible homepage text, images, section order and the existing animated hero concept. Added root-only styles for consistent spacing, aligned course cards, balanced feature/testimonial grids, restrained hover feedback and higher-contrast orange buttons.
+- Improved phone layouts, 44px menu targets, visible keyboard focus and reduced-motion styles. The existing About links now target the existing academy features section.
+- Mobile navigation preserves the page scroll position, exposes expanded state, excludes closed links from focus, contains keyboard focus while open, closes with Escape and resets on desktop resize/browser return. No new front-end dependency or asset was added.
+- Existing homepage content hashes were refreshed and the delivery middleware continues computing them after deployment. All 16 tests pass, including menu scroll/focus/resize behavior. Visible text, image descriptions and content hashes were checked. Browser visual verification is still pending.
+
+### 2026-11-11 — Homepage delivery optimization
+
+- The root/index homepage now references the existing WebP conversions instead of original PNG/JPG/JFIF/GIF assets. Original files remain available. Its 177-frame course animation retains every frame duration, the 5900 ms total and looping. A 64px PNG favicon replaces the 3507px icon download for this page.
+- Total referenced image bytes, including the favicon and below-fold images, decrease from 24,348,129 to 674,635 (97.23%). These are file payload measurements, not a live page-load or Lighthouse score. The hero image has an explicit preload and high fetch priority; below-fold images keep lazy loading and gain async decoding.
+- Homepage HTML, style.css and main.js use cached Brotli/gzip encodings through a narrowly scoped public-file middleware. HTML remains revalidated; content-hashed static URLs use one-year immutable caching. Hashes are recomputed when the homepage is loaded after an app restart/deployment. Other static URLs keep normal Express cache behavior; authenticated APIs and EJS pages are outside the compression middleware.
+- CSS, interaction scripts and visible UI markup/text compare unchanged against HEAD after normalizing only image delivery attributes and asset URLs. Existing image conversions are lossy/resized; their transparency, animation timing and source-file availability were checked.
+- Fifteen tests pass, including actual loopback HTTP checks for encoding negotiation, ETags/304, HEAD, range fallback, cache headers and private-route isolation. The live website was inaccessible to the web tool, so actual browser layout/performance and post-deployment cache behavior still need verification.
+- No database migration, new npm dependency or deployment environment variable is required. Next step is staging verification of homepage/mobile menu, animation and HTTP headers before publishing these changes.
+
+### 2026-11-11 — Registration-style verification email
+
+- Signup and resend verification emails now mirror the registration confirmation screen with a centered official logo, pale envelope badge, cyan eyebrow, navy headline, light slate background and full-width orange confirmation button. French copy is adapted for an email already in the learner's inbox.
+- Uses responsive presentation tables, inline styles, an Outlook width wrapper and a plain-text alternative. Recipient/name/URL HTML is escaped; verification URLs are built with URL/searchParams.
+- Email payload checks and all 14 regression tests pass. Live Gmail/Outlook rendering and delivery remain unverified. Next step is a staging mailbox check of the signup and resend messages.
+
 ### 2026-11-11 — Restore academy branding on authentication pages
 
 - Auth pages now reuse the official logo.webp and whiteorangeweb.webp assets. Removed the invented s. mark.

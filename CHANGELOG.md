@@ -1,5 +1,21 @@
 # CHANGELOG.md — Synta Academy
 
+## 2026-11-11 — Refine homepage layout and mobile navigation
+
+- Kept the existing copy, images and hero concept while improving card alignment, spacing, button contrast, responsive grids and focus states.
+- Fixed mobile menu scroll restoration and added Escape handling, closed-menu focus exclusion and viewport reset behavior.
+
+## 2026-11-11 — Optimize homepage assets and caching
+
+- Switched homepage image references to existing WebP assets, preserving the animated course artwork and originals. Reduced the aggregate referenced image payload by 97.23% and added a correctly sized favicon.
+- Prioritized the hero image and added content-versioned asset caching plus Brotli/gzip delivery for public homepage text files.
+- Preserved the homepage stylesheet, text, elements and interaction scripts. Fifteen tests pass; live browser performance measurement is pending.
+
+## 2026-11-11 — Match verification email to registration design
+
+- Restyled the French confirmation email to match the signup screen using the official logo, centered layout, navy headings, envelope badge and orange confirmation action.
+- Added a plain-text alternative and email-client-compatible layout. Payload checks and existing regressions pass.
+
 ## 2026-11-11 — Restore academy branding on auth pages
 
 - Replaced the invented auth mark with official academy logo assets and restored the site's navy, orange, cyan and Tajawal styling across the shared French auth layouts.

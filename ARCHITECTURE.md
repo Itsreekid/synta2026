@@ -204,6 +204,8 @@ backend/views/           ← EJS templates (server-rendered)
 ```
 
 ### Client-side JavaScript (vanilla)
+
+The public homepage uses the existing WebP assets and content-hashed URLs. `utils/homepageDelivery.js` serves only root/index HTML, the landing stylesheet and its menu script with cached Brotli/gzip representations. It refreshes the homepage's versioned asset URLs from file contents on the first load after process startup. HTML uses conditional revalidation, while versioned public assets use immutable caching. Unversioned assets keep Express defaults. Range requests fall through to normal static serving, and private pages/APIs remain outside this delivery path.
 Key files in `backend/public/js/`:
 - `api-client.js` — Thin HTTP wrapper for all API calls
 - `auth.js` / `authentication.js` — Login/register logic, session management

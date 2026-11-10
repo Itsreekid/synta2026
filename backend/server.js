@@ -11,6 +11,7 @@ import helmet from "helmet";
 import cookieParser from "cookie-parser";
 import path from "path";
 import { fileURLToPath } from "url";
+import { createHomepageDelivery, setPublicAssetCache } from "./utils/homepageDelivery.js";
 
 // Import routes
 import contentRoutes from "./routes/content.js";
@@ -120,7 +121,8 @@ app.set("views", path.join(__dirname, "views"));
 // STATIC FILES
 // Serve all frontend assets from backend/public/
 // =====================================================
-app.use(express.static(path.join(__dirname, "public")));
+app.use(createHomepageDelivery(path.join(__dirname, "public")));
+app.use(express.static(path.join(__dirname, "public"), { setHeaders: setPublicAssetCache }));
 
 // Request logging
 app.use((req, res, next) => {

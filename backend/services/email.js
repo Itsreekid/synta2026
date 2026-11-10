@@ -25,23 +25,67 @@ export function generateVerificationToken() {
 }
 
 // ── Email template ─────────────────────────────────────────────────────────
-function buildVerificationEmailHtml(name, verifyUrl) {
-  const firstName = String(name?.split(" ")[0] || "toi").replace(/[&<>"']/g, char => ({
+function escapeEmailHtml(value) {
+  return String(value).replace(/[&<>"']/g, char => ({
     "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;",
   }[char]));
+}
+
+function buildVerificationEmailHtml(name, email, verifyUrl) {
+  const firstName = escapeEmailHtml(name?.trim().split(/\s+/)[0] || "toi");
+  const address = escapeEmailHtml(email);
+  const link = escapeEmailHtml(verifyUrl);
+  const logo = escapeEmailHtml(new URL("/source/logo.png", BASE_URL).href);
+
+  // Tables and inline styles keep the registration page's visual language in email clients.
   return `<!DOCTYPE html>
-<html lang="fr" dir="ltr"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
-<body style="margin:0;background:#f8fafc;font-family:Arial,sans-serif;color:#013047">
-<table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr><td style="padding:32px 16px">
-<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:520px;margin:auto;background:white;border-radius:16px">
-<tr><td style="padding:36px"><p style="margin:0 0 24px"><img src="${BASE_URL}/source/logo.png" alt="Synta Academy" width="120" height="111" style="display:block;border:0;max-width:100%;height:auto"></p>
-<h1 style="font-size:27px;line-height:1.25">Bienvenue, ${firstName}.</h1>
-<p style="color:#64748b;line-height:1.7">Ton compte est créé. Confirme ton adresse e-mail pour commencer à apprendre sur Synta Academy.</p>
-<p style="margin:28px 0"><a href="${verifyUrl}" style="display:inline-block;background:#F6851F;color:#013047;text-decoration:none;padding:15px 24px;border-radius:8px;font-weight:bold">Confirmer mon adresse e-mail →</a></p>
-<p style="font-size:13px;color:#64748b;line-height:1.7">Ce lien est valable 24 heures. Une fois ton adresse confirmée, connecte-toi avec ton e-mail et ton mot de passe.</p>
-<p style="font-size:12px;color:#64748b;line-height:1.7">Tu n’as pas demandé ce compte ? Tu peux ignorer cet e-mail.</p>
-<p style="border-top:1px solid #e2e8f0;padding-top:20px;margin-top:28px;font-size:12px">Besoin d’aide ? <a href="mailto:contact@syntaacademy.tn" style="color:#013047">Contacte l’équipe Synta</a>.</p>
-</td></tr></table></td></tr></table></body></html>`;
+<html lang="fr" dir="ltr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light">
+  <meta name="supported-color-schemes" content="light">
+  <title>Confirme ton adresse e-mail · Synta Academy</title>
+  <style>
+    @media screen and (max-width: 480px) {
+      .email-content { padding-left: 22px !important; padding-right: 22px !important; }
+      .email-heading { font-size: 29px !important; }
+    }
+  </style>
+</head>
+<body style="margin:0;padding:0;background-color:#f8fafc;color:#013047;font-family:Tajawal,Arial,Helvetica,sans-serif;-webkit-text-size-adjust:100%">
+  <div style="display:none;max-height:0;overflow:hidden;opacity:0;mso-hide:all">Ton compte est créé. Confirme ton adresse e-mail et commence à apprendre avec Synta Academy.</div>
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="#f8fafc" style="width:100%;background-color:#f8fafc">
+    <tr><td align="center" style="padding:32px 0 40px">
+      <!--[if mso]><table role="presentation" width="520" cellpadding="0" cellspacing="0" border="0"><tr><td><![endif]-->
+      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="width:100%;max-width:520px;margin:0 auto">
+        <tr><td align="center" style="padding:0 28px 36px">
+          <img src="${logo}" alt="Synta Academy" width="90" height="83" style="display:block;width:90px;height:auto;border:0">
+        </td></tr>
+        <tr><td class="email-content" align="center" style="padding:0 40px">
+          <table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin:0 auto 25px">
+            <tr><td align="center" width="64" height="64" bgcolor="#edf6fa" style="width:64px;height:64px;background-color:#edf6fa;border-radius:20px;color:#013047;font-size:28px;line-height:64px">&#9993;</td></tr>
+          </table>
+          <p style="margin:0 0 18px;color:#167c99;font-size:10px;line-height:18px;font-weight:bold;letter-spacing:1.8px;text-transform:uppercase">Ton compte est créé</p>
+          <h1 class="email-heading" style="margin:0 0 24px;color:#013047;font-size:34px;line-height:1.25;font-weight:bold;letter-spacing:-0.6px">Un dernier clic,<br>et c’est parti.</h1>
+          <p style="margin:0 0 12px;color:#013047;font-size:15px;line-height:24px">Bienvenue, ${firstName}.</p>
+          <p style="margin:0;color:#64748b;font-size:14px;line-height:24px">Confirme ton adresse e-mail pour activer ton compte et commencer à apprendre.</p>
+          <p style="margin:14px 0 30px;color:#013047;font-size:14px;line-height:24px;font-weight:bold;word-break:break-word">${address}</p>
+          <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="width:100%">
+            <tr><td align="center" bgcolor="#F6851F" style="background-color:#F6851F;border-radius:10px;mso-padding-alt:17px 20px">
+              <a href="${link}" style="display:block;padding:17px 20px;border:1px solid #F6851F;border-radius:10px;color:#013047;font-size:14px;line-height:20px;font-weight:bold;text-decoration:none;text-align:center">Confirmer mon adresse e-mail&nbsp; &#8594;</a>
+            </td></tr>
+          </table>
+          <p style="margin:22px 0 0;color:#64748b;font-size:12px;line-height:21px">Ce lien est valable 24 heures.<br>Une fois ton adresse confirmée, connecte-toi pour retrouver tes formations.</p>
+          <p style="margin:22px 0 0;font-size:12px;line-height:20px"><a href="mailto:contact@syntaacademy.tn" style="color:#013047;text-decoration:underline">Besoin d’aide ? Contacte l’équipe Synta</a></p>
+          <p style="margin:30px 0 0;padding-top:22px;border-top:1px solid #e2e8f0;color:#64748b;font-size:11px;line-height:19px">Tu n’as pas créé de compte ? Tu peux ignorer cet e-mail.<br>Un peu de curiosité. Beaucoup de possibilités.</p>
+        </td></tr>
+      </table>
+      <!--[if mso]></td></tr></table><![endif]-->
+    </td></tr>
+  </table>
+</body>
+</html>`;
 }
 
 // ── Main export ────────────────────────────────────────────────────────────
@@ -54,13 +98,16 @@ function buildVerificationEmailHtml(name, verifyUrl) {
  * @returns {Promise<void>}
  */
 export async function sendVerificationEmail(to, name, token) {
-  const verifyUrl = `${BASE_URL}/auth/verify-email?token=${token}`;
+  const verificationUrl = new URL("/auth/verify-email", BASE_URL);
+  verificationUrl.searchParams.set("token", token);
+  const verifyUrl = verificationUrl.href;
 
   const { error } = await resend.emails.send({
     from:    FROM_ADDRESS,
     to:      [to],
     subject: "Confirme ton adresse e-mail · Synta Academy",
-    html:    buildVerificationEmailHtml(name, verifyUrl),
+    html:    buildVerificationEmailHtml(name, to, verifyUrl),
+    text:    `Bienvenue, ${name || "toi"}.\n\nConfirme ton adresse e-mail pour activer ton compte :\n${verifyUrl}\n\nCe lien est valable 24 heures.\nBesoin d’aide ? contact@syntaacademy.tn\n\nSi tu n’as pas créé de compte, tu peux ignorer cet e-mail.`,
   });
 
   if (error) {

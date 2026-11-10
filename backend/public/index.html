@@ -37,30 +37,31 @@
     }
     </script>
 
-    <link rel="icon" href="source/logoweb.png" type="image/x-icon">
+    <link rel="icon" href="source/favicon-64.png?v=d318974c0f6f" type="image/png" sizes="64x64">
+    <link rel="preload" as="image" href="source/hero1.webp?v=de165437d16d" fetchpriority="high">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" media="print" onload="this.media='all'">
     <noscript><link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"></noscript>
-    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="style.css?v=8a1baa01a34a">
 </head>
-<body>
+<body class="home-page">
     <header>
         <div class="container">
             <div class="logo">
-                <a href="/"><img src="source/logo.png" alt="سينتى أكادمي" width="80" height="80" loading="eager"></a>
+                <a href="/"><img src="source/logo.webp?v=d7cfc03676be" alt="سينتى أكادمي" width="80" height="80" loading="eager"></a>
             </div>
-            <button class="mobile-menu-btn" aria-label="Toggle menu">
+            <button class="mobile-menu-btn" type="button" aria-label="القائمة الرئيسية" aria-expanded="false" aria-controls="homepage-navigation">
                 <span class="menu-icon"></span>
                 <span class="menu-icon"></span>
                 <span class="menu-icon"></span>
             </button>
-            <nav>
+            <nav id="homepage-navigation" aria-label="التنقل الرئيسي">
                 <ul>
                     <li><a href="/" class="active">الرئيسية</a></li>
                     <li><a href="/app/courses">عروضنا</a></li>
-                    <li><a href="#">عن الأكاديمية</a></li>
+                    <li><a href="#about-academy">عن الأكاديمية</a></li>
                     <li><a href="/app/contact">تواصل معنا</a></li>
                 </ul>
             </nav>
@@ -92,7 +93,7 @@
                 </div>
             </div>
             <div class="hero-image">
-                <img src="source/hero1.png" alt="تعلم البرمجة" loading="eager" width="500">
+                <img src="source/hero1.webp?v=de165437d16d" alt="تعلم البرمجة" loading="eager" fetchpriority="high" width="500" style="aspect-ratio: 1000 / 999; height: auto">
             </div>
         </div>
     </section>
@@ -104,7 +105,7 @@
             <div class="courses-grid">
                 <div class="course-card">
                     <div class="course-badge">الأكثر مبيعاً</div>
-                    <div class="course-image"><img src="source/algo2.gif" alt="مراجعة الإعلامية" loading="lazy"></div>
+                    <div class="course-image"><img src="source/algo2.webp?v=4d171fba9014" alt="مراجعة الإعلامية" loading="lazy" decoding="async"></div>
                     <div class="course-content">
                         <h3>مراجعة الإعلامية</h3>
                         <p class="course-description">تعلم الأساسيات من الألف للياء بلغة سهلة وواضحة — كل شي اللي تحتاجه للنجاح في الإعلامية</p>
@@ -121,7 +122,7 @@
                 </div>
                 <div class="course-card">
                     <div class="course-badge">جديد</div>
-                    <div class="course-image"><img src="source/soon1.jpg" alt="تحدي الويب" loading="lazy"></div>
+                    <div class="course-image"><img src="source/soon1.webp?v=4e1bd9f5b4e9" alt="تحدي الويب" loading="lazy" decoding="async"></div>
                     <div class="course-content">
                         <h3>تحدي الويب</h3>
                         <p class="course-description">دليلك الشامل لاجتياز اختبارات STI: واجبٌ على كل تلميذ</p>
@@ -137,7 +138,7 @@
                 </div>
                 <div class="course-card">
                     <div class="course-badge">جديد</div>
-                    <div class="course-image"><img src="source/graphique.jfif" alt="دورة Graphic Design" loading="lazy"></div>
+                    <div class="course-image"><img src="source/graphique.webp?v=16f2d7024fbe" alt="دورة Graphic Design" loading="lazy" decoding="async"></div>
                     <div class="course-content">
                         <h3>دورة Graphic Designer</h3>
                         <p class="course-description">تعلم HTML, CSS, JavaScript لبناء مواقع الويب</p>
@@ -159,7 +160,7 @@
     </section>
 
     <!-- Features -->
-    <section class="features">
+    <section class="features" id="about-academy">
         <div class="container">
             <h2 class="section-title">لماذا تختار أكاديميتنا؟</h2>
             <div class="features-grid">
@@ -179,14 +180,14 @@
                 <div class="testimonial-card">
                     <div class="testimonial-content"><p>"كنت نجيب 5 في الإنفو و كنت نكرهو و نفد منو أما حمدلله بديت معاكم و هذه من أحسن القرارات لخذيتهم عامت الباك و حمدلله تحسنت برشا وصلت حتى نجيب 16 في آخر العام"</p></div>
                     <div class="testimonial-author">
-                        <div><img class="author-image" src="source/users/imen.jpg" alt="Imen Belaid" loading="lazy"></div>
+                        <div><img class="author-image" src="source/users/imen.webp?v=c7ce7e7a1a43" alt="Imen Belaid" loading="lazy" decoding="async"></div>
                         <div class="author-info"><h4>Imen Belaid</h4><p>Bac Science</p></div>
                     </div>
                 </div>
                 <div class="testimonial-card">
                     <div class="testimonial-content"><p>"حبيت نشركم برشا و الكلام لباش نقولو و شوي و كان موش بروف لوقف معانا و وسع بالو و عندو طريقة تحببك في الإنفو و تخليك تفهمو من أحسن البروفات لقريت عندهم"</p></div>
                     <div class="testimonial-author">
-                        <div><img class="author-image" src="source/users/baraa.jpg" alt="Baraâ Chaabéne" loading="lazy"></div>
+                        <div><img class="author-image" src="source/users/baraa.webp?v=7fd73c8b2bb8" alt="Baraâ Chaabéne" loading="lazy" decoding="async"></div>
                         <div class="author-info"><h4>Baraâ Chaabéne</h4><p>Bac Technique</p></div>
                     </div>
                 </div>
@@ -208,7 +209,7 @@
         <div class="container">
             <div class="footer-grid">
                 <div class="footer-about">
-                    <h3><img src="source/whiteorangeweb.png" alt="سينتى أكادمي" width="80" loading="lazy"></h3>
+                    <h3><img src="source/whiteorangeweb.webp?v=3c7331c0745e" alt="سينتى أكادمي" width="80" loading="lazy" decoding="async"></h3>
                     <p>تقدم لكم منصتنا تجربة متكاملة وجديدة في التعلم لتلاميذ والمهتمين بتطوير مهاراتهم</p>
                 </div>
                 <div class="footer-links">
@@ -216,7 +217,7 @@
                     <ul>
                         <li><a href="/">الرئيسية</a></li>
                         <li><a href="/app/courses">عروضنا</a></li>
-                        <li><a href="#">عن الأكاديمية</a></li>
+                        <li><a href="#about-academy">عن الأكاديمية</a></li>
                         <li><a href="/app/contact">تواصل معنا</a></li>
                     </ul>
                 </div>
@@ -280,6 +281,6 @@
             }
         })();
     </script>
-    <script src="main.js" defer></script>
+    <script src="main.js?v=05e3cad4e4a1" defer></script>
 </body>
 </html>
