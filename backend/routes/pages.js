@@ -14,6 +14,7 @@ import path from "path";
 import { fileURLToPath } from "url";
 import jwt from "jsonwebtoken";
 import pool from "../config/db.js";
+import { BUGI_MESSAGES } from "../services/bugi-character.js";
 import { requireAuth } from "../middleware/requireAuth.js";
 import { requireAdmin } from "../middleware/requireAdmin.js";
 import { attachUserProfile } from "../middleware/attachUserProfile.js";
@@ -263,7 +264,7 @@ router.get("/app/contact", ...protect, (req, res) => {
 });
 
 router.get("/app/code-pratique", ...protect, (req, res) => {
-  renderPage(res, "pages/code/index", { user: req.user, profile: req.userProfile });
+  renderPage(res, "pages/code/index", { user: req.user, profile: req.userProfile, bugiMessages: BUGI_MESSAGES });
 });
 
 export default router;

@@ -322,218 +322,119 @@
         /* ========================================================
            AI FLOATING DRAWER WIDGET
            ======================================================== */
-        .ai-fab {
-            position: absolute;
-            bottom: 0;
-            right: 0;
-            z-index: 50;
-            background: linear-gradient(135deg, #f97316, #f59e0b);
-            color: white;
-            border: none;
-            border-radius: 50px;
-            padding: 14px 20px;
-            box-shadow: 0 10px 25px rgba(249, 115, 22, 0.4);
-            cursor: pointer;
-            display: flex;
-            align-items: center;
-            gap: 8px;
+        #ai-wrapper-global {
+            position: fixed;
+            right: max(24px, env(safe-area-inset-right));
+            bottom: max(24px, env(safe-area-inset-bottom));
+            z-index: 9999;
             font-family: 'Tajawal', sans-serif;
-            font-weight: bold;
-            font-size: 16px;
-            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
         }
-        .ai-fab:hover {
-            transform: translateY(-4px) scale(1.05);
-            box-shadow: 0 15px 30px rgba(249, 115, 22, 0.5);
+        .ai-fab, .ai-close-btn, .ai-send-btn {
+            display: grid;
+            place-items: center;
+            border: 0;
+            cursor: pointer;
         }
-
+        .ai-fab {
+            position: relative;
+            width: 52px;
+            height: 52px;
+            padding: 3px;
+            background: #fff;
+            border: 1px solid #dce8ee;
+            border-radius: 50%;
+            box-shadow: 0 6px 20px #01223530;
+        }
+        .ai-fab img, .ai-avatar { width: 100%; height: 100%; object-fit: cover; border-radius: 50%; }
+        .ai-unread { position: absolute; top: 0; right: 0; width: 12px; height: 12px; border: 2px solid white; border-radius: 50%; background: #f6851f; }
         .ai-drawer {
             position: absolute;
-            bottom: 70px; /* Above the FAB */
             right: 0;
-            z-index: 50;
-            width: 380px;
-            max-width: calc(100vw - 48px);
-            height: 500px;
-            max-height: calc(100vh - 120px);
-            background: #1e2030;
-            border: 1px solid #333550;
-            border-radius: 16px;
-            box-shadow: 0 15px 40px rgba(0,0,0,0.5);
+            bottom: 64px;
+            width: min(400px, calc(100vw - 48px));
+            height: min(540px, calc(100dvh - 105px));
             display: flex;
             flex-direction: column;
-            transform: translateY(20px);
-            opacity: 0;
-            pointer-events: none;
-            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
             overflow: hidden;
-            font-family: 'Tajawal', sans-serif;
+            border: 1px solid #dce8ee;
+            border-radius: 20px;
+            background: #fff;
+            color: #012235;
+            box-shadow: 0 18px 52px #01223535;
+            animation: bugi-open 160ms ease-out;
         }
-        .ai-drawer.open {
-            transform: translateY(0);
-            opacity: 1;
-            pointer-events: auto;
-        }
-
-        .ai-drawer-header {
-            background: #252840;
-            padding: 16px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            border-bottom: 1px solid #333550;
-            color: white;
-            font-size: 16px;
-            direction: rtl;
-        }
-        .ai-drawer-header strong { font-weight: 700; }
-        .ai-close-btn {
-            background: transparent;
-            border: none;
-            color: #64748b;
-            font-size: 20px;
-            cursor: pointer;
-            transition: color 0.2s;
-        }
-        .ai-close-btn:hover { color: #f87171; }
-
-        .ai-avatar {
-            width: 36px;
-            height: 36px;
-            background: linear-gradient(135deg, #a855f7, #8b5cf6);
-            border-radius: 12px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 18px;
-        }
-
-        .ai-chat-history {
-            flex: 1;
-            padding: 16px;
-            overflow-y: auto;
-            display: flex;
-            flex-direction: column;
-            gap: 16px;
-            min-height: 0;
-        }
-
-        /* ── Input bar ───────────────────────────────────── */
-        .ai-input-bar {
+        .ai-drawer[hidden] { display: none; }
+        @keyframes bugi-open { from { opacity: 0; transform: translateY(8px); } }
+        .ai-drawer-header, .ai-identity, .ai-header-actions, .ai-input-bar {
             display: flex;
             align-items: center;
             gap: 8px;
-            padding: 12px 14px;
-            border-top: 1px solid #333550;
-            background: #1a1c2e;
-            flex-shrink: 0;
         }
+        .ai-drawer-header { justify-content: space-between; padding: 8px 12px; background: #012235; color: white; }
+        .ai-avatar { width: 36px; height: 36px; }
+        .ai-close-btn, .ai-send-btn { flex: none; width: 44px; height: 44px; border-radius: 50%; }
+        .ai-close-btn { background: transparent; color: #e4f2f9; font-size: 16px; }
+        .ai-close-btn:hover { background: #16465b; }
+        #ai-wrapper-global :focus-visible { outline: 2px solid #219ebc; outline-offset: 2px; }
+        .ai-chat-history {
+            flex: 1;
+            min-height: 0;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            padding: 14px;
+            overflow-y: auto;
+            overscroll-behavior: contain;
+        }
+        .ai-chat-history > * { flex-shrink: 0; }
+        .ai-welcome { padding: 8px 12px; text-align: center; color: #395569; line-height: 1.6; }
+        .ai-chat-history:has(.ai-bubble) .ai-welcome { display: none; }
+        .ai-input-bar { padding: 10px 12px; border-top: 1px solid #dce8ee; }
         .ai-input-bar input {
             flex: 1;
-            background: #252840;
-            border: 1px solid #333550;
-            border-radius: 20px;
-            padding: 10px 16px;
-            color: #e2e8f0;
-            font-family: 'Tajawal', sans-serif;
-            font-size: 14px;
-            direction: rtl;
-            outline: none;
-            transition: border-color 0.2s;
+            min-width: 0;
+            min-height: 44px;
+            padding: 8px 14px;
+            border: 1px solid #c9dce6;
+            border-radius: 24px;
+            background: #f3f7fa;
+            color: #012235;
+            font: 16px 'Tajawal', sans-serif;
         }
-        .ai-input-bar input::placeholder { color: #4a5380; }
-        .ai-input-bar input:focus { border-color: #a855f7; }
-        .ai-send-btn {
-            width: 38px;
-            height: 38px;
-            border-radius: 50%;
-            border: none;
-            background: linear-gradient(135deg, #a855f7, #8b5cf6);
-            color: white;
-            cursor: pointer;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 15px;
-            flex-shrink: 0;
-            transition: transform 0.15s, opacity 0.15s;
-        }
-        .ai-send-btn:hover  { transform: scale(1.08); }
-        .ai-send-btn:active { transform: scale(0.95); }
-        .ai-send-btn:disabled { opacity: 0.4; cursor: not-allowed; transform: none; }
-
+        .ai-input-bar input::placeholder { color: #526d80; }
+        .ai-send-btn { background: #f6851f; color: #012235; font-size: 16px; }
+        .ai-send-btn:disabled { opacity: .5; cursor: default; }
         .ai-bubble {
-            max-width: 88%;
-            padding: 14px 18px;
-            border-radius: 14px;
+            max-width: 92%;
+            min-width: 0;
+            padding: 9px 13px;
+            border-radius: 16px;
+            font-size: 16px;
             line-height: 1.6;
-            font-size: 15px;
-            word-wrap: break-word;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            overflow-wrap: anywhere;
+            white-space: pre-wrap;
         }
-        .ai-bubble.user {
-            align-self: flex-end;
-            background: #2d3250;
-            color: #c8cce8;
-            border-bottom-right-radius: 4px;
-            direction: rtl;
-            font-family: 'Tajawal', sans-serif;
-            font-size: 14px;
-            text-align: right;
-        }
-        .ai-bubble.ai {
-            align-self: flex-start;
-            background: rgba(168, 85, 247, 0.1);
-            border: 1px solid rgba(168, 85, 247, 0.2);
-            color: #e2e8f0;
-            border-bottom-left-radius: 4px;
-            direction: rtl;
-            text-align: right;
-        }
-        .ai-bubble.ai { white-space: pre-wrap; }
+        .ai-bubble.user { align-self: flex-end; background: #013047; color: #fff; border-bottom-right-radius: 4px; }
+        .ai-bubble.ai { align-self: flex-start; background: #eaf4f8; color: #012235; border-bottom-left-radius: 4px; }
         .ai-bubble.ai pre {
-            background: #1a1c2e;
-            padding: 12px;
+            padding: 10px;
+            margin: 6px 0;
             border-radius: 8px;
-            border: 1px solid #333550;
+            background: #012235;
+            color: #e7f4fa;
             direction: ltr;
             text-align: left;
-            font-family: 'Fira Code', monospace;
-            font-size: 13.5px;
-            color: #10b981;
             overflow-x: auto;
-            margin: 8px 0;
+            white-space: pre;
         }
-        .ai-bubble.ai code {
-            font-family: 'Fira Code', monospace;
-            background: #1a1c2e;
-            color: #a855f7;
-            padding: 2px 6px;
-            border-radius: 4px;
-            font-size: 13.5px;
+        .ai-bubble.ai code { font: 14px/1.6 ui-monospace, "Cascadia Code", Consolas, monospace; }
+        .ai-typing { align-self: flex-start; color: #395569; padding: 6px 12px; font-size: 14px; }
+        @media (max-width: 700px) {
+            #ai-wrapper-global { right: max(12px, env(safe-area-inset-right)); bottom: max(70px, calc(env(safe-area-inset-bottom) + 60px)); }
+            .ai-drawer { position: fixed; right: max(8px, env(safe-area-inset-right)); left: max(8px, env(safe-area-inset-left)); bottom: max(8px, env(safe-area-inset-bottom)); width: auto; height: min(600px, calc(100dvh - 16px)); }
+            .ai-fab[aria-expanded="true"] { visibility: hidden; }
         }
-
-        /* Typing skeleton */
-        .ai-typing {
-            display: flex;
-            align-items: center;
-            gap: 6px;
-            padding: 14px 16px;
-        }
-        .ai-typing span {
-            width: 8px;
-            height: 8px;
-            background: #a855f7;
-            border-radius: 50%;
-            animation: bounce 1.4s infinite ease-in-out both;
-        }
-        .ai-typing span:nth-child(1) { animation-delay: -0.32s; }
-        .ai-typing span:nth-child(2) { animation-delay: -0.16s; }
-        @keyframes bounce {
-            0%, 80%, 100% { transform: scale(0); }
-            40% { transform: scale(1); }
-        }
-
+        @media (prefers-reduced-motion: reduce) { .ai-drawer { animation: none; } }
 
         /* Editor footer */
         .cp-editor-footer {
@@ -1412,43 +1313,32 @@
 <!-- ========================================================
      AI FLOATING DRAWER
      ======================================================== -->
-<div id="ai-wrapper-global" class="fixed bottom-6 right-6 z-50" style="position: fixed; bottom: 24px; right: 24px; z-index: 9999;">
-    <button class="ai-fab" onclick="toggleAiDrawer()" title="Bugi" style="padding: 0; overflow: hidden; display: flex; align-items: center; justify-content: center; background: white;">
-        <img src="/source/icons.jpg" alt="Bugi" style="width: 100%; height: 100%; object-fit: cover;">
+<div id="ai-wrapper-global">
+    <button type="button" class="ai-fab" id="ai-launcher" onclick="toggleAiDrawer()" aria-controls="ai-drawer" aria-expanded="false" aria-label="Ouvrir la conversation avec Bugi">
+        <img src="/source/icons.jpg" alt="">
+        <span class="ai-unread" id="ai-unread" hidden></span>
     </button>
-    
-    <div class="ai-drawer" id="ai-drawer">
-        <div class="ai-drawer-header">
-            <div style="display:flex; align-items:center; gap:10px;">
-                <div class="ai-avatar" style="overflow: hidden; padding: 0; background: white;">
-                    <img src="/source/icons.jpg" alt="Bugi" style="width: 100%; height: 100%; object-fit: cover; border-radius: 50%;">
-                </div>
-                <strong>Bugi</strong>
+    <section class="ai-drawer" id="ai-drawer" role="dialog" aria-labelledby="ai-title" data-messages="<%= JSON.stringify(bugiMessages) %>" hidden>
+        <header class="ai-drawer-header">
+            <div class="ai-identity">
+                <img class="ai-avatar" src="/source/icons.jpg" alt="">
+                <strong id="ai-title">Bugi</strong>
             </div>
-            <div style="display:flex; align-items:center; gap:8px;">
-                <button onclick="clearBugiHistory()" class="ai-close-btn" style="font-size: 14px;" title="Vider l'historique"><i class="fas fa-trash"></i></button>
-                <button onclick="toggleAiDrawer()" class="ai-close-btn" title="Fermer">&times;</button>
+            <div class="ai-header-actions">
+                <button type="button" onclick="clearBugiHistory()" class="ai-close-btn" aria-label="Vider l’historique" title="Vider l’historique"><i class="fas fa-trash" aria-hidden="true"></i></button>
+                <button type="button" id="ai-close" onclick="toggleAiDrawer(false)" class="ai-close-btn" aria-label="Réduire la conversation" title="Réduire la conversation"><i class="fas fa-minus" aria-hidden="true"></i></button>
             </div>
-        </div>
-        <div class="ai-chat-history" id="ai-chat-history" data-account="<%= user.id %>">
-            <!-- Messages appended dynamically -->
-            <div style="text-align:center; color:#64748b; font-size:13px; margin-top:20px;">
-                عسلامة<% if (profile?.firstName) { %> يا <%= profile.firstName %><% } %>! أنا بوجي 🐞 اسألني على الكود ولا ابعثلي الخطأ.
+        </header>
+        <div class="ai-chat-history" id="ai-chat-history" data-account="<%= user.id %>" role="log" aria-label="Messages Bugi" aria-live="polite">
+            <div class="ai-welcome" lang="ar" dir="rtl">
+                عسلامة<% if (profile?.firstName) { %> يا <bdi><%= profile.firstName %></bdi><% } %>! أنا بوجي 🐞 اسألني على الكود ولا ابعثلي الخطأ.
             </div>
         </div>
-        <!-- Input bar -->
-        <div class="ai-input-bar">
-            <button class="ai-send-btn" id="ai-send-btn" onclick="sendBugiMessage()" title="إرسال" disabled>
-                <i class="fas fa-paper-plane"></i>
-            </button>
-            <input
-                type="text"
-                id="ai-user-input"
-                placeholder="اسأل Bugi سؤالاً أو اطلب توضيحاً..."
-                maxlength="500"
-            />
-        </div>
-    </div>
+        <form class="ai-input-bar" onsubmit="event.preventDefault(); sendBugiMessage()">
+            <input type="text" id="ai-user-input" dir="auto" aria-label="Message à Bugi" placeholder="اسأل بوجي…" maxlength="500" autocomplete="off" required>
+            <button type="submit" class="ai-send-btn" id="ai-send-btn" aria-label="Envoyer" title="Envoyer"><i class="fas fa-paper-plane" aria-hidden="true"></i></button>
+        </form>
+    </section>
 </div>
 
 <!-- Scripts -->
@@ -2433,111 +2323,117 @@ function checkAndShowHint(code) {
     hintEl.classList.remove('show');
 }
 
-// Enable input bar after first code context is loaded
-function enableBugiInput() {
-    const btn   = document.getElementById('ai-send-btn');
-    const input = document.getElementById('ai-user-input');
-    if (btn)   btn.disabled   = false;
-    if (input) input.disabled = false;
-
-    // Wire Enter key once
-    if (input && !input._bugiWired) {
-        input._bugiWired = true;
-        input.addEventListener('keydown', (e) => {
-            if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendBugiMessage(); }
-        });
-    }
-}
-
-// Send a free-text follow-up message to Bugi
-async function sendBugiMessage() {
-    const input   = document.getElementById('ai-user-input');
-    const sendBtn = document.getElementById('ai-send-btn');
-    const historyEl = document.getElementById('ai-chat-history');
-    if (!input || !historyEl) return;
-
-    const text = input.value.trim();
-    if (!text) return;
-
-    // Get current code context for Bugi
-    const code = pyEditor ? pyEditor.getValue() : '';
-
-    // Append student's message
-    const userBubble = document.createElement('div');
-    userBubble.className = 'ai-bubble user';
-    userBubble.textContent = text;
-    historyEl.appendChild(userBubble);
-    historyEl.scrollTop = historyEl.scrollHeight;
-
-    // Clear input and disable while waiting
-    input.value     = '';
-    input.disabled  = true;
-    sendBtn.disabled = true;
-
-    // Show typing indicator
-    const typingId  = 'typing-' + Date.now();
-    const typingEl  = document.createElement('div');
-    typingEl.className = 'ai-typing';
-    typingEl.id        = typingId;
-    typingEl.innerHTML = '<span></span><span></span><span></span>';
-    historyEl.appendChild(typingEl);
-    historyEl.scrollTop = historyEl.scrollHeight;
-
-    try {
-        const response = await fetch('/api/ai/debug', {
-            method:  'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body:    JSON.stringify({ code, question: text, previousAnswer })
-        });
-        const data = await response.json();
-
-        document.getElementById(typingId)?.remove();
-
-        const aiMsg = document.createElement('div');
-        aiMsg.className = 'ai-bubble ai';
-
-        if (data.success && data.explanation) {
-            let html = escapeHtml(data.explanation);
-            html = html.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
-            aiMsg.innerHTML = html;
-        } else if (data.message) {
-            aiMsg.textContent = data.message;
-        } else {
-            aiMsg.innerHTML = '⚠️ Bugi مشغول بارشا تو — حاول بعد شوية! 😅';
-        }
-
-        historyEl.appendChild(aiMsg);
-        historyEl.scrollTop = historyEl.scrollHeight;
-
-    } catch (err) {
-        document.getElementById(typingId)?.remove();
-        const aiMsg = document.createElement('div');
-        aiMsg.className = 'ai-bubble ai';
-        aiMsg.innerHTML = '⚠️ Bugi مشغول بارشا تو — حاول بعد شوية! 😅';
-        historyEl.appendChild(aiMsg);
-        historyEl.scrollTop = historyEl.scrollHeight;
-    } finally {
-        input.disabled   = false;
-        sendBtn.disabled = false;
-        input.focus();
-        saveBugiHistory();
-    }
-}
-
-// ----------------------------------------------------------------
-// AI DEBUGGER FLOATING DRAWER
-// ----------------------------------------------------------------
-let aiCooldown = false;
+const bugiCopy = JSON.parse(document.getElementById('ai-drawer').dataset.messages);
+let bugiRequest = null;
+let bugiReturnFocus = null;
 let lastAiCode = null;
 
 function toggleAiDrawer(forceOpen = null) {
     const drawer = document.getElementById('ai-drawer');
-    if (forceOpen === true) {
-        drawer.classList.add('open');
-    } else if (forceOpen === false) {
-        drawer.classList.remove('open');
+    const launcher = document.getElementById('ai-launcher');
+    if (!drawer || !launcher) return;
+    const open = forceOpen ?? drawer.hidden;
+    if (open === !drawer.hidden) return;
+
+    drawer.hidden = !open;
+    launcher.setAttribute('aria-expanded', String(open));
+    if (open) {
+        bugiReturnFocus = document.activeElement;
+        document.getElementById('ai-unread').hidden = true;
+        launcher.setAttribute('aria-label', 'Réduire la conversation avec Bugi');
+        document.getElementById('ai-close').focus();
+        const history = document.getElementById('ai-chat-history');
+        history.scrollTop = history.scrollHeight;
     } else {
-        drawer.classList.toggle('open');
+        launcher.setAttribute('aria-label', 'Ouvrir la conversation avec Bugi');
+        if (bugiReturnFocus?.getClientRects().length) bugiReturnFocus.focus();
+        else launcher.focus();
+    }
+}
+
+document.getElementById('ai-drawer').addEventListener('keydown', event => {
+    if (event.key === 'Escape') {
+        event.stopPropagation();
+        toggleAiDrawer(false);
+    }
+});
+
+function makeBugiBubble(text, fromStudent = false) {
+    const bubble = document.createElement('div');
+    bubble.className = fromStudent ? 'ai-bubble user' : 'ai-bubble ai';
+    bubble.dir = 'auto';
+    if (!fromStudent) bubble.lang = 'ar';
+    bubble.textContent = text;
+    return bubble;
+}
+
+function sendBugiMessage() {
+    const input = document.getElementById('ai-user-input');
+    const question = input.value.trim();
+    if (!question || bugiRequest) return;
+
+    input.value = '';
+    requestBugi(question, { code: pyEditor?.getValue() ?? '', question, previousAnswer });
+}
+
+async function requestBugi(message, payload) {
+    if (bugiRequest) return;
+
+    const history = document.getElementById('ai-chat-history');
+    const send = document.getElementById('ai-send-btn');
+    const controller = new AbortController();
+    bugiRequest = controller;
+    send.disabled = true;
+    history.append(makeBugiBubble(message, true));
+
+    const typing = document.createElement('div');
+    typing.className = 'ai-typing';
+    typing.dir = 'rtl';
+    typing.textContent = bugiCopy.typing;
+    history.append(typing);
+    history.scrollTop = history.scrollHeight;
+
+    const reply = makeBugiBubble('');
+    try {
+        const response = await fetch('/api/ai/debug', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload),
+            signal: controller.signal
+        });
+        const data = response.ok ? await response.json().catch(() => null) : null;
+        if (bugiRequest !== controller) return;
+
+        if (typeof data?.explanation === 'string' && data.explanation.trim()) {
+            showBugiAnswer(reply, data.explanation);
+        } else if (response.status === 401) {
+            reply.textContent = bugiCopy.session;
+        } else if (response.status === 429) {
+            reply.textContent = bugiCopy.quota;
+        } else {
+            reply.textContent = response.status === 400 ? bugiCopy.invalid : bugiCopy.busy;
+        }
+    } catch {
+        if (bugiRequest !== controller) return;
+        reply.textContent = bugiCopy.connection;
+    } finally {
+        typing.remove();
+        if (bugiRequest === controller) {
+            bugiRequest = null;
+            send.disabled = false;
+        }
+    }
+
+    if (!reply.dataset.reply && payload.question) {
+        const input = document.getElementById('ai-user-input');
+        if (!input.value) input.value = payload.question;
+    }
+    history.append(reply);
+    history.scrollTop = history.scrollHeight;
+    saveBugiHistory();
+    if (document.getElementById('ai-drawer').hidden) {
+        document.getElementById('ai-unread').hidden = false;
+        document.getElementById('ai-launcher').setAttribute('aria-label', 'Ouvrir Bugi, nouveau message');
     }
 }
 
@@ -2579,14 +2475,15 @@ function saveBugiHistory() {
 }
 
 function loadBugiHistory() {
+    const historyEl = document.getElementById('ai-chat-history');
+    if (historyEl.dataset.loaded) return;
+    historyEl.dataset.loaded = 'true';
     try {
         const entries = JSON.parse(localStorage.getItem(BUGI_STORAGE_KEY) || '[]');
         if (!Array.isArray(entries)) return;
-        const historyEl = document.getElementById('ai-chat-history');
         for (const entry of entries.slice(-20)) {
             if (typeof entry?.text !== 'string') continue;
-            const bubble = document.createElement('div');
-            bubble.className = entry.user ? 'ai-bubble user' : 'ai-bubble ai';
+            const bubble = makeBugiBubble('', entry.user === true);
             if (!entry.user && entry.reply) {
                 bubble.dataset.reply = entry.text;
                 renderBugiAnswer(bubble, entry.text);
@@ -2601,6 +2498,10 @@ function loadBugiHistory() {
 
 function clearBugiHistory() {
     if (!confirm("Effacer l’historique avec Bugi ?")) return;
+    bugiRequest?.abort();
+    bugiRequest = null;
+    document.getElementById('ai-send-btn').disabled = false;
+    document.getElementById('ai-unread').hidden = true;
     previousAnswer = '';
     lastAiCode = null;
     try { localStorage.removeItem(BUGI_STORAGE_KEY); } catch {}
@@ -2616,103 +2517,26 @@ function triggerBugiError() {
     }
 }
 
-async function askAiDebugger() {
-    if (!pyEditor) return;
-    if (aiCooldown) return;
-    
-    const code = pyEditor.getValue();
+function askAiDebugger() {
+    toggleAiDrawer(true);
+    if (bugiRequest) return;
+
+    const code = pyEditor?.getValue() ?? '';
     if (!code.trim()) {
-        toggleAiDrawer(true);
-        enableBugiInput();
-        document.getElementById('ai-user-input')?.focus();
+        document.getElementById('ai-user-input').focus();
         return;
     }
 
-    // Apply 4-second cooldown to prevent spam
-    aiCooldown = true;
-    const aiBtn = document.querySelector('.cp-ai-btn');
-    if (aiBtn) {
-        aiBtn.style.opacity = '0.5';
-        aiBtn.style.cursor = 'not-allowed';
-        setTimeout(() => {
-            aiCooldown = false;
-            if (aiBtn) {
-                aiBtn.style.opacity = '1';
-                aiBtn.style.cursor = 'pointer';
-            }
-        }, 4000);
-    }
-
-    // Open drawer and unlock input bar
-    toggleAiDrawer(true);
-    enableBugiInput();
-
-    // Use errors only when they came from this version of the editor.
     const errors = code === lastPythonRunCode
         ? [...document.querySelectorAll('#py-console .console-error')]
         : [];
-    const errorText = errors.map(node => node.textContent).join('\n');
-
-    const historyEl = document.getElementById('ai-chat-history');
-    
-    // 1. Append User Message
-    const userMsg = document.createElement('div');
-    userMsg.className = 'ai-bubble user';
-    
+    const error = errors.map(node => node.textContent).join('\n').slice(0, 3000);
     const repeated = code === lastAiCode;
-    if (!repeated) {
-        userMsg.innerHTML = `مرحباً Bugi، ساعدني في إصلاح هذا الخطأ 🤖`;
-        lastAiCode = code;
-    } else {
-        userMsg.innerHTML = `الخطأ لا يزال موجوداً، هل يمكنك مساعدتي مرة أخرى؟ 🤖`;
-    }
-    historyEl.appendChild(userMsg);
-
-    // 2. Append Loading Skeleton
-    const typingId = 'loading-' + Date.now();
-    const loadingEl = document.createElement('div');
-    loadingEl.className = 'ai-typing';
-    loadingEl.id = typingId;
-    loadingEl.innerHTML = `<span></span><span></span><span></span>`;
-    historyEl.appendChild(loadingEl);
-    
-    historyEl.scrollTop = historyEl.scrollHeight;
-
-    try {
-        const response = await fetch('/api/ai/debug', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ code, error: errorText.slice(0, 3000), previousAnswer: repeated ? previousAnswer : "" })
-        });
-
-        const data = await response.json();
-        
-        // Remove typing indicator
-        document.getElementById(typingId)?.remove();
-
-        const aiMsg = document.createElement('div');
-        aiMsg.className = 'ai-bubble ai';
-
-        if (data.success && data.explanation) {
-            showBugiAnswer(aiMsg, data.explanation);
-        } else {
-            aiMsg.textContent = data.message || 'بوجي مشغول تو، جرّب بعد شوية 🐞';
-        }
-
-        historyEl.appendChild(aiMsg);
-        historyEl.scrollTop = historyEl.scrollHeight;
-
-    } catch (err) {
-        console.error(err);
-        document.getElementById(typingId)?.remove();
-        const aiMsg = document.createElement('div');
-        aiMsg.className = 'ai-bubble ai';
-        aiMsg.innerHTML = `⚠️ Bugi مشغول بارشا تو — حاول بعد شوية! 😅`;
-        historyEl.appendChild(aiMsg);
-        historyEl.scrollTop = historyEl.scrollHeight;
-    } finally {
-        saveBugiHistory();
-    }
+    lastAiCode = code;
+    requestBugi(
+        error ? 'تنجم تعاونّي نصلّح الغلطة هاذي؟' : 'تنجم تشوف الكود وتعطيني ملاحظة؟',
+        { code, error, previousAnswer: repeated ? previousAnswer : '' }
+    );
 }
 
 // ----------------------------------------------------------------

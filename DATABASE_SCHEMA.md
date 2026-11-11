@@ -211,6 +211,10 @@ Check constraint `learning_resources_single_owner` ensures exactly one parent. I
 
 ---
 
+Offers can advertise Bugi tutoring with an active feature entry such as `{"key":"bugi","text":"Tutorat Bugi","active":true}`.
+
+**Proposed, pending confirmation:** Add `users.bugi_free_replies_used` as a non-null integer defaulting to zero, constrained to 0–5. Reserve one slot atomically before a free Gemini reply and return the slot if generation fails. Check active Bugi offer entitlements before using a free slot.
+
 ### 2.6 `offer_courses`
 
 **Purpose:** Many-to-many join between offers and courses.

@@ -264,6 +264,7 @@
                         <span>Points de l'offre (Fonctionnalités)</span>
                         <button type="button" class="btn" style="padding: 0.2rem 0.5rem; font-size: 0.8rem; background: #e2e8f0; color: #475569;" onclick="addFeatureRow()">+ Ajouter un point</button>
                     </label>
+                    <label><input type="checkbox" id="offerBugiAccess"> Inclure le tutorat Bugi</label>
                     <div id="featuresList" style="display: flex; flex-direction: column; gap: 0.5rem; margin-top: 0.5rem;">
                         <!-- Feature rows injected here -->
                     </div>
@@ -474,6 +475,9 @@
                     features.push({ text, active });
                 }
             });
+            if (document.getElementById('offerBugiAccess').checked) {
+                features.push({ key: 'bugi', text: 'Tutorat Bugi', active: true });
+            }
             return features;
         }
 
@@ -510,6 +514,7 @@
                 document.querySelectorAll('#target_classes_group input[type="checkbox"]').forEach(cb => cb.checked = false);
                 document.querySelectorAll('#target_branches_group input[type="checkbox"]').forEach(cb => cb.checked = false);
                 
+                document.getElementById('offerBugiAccess').checked = false;
                 // Clear features
                 document.getElementById('featuresList').innerHTML = '';
                 addFeatureRow('', true); // Add one empty row by default
@@ -600,7 +605,9 @@
                     }
                 }
                 
-                if (!featuresArray || featuresArray.length === 0) {
+                document.getElementById('offerBugiAccess').checked = featuresArray.some(feature => feature?.key === 'bugi' && feature.active === true);
+                featuresArray = featuresArray.filter(feature => feature && feature.key !== 'bugi');
+                if (featuresArray.length === 0) {
                     addFeatureRow('', true);
                 } else {
                     featuresArray.forEach(f => addFeatureRow(f.text, f.active));

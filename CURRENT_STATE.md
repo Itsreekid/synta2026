@@ -1,5 +1,21 @@
 # CURRENT_STATE.md — Synta Academy
 
+### 2026-11-11 — Bugi offer setup
+
+- Added an admin offer checkbox that stores a Bugi feature in the existing offer JSON. Updated the expired-login copy.
+- Five-reply enforcement is pending confirmation of the proposed durable account counter in DATABASE_SCHEMA.md. Then connect the feature to existing offer entitlement checks and render the offer action when the allowance runs out.
+
+### 2026-11-11 — Bugi character
+
+- Centralized Bugi's Tunisian Darja tutor prompt and offline messages in backend/services/bugi-character.js. The popup maps expired sessions, quota limits and service failures to local copy without another model call.
+- Verified six fallback cases and all 16 regression tests. Live Gemini tone remains to be checked.
+
+### 2026-11-11 — Bugi chat popup
+
+- Replaced the drawer with a Messenger-style popup, a phone layout, a typing indicator, and an unread dot when minimized.
+- Both entry points share one request flow. Fixed launcher input, duplicate history loading, overlapping requests, and late replies after clearing history. Session and quota errors have distinct messages and failed typed questions return to the composer.
+- Verified rendering, mocked chat behavior and all 16 regression tests. Next check the authenticated popup on desktop and with a phone keyboard and test live Gemini responses.
+
 ### 2026-11-11 — Bugi Gemini usage
 
 - Use Gemini 3.5 Flash-Lite first with a 480-token output budget and minimal thinking. Fall back to 3.5 Flash only if Flash-Lite returns 404. Honor provider quota cooldowns.

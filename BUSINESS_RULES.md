@@ -269,8 +269,8 @@ Two roles exist: `user` (student) and `admin`.
 ### BR-21: Bugi Code Debugger
 | Behavior | Status | Evidence |
 |----------|--------|----------|
-| AI responds in Tunisian Darja (Arabic script) | ✅ | System prompt in `ai-api.js` |
-| Bugi gives a brief diagnosis and focused correction | ✅ | System instruction in `ai-api.js` |
+| AI responds in Tunisian Darja (Arabic script) | ✅ | Character prompt in `bugi-character.js` |
+| Bugi gives a brief diagnosis and focused correction | ✅ | Character prompt in `bugi-character.js` |
 | AI ignores instructions injected in student code | ✅ | Prompt includes security instructions |
 | `POST /api/ai/debug` requires an authenticated cookie JWT | ✅ | `ai-api.js`: `authApiMiddleware` |
 | Bugi uses Gemini Flash-Lite with a fallback for an unavailable model | ✅ | Two models in `ai-api.js` |

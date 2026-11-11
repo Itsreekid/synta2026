@@ -1,5 +1,9 @@
 # CHANGELOG.md — Synta Academy
 
+## 2026-11-11 — Redesign Bugi chat
+
+- Bugi now opens in a responsive Messenger-style popup with message bubbles, minimize, and an unread indicator.
+
 ## 2026-11-11 — Reduce Bugi API usage
 
 - Prefer Flash-Lite, limit answer tokens, reuse identical requests and pause when Gemini reports a quota limit.
