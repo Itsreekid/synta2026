@@ -1,5 +1,13 @@
 # CURRENT_STATE.md — Synta Academy
 
+### 2026-11-11 — Bugi chat controls
+
+- Restyled the popup in blue with French controls. Students can attach editor code or a local .py file, copy reply snippets, and run Python snippets in the console without overwriting the editor. Template and snippet action checks passed. Desktop and phone visual checks are pending.
+
+### 2026-11-11 — Bugi typing and repeat explanations
+
+- Replaced visible typing text with three staggered dots. The debugger answers locally if the editor still contains the last successfully explained code. Failed requests remain retryable. Verified template rendering and debugger decisions with a mocked request.
+
 ### 2026-11-11 — Bugi chat palette
 
 - Tinted the chat and composer blue-gray, raised contrast between message surfaces, and removed extra whitespace around code snippets. Browser visual verification is pending.

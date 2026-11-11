@@ -351,14 +351,14 @@
             position: absolute;
             right: 0;
             bottom: 64px;
-            width: min(400px, calc(100vw - 48px));
+            width: min(440px, calc(100vw - 48px));
             height: min(540px, calc(100dvh - 105px));
             display: flex;
             flex-direction: column;
             overflow: hidden;
             border: 1px solid #b6cad7;
             border-radius: 20px;
-            background: #e3edf3;
+            background: #e8f2fd;
             color: #012235;
             box-shadow: 0 18px 48px #01223540, 0 3px 10px #0122351a;
             animation: bugi-open 160ms ease-out;
@@ -370,8 +370,10 @@
             align-items: center;
             gap: 8px;
         }
-        .ai-drawer-header { justify-content: space-between; padding: 8px 12px; background: #012235; color: white; }
-        .ai-avatar { width: 36px; height: 36px; }
+        .ai-drawer-header { justify-content: space-between; padding: 10px 12px; background: linear-gradient(120deg, #184d91, #102f5b 78%); color: white; }
+        .ai-avatar { width: 44px; height: 44px; }
+        .ai-status { display: flex; align-items: center; gap: 5px; font-size: 12px; color: #e5f0ff; }
+        .ai-status::before { content: ""; width: 7px; height: 7px; border-radius: 50%; background: #4ade80; }
         .ai-close-btn, .ai-send-btn { flex: none; width: 44px; height: 44px; border-radius: 50%; }
         .ai-close-btn { background: transparent; color: #e4f2f9; font-size: 16px; }
         .ai-close-btn:hover { background: #16465b; }
@@ -391,8 +393,8 @@
         .ai-chat-history > * { flex-shrink: 0; }
         .ai-welcome { padding: 8px 12px; text-align: center; color: #395569; line-height: 1.6; }
         .ai-chat-history:has(.ai-bubble) .ai-welcome { display: none; }
-        .ai-input-bar { padding: 10px 12px; background: #d8e6ee; border-top: 1px solid #bccfdc; }
-        .ai-input-bar input {
+        .ai-input-bar { padding: 10px 12px; background: #e0edfb; border-top: 1px solid #c3d7ee; flex-wrap: wrap; gap: 4px; }
+        .ai-input-bar input[type="text"] {
             flex: 1;
             min-width: 0;
             min-height: 44px;
@@ -404,7 +406,7 @@
             font: 16px 'Tajawal', sans-serif;
         }
         .ai-input-bar input::placeholder { color: #526d80; }
-        .ai-send-btn { background: #f6851f; color: #012235; font-size: 16px; }
+        .ai-send-btn { background: #155fc3; color: #fff; font-size: 16px; }
         .ai-send-btn:disabled { opacity: .5; cursor: default; }
         .ai-bubble {
             max-width: 92%;
@@ -416,7 +418,7 @@
             overflow-wrap: anywhere;
             white-space: pre-wrap;
         }
-        .ai-bubble.user { align-self: flex-end; background: #013047; color: #fff; border-bottom-right-radius: 4px; }
+        .ai-bubble.user { align-self: flex-end; background: #164d91; color: #fff; border-bottom-right-radius: 4px; }
         .ai-bubble.ai {
             align-self: flex-start;
             background: #f3f8fb;
@@ -436,13 +438,62 @@
             white-space: pre;
         }
         .ai-bubble.ai code { font: 14px/1.6 ui-monospace, "Cascadia Code", Consolas, monospace; }
-        .ai-typing { align-self: flex-start; color: #395569; padding: 6px 12px; font-size: 14px; }
+        .ai-tool {
+            display: inline-grid;
+            place-items: center;
+            min-width: 40px;
+            min-height: 40px;
+            border: 0;
+            border-radius: 12px;
+            background: #cfdef3;
+            color: #143b72;
+            cursor: pointer;
+        }
+        .ai-tool:hover { background: #bdcfea; }
+        .ai-attachment {
+            flex-basis: 100%;
+            min-width: 0;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 6px;
+            color: #143b72;
+            font-size: 14px;
+            overflow-wrap: anywhere;
+        }
+        .ai-attachment[hidden] { display: none; }
+        .ai-code-actions { display: flex; gap: 6px; justify-content: flex-end; margin: 0 0 6px; }
+        .ai-code-actions .ai-run { background: #17664e; color: #fff; }
+        .ai-code-actions .ai-run:hover { background: #11533f; }
+        .ai-typing {
+            align-self: flex-start;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            padding: 13px 15px;
+            background: #f3f8fb;
+            border: 1px solid #c6d8e3;
+            border-radius: 16px 16px 16px 4px;
+        }
+        .ai-typing span {
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            background: #395569;
+            animation: bugi-dot 1.2s ease-in-out infinite;
+        }
+        .ai-typing span:nth-child(2) { animation-delay: 150ms; }
+        .ai-typing span:nth-child(3) { animation-delay: 300ms; }
+        @keyframes bugi-dot {
+            0%, 65%, 100% { opacity: .4; }
+            30% { opacity: 1; transform: translateY(-3px); }
+        }
         @media (max-width: 700px) {
             #ai-wrapper-global { right: max(12px, env(safe-area-inset-right)); bottom: max(70px, calc(env(safe-area-inset-bottom) + 60px)); }
             .ai-drawer { position: fixed; right: max(8px, env(safe-area-inset-right)); left: max(8px, env(safe-area-inset-left)); bottom: max(8px, env(safe-area-inset-bottom)); width: auto; height: min(600px, calc(100dvh - 16px)); }
             .ai-fab[aria-expanded="true"] { visibility: hidden; }
         }
-        @media (prefers-reduced-motion: reduce) { .ai-drawer { animation: none; } }
+        @media (prefers-reduced-motion: reduce) { .ai-drawer, .ai-typing span { animation: none; } }
 
         /* Editor footer */
         .cp-editor-footer {
@@ -1330,7 +1381,7 @@
         <header class="ai-drawer-header">
             <div class="ai-identity">
                 <img class="ai-avatar" src="/source/icons.jpg" alt="">
-                <strong id="ai-title">Bugi</strong>
+                <div><strong id="ai-title">Bugi</strong><span class="ai-status">Assistant Python</span></div>
             </div>
             <div class="ai-header-actions">
                 <button type="button" onclick="clearBugiHistory()" class="ai-close-btn" aria-label="Vider l’historique" title="Vider l’historique"><i class="fas fa-trash" aria-hidden="true"></i></button>
@@ -1343,7 +1394,14 @@
             </div>
         </div>
         <form class="ai-input-bar" onsubmit="event.preventDefault(); sendBugiMessage()">
-            <input type="text" id="ai-user-input" dir="auto" aria-label="Message à Bugi" placeholder="اسأل بوجي…" maxlength="500" autocomplete="off" required>
+            <div class="ai-attachment" id="ai-attachment" hidden>
+                <span id="ai-attachment-label" role="status"></span>
+                <button type="button" class="ai-tool" id="ai-remove-attachment" aria-label="Retirer le code joint" title="Retirer le code joint"><i class="fas fa-times" aria-hidden="true"></i></button>
+            </div>
+            <input type="file" id="ai-code-file" accept=".py" hidden>
+            <button type="button" class="ai-tool" id="ai-attach-file" aria-label="Joindre un fichier Python" title="Joindre un fichier Python"><i class="fas fa-paperclip" aria-hidden="true"></i></button>
+            <button type="button" class="ai-tool" id="ai-attach-editor" aria-label="Joindre le code de l’éditeur" title="Joindre le code de l’éditeur"><i class="fas fa-code" aria-hidden="true"></i></button>
+            <input type="text" id="ai-user-input" dir="auto" aria-label="Message à Bugi" placeholder="Écris à Bugi…" maxlength="500" autocomplete="off">
             <button type="submit" class="ai-send-btn" id="ai-send-btn" aria-label="Envoyer" title="Envoyer"><i class="fas fa-paper-plane" aria-hidden="true"></i></button>
         </form>
     </section>
@@ -1834,8 +1892,11 @@ function showPythonResultOnMobile() {
 let lastPythonRunCode = null;
 
 function runPython() {
+    if (pyEditor) runPythonCode(pyEditor.getValue());
+}
+
+function runPythonCode(code) {
     if (!pyEditor || pythonRunInProgress) return;
-    const code = pyEditor.getValue();
     const runBtn = document.getElementById('run-btn');
     if (!code.trim()) {
         clearConsole();
@@ -2334,7 +2395,7 @@ function checkAndShowHint(code) {
 const bugiCopy = JSON.parse(document.getElementById('ai-drawer').dataset.messages);
 let bugiRequest = null;
 let bugiReturnFocus = null;
-let lastAiCode = null;
+let lastExplainedCode = null;
 
 function toggleAiDrawer(forceOpen = null) {
     const drawer = document.getElementById('ai-drawer');
@@ -2375,16 +2436,66 @@ function makeBugiBubble(text, fromStudent = false) {
     return bubble;
 }
 
+const BUGI_CODE_LIMIT = 12000;
+let bugiAttachment = null;
+let attachmentRevision = 0;
+
+function updateBugiAttachment(attachment, notice = '') {
+    bugiAttachment = attachment;
+    document.getElementById('ai-attachment').hidden = !attachment && !notice;
+    document.getElementById('ai-attachment-label').textContent = attachment?.label ?? notice;
+}
+
+function attachBugiCode(code, label) {
+    if (!code.trim() || code.includes('\0') || code.length > BUGI_CODE_LIMIT) {
+        updateBugiAttachment(null, 'Joins un extrait Python de 12 000 caractères maximum.');
+        return;
+    }
+    updateBugiAttachment({ code, label });
+}
+
+const bugiFileInput = document.getElementById('ai-code-file');
+document.getElementById('ai-attach-file').addEventListener('click', () => bugiFileInput.click());
+document.getElementById('ai-attach-editor').addEventListener('click', () => {
+    attachmentRevision++;
+    attachBugiCode(pyEditor?.getValue() ?? '', 'Code de l’éditeur');
+});
+document.getElementById('ai-remove-attachment').addEventListener('click', () => {
+    attachmentRevision++;
+    updateBugiAttachment(null);
+    document.getElementById('ai-user-input').focus();
+});
+bugiFileInput.addEventListener('change', async () => {
+    const file = bugiFileInput.files[0];
+    bugiFileInput.value = '';
+    if (!file) return;
+    const revision = ++attachmentRevision;
+    if (!/\.py$/i.test(file.name) || file.size > BUGI_CODE_LIMIT * 4) {
+        updateBugiAttachment(null, 'Choisis un petit fichier .py.');
+        return;
+    }
+
+    updateBugiAttachment(null, 'Lecture du fichier…');
+    try {
+        const code = await file.text();
+        if (revision === attachmentRevision) attachBugiCode(code, file.name);
+    } catch {
+        if (revision === attachmentRevision) updateBugiAttachment(null, 'Impossible de lire ce fichier.');
+    }
+});
+
 function sendBugiMessage() {
     const input = document.getElementById('ai-user-input');
     const question = input.value.trim();
-    if (!question || bugiRequest) return;
+    if ((!question && !bugiAttachment) || bugiRequest) return;
 
+    const attachment = bugiAttachment;
     input.value = '';
-    requestBugi(question, { code: pyEditor?.getValue() ?? '', question, previousAnswer });
+    const message = [question, attachment?.label].filter(Boolean).join('\n');
+    requestBugi(message, { code: attachment?.code ?? '', question, previousAnswer });
 }
 
-async function requestBugi(message, payload) {
+async function requestBugi(message, payload, onAnswer) {
     if (bugiRequest) return;
 
     const history = document.getElementById('ai-chat-history');
@@ -2396,8 +2507,13 @@ async function requestBugi(message, payload) {
 
     const typing = document.createElement('div');
     typing.className = 'ai-typing';
-    typing.dir = 'rtl';
-    typing.textContent = bugiCopy.typing;
+    typing.setAttribute('role', 'status');
+    typing.setAttribute('aria-label', bugiCopy.typing);
+    for (let index = 0; index < 3; index++) {
+        const dot = document.createElement('span');
+        dot.setAttribute('aria-hidden', 'true');
+        typing.append(dot);
+    }
     history.append(typing);
     history.scrollTop = history.scrollHeight;
 
@@ -2414,6 +2530,7 @@ async function requestBugi(message, payload) {
 
         if (typeof data?.explanation === 'string' && data.explanation.trim()) {
             showBugiAnswer(reply, data.explanation);
+            onAnswer?.();
         } else if (response.status === 401) {
             reply.textContent = bugiCopy.session;
         } else if (response.status === 429) {
@@ -2451,19 +2568,60 @@ async function requestBugi(message, payload) {
 const BUGI_STORAGE_KEY = 'cp_bugi_history:' + document.getElementById('ai-chat-history').dataset.account;
 let previousAnswer = '';
 
+function makeBugiCodeAction(icon, label, action) {
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.className = 'ai-tool';
+    button.title = label;
+    button.setAttribute('aria-label', label);
+    const glyph = document.createElement('i');
+    glyph.className = 'fas ' + icon;
+    glyph.setAttribute('aria-hidden', 'true');
+    button.append(glyph);
+    button.addEventListener('click', action);
+    return button;
+}
+
 function renderBugiAnswer(bubble, text) {
-    const blocks = text.split(/```(?:[a-zA-Z0-9_+-]+)?\r?\n([\s\S]*?)```/);
-    blocks.forEach((block, index) => {
-        if (index % 2 === 0) {
-            bubble.append(document.createTextNode(blocks.length > 1 ? block.trim() : block));
-            return;
-        }
+    const blocks = text.split(/```([a-zA-Z0-9_+-]*)[ \t]*\r?\n([\s\S]*?)```/);
+    for (let index = 0; index < blocks.length; index += 3) {
+        bubble.append(document.createTextNode(blocks.length > 1 ? blocks[index].trim() : blocks[index]));
+        if (index + 2 >= blocks.length) continue;
+
+        const language = blocks[index + 1].toLowerCase();
+        const snippet = blocks[index + 2].trimEnd();
         const pre = document.createElement('pre');
         const code = document.createElement('code');
-        code.textContent = block.trimEnd();
+        code.textContent = snippet;
         pre.append(code);
-        bubble.append(pre);
-    });
+
+        const actions = document.createElement('div');
+        actions.className = 'ai-code-actions';
+        actions.dir = 'ltr';
+        const copy = makeBugiCodeAction('fa-copy', 'Copier le code', async () => {
+            try {
+                await navigator.clipboard.writeText(snippet);
+                copy.title = 'Code copié';
+                copy.setAttribute('aria-label', copy.title);
+                copy.firstChild.className = 'fas fa-check';
+            } catch {
+                copy.title = 'Copie indisponible';
+                copy.setAttribute('aria-label', copy.title);
+            }
+        });
+        actions.append(copy);
+        if (snippet.trim() && ['', 'python', 'py', 'python3'].includes(language)) {
+            const run = makeBugiCodeAction('fa-play', 'Exécuter dans la console Python', () => {
+                if (!pyEditor || pythonRunInProgress) return;
+                toggleAiDrawer(false);
+                if (window.matchMedia('(max-width: 700px)').matches) switchMobilePane('console');
+                runPythonCode(snippet);
+            });
+            run.classList.add('ai-run');
+            actions.append(run);
+        }
+        bubble.append(pre, actions);
+    }
 }
 
 function showBugiAnswer(bubble, text) {
@@ -2511,7 +2669,7 @@ function clearBugiHistory() {
     document.getElementById('ai-send-btn').disabled = false;
     document.getElementById('ai-unread').hidden = true;
     previousAnswer = '';
-    lastAiCode = null;
+    lastExplainedCode = null;
     try { localStorage.removeItem(BUGI_STORAGE_KEY); } catch {}
     document.querySelectorAll('#ai-chat-history .ai-bubble, #ai-chat-history .ai-typing').forEach(node => node.remove());
 }
@@ -2535,15 +2693,22 @@ function askAiDebugger() {
         return;
     }
 
+    if (code === lastExplainedCode) {
+        const history = document.getElementById('ai-chat-history');
+        history.append(makeBugiBubble(bugiCopy.alreadyExplained));
+        history.scrollTop = history.scrollHeight;
+        saveBugiHistory();
+        return;
+    }
+
     const errors = code === lastPythonRunCode
         ? [...document.querySelectorAll('#py-console .console-error')]
         : [];
     const error = errors.map(node => node.textContent).join('\n').slice(0, 3000);
-    const repeated = code === lastAiCode;
-    lastAiCode = code;
     requestBugi(
         error ? 'تنجم تعاونّي نصلّح الغلطة هاذي؟' : 'تنجم تشوف الكود وتعطيني ملاحظة؟',
-        { code, error, previousAnswer: repeated ? previousAnswer : '' }
+        { code, error },
+        () => { lastExplainedCode = code; }
     );
 }
 
