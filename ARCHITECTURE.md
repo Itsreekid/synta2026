@@ -397,6 +397,8 @@ The internal on-demand deep analysis entry point is `analyzeStudentLearning(pool
 ## 10. External Integrations
 
 ### Cloudflare R2 (Object Storage)
+
+The admin course editor can select an associated offer image, list recent raster images under the existing `Courses-th/` prefix, or upload a raster image there (up to 5 MiB). It stores the selected reference in `courses.thumbnail_url`. The session-protected `/api/content/course-image/:key` route signs only keys in that image folder. Removing a course thumbnail clears the reference on save and preserves shared R2 objects.
 - Used for: course videos, PDFs, thumbnails, payment receipts
 - Access: Private bucket with signed URLs (5-minute default expiry)
 - SDK: AWS SDK v3 (S3-compatible)

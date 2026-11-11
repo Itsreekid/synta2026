@@ -161,3 +161,21 @@ export async function validateR2Connection() {
     return false;
   }
 }
+
+/** List recent matching objects without retaining the entire bucket listing. */
+export async function listRecentR2Objects(prefix, matches, limit) {
+  let token;
+  let recent = [];
+  do {
+    const page = await r2Client.send(new ListObjectsV2Command({
+      Bucket: R2_BUCKET,
+      Prefix: prefix,
+      ContinuationToken: token
+    }));
+    recent = [...recent, ...(page.Contents ?? []).filter(object => matches(object.Key))]
+      .sort((a, b) => Number(b.LastModified ?? 0) - Number(a.LastModified ?? 0))
+      .slice(0, limit);
+    token = page.IsTruncated ? page.NextContinuationToken : undefined;
+  } while (token);
+  return recent;
+}

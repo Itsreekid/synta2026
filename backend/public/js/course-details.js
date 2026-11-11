@@ -206,26 +206,26 @@ async function renderCourseInfo(course, totalLessons, hasAccess, courseProgress,
     const thumbnailSidebar = document.getElementById('course-thumbnail');
     const thumbnailHero = document.getElementById('course-thumbnail-hero');
     if (course.thumbnail_url) {
-        let thumbnailUrl = course.thumbnail_url;
-        // If it's an R2 key (not a full URL), get signed URL
-        if (!thumbnailUrl.startsWith('http')) {
-            const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
-            if (isLocal && thumbnailUrl.startsWith('Courses-th/')) {
-                thumbnailUrl = thumbnailUrl.replace('Courses-th/', '/api/content/local-image/Courses-th/');
-            } else {
-                try {
-                    const response = await fetch(`/api/content/signed-url?key=${encodeURIComponent(thumbnailUrl)}`);
-                    if (response.ok) {
-                        const data = await response.json();
-                        thumbnailUrl = data.url;
-                    }
-                } catch (err) {
-                    console.warn('Failed to get thumbnail signed URL:', err);
-                }
+        let thumbnailUrl = resolveCourseImage(course.thumbnail_url);
+        // Other historical object keys use the existing signed URL endpoint.
+        if (!thumbnailUrl && !/^[a-z][a-z0-9+.-]*:/i.test(course.thumbnail_url.trim())) {
+            try {
+                const response = await fetch('/api/content/signed-url?key=' + encodeURIComponent(course.thumbnail_url));
+                if (response.ok) thumbnailUrl = resolveCourseImage((await response.json()).url);
+            } catch (err) {
+                console.warn('Failed to get thumbnail signed URL:', err);
             }
         }
-        if (thumbnailSidebar) thumbnailSidebar.innerHTML = `<img src="${thumbnailUrl}" style="width: 100%; height: 100%; object-fit: cover;" alt="${course.title}">`;
-        if (thumbnailHero) thumbnailHero.innerHTML = `<img src="${thumbnailUrl}" style="width: 100%; height: 100%; object-fit: cover;" alt="${course.title}">`;
+        if (thumbnailUrl) {
+            for (const container of [thumbnailSidebar, thumbnailHero]) {
+                if (!container) continue;
+                const image = document.createElement('img');
+                image.src = thumbnailUrl;
+                image.alt = course.title || '';
+                image.style.cssText = 'width: 100%; height: 100%; object-fit: cover;';
+                container.replaceChildren(image);
+            }
+        }
     }
 
     // Update title

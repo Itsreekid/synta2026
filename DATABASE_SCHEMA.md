@@ -623,3 +623,8 @@ Migration `202611110002_create_bugi_learning_evidence.sql` adds `bugi_learning_e
 ### Bugi history revision
 
 Migration `202611110003_add_bugi_history_revision.sql` adds `users.bugi_history_revision` (non-negative bigint, default zero). Clearing history advances this revision under the account row lock and deletes the transcript in one transaction. Reply persistence locks the same account row and rejects stale revisions before writing messages or evidence.
+### Proposed monthly offer access (pending owner approval)
+
+- Add `offers.access_period_months` (nullable smallint; initially allow NULL or 1). NULL keeps the existing access model. Add `payments.access_expires_at` (nullable timestamp with time zone) to snapshot the expiry of each confirmed offer grant.
+- Review the active-offer unique index and grant checks so renewal preserves payment history and overlapping valid grants keep course access. Existing purchases and enrollments retain their existing terms. Offer sale dates stay separate from access expiry.
+- Propose a per-payment reminder marker or deduplication key so a scheduled job can insert one existing in-app notification three days before expiry, even after retries or concurrent runs. No automatic wallet debit is proposed.

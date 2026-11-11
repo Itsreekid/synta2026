@@ -73,15 +73,11 @@ async function loadCourses(filters = {}) {
         let activeCourseHtml = '';
         let regularCoursesHtml = '';
         
-        courses.forEach(course => {
+        courses.forEach((course, index) => {
             const enrollment = enrollments.find(e => e.course_id === course.id);
             const isEnrolled = enrollment ? enrollment.is_enrolled : false;
             const progress = enrollment ? (enrollment.progress || 0) : 0;
 
-            let imgSrc = course.thumbnail_url && course.thumbnail_url.startsWith('http')
-                ? course.thumbnail_url
-                : `https://via.placeholder.com/400x225/fff7ed/f97316?text=${encodeURIComponent(course.title)}`;
-                
             // Use real stats from the database
             const lessonsCount = course.lessons_count || 0;
             const quizzesCount = course.quizzes_count || 0;
@@ -95,7 +91,7 @@ async function loadCourses(filters = {}) {
                 <div class="course-card" style="background: white; border-radius: 20px; overflow: hidden; box-shadow: 0 4px 20px rgba(0,0,0,0.04); display: flex; flex-direction: column; transition: transform 0.3s, box-shadow 0.3s; cursor: pointer;" onmouseover="this.style.transform='translateY(-5px)'; this.style.boxShadow='0 10px 25px rgba(0,0,0,0.08)';" onmouseout="this.style.transform='none'; this.style.boxShadow='0 4px 20px rgba(0,0,0,0.04)';" onclick="window.location.href='/app/course-details?id=${course.id}'">
                     
                     <div class="course-thumbnail" style="position: relative; padding-top: 56.25%;">
-                        <img src="${imgSrc}" alt="${course.title}" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; object-fit: cover;">
+                        <img data-thumbnail-index="${index}" alt="" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; object-fit: cover;">
                         <div style="position: absolute; top: 1rem; left: 1rem; display: flex; gap: 0.5rem;">
                             <span style="background: ${statusColor}; color: white; padding: 0.3rem 0.8rem; border-radius: 20px; font-size: 0.75rem; font-weight: 600; box-shadow: 0 2px 5px rgba(0,0,0,0.2);">
                                 ${statusLabel}
@@ -158,6 +154,12 @@ async function loadCourses(filters = {}) {
         } else {
             // Group them all into the same grid, enrolled courses first
             coursesList.innerHTML = activeCourseHtml + regularCoursesHtml;
+            for (const image of coursesList.querySelectorAll('[data-thumbnail-index]')) {
+                const course = courses[Number(image.dataset.thumbnailIndex)];
+                image.alt = course.title || '';
+                image.src = resolveCourseImage(course.thumbnail_url) ||
+                    'https://via.placeholder.com/400x225/fff7ed/f97316?text=' + encodeURIComponent(course.title);
+            }
         }
 
     } catch (error) {

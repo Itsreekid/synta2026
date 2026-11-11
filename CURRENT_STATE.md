@@ -1,5 +1,20 @@
 # CURRENT_STATE.md — Synta Academy
 
+### 2026-11-11 — Offer editor viewport
+
+- Kept the title, header close button and form buttons outside the scrolling fields. Chrome verified the Save button stays visible with 30 features in short mobile and desktop windows.
+
+### 2026-11-11 — Admin course images and visual fixes
+
+- Added course image selection from associated offers and recent Courses-th R2 images, upload and removal. Students can load the same references in the course list and detail views. No schema change.
+- Improved the admin toolbar and profile icon, Live Sessions heading contrast, and offer dialog sizing and footer.
+- Verified 31 regression tests with one opt-in PostgreSQL test skipped, and the course editor image flow in Chrome with synthetic responses. Live R2 permissions and deployment remain unverified.
+
+### 2026-11-11 — Placement and thumbnail rendering
+
+- Fixed the approved placement interpolation and course thumbnail URL assignment. Headless Chrome verified literal text, a valid image, rejected schemes and the failed-image placeholder. The regression suite passed 29 tests with one opt-in PostgreSQL test skipped.
+- The audit records the unused raw EJS configuration fragment and UUID-bound inline actions as separate findings. No deployment or backend schema changes.
+
 ### 2026-11-11 — Approved admin offer and rendering fixes
 
 - Added an admin-only offer activation switch and corrected the active-offer KPI. Existing purchase eligibility and grants use their current rules.

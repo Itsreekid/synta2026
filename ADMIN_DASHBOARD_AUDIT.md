@@ -65,3 +65,11 @@ The reviewed admin API declarations in `backend/routes/admin-api.js`, placement 
 A01 was addressed in Students and Payments by serializing untrusted values from DOM text nodes and binding actions with event listeners. The touched Offers list and feature values use the same encoding. A04 now counts offers with is_active enabled. The Offers page lists both states and can toggle status through an admin-only endpoint.
 
 The follow-up review found additional raw interpolation in placement registrant cells and answer details (`backend/public/admin/pages/free-session.html:381`, `:423`, `:427`), and an unescaped course thumbnail attribute (`backend/public/admin/pages/courses.html:835`). These paths were reviewed only and remain pending approval. The original table above records the audit before these approved fixes.
+## Placement and thumbnail follow-up
+
+The approved placement question, registration and answer renderers now encode text and bind controls through DOM listeners. The course table assigns validated thumbnail URLs to image elements and retains the existing placeholder on rejection or load failure. A local Chrome fixture confirmed both paths; the existing backend placement answer-data gap (A08) is separate and remains open.
+
+Additional review findings, pending separate approval:
+
+- The unused static head fragment has unescaped EJS values in JavaScript string literals (`backend/public/admin/pages/head.ejs:29`, `:35`–`:43`). Static delivery does not render these values. Do not reuse this fragment as an EJS view without safe serialization.
+- Course chapter and live session action templates still interpolate database-generated UUIDs into inline event handlers (`backend/public/admin/pages/courses.html:940`, `backend/public/admin/pages/sessions.html:503`). This is a hardening opportunity. The audit did not establish a student-controlled path into those UUID fields.

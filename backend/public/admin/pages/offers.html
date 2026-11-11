@@ -241,131 +241,136 @@
     </div>
 
     <!-- Modal for Create/Edit -->
-    <div id="offerModal" class="modal">
+    <div id="offerModal" class="modal" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
         <div class="modal-content">
-            <h2 id="modalTitle">Nouvelle Offre</h2>
+            <div class="offer-modal-header">
+                <h2 id="modalTitle">Nouvelle Offre</h2>
+                <button type="button" class="btn-icon" onclick="closeModal()" aria-label="Fermer" title="Fermer">&times;</button>
+            </div>
             <form id="offerForm">
-                <input type="hidden" id="offerId">
-                <div class="form-group">
-                    <label>Titre</label>
-                    <input type="text" id="title" required placeholder="Ex: Pack Bac Info Pro">
-                </div>
-                <div class="form-group">
-                    <label>Description</label>
-                    <textarea id="description" rows="3" placeholder="Description de l'offre"></textarea>
-                </div>
-                <div class="form-group">
-                    <label>Image de l'offre (Optionnelle)</label>
-                    <input type="file" id="offerImageInput" accept="image/*">
-                    <input type="hidden" id="offerImageUrl">
-                    <img id="offerImagePreview" style="max-width: 150px; margin-top: 10px; display: none; border-radius: 8px; border: 1px solid #e2e8f0;">
-                </div>
-                <div class="form-group">
-                    <label style="display: flex; justify-content: space-between; align-items: center;">
-                        <span>Points de l'offre (Fonctionnalités)</span>
-                        <button type="button" class="btn" style="padding: 0.2rem 0.5rem; font-size: 0.8rem; background: #e2e8f0; color: #475569;" onclick="addFeatureRow()">+ Ajouter un point</button>
-                    </label>
-                    <label><input type="checkbox" id="offerBugiAccess"> Inclure le tutorat Bugi</label>
-                    <div id="featuresList" style="display: flex; flex-direction: column; gap: 0.5rem; margin-top: 0.5rem;">
-                        <!-- Feature rows injected here -->
-                    </div>
-                </div>
-                <div class="admin-form-grid" style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+                <div class="offer-form-fields">
+                    <input type="hidden" id="offerId">
                     <div class="form-group">
-                        <label>Prix (DT)</label>
-                        <input type="number" id="fixed_price" step="0.1" required>
+                        <label>Titre</label>
+                        <input type="text" id="title" required placeholder="Ex: Pack Bac Info Pro">
                     </div>
                     <div class="form-group">
-                        <label>Réduction (%)</label>
-                        <input type="number" id="discount_percentage" value="0">
+                        <label>Description</label>
+                        <textarea id="description" rows="3" placeholder="Description de l'offre"></textarea>
                     </div>
-                </div>
-                <div class="form-group">
-                    <label>Statut de l'offre</label>
-                    <label class="switch-modern" style="display: flex; align-items: center; cursor: pointer; user-select: none;">
-                        <input type="checkbox" id="is_active" checked style="display:none;">
-                        <div class="switch-track" style="width: 50px; height: 26px; background: #e2e8f0; border-radius: 13px; position: relative; transition: 0.3s; box-shadow: inset 0 1px 3px rgba(0,0,0,0.1);">
-                            <div class="switch-thumb" style="width: 22px; height: 22px; background: white; border-radius: 50%; position: absolute; top: 2px; left: 2px; box-shadow: 0 2px 5px rgba(0,0,0,0.2); transition: transform 0.3s cubic-bezier(0.4, 0.0, 0.2, 1);"></div>
+                    <div class="form-group">
+                        <label>Image de l'offre (Optionnelle)</label>
+                        <input type="file" id="offerImageInput" accept="image/*">
+                        <input type="hidden" id="offerImageUrl">
+                        <img id="offerImagePreview" style="max-width: 150px; margin-top: 10px; display: none; border-radius: 8px; border: 1px solid #e2e8f0;">
+                    </div>
+                    <div class="form-group">
+                        <label style="display: flex; justify-content: space-between; align-items: center;">
+                            <span>Points de l'offre (Fonctionnalités)</span>
+                            <button type="button" class="btn" style="padding: 0.2rem 0.5rem; font-size: 0.8rem; background: #e2e8f0; color: #475569;" onclick="addFeatureRow()">+ Ajouter un point</button>
+                        </label>
+                        <label><input type="checkbox" id="offerBugiAccess"> Inclure le tutorat Bugi</label>
+                        <div id="featuresList" style="display: flex; flex-direction: column; gap: 0.5rem; margin-top: 0.5rem;">
+                            <!-- Feature rows injected here -->
                         </div>
-                        <span class="switch-label" style="margin-left: 12px; font-weight: 600; font-size: 0.95rem; color: #64748b; transition: color 0.3s;">Active</span>
-                    </label>
-                    <script src="../js/admin-render.js"></script>
-    <script>
-                        const statusCheckbox = document.getElementById('is_active');
-                        const statusTrack = statusCheckbox.nextElementSibling;
-                        const statusThumb = statusTrack.querySelector('.switch-thumb');
-                        const statusLabel = statusTrack.nextElementSibling;
+                    </div>
+                    <div class="admin-form-grid" style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+                        <div class="form-group">
+                            <label>Prix (DT)</label>
+                            <input type="number" id="fixed_price" step="0.1" required>
+                        </div>
+                        <div class="form-group">
+                            <label>Réduction (%)</label>
+                            <input type="number" id="discount_percentage" value="0">
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label>Statut de l'offre</label>
+                        <label class="switch-modern" style="display: flex; align-items: center; cursor: pointer; user-select: none;">
+                            <input type="checkbox" id="is_active" checked style="display:none;">
+                            <div class="switch-track" style="width: 50px; height: 26px; background: #e2e8f0; border-radius: 13px; position: relative; transition: 0.3s; box-shadow: inset 0 1px 3px rgba(0,0,0,0.1);">
+                                <div class="switch-thumb" style="width: 22px; height: 22px; background: white; border-radius: 50%; position: absolute; top: 2px; left: 2px; box-shadow: 0 2px 5px rgba(0,0,0,0.2); transition: transform 0.3s cubic-bezier(0.4, 0.0, 0.2, 1);"></div>
+                            </div>
+                            <span class="switch-label" style="margin-left: 12px; font-weight: 600; font-size: 0.95rem; color: #64748b; transition: color 0.3s;">Active</span>
+                        </label>
+                        <script src="../js/admin-render.js"></script>
+        <script>
+                            const statusCheckbox = document.getElementById('is_active');
+                            const statusTrack = statusCheckbox.nextElementSibling;
+                            const statusThumb = statusTrack.querySelector('.switch-thumb');
+                            const statusLabel = statusTrack.nextElementSibling;
                         
-                        function updateSwitchUI() {
-                            if (statusCheckbox.checked) {
-                                statusTrack.style.background = '#10b981'; // Modern green
-                                statusThumb.style.transform = 'translateX(24px)';
-                                statusLabel.textContent = 'Active';
-                                statusLabel.style.color = '#10b981';
-                            } else {
-                                statusTrack.style.background = '#cbd5e1';
-                                statusThumb.style.transform = 'translateX(0)';
-                                statusLabel.textContent = 'Inactive';
-                                statusLabel.style.color = '#64748b';
+                            function updateSwitchUI() {
+                                if (statusCheckbox.checked) {
+                                    statusTrack.style.background = '#10b981'; // Modern green
+                                    statusThumb.style.transform = 'translateX(24px)';
+                                    statusLabel.textContent = 'Active';
+                                    statusLabel.style.color = '#10b981';
+                                } else {
+                                    statusTrack.style.background = '#cbd5e1';
+                                    statusThumb.style.transform = 'translateX(0)';
+                                    statusLabel.textContent = 'Inactive';
+                                    statusLabel.style.color = '#64748b';
+                                }
                             }
-                        }
                         
-                        statusCheckbox.addEventListener('change', updateSwitchUI);
-                        // We will call updateSwitchUI() when editing an offer too
-                    </script>
-                </div>
+                            statusCheckbox.addEventListener('change', updateSwitchUI);
+                            // We will call updateSwitchUI() when editing an offer too
+                        </script>
+                    </div>
                 
-                <div class="form-group" style="margin-top: 1rem; padding: 1rem; background: #fff7ed; border: 1px solid #ffedd5; border-radius: 8px;">
-                    <label style="color: #c2410c; font-weight: 700; margin-bottom: 0.5rem;">Offre Premium (Mise en avant)</label>
-                    <p style="font-size: 0.85rem; color: #9a3412; margin-bottom: 1rem; font-family: 'Inter', sans-serif;">Cette option mettra l'offre en surbrillance (cadre orange, taille plus grande, badge "الأكثر مبيعا") dans l'espace étudiant.</p>
-                    <label class="switch-modern" style="display: flex; align-items: center; cursor: pointer; user-select: none;">
-                        <input type="checkbox" id="is_best_seller" style="display:none;">
-                        <div class="switch-track-premium" style="width: 50px; height: 26px; background: #e2e8f0; border-radius: 13px; position: relative; transition: 0.3s; box-shadow: inset 0 1px 3px rgba(0,0,0,0.1);">
-                            <div class="switch-thumb-premium" style="width: 22px; height: 22px; background: white; border-radius: 50%; position: absolute; top: 2px; left: 2px; box-shadow: 0 2px 5px rgba(0,0,0,0.2); transition: transform 0.3s cubic-bezier(0.4, 0.0, 0.2, 1);"></div>
-                        </div>
-                        <span class="switch-label-premium" style="margin-left: 12px; font-weight: 600; font-size: 0.95rem; color: #64748b; transition: color 0.3s;">Standard</span>
-                    </label>
-                    <script>
-                        const premiumCheckbox = document.getElementById('is_best_seller');
-                        const premiumTrack = document.querySelector('.switch-track-premium');
-                        const premiumThumb = document.querySelector('.switch-thumb-premium');
-                        const premiumLabel = document.querySelector('.switch-label-premium');
+                    <div class="form-group" style="margin-top: 1rem; padding: 1rem; background: #fff7ed; border: 1px solid #ffedd5; border-radius: 8px;">
+                        <label style="color: #c2410c; font-weight: 700; margin-bottom: 0.5rem;">Offre Premium (Mise en avant)</label>
+                        <p style="font-size: 0.85rem; color: #9a3412; margin-bottom: 1rem; font-family: 'Inter', sans-serif;">Cette option mettra l'offre en surbrillance (cadre orange, taille plus grande, badge "الأكثر مبيعا") dans l'espace étudiant.</p>
+                        <label class="switch-modern" style="display: flex; align-items: center; cursor: pointer; user-select: none;">
+                            <input type="checkbox" id="is_best_seller" style="display:none;">
+                            <div class="switch-track-premium" style="width: 50px; height: 26px; background: #e2e8f0; border-radius: 13px; position: relative; transition: 0.3s; box-shadow: inset 0 1px 3px rgba(0,0,0,0.1);">
+                                <div class="switch-thumb-premium" style="width: 22px; height: 22px; background: white; border-radius: 50%; position: absolute; top: 2px; left: 2px; box-shadow: 0 2px 5px rgba(0,0,0,0.2); transition: transform 0.3s cubic-bezier(0.4, 0.0, 0.2, 1);"></div>
+                            </div>
+                            <span class="switch-label-premium" style="margin-left: 12px; font-weight: 600; font-size: 0.95rem; color: #64748b; transition: color 0.3s;">Standard</span>
+                        </label>
+                        <script>
+                            const premiumCheckbox = document.getElementById('is_best_seller');
+                            const premiumTrack = document.querySelector('.switch-track-premium');
+                            const premiumThumb = document.querySelector('.switch-thumb-premium');
+                            const premiumLabel = document.querySelector('.switch-label-premium');
                         
-                        function updatePremiumUI() {
-                            if (premiumCheckbox.checked) {
-                                premiumTrack.style.background = '#f97316'; // Orange
-                                premiumThumb.style.transform = 'translateX(24px)';
-                                premiumLabel.textContent = 'Premium';
-                                premiumLabel.style.color = '#c2410c';
-                            } else {
-                                premiumTrack.style.background = '#cbd5e1';
-                                premiumThumb.style.transform = 'translateX(0)';
-                                premiumLabel.textContent = 'Standard';
-                                premiumLabel.style.color = '#64748b';
+                            function updatePremiumUI() {
+                                if (premiumCheckbox.checked) {
+                                    premiumTrack.style.background = '#f97316'; // Orange
+                                    premiumThumb.style.transform = 'translateX(24px)';
+                                    premiumLabel.textContent = 'Premium';
+                                    premiumLabel.style.color = '#c2410c';
+                                } else {
+                                    premiumTrack.style.background = '#cbd5e1';
+                                    premiumThumb.style.transform = 'translateX(0)';
+                                    premiumLabel.textContent = 'Standard';
+                                    premiumLabel.style.color = '#64748b';
+                                }
                             }
-                        }
-                        premiumCheckbox.addEventListener('change', updatePremiumUI);
-                    </script>
-                </div>
-                <div class="admin-form-grid" style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
-                    <div class="form-group">
-                        <label>Classes Cibles</label>
-                        <div class="checkbox-group" id="target_classes_group">
-                            <label><input type="checkbox" value="bac"> Bac</label>
-                            <label><input type="checkbox" value="3eme"> 3ème</label>
-                            <label><input type="checkbox" value="2eme"> 2ème</label>
-                            <label><input type="checkbox" value="1ere"> 1ère</label>
-                        </div>
+                            premiumCheckbox.addEventListener('change', updatePremiumUI);
+                        </script>
                     </div>
-                    <div class="form-group">
-                        <label>Branches Cibles</label>
-                        <div class="checkbox-group" id="target_branches_group">
-                            <label><input type="checkbox" value="mathematiques"> Mathématiques</label>
-                            <label><input type="checkbox" value="sciences"> Sciences</label>
-                            <label><input type="checkbox" value="technique"> Technique</label>
-                            <label><input type="checkbox" value="informatique"> Informatique</label>
-                            <label><input type="checkbox" value="economie"> Économie</label>
-                            <label><input type="checkbox" value="lettres"> Lettres</label>
+                    <div class="admin-form-grid" style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+                        <div class="form-group">
+                            <label>Classes Cibles</label>
+                            <div class="checkbox-group" id="target_classes_group">
+                                <label><input type="checkbox" value="bac"> Bac</label>
+                                <label><input type="checkbox" value="3eme"> 3ème</label>
+                                <label><input type="checkbox" value="2eme"> 2ème</label>
+                                <label><input type="checkbox" value="1ere"> 1ère</label>
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label>Branches Cibles</label>
+                            <div class="checkbox-group" id="target_branches_group">
+                                <label><input type="checkbox" value="mathematiques"> Mathématiques</label>
+                                <label><input type="checkbox" value="sciences"> Sciences</label>
+                                <label><input type="checkbox" value="technique"> Technique</label>
+                                <label><input type="checkbox" value="informatique"> Informatique</label>
+                                <label><input type="checkbox" value="economie"> Économie</label>
+                                <label><input type="checkbox" value="lettres"> Lettres</label>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -558,6 +563,7 @@
                 if (!modal) throw new Error('Modal element "offerModal" not found');
 
                 modal.style.display = 'flex';
+                modal.querySelector(".offer-form-fields").scrollTop = 0;
                 modal.style.zIndex = '9999';
             } catch (err) {
                 console.error('openModal error:', err);
@@ -652,6 +658,7 @@
                 if (!modal) throw new Error('Modal element "offerModal" not found');
 
                 modal.style.display = 'flex';
+                modal.querySelector(".offer-form-fields").scrollTop = 0;
                 modal.style.zIndex = '9999';
                 console.log('Modal display set to flex');
             } catch (err) {

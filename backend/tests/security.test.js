@@ -9,6 +9,7 @@ import ejs from "ejs";
 import { authRateLimit } from "../middleware/authRateLimit.js";
 import * as offerAccess from "../utils/offerAccess.js";
 import * as learnerProfile from "../utils/learnerProfile.js";
+import * as courseImages from "../utils/courseImages.js";
 
 const SECRET = "local-test-secret";
 const USER = "10000000-0000-0000-0000-000000000001";
@@ -37,6 +38,8 @@ async function loadRoute(name, doubles) {
     bcrypt: { default: { hash: async password => `hash:${password}` } },
     jsonwebtoken: { default: jwt },
     crypto: { default: crypto },
+    "node:crypto": { randomUUID: crypto.randomUUID },
+    "../utils/courseImages.js": courseImages,
     "../middleware/requireAdmin.js": { requireAdmin: admin },
     "../middleware/requireAuth.js": {
       authApiMiddleware: guard,
@@ -65,6 +68,8 @@ async function loadRoute(name, doubles) {
       status(code) { this.statusCode = code; return this; },
       json(body) { this.body = body; return this; },
       set(name, value) { this.headers[name] = value; },
+      sendStatus(code) { this.statusCode = code; return this; },
+      redirect(code, url) { this.statusCode = code; this.headers.Location = url; return this; },
       cookie(name, value, options) { this.cookies[name] = { value, options }; },
       clearCookie(name) { delete this.cookies[name]; },
     };
@@ -365,7 +370,7 @@ test("admin installment enrollment grants an overlapping offer once and enforces
   };
   const call = await loadRoute("admin-api", {
     "../config/db.js": { default: { query, connect: async () => ({ query, release() {} }) } },
-    "../utils/r2Utils.js": { createR2UploadUrl() {}, deleteFromR2() {} },
+    "../utils/r2Utils.js": { createR2UploadUrl() {}, deleteFromR2() {}, listRecentR2Objects() {}, uploadToR2() {} },
   });
   const request = {
     user: { id: USER, role: "admin" }, params: { id: USER },
@@ -591,7 +596,7 @@ test("admin offer status affects the active KPI and checkout without revoking a 
   };
   const call = await loadRoute("admin-api", {
     "../config/db.js": { default: { query } },
-    "../utils/r2Utils.js": { createR2UploadUrl() {}, deleteFromR2() {} },
+    "../utils/r2Utils.js": { createR2UploadUrl() {}, deleteFromR2() {}, listRecentR2Objects() {}, uploadToR2() {} },
   });
   const route = "patch /api/admin/offers/:id/status";
   const adminUser = { id: USER, role: "admin" };
@@ -664,4 +669,124 @@ test("admin rows encode harmless HTML-like text and bind original action data as
   bound["[data-confirm-payment]"]({ stopPropagation() {} });
   assert.equal(paymentId, value);
   assert.equal(typeof events.keydown, "function");
+});
+
+test("admin thumbnail URLs accept existing image formats and reject unsafe schemes", async () => {
+  const source = await readFile(new URL("../public/admin/js/admin-render.js", import.meta.url), "utf8");
+  const sandbox = vm.createContext({ URL });
+  vm.runInContext(source, sandbox);
+  const base = "https://academy.example/admin/pages/courses.html";
+  const safe = value => sandbox.adminImageUrl(value, base);
+  assert.equal(safe("/source/course.webp"), "https://academy.example/source/course.webp");
+  assert.equal(safe("../../source/course.jpg"), "https://academy.example/source/course.jpg");
+  assert.equal(safe("//cdn.example/course.png"), "https://cdn.example/course.png");
+  assert.equal(safe("http://cdn.example/legacy.png"), "http://cdn.example/legacy.png");
+  assert.equal(safe("https://cdn.example/course.jpg?size=400&v=1"), "https://cdn.example/course.jpg?size=400&v=1");
+  assert.equal(safe("data:image/png;base64,AA=="), "data:image/png;base64,AA==");
+  for (const url of [
+    "", null, "javascript:synthetic", "  JaVaScRiPt:synthetic", "java\tscript:synthetic",
+    "data:text/html;base64,PGI+", "data:image/svg+xml;base64,PHN2Zz4=",
+    "vbscript:synthetic", "file:///synthetic.png", "blob:https://academy.example/id", "http://[broken"
+  ]) assert.equal(safe(url), null, String(url));
+});
+
+test("placement records, questions and answers are serialized as text and actions keep original values", async () => {
+  const value = `<b data-marker="synthetic">O'Reilly & friends</b>`;
+  const page = await readFile(new URL("../public/admin/pages/free-session.html", import.meta.url), "utf8");
+  const helper = await readFile(new URL("../public/admin/js/admin-render.js", import.meta.url), "utf8");
+  const actions = new Map();
+  const row = { querySelector: selector => ({ addEventListener: (_event, fn) => actions.set(selector, fn) }) };
+  const ids = {
+    "questions-list": { children: [row] },
+    "students-list": { rows: [row] },
+    studentModalTitle: {},
+    studentModalContent: {},
+    studentModalOverlay: { classList: { add() {} } }
+  };
+  let toggled;
+  const sandbox = vm.createContext({
+    value,
+    document: {
+      getElementById: id => ids[id],
+      createElement: () => ({
+        get innerHTML() {
+          return this.textContent.replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;");
+        }
+      })
+    },
+    toggleQuestion: (...args) => { toggled = args; }
+  });
+  vm.runInContext(helper, sandbox);
+  vm.runInContext(`const questions = [{id:value,text:value,correct_answer:value,is_active:true,type:"multiple_choice"}];
+    const studentsData = [{id:value,full_name:value,email:value,phone:value,filier:value,track:value,score:0,
+      quiz_details:{[value]:{user_answer:value,correct_answer:value}}}];`, sandbox);
+  vm.runInContext(page.slice(page.indexOf("function renderQuestions()"), page.indexOf("// --- Modals & Actions")), sandbox);
+  vm.runInContext(page.slice(page.indexOf("function renderStudents()"), page.indexOf("function closeStudentModal()")), sandbox);
+  sandbox.renderQuestions();
+  sandbox.renderStudents();
+  actions.get("[data-toggle-question]")();
+  assert.deepEqual(toggled, [value, true]);
+  actions.get("[data-view-placement]")();
+  assert.ok(ids.studentModalTitle.textContent.includes(value));
+  for (const node of [ids["questions-list"], ids["students-list"], ids.studentModalContent]) {
+    assert.ok(!node.innerHTML.includes(value));
+    assert.match(node.innerHTML, /&lt;b data-marker=&quot;synthetic&quot;&gt;O&#39;Reilly &amp; friends&lt;\/b&gt;/);
+  }
+});
+
+test("course image upload and recent picker use only the course image folder", async () => {
+  const key = "Courses-th/existing.webp";
+  const png = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/7k0AAAAASUVORK5CYII=";
+  let uploaded;
+  const call = await loadRoute("admin-api", {
+    "../config/db.js": { default: { query() { throw new Error("No database access expected"); } } },
+    "../utils/r2Utils.js": {
+      createR2UploadUrl() {}, deleteFromR2() {},
+      async listRecentR2Objects(prefix, filter, limit) {
+        assert.equal(prefix, "Courses-th/");
+        assert.equal(limit, 24);
+        assert.equal(filter(key), true);
+        assert.equal(filter("receipts/private.png"), false);
+        assert.equal(filter("Courses-th/../receipts/private.png"), false);
+        assert.equal(filter("Courses-th/invalid.svg"), false);
+        return [{ Key: key }];
+      },
+      async uploadToR2(path, bytes, contentType) { uploaded = { path, bytes, contentType }; }
+    },
+  });
+  const user = { id: USER, role: "admin" };
+  assert.equal((await call("get /api/admin/course-images", { user: { id: USER } })).statusCode, 403);
+  const list = await call("get /api/admin/course-images", { user });
+  assert.equal(list.body.images[0].url, "/api/content/course-image/Courses-th%2Fexisting.webp");
+  assert.equal((await call("post /api/admin/course-images", { user: { id: USER }, body: { data: png } })).statusCode, 403);
+  assert.equal((await call("post /api/admin/course-images", { user, body: { data: "PGI+" } })).statusCode, 400);
+  assert.equal(uploaded, undefined);
+  const result = await call("post /api/admin/course-images", { user, body: { data: png } });
+  assert.equal(result.statusCode, 201);
+  assert.match(uploaded.path, /^Courses-th\/[a-f0-9-]+\.png$/);
+  assert.equal(uploaded.contentType, "image/png");
+  assert.equal(uploaded.bytes.toString("base64"), png);
+  assert.equal(result.body.url, courseImages.courseImagePath(uploaded.path));
+});
+
+test("course image delivery requires a session and refuses keys outside the image folder", async () => {
+  const allowed = "Courses-th/Un cours.webp";
+  const call = await loadRoute("content", {
+    "../config/db.js": { default: {} },
+    "../config/r2.js": { r2Client: {}, R2_BUCKET: "synthetic" },
+    "@aws-sdk/client-s3": { GetObjectCommand: class {} },
+    "../middleware/auth.js": { checkLessonAccess() {} },
+    "../utils/r2Utils.js": { async generateSignedUrl(key, ttl) {
+      assert.equal(key, allowed);
+      assert.equal(ttl, 900);
+      return "https://storage.example.invalid/synthetic-signed-image";
+    } },
+  });
+  const route = "get /course-image/:key";
+  assert.equal((await call(route, { params: { key: allowed } })).statusCode, 401);
+  assert.equal((await call(route, { user: { id: USER }, params: { key: "receipts/private.png" } })).statusCode, 404);
+  const image = await call(route, { user: { id: USER }, params: { key: allowed } });
+  assert.equal(image.statusCode, 302);
+  assert.equal(image.headers.Location, "https://storage.example.invalid/synthetic-signed-image");
+  assert.equal(image.headers["Cache-Control"], "private, max-age=300");
 });

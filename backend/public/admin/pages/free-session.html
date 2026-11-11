@@ -172,6 +172,7 @@
         </div>
     </div>
 
+    <script src="../js/admin-render.js"></script>
     <script>
         // --- API Helpers ---
         async function fetchConfig() {
@@ -228,19 +229,25 @@
                 html += `
                 <div class="question-item" style="opacity: ${q.is_active ? '1' : '0.5'}">
                     <div style="flex: 1; padding-right: 1rem;">
-                        <span class="question-type ${q.type}">${q.type === 'multiple_choice' ? 'QCM' : 'Drag & Drop'} (Ordre: ${q.order_index})</span>
-                        <h3 style="margin: 0.25rem 0; font-size: 1rem;">${q.text}</h3>
-                        <p style="margin:0; font-size: 0.8rem; color:#64748b;">Réponse: ${JSON.stringify(q.correct_answer)}</p>
+                        <span class="question-type ${q.type === "drag_drop" ? "drag_drop" : "multiple_choice"}">${q.type === 'multiple_choice' ? 'QCM' : 'Drag & Drop'} (Ordre: ${adminText(q.order_index)})</span>
+                        <h3 style="margin: 0.25rem 0; font-size: 1rem;">${adminText(q.text)}</h3>
+                        <p style="margin:0; font-size: 0.8rem; color:#64748b;">Réponse: ${adminText(JSON.stringify(q.correct_answer))}</p>
                     </div>
                     <div class="question-actions">
-                        <button class="btn ${q.is_active ? 'btn-outline' : 'btn-success'}" onclick="toggleQuestion('${q.id}', ${q.is_active})"><i class="fas fa-eye${q.is_active ? '-slash' : ''}"></i></button>
-                        <button class="btn btn-outline" onclick="editQuestion('${q.id}')"><i class="fas fa-edit"></i></button>
-                        <button class="btn btn-danger" onclick="deleteQuestion('${q.id}')"><i class="fas fa-trash"></i></button>
+                        <button class="btn ${q.is_active ? 'btn-outline' : 'btn-success'}" data-toggle-question><i class="fas fa-eye${q.is_active ? '-slash' : ''}"></i></button>
+                        <button class="btn btn-outline" data-edit-question><i class="fas fa-edit"></i></button>
+                        <button class="btn btn-danger" data-delete-question><i class="fas fa-trash"></i></button>
                     </div>
                 </div>
                 `;
             });
             container.innerHTML = html;
+            [...container.children].forEach((item, index) => {
+                const question = questions[index];
+                item.querySelector('[data-toggle-question]').addEventListener('click', () => toggleQuestion(question.id, question.is_active));
+                item.querySelector('[data-edit-question]').addEventListener('click', () => editQuestion(question.id));
+                item.querySelector('[data-delete-question]').addEventListener('click', () => deleteQuestion(question.id));
+            });
         }
 
         // --- Modals & Actions ---
@@ -378,14 +385,14 @@
 
                 html += `
                 <tr style="border-bottom: 1px solid #f1f5f9;">
-                    <td style="padding: 1rem 0.5rem; font-weight:600;">${name}</td>
-                    <td style="padding: 1rem 0.5rem; font-size:0.85rem; color:#64748b;">${email}<br>${phone}</td>
-                    <td style="padding: 1rem 0.5rem; font-size:0.85rem;">${s.filier || '-'}</td>
-                    <td style="padding: 1rem 0.5rem;">${s.track || '-'}</td>
+                    <td style="padding: 1rem 0.5rem; font-weight:600;">${adminText(name)}</td>
+                    <td style="padding: 1rem 0.5rem; font-size:0.85rem; color:#64748b;">${adminText(email)}<br>${adminText(phone)}</td>
+                    <td style="padding: 1rem 0.5rem; font-size:0.85rem;">${adminText(s.filier || '-')}</td>
+                    <td style="padding: 1rem 0.5rem;">${adminText(s.track || '-')}</td>
                     <td style="padding: 1rem 0.5rem;">${groupBadge}</td>
-                    <td style="padding: 1rem 0.5rem; font-weight:bold; color:#10b981;">${s.score != null ? s.score : '-'}</td>
+                    <td style="padding: 1rem 0.5rem; font-weight:bold; color:#10b981;">${adminText(s.score != null ? s.score : '-')}</td>
                     <td style="padding: 1rem 0.5rem;">
-                        <button class="btn btn-outline" style="padding:0.25rem 0.5rem; font-size:0.85rem;" onclick="viewStudentDetails('${s.id}')">
+                        <button class="btn btn-outline" style="padding:0.25rem 0.5rem; font-size:0.85rem;" data-view-placement>
                             <i class="fas fa-search"></i>
                         </button>
                     </td>
@@ -393,6 +400,9 @@
                 `;
             });
             tbody.innerHTML = html;
+            [...tbody.rows].forEach((row, index) => {
+                row.querySelector('[data-view-placement]').addEventListener('click', () => viewStudentDetails(studentsData[index].id));
+            });
         }
 
         function viewStudentDetails(id) {
@@ -420,12 +430,12 @@
                     detailsHtml += `
                     <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:8px; padding:1rem;">
                         <div style="display:flex; justify-content:space-between; margin-bottom:0.5rem;">
-                            <strong style="color:#334155;">${qText}</strong>
+                            <strong style="color:#334155;">${adminText(qText)}</strong>
                             <span>${icon}</span>
                         </div>
                         <div style="font-size:0.9rem; color:#64748b;">
-                            <div><span style="font-weight:600;">Réponse de l'étudiant:</span> ${JSON.stringify(ansData.user_answer)}</div>
-                            <div><span style="font-weight:600;">Réponse correcte:</span> ${JSON.stringify(ansData.correct_answer)}</div>
+                            <div><span style="font-weight:600;">Réponse de l'étudiant:</span> ${adminText(JSON.stringify(ansData.user_answer))}</div>
+                            <div><span style="font-weight:600;">Réponse correcte:</span> ${adminText(JSON.stringify(ansData.correct_answer))}</div>
                         </div>
                     </div>
                     `;

@@ -596,8 +596,20 @@
                         <input type="number" id="price" step="0.1" min="0" value="0" placeholder="0.00">
                     </div>
                     <div class="form-group">
-                        <label>URL Miniature</label>
-                        <input type="url" id="thumbnail_url" placeholder="https://...">
+                        <label for="course-image-upload">Miniature du cours</label>
+                        <input type="hidden" id="thumbnail_url">
+                        <div class="course-image-controls">
+                            <img id="course-image-preview" alt="Miniature du cours" hidden>
+                            <div class="course-image-buttons">
+                                <button type="button" class="btn-icon" id="course-image-upload" title="Importer une image" aria-label="Importer une image"><i class="fas fa-upload" aria-hidden="true"></i></button>
+                                <button type="button" class="btn-icon" id="course-image-offers" title="Choisir une image d’offre" aria-label="Choisir une image d’offre"><i class="fas fa-tags" aria-hidden="true"></i></button>
+                                <button type="button" class="btn-icon" id="course-image-recent" title="Images récentes" aria-label="Images récentes"><i class="fas fa-images" aria-hidden="true"></i></button>
+                                <button type="button" class="btn-icon danger" id="course-image-clear" title="Retirer la miniature" aria-label="Retirer la miniature"><i class="fas fa-trash" aria-hidden="true"></i></button>
+                            </div>
+                        </div>
+                        <input type="file" id="course-image-file" accept="image/png,image/jpeg,image/gif,image/webp,image/avif" hidden>
+                        <div id="course-image-options" class="course-image-options" role="group" aria-label="Images disponibles" hidden></div>
+                        <small id="course-image-status" role="status"></small>
                     </div>
                 </div>
 
@@ -677,6 +689,8 @@
     <!-- Scripts -->
     <script src="../../js/authentication.js"></script>
     <script src="../js/admin-auth.js"></script>
+    <script src="../js/admin-render.js"></script>
+    <script src="/js/offers-config.js"></script>
     <script>
         let allCourses = [];
         let allOffers = [];
@@ -831,19 +845,14 @@
                     ? new Date(course.created_at).toLocaleDateString('fr-FR')
                     : '–';
 
-                const thumbHtml = course.thumbnail_url
-                    ? `<img src="${course.thumbnail_url}" class="course-thumb" alt="" onerror="this.style.display='none';this.nextElementSibling.style.display='flex';">
-                       <div class="course-thumb-placeholder" style="display:none;"><i class="fas fa-image"></i></div>`
-                    : `<div class="course-thumb-placeholder"><i class="fas fa-image"></i></div>`;
-
                 return `
                     <tr>
-                        <td>${thumbHtml}</td>
+                        <td data-course-thumbnail><div class="course-thumb-placeholder"><i class="fas fa-image"></i></div></td>
                         <td class="course-title-cell">
                             <strong>${escHtml(course.title)}</strong>
-                            ${course.category ? `<span><span class="badge badge-category">${categoryLabels[course.category] || course.category}</span></span>` : ''}
+                            ${course.category ? `<span><span class="badge badge-category">${adminText(categoryLabels[course.category] || course.category)}</span></span>` : ''}
                         </td>
-                        <td>${levelLabels[course.level] || course.level || '–'}</td>
+                        <td>${adminText(levelLabels[course.level] || course.level || '–')}</td>
                         <td>
                             ${course.is_free
                                 ? '<span class="badge badge-free">Gratuit</span>'
@@ -858,14 +867,14 @@
                         <td style="color:var(--text-muted); font-size:0.85rem;">${created}</td>
                         <td>
                             <div class="actions">
-                                <button class="btn-icon" title="Modifier" onclick="editCourse('${course.id}')">
+                                <button class="btn-icon" title="Modifier" data-edit-course>
                                     <i class="fas fa-edit" style="pointer-events:none;"></i>
                                 </button>
-                                <button class="btn-icon" title="Gérer les chapitres, leçons et documents" onclick="openChapterManager('${course.id}')">
+                                <button class="btn-icon" title="Gérer les chapitres, leçons et documents" data-course-chapters>
                                     <i class="fas fa-layer-group" style="pointer-events:none;"></i>
                                 </button>
                                 <button class="btn-icon" title="${course.is_published ? 'Dépublier' : 'Publier'}" 
-                                    onclick="togglePublish('${course.id}', ${course.is_published})"
+                                    data-publish-course
                                     style="color:${course.is_published ? 'var(--warning)' : 'var(--success)'}; border-color:${course.is_published ? 'var(--warning)' : 'var(--success)'};">
                                     <i class="fas ${course.is_published ? 'fa-eye-slash' : 'fa-eye'}" style="pointer-events:none;"></i>
                                 </button>
@@ -874,6 +883,27 @@
                     </tr>
                 `;
             }).join('');
+            [...tbody.rows].forEach((row, index) => {
+                const course = courses[index];
+                const url = courseImagePreviewUrl(course.thumbnail_url);
+                if (url) {
+                    const cell = row.querySelector('[data-course-thumbnail]');
+                    const placeholder = cell.firstElementChild;
+                    const image = document.createElement('img');
+                    image.className = 'course-thumb';
+                    image.alt = '';
+                    image.addEventListener('error', () => {
+                        image.remove();
+                        placeholder.style.display = '';
+                    }, { once: true });
+                    placeholder.style.display = 'none';
+                    cell.prepend(image);
+                    image.src = url;
+                }
+                row.querySelector('[data-edit-course]').addEventListener('click', () => editCourse(course.id));
+                row.querySelector('[data-course-chapters]').addEventListener('click', () => openChapterManager(course.id));
+                row.querySelector('[data-publish-course]').addEventListener('click', () => togglePublish(course.id, course.is_published));
+            });
         }
 
         async function openChapterManager(courseId) {
@@ -1254,6 +1284,7 @@
             document.getElementById('modalTitle').textContent = 'Nouveau Cours';
             document.getElementById('courseForm').reset();
             document.getElementById('courseId').value = '';
+            setCourseImage('');
 
             renderOfferPicker([]);
 
@@ -1272,7 +1303,7 @@
             document.getElementById('category').value = course.category || '';
             document.getElementById('level').value = course.level || '';
             document.getElementById('price').value = course.price || 0;
-            document.getElementById('thumbnail_url').value = course.thumbnail_url || '';
+            setCourseImage(course.thumbnail_url || '');
             document.getElementById('is_free').checked = !!course.is_free;
             document.getElementById('is_published').checked = !!course.is_published;
 
@@ -1283,8 +1314,135 @@
 
         // ── Close modal ────────────────────────────────
         function closeModal() {
+            setCourseImage('');
             document.getElementById('courseModal').style.display = 'none';
         }
+
+        let courseImageVersion = 0;
+        let courseImageUploading = false;
+        const courseImageFile = document.getElementById('course-image-file');
+        const courseImageOptions = document.getElementById('course-image-options');
+        const courseImageStatus = document.getElementById('course-image-status');
+        const courseImagePreview = document.getElementById('course-image-preview');
+        const recentImagesButton = document.getElementById('course-image-recent');
+
+        function courseImagePreviewUrl(value) {
+            if (value?.startsWith('Courses-th/')) {
+                return '/api/content/course-image/' + encodeURIComponent(value);
+            }
+            return adminImageUrl(value);
+        }
+
+        function setCourseImage(value) {
+            courseImageVersion++;
+            courseImageUploading = false;
+            recentImagesButton.disabled = false;
+            document.getElementById('thumbnail_url').value = value;
+            document.getElementById('course-image-clear').disabled = !value;
+            const url = courseImagePreviewUrl(value);
+            courseImagePreview.hidden = !url;
+            if (url) courseImagePreview.src = url;
+            else courseImagePreview.removeAttribute('src');
+            courseImageOptions.hidden = true;
+            courseImageOptions.replaceChildren();
+            courseImageStatus.textContent = '';
+        }
+
+        courseImagePreview.addEventListener('error', () => { courseImagePreview.hidden = true; });
+
+        function showCourseImageOptions(images, emptyMessage) {
+            courseImageOptions.replaceChildren();
+            for (const item of images) {
+                const url = courseImagePreviewUrl(item.url);
+                if (!url) continue;
+                const button = document.createElement('button');
+                button.type = 'button';
+                button.className = 'course-image-option';
+                button.title = item.name;
+                const image = document.createElement('img');
+                image.src = url;
+                image.alt = '';
+                image.loading = 'lazy';
+                const name = document.createElement('span');
+                name.textContent = item.name;
+                button.append(image, name);
+                button.addEventListener('click', () => setCourseImage(item.url));
+                courseImageOptions.append(button);
+            }
+            courseImageOptions.hidden = !courseImageOptions.childElementCount;
+            courseImageStatus.textContent = courseImageOptions.hidden ? emptyMessage : '';
+        }
+
+        document.getElementById('course-image-upload').addEventListener('click', () => courseImageFile.click());
+        document.getElementById('course-image-clear').addEventListener('click', () => setCourseImage(''));
+        document.getElementById('course-image-offers').addEventListener('click', () => {
+            courseImageVersion++;
+            courseImageUploading = false;
+            recentImagesButton.disabled = false;
+            const selected = new Set([...document.querySelectorAll('#offers-list input:checked')].map(input => input.value));
+            const images = allOffers.filter(offer => selected.has(String(offer.id))).flatMap(offer => {
+                const configured = window.OFFERS_FEATURES_CONFIG?.getImage(offer) ?? offer.image_url;
+                const image = courseImagePreviewUrl(configured);
+                return image ? [{ url: image, name: offer.title }] : [];
+            });
+            showCourseImageOptions(images, 'Aucune image dans les offres associées.');
+        });
+
+        recentImagesButton.addEventListener('click', async () => {
+            const version = ++courseImageVersion;
+            courseImageUploading = false;
+            recentImagesButton.disabled = true;
+            courseImageOptions.hidden = true;
+            courseImageStatus.textContent = 'Chargement des images…';
+            try {
+                const response = await fetch('/api/admin/course-images');
+                const data = await response.json();
+                if (version !== courseImageVersion) return;
+                if (!response.ok || !Array.isArray(data.images)) throw new Error();
+                showCourseImageOptions(data.images, 'Aucune image dans le dossier.');
+            } catch {
+                if (version === courseImageVersion) courseImageStatus.textContent = 'Images récentes indisponibles.';
+            } finally {
+                if (version === courseImageVersion) recentImagesButton.disabled = false;
+            }
+        });
+
+        courseImageFile.addEventListener('change', async () => {
+            const file = courseImageFile.files[0];
+            courseImageFile.value = '';
+            if (!file) return;
+            if (file.size > 5 * 1024 * 1024) {
+                courseImageStatus.textContent = 'Choisissez une image de 5 Mo maximum.';
+                return;
+            }
+            const version = ++courseImageVersion;
+            courseImageUploading = true;
+            recentImagesButton.disabled = false;
+            courseImageOptions.hidden = true;
+            courseImageStatus.textContent = 'Importation de l’image…';
+            try {
+                const dataUrl = await new Promise((resolve, reject) => {
+                    const reader = new FileReader();
+                    reader.onload = () => resolve(reader.result);
+                    reader.onerror = reject;
+                    reader.readAsDataURL(file);
+                });
+                if (version !== courseImageVersion) return;
+                const response = await fetch('/api/admin/course-images', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ data: dataUrl.split(',')[1] })
+                });
+                const result = await response.json();
+                if (version !== courseImageVersion) return;
+                if (!response.ok || !result.url) throw new Error(result.error || 'Impossible d’importer cette image.');
+                setCourseImage(result.url);
+            } catch (error) {
+                if (version === courseImageVersion) courseImageStatus.textContent = error.message || 'Importation impossible.';
+            } finally {
+                if (version === courseImageVersion) courseImageUploading = false;
+            }
+        });
 
         function renderOfferPicker(selectedIds = []) {
             const list = document.getElementById('offers-list');
@@ -1360,6 +1518,7 @@
         // ── Submit form ────────────────────────────────
         document.getElementById('courseForm').addEventListener('submit', async (e) => {
             e.preventDefault();
+            if (courseImageUploading) return;
             showLoader(true);
 
             const payload = {

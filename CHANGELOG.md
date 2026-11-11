@@ -1,5 +1,13 @@
 # CHANGELOG.md — Synta Academy
 
+## 2026-11-11 — Manage course thumbnails in the admin editor
+
+- Added offer image reuse, recent R2 images, uploads and removal. Refined the admin toolbar, Live Sessions heading and offer dialog.
+
+## 2026-11-11 — Secure placement rendering and thumbnails
+
+- Rendered placement values as text and restricted course thumbnail assignment to supported image URLs.
+
 ## 2026-11-11 — Admin offer activation and safe text rendering
 
 - Added an activation switch in Offers, corrected the active-offer KPI, and secured student and payment display values.

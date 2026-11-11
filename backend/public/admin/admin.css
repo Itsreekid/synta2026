@@ -162,3 +162,109 @@
 .admin-offers .offer-status-switch:checked { background: #186a53; border-color: #186a53; }
 .admin-offers .offer-status-switch:checked::before { inset-inline-start: 23px; }
 .admin-offers .offer-status-switch:disabled { opacity: .65; cursor: wait; }
+
+.admin-courses .course-image-controls, .admin-courses .course-image-buttons {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+.admin-courses #course-image-preview {
+    width: 96px;
+    height: 60px;
+    object-fit: cover;
+    border-radius: 8px;
+}
+.admin-courses .course-image-options {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(85px, 1fr));
+    gap: 6px;
+    max-height: 220px;
+    overflow: auto;
+    margin-top: 8px;
+}
+.admin-courses .course-image-options[hidden] { display: none; }
+.admin-courses .course-image-option {
+    min-width: 0;
+    padding: 4px;
+    border: 1px solid var(--admin-line);
+    border-radius: 8px;
+    background: #fff;
+    color: var(--admin-ink);
+    cursor: pointer;
+}
+.admin-courses .course-image-option img { display: block; width: 100%; height: 54px; object-fit: cover; border-radius: 4px; }
+.admin-courses .course-image-option span { display: block; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+
+.admin-shell .header-top { background: #f8fcfe; border-bottom-color: var(--admin-line); }
+.admin-shell .admin-header-context {
+    margin-inline-end: auto;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    color: var(--admin-navy);
+    font-weight: 700;
+}
+.admin-shell .profile-picture { background: #e4f0f5; box-shadow: none; }
+.admin-shell .profile-picture i { color: var(--admin-navy); }
+.admin-shell .profile-picture:hover { background: #d4e7ef; box-shadow: none; transform: none; }
+.admin-shell .notifications:hover { background: #e9f3f7; }
+.admin-page.admin-sessions .page-header {
+    background: #fff;
+    border: 1px solid var(--admin-line);
+    border-radius: 14px;
+    padding: clamp(14px, 2vw, 24px);
+    box-shadow: var(--admin-shadow);
+}
+.admin-page.admin-sessions .page-header h1 { color: var(--admin-navy); }
+.admin-page.admin-sessions .page-header h1 i { color: #087b9a; }
+.admin-page.admin-sessions .page-header .btn-primary { box-shadow: none; }
+.admin-page.admin-sessions :is(.stats-row, .content) { padding-inline: 0; }
+.admin-page.admin-offers #offerModal { --offer-dialog-gap: clamp(8px, 2vw, 24px); padding: var(--offer-dialog-gap); }
+.admin-page.admin-offers #offerModal .modal-content {
+    display: grid;
+    grid-template-rows: auto minmax(0, 1fr);
+    width: min(100%, 690px);
+    max-width: none;
+    max-height: calc(100dvh - 2 * var(--offer-dialog-gap));
+    padding: 0;
+    overflow: hidden;
+}
+.admin-page.admin-offers .offer-modal-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    padding: clamp(8px, 2vw, 16px) clamp(12px, 3vw, 22px);
+    border-bottom: 1px solid var(--admin-line);
+}
+.admin-page.admin-offers #modalTitle { margin: 0; color: var(--admin-navy); }
+.admin-page.admin-offers .offer-modal-header .btn-icon {
+    flex: none;
+    font-size: 1.5rem;
+    line-height: 1;
+    color: var(--admin-navy);
+}
+.admin-page.admin-offers #offerForm {
+    display: grid;
+    grid-template-rows: minmax(0, 1fr) auto;
+    min-height: 0;
+}
+.admin-page.admin-offers .offer-form-fields {
+    min-height: 0;
+    overflow: auto;
+    overscroll-behavior: contain;
+    padding: clamp(12px, 3vw, 22px);
+}
+.admin-page.admin-offers #offerModal .modal-footer {
+    margin: 0;
+    padding: 10px clamp(12px, 3vw, 22px);
+    border-top: 1px solid var(--admin-line);
+    background: #fff;
+}
+@media (max-width: 480px) {
+    .admin-shell .header-top { gap: 7px; }
+    .admin-shell .admin-badge { font-size: .62rem; }
+    .admin-page.admin-offers #offerModal .modal-footer > button { flex: 1; }
+}

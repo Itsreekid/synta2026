@@ -9,7 +9,21 @@ import { checkLessonAccess } from "../middleware/auth.js";
 import { generateSignedUrl } from "../utils/r2Utils.js";
 import { r2Client, R2_BUCKET } from "../config/r2.js";
 
+import { isCourseImageKey } from "../utils/courseImages.js";
+
 const router = express.Router();
+
+router.get("/course-image/:key", authApiMiddleware, async (req, res) => {
+  const { key } = req.params;
+  if (!isCourseImageKey(key)) return res.sendStatus(404);
+  try {
+    const url = await generateSignedUrl(key, 900);
+    res.set("Cache-Control", "private, max-age=300");
+    return res.redirect(302, url);
+  } catch {
+    return res.sendStatus(503);
+  }
+});
 
 router.get("/lesson/:lessonId/resources", authApiMiddleware, async (req, res) => {
   try {

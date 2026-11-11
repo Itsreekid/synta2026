@@ -1,10 +1,13 @@
+import { randomUUID } from "node:crypto";
 import express from "express";
 import pool from "../config/db.js";
 import { requireAdmin } from "../middleware/requireAdmin.js";
 import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
-import { createR2UploadUrl, deleteFromR2 } from "../utils/r2Utils.js";
+import { createR2UploadUrl, deleteFromR2, listRecentR2Objects, uploadToR2 } from "../utils/r2Utils.js";
 import { offerEntitlement } from "../utils/offerAccess.js";
+
+import { COURSE_IMAGE_PREFIX, courseImagePath, decodeCourseImage, isCourseImageKey } from "../utils/courseImages.js";
 
 const router = express.Router();
 const SALT_ROUNDS = 12;
@@ -438,6 +441,34 @@ router.get("/api/admin/courses", requireAdmin, async (req, res) => {
   } catch (err) {
     console.error("Error fetching courses:", err.message);
     return res.status(500).json({ success: false, error: "Internal server error" });
+  }
+});
+
+router.get("/api/admin/course-images", requireAdmin, async (_req, res) => {
+  try {
+    const objects = await listRecentR2Objects(COURSE_IMAGE_PREFIX, isCourseImageKey, 24);
+    return res.json({
+      success: true,
+      images: objects.map(({ Key }) => ({ url: courseImagePath(Key), name: Key.split("/").at(-1) }))
+    });
+  } catch (error) {
+    console.warn("Course image listing failed:", error.name);
+    return res.status(503).json({ success: false, error: "Images récentes indisponibles." });
+  }
+});
+
+router.post("/api/admin/course-images", requireAdmin, async (req, res) => {
+  const image = decodeCourseImage(req.body?.data);
+  if (!image) {
+    return res.status(400).json({ success: false, error: "Choisissez une image PNG, JPEG, GIF, WebP ou AVIF de 5 Mo maximum." });
+  }
+  const key = COURSE_IMAGE_PREFIX + randomUUID() + "." + image.extension;
+  try {
+    await uploadToR2(key, image.bytes, image.contentType);
+    return res.status(201).json({ success: true, url: courseImagePath(key) });
+  } catch (error) {
+    console.warn("Course image upload failed:", error.name);
+    return res.status(503).json({ success: false, error: "Impossible d’importer cette image." });
   }
 });
 
