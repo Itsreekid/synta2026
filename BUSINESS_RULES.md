@@ -208,6 +208,9 @@ Two roles exist: `user` (student) and `admin`.
 |----------|--------|----------|
 | Offers have `valid_from` and `valid_until` date range | ✅ | Schema supports it |
 | Expired offers are hidden from listing | ✅ | `enrollment.js` offers endpoint: `valid_until > NOW()` |
+| Admins see all offers and can change activation | ✅ | Admin list stays unfiltered. The status endpoint updates only is_active. |
+| Inactive offers cannot be purchased as new offers | ✅ | Student checkout checks is_active. Existing payments and course enrollments remain valid under their existing rules. |
+| Overview active offer count follows is_active | ✅ | The KPI counts enabled flags; sale dates remain separate checkout conditions. |
 | Offer features (live_access, exams, community) are stored as JSONB | ✅ | `offers.features` |
 
 ---

@@ -15,7 +15,7 @@ const SALT_ROUNDS = 12;
 router.get("/api/admin/overview-stats", requireAdmin, async (req, res) => {
   try {
     const studentResult = await pool.query(`SELECT count(*) FROM users WHERE role = 'user'`);
-    const offerResult = await pool.query(`SELECT count(*) FROM offers`);
+    const offerResult = await pool.query(`SELECT count(*) FROM offers WHERE is_active = true`);
     const revenueResult = await pool.query(`SELECT COALESCE(SUM(amount), 0) as total FROM purchases WHERE payment_status = 'completed'`);
     
     return res.json({
@@ -40,6 +40,26 @@ router.get("/api/admin/offers", requireAdmin, async (req, res) => {
   } catch (err) {
     console.error("Error fetching offers:", err.message);
     return res.status(500).json({ success: false, error: "Internal server error" });
+  }
+});
+
+router.patch("/api/admin/offers/:id/status", requireAdmin, async (req, res) => {
+  const { id } = req.params;
+  const { is_active } = req.body ?? {};
+  if (!/^[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}$/i.test(id) || typeof is_active !== "boolean") {
+    return res.status(400).json({ success: false, error: "Statut ou offre invalide." });
+  }
+
+  try {
+    const { rows } = await pool.query(
+      "UPDATE offers SET is_active = $1 WHERE id = $2 RETURNING is_active",
+      [is_active, id]
+    );
+    if (!rows.length) return res.status(404).json({ success: false, error: "Offre introuvable." });
+    return res.json({ success: true, is_active: rows[0].is_active });
+  } catch (err) {
+    console.error("Error updating offer status:", err.code);
+    return res.status(500).json({ success: false, error: "Impossible de modifier le statut." });
   }
 });
 

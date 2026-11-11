@@ -218,9 +218,10 @@
             margin: 0;
         }
     </style>
+    <link rel="stylesheet" href="/admin/admin.css">
 </head>
 
-<body>
+<body class="admin-page admin-offers">
     <div id="loading" class="loading-overlay">
         <div class="spinner"></div>
     </div>
@@ -269,7 +270,7 @@
                         <!-- Feature rows injected here -->
                     </div>
                 </div>
-                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+                <div class="admin-form-grid" style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
                     <div class="form-group">
                         <label>Prix (DT)</label>
                         <input type="number" id="fixed_price" step="0.1" required>
@@ -288,7 +289,8 @@
                         </div>
                         <span class="switch-label" style="margin-left: 12px; font-weight: 600; font-size: 0.95rem; color: #64748b; transition: color 0.3s;">Active</span>
                     </label>
-                    <script>
+                    <script src="../js/admin-render.js"></script>
+    <script>
                         const statusCheckbox = document.getElementById('is_active');
                         const statusTrack = statusCheckbox.nextElementSibling;
                         const statusThumb = statusTrack.querySelector('.switch-thumb');
@@ -345,7 +347,7 @@
                         premiumCheckbox.addEventListener('change', updatePremiumUI);
                     </script>
                 </div>
-                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+                <div class="admin-form-grid" style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
                     <div class="form-group">
                         <label>Classes Cibles</label>
                         <div class="checkbox-group" id="target_classes_group">
@@ -423,20 +425,23 @@
             container.innerHTML = offers.map(offer => `
                 <div class="offer-item">
                     <div class="offer-info">
-                        <h3>${offer.title} 
+                        <h3>${adminText(offer.title)}
                             <span class="badge ${offer.is_active ? 'badge-active' : 'badge-inactive'}">
                                 ${offer.is_active ? 'Active' : 'Inactive'}
                             </span>
                         </h3>
-                        <p>${offer.description || 'Pas de description'}</p>
+                        <p>${adminText(offer.description || 'Pas de description')}</p>
                     </div>
                     <div style="display: flex; align-items: center; gap: 2rem;">
-                        <div class="offer-price">${offer.fixed_price} DT</div>
+                        <div class="offer-price">${adminText(offer.fixed_price)} DT</div>
                         <div class="actions">
-                            <button class="btn-icon copy-btn" data-id="${offer.id}" title="Dupliquer l'offre">
+                            <input class="offer-status-switch" type="checkbox" role="switch"
+                                aria-label="Activation de l’offre ${adminText(offer.title)}"
+                                data-id="${adminText(offer.id)}" ${offer.is_active ? 'checked' : ''}>
+                            <button class="btn-icon copy-btn" data-id="${adminText(offer.id)}" title="Dupliquer l'offre">
                                 <i class="fas fa-copy" style="pointer-events: none;"></i>
                             </button>
-                            <button class="btn-icon edit-btn" data-id="${offer.id}" title="Modifier l'offre">
+                            <button class="btn-icon edit-btn" data-id="${adminText(offer.id)}" title="Modifier l'offre">
                                 <i class="fas fa-edit" style="pointer-events: none;"></i>
                             </button>
                         </div>
@@ -444,6 +449,36 @@
                 </div>
             `).join('');
         }
+
+        document.getElementById('offersList').addEventListener('change', async event => {
+            const toggle = event.target;
+            if (!toggle.matches('.offer-status-switch')) return;
+            const offer = allOffers.find(item => item.id === toggle.dataset.id);
+            if (!offer) return;
+
+            const next = toggle.checked;
+            toggle.disabled = true;
+            try {
+                const response = await fetch('/api/admin/offers/' + encodeURIComponent(offer.id) + '/status', {
+                    method: 'PATCH',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ is_active: next })
+                });
+                const result = await response.json();
+                if (!response.ok || !result.success || typeof result.is_active !== 'boolean') throw new Error();
+                offer.is_active = result.is_active;
+                toggle.checked = result.is_active;
+                const badge = toggle.closest('.offer-item').querySelector('.badge');
+                badge.classList.toggle('badge-active', result.is_active);
+                badge.classList.toggle('badge-inactive', !result.is_active);
+                badge.textContent = result.is_active ? 'Active' : 'Inactive';
+            } catch {
+                toggle.checked = Boolean(offer.is_active);
+                alert('Impossible de modifier le statut de cette offre.');
+            } finally {
+                toggle.disabled = false;
+            }
+        });
 
         function addFeatureRow(text = '', active = true) {
             const list = document.getElementById('featuresList');
@@ -454,7 +489,7 @@
             row.style.alignItems = 'center';
             
             row.innerHTML = `
-                <input type="text" placeholder="Description du point (ex: Live 🟢)" value="${text.replace(/"/g, '&quot;')}" style="flex: 1; padding: 0.5rem; border: 1px solid #e2e8f0; border-radius: 4px;">
+                <input type="text" placeholder="Description du point (ex: Live 🟢)" value="${adminText(text)}" style="flex: 1; padding: 0.5rem; border: 1px solid #e2e8f0; border-radius: 4px;">
                 <select style="width: auto; padding: 0.5rem; border: 1px solid #e2e8f0; border-radius: 4px;">
                     <option value="true" ${active ? 'selected' : ''}>Inclus (Vert)</option>
                     <option value="false" ${!active ? 'selected' : ''}>Non inclus (Gris)</option>

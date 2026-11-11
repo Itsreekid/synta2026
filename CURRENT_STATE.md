@@ -1,5 +1,18 @@
 # CURRENT_STATE.md — Synta Academy
 
+### 2026-11-11 — Approved admin offer and rendering fixes
+
+- Added an admin-only offer activation switch and corrected the active-offer KPI. Existing purchase eligibility and grants use their current rules.
+- Encoded untrusted text and bound actions safely in Students and Payments, and encoded the Offers list fields. Other admin views were audited only. Verified 27 regression tests and local Chrome checks. One opt-in PostgreSQL test was skipped. No deployment.
+
+### 2026-11-11 — Admin dashboard UX and audit
+
+- Modernized the existing admin shell and pages with shared styles, responsive tables and keyboard navigation. See ADMIN_DASHBOARD_AUDIT.md for route inventory, test coverage, security findings and pending owner decisions.
+
+### 2026-11-11 — Deep analysis deployment QA
+
+- Audited credential isolation and added a guarded one-request synthetic staging smoke command with sanitized output. The full 26-test PostgreSQL suite passed. No Coolify access, live request or deployment was performed.
+
 ### 2026-11-11 — Separate Gemini key for deep learning analysis
 
 - Added an internal on-demand analysis service that uses only LEARNING_GEMINI_API_KEY. It skips accounts without supported weaknesses and never runs from Bugi chat. LEARNING_GEMINI_ENABLED=false disables it.

@@ -282,9 +282,10 @@
             border: none;
         }
     </style>
+    <link rel="stylesheet" href="/admin/admin.css">
 </head>
 
-<body>
+<body class="admin-page admin-students">
     <div id="loading" class="loading-overlay">
         <div class="spinner"></div>
     </div>
@@ -321,7 +322,7 @@
         </select>
     </div>
 
-    <div class="students-table-container">
+    <div class="students-table-container" tabindex="0" role="region" aria-label="Tableau de gestion">
         <table>
             <thead>
                 <tr>
@@ -396,6 +397,7 @@
     <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
     <script src="/js/authentication.js"></script>
     <script src="../js/admin-dashboard.js"></script>
+    <script src="../js/admin-render.js"></script>
     <script>
         let currentPage = 1;
         const pageSize = 10;
@@ -465,26 +467,31 @@
                 <tr>
                     <td>
                         <div class="student-name">
-                            <div class="avatar">${student.fullname?.charAt(0) || 'S'}</div>
-                            ${student.fullname || 'Étudiant'}
+                            <div class="avatar">${adminText(student.fullname?.charAt(0) || 'S')}</div>
+                            ${adminText(student.fullname || 'Étudiant')}
                         </div>
                     </td>
-                    <td>${student.email}</td>
-                    <td>${student.number || '-'}</td>
-                    <td><span class="badge badge-class">${student.class || '-'}</span></td>
-                    <td><span class="badge badge-branch">${student.branch || '-'}</span></td>
-                    <td>${new Date(student.created_at).toLocaleDateString('fr-FR')}</td>
-                    <td><strong>${student.balance || '0.00'} DT</strong></td>
+                    <td>${adminText(student.email)}</td>
+                    <td>${adminText(student.number || '-')}</td>
+                    <td><span class="badge badge-class">${adminText(student.class || '-')}</span></td>
+                    <td><span class="badge badge-branch">${adminText(student.branch || '-')}</span></td>
+                    <td>${adminText(new Date(student.created_at).toLocaleDateString('fr-FR'))}</td>
+                    <td><strong>${adminText(student.balance || '0.00')} DT</strong></td>
                     <td style="display: flex; gap: 0.5rem;">
-                        <button class="btn-icon" onclick="openStudentDetailsModal('${student.id}')" title="Détails de l'étudiant">
+                        <button class="btn-icon" data-student-details title="Détails de l'étudiant">
                             <i class="fas fa-eye"></i>
                         </button>
-                        <button class="btn-icon" onclick="openPassModal('${student.id}', '${student.email}')" title="Changer le mot de passe">
+                        <button class="btn-icon" data-student-password title="Changer le mot de passe">
                             <i class="fas fa-key"></i>
                         </button>
                     </td>
                 </tr>
             `).join('');
+            [...body.rows].forEach((row, index) => {
+                const student = students[index];
+                row.querySelector('[data-student-details]').addEventListener('click', () => openStudentDetailsModal(student.id));
+                row.querySelector('[data-student-password]').addEventListener('click', () => openPassModal(student.id, student.email));
+            });
         }
 
         function openPassModal(id, email) {
@@ -567,24 +574,24 @@
             const offers = res.offers || [];
             
             let offersHtml = offers.length > 0 
-                ? offers.map(o => `<span class="badge" style="background: #e0e7ff; color: #3730a3; margin-right: 0.5rem;">${o.title}</span>`).join('')
+                ? offers.map(o => `<span class="badge" style="background: #e0e7ff; color: #3730a3; margin-right: 0.5rem;">${adminText(o.title)}</span>`).join('')
                 : '<span style="color: #64748b; font-style: italic;">Aucune offre active</span>';
 
             const debt = parseFloat(s.debt || 0);
             let optionsHtml = '';
             if (activeOffers.length > 0) {
-                optionsHtml = activeOffers.map(o => `<option value="${o.id}">${o.title} (${o.fixed_price} DT)</option>`).join('');
+                optionsHtml = activeOffers.map(o => `<option value="${adminText(o.id)}">${adminText(o.title)} (${adminText(o.fixed_price)} DT)</option>`).join('');
             }
 
             content.innerHTML = `
                 <div style="margin-bottom: 1rem;">
-                    <strong>Nom:</strong> ${s.name || s.fullname || '-'}
+                    <strong>Nom:</strong> ${adminText(s.name || s.fullname || '-')}
                 </div>
                 <div style="margin-bottom: 1rem;">
-                    <strong>Email:</strong> ${s.email}
+                    <strong>Email:</strong> ${adminText(s.email)}
                 </div>
                 <div style="margin-bottom: 1rem;">
-                    <strong>Solde actuel:</strong> ${s.balance || '0.00'} DT
+                    <strong>Solde actuel:</strong> ${adminText(s.balance || '0.00')} DT
                 </div>
                 <div style="margin-bottom: 1rem;">
                     <strong>Dette (Tranches non payées):</strong> 
@@ -611,7 +618,7 @@
                             </div>
                             <div style="display: flex; gap: 0.5rem; margin-top: 0.5rem;">
                                 <input type="number" id="payDebtAmount" max="${debt}" step="0.1" value="${debt}" style="width: 120px; padding: 0.5rem; border: 1px solid #ccc; border-radius: 4px;">
-                                <button class="btn btn-primary" onclick="handlePayDebt('${s.id}')">Payer</button>
+                                <button class="btn btn-primary" data-student-pay-debt>Payer</button>
                             </div>
                         </div>
                     ` : `
@@ -629,13 +636,16 @@
                             </div>
                             <div style="display: flex; gap: 0.5rem; margin-top: 0.5rem; align-items: center;">
                                 <input type="number" id="trancheAmount" step="0.1" placeholder="Montant payé (Ex: 50)" style="flex: 1; padding: 0.5rem; border: 1px solid #ccc; border-radius: 4px;">
-                                <button class="btn btn-primary" onclick="handleEnrollPartial('${s.id}')">Inscrire</button>
+                                <button class="btn btn-primary" data-student-enroll>Inscrire</button>
                             </div>
                             <small style="color: #64748b; margin-top: 0.5rem; display: block;">Le montant payé sera enregistré. Le reste deviendra sa dette.</small>
                         </div>
                     `}
                 </div>
             `;
+
+            content.querySelector('[data-student-pay-debt]')?.addEventListener('click', () => handlePayDebt(s.id));
+            content.querySelector('[data-student-enroll]')?.addEventListener('click', () => handleEnrollPartial(s.id));
 
             deleteBtn.onclick = async () => {
                 if(confirm("Voulez-vous vraiment supprimer cet étudiant ? Cette action est irréversible.")) {

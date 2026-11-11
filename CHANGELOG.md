@@ -1,5 +1,13 @@
 # CHANGELOG.md — Synta Academy
 
+## 2026-11-11 — Admin offer activation and safe text rendering
+
+- Added an activation switch in Offers, corrected the active-offer KPI, and secured student and payment display values.
+
+## 2026-11-11 — Modernize the admin dashboard
+
+- Added a shared admin visual style, responsive table and modal layouts, and keyboard controls for navigation and payment details.
+
 ## 2026-11-11 — Isolate deep learning analysis
 
 - Added on-demand student learning analysis with a dedicated Gemini credential and independent quota backoff.

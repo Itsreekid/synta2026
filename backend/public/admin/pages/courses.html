@@ -478,9 +478,10 @@
             to   { transform: translateX(0);    opacity: 1; }
         }
     </style>
+    <link rel="stylesheet" href="/admin/admin.css">
 </head>
 
-<body>
+<body class="admin-page admin-courses">
     <div id="loading" class="loading-overlay">
         <div style="font-size:1.5rem; color:var(--primary);">
             <i class="fas fa-spinner fa-spin"></i>
@@ -524,7 +525,7 @@
     </div>
 
     <!-- Courses table -->
-    <div class="table-wrap">
+    <div class="table-wrap" tabindex="0" role="region" aria-label="Tableau de gestion">
         <table>
             <thead>
                 <tr>

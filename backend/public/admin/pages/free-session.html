@@ -44,8 +44,9 @@
         
         .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
     </style>
+    <link rel="stylesheet" href="/admin/admin.css">
 </head>
-<body>
+<body class="admin-page admin-free-session">
 
     <!-- Config Section -->
     <div class="card expanded">
@@ -98,7 +99,7 @@
             </div>
         </div>
         <div class="card-body">
-            <div style="overflow-x: auto;">
+            <div class="admin-table-scroll" tabindex="0" role="region" aria-label="Étudiants inscrits" style="overflow-x: auto;">
                 <table style="width: 100%; text-align: left; border-collapse: collapse;">
                     <thead>
                         <tr style="border-bottom: 2px solid #e2e8f0;">

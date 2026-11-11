@@ -234,7 +234,7 @@ test("user deposit requests cannot fabricate completed purchases or refund ledge
   assert.equal(insert.args[0], USER);
 });
 
-function walletPool({ balance = 100, failGrant = false, courseOwned = true } = {}) {
+function walletPool({ balance = 100, failGrant = false, courseOwned = true, offerActive = () => true } = {}) {
   const wallet = { balance, payments: new Set(), courses: new Set(courseOwned ? [COURSE] : []), ledger: [] };
   let queue = Promise.resolve();
   return {
@@ -263,7 +263,10 @@ function walletPool({ balance = 100, failGrant = false, courseOwned = true } = {
             assert.ok(unlock, "Ownership must be checked under the wallet lock");
             return { rows: [{ owned: wallet.payments.has(args[1]) }] };
           }
-          if (sql.includes("FROM offers o")) return { rows: [{ fixed_price: "30", course_ids: [COURSE], title: "Offer" }] };
+          if (sql.includes("FROM offers o")) {
+            assert.match(sql, /o\.is_active = true/);
+            return { rows: offerActive(args[0]) ? [{ fixed_price: "30", course_ids: [COURSE], title: "Offer" }] : [] };
+          }
           if (sql.includes("FROM courses")) return { rowCount: 1, rows: [{ price: "20", title: "Course", is_free: false }] };
           if (sql.includes("SELECT id FROM enrollments")) return { rowCount: Number(wallet.courses.has(args[1])), rows: [] };
           if (sql.includes("INSERT INTO payments")) {
@@ -561,4 +564,104 @@ test("deployment reconciles legacy payments status before the index and safely s
   assert.equal(schemaChanges, 2);
   await run();
   assert.equal(schemaChanges, 2);
+});
+
+test("admin offer status affects the active KPI and checkout without revoking a grant", async () => {
+  const offers = new Map([[OFFER, true], [OTHER_OFFER, false]]);
+  const wallet = walletPool({ offerActive: id => offers.get(id) });
+  const buy = await purchaseRoute(wallet);
+  const query = async (sql, args = []) => {
+    if (sql.startsWith("UPDATE offers")) {
+      assert.equal(sql, "UPDATE offers SET is_active = $1 WHERE id = $2 RETURNING is_active");
+      const [active, id] = args;
+      if (!offers.has(id)) return { rows: [] };
+      offers.set(id, active);
+      return { rows: [{ is_active: active }] };
+    }
+    if (sql.startsWith("SELECT * FROM offers")) return {
+      rows: [...offers].map(([id, is_active]) => ({ id, is_active }))
+    };
+    if (sql.includes("FROM offers")) {
+      assert.match(sql, /WHERE is_active = true/);
+      return { rows: [{ count: [...offers.values()].filter(Boolean).length }] };
+    }
+    if (sql.includes("FROM users")) return { rows: [{ count: 1 }] };
+    if (sql.includes("FROM purchases")) return { rows: [{ total: 0 }] };
+    throw new Error("Unexpected query: " + sql);
+  };
+  const call = await loadRoute("admin-api", {
+    "../config/db.js": { default: { query } },
+    "../utils/r2Utils.js": { createR2UploadUrl() {}, deleteFromR2() {} },
+  });
+  const route = "patch /api/admin/offers/:id/status";
+  const adminUser = { id: USER, role: "admin" };
+  const request = { user: adminUser, params: { id: OFFER }, body: { is_active: false } };
+  assert.equal((await call(route, { ...request, user: null })).statusCode, 403);
+  assert.equal((await call(route, { ...request, user: { id: USER } })).statusCode, 403);
+  assert.equal((await call(route, { ...request, body: { is_active: "false" } })).statusCode, 400);
+  assert.equal((await call(route, { ...request, params: { id: "bad" } })).statusCode, 400);
+  assert.equal((await call(route, { ...request, params: { id: COURSE } })).statusCode, 404);
+  assert.equal((await call("get /api/admin/offers", { user: adminUser })).body.data.length, 2);
+  assert.equal((await call("get /api/admin/overview-stats", { user: adminUser })).body.offers, 1);
+  assert.equal((await purchaseOffer(buy, OTHER_OFFER)).statusCode, 404);
+  assert.equal((await purchaseOffer(buy)).statusCode, 200);
+
+  assert.equal((await call(route, request)).body.is_active, false);
+  assert.equal((await call("get /api/admin/overview-stats", { user: adminUser })).body.offers, 0);
+  assert.equal((await call("get /api/admin/offers", { user: adminUser })).body.data.length, 2);
+  assert.equal((await purchaseOffer(buy)).body.alreadyPurchased, true);
+  assert.equal(wallet.wallet.courses.has(COURSE), true);
+  assert.equal(wallet.wallet.payments.has(OFFER), true);
+  assert.equal(wallet.wallet.ledger.length, 1);
+
+  assert.equal((await call(route, { ...request, params: { id: OTHER_OFFER }, body: { is_active: true } })).body.is_active, true);
+  assert.equal((await purchaseOffer(buy, OTHER_OFFER)).statusCode, 200);
+});
+
+test("admin rows encode harmless HTML-like text and bind original action data as values", async () => {
+  const value = `<b data-marker="synthetic">O'Reilly & friends</b>`;
+  const helper = await readFile(new URL("../public/admin/js/admin-render.js", import.meta.url), "utf8");
+  const bound = {};
+  const events = {};
+  const row = {
+    addEventListener(type, action) { events[type] = action; },
+    querySelector(selector) { return { addEventListener(_type, action) { bound[selector] = action; } }; },
+  };
+  const table = { rows: [row] };
+  const context = vm.createContext({
+    document: {
+      getElementById: () => table,
+      createElement: () => ({
+        get innerHTML() {
+          return this.textContent.replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;");
+        }
+      })
+    },
+    openPaymentRowWithKeyboard() {},
+  });
+  vm.runInContext(helper, context);
+  const studentPage = await readFile(new URL("../public/admin/pages/students.html", import.meta.url), "utf8");
+  const paymentPage = await readFile(new URL("../public/admin/pages/payments.html", import.meta.url), "utf8");
+  function loadFunction(html, start, end) {
+    vm.runInContext(html.slice(html.indexOf("function " + start), html.indexOf("function " + end)), context);
+  }
+  let passwordArgs;
+  context.openPassModal = (...args) => { passwordArgs = args; };
+  loadFunction(studentPage, "renderStudents", "openPassModal");
+  context.renderStudents([{ id: "student-id", fullname: value, email: value }]);
+  assert.ok(!table.innerHTML.includes(value));
+  assert.match(table.innerHTML, /&lt;b data-marker=&quot;synthetic&quot;&gt;O&#39;Reilly &amp; friends&lt;\/b&gt;/);
+  bound["[data-student-password]"]();
+  assert.deepEqual(passwordArgs, ["student-id", value]);
+
+  let paymentId;
+  context.confirmPayment = id => { paymentId = id; };
+  vm.runInContext("let currentPayments = [];", context);
+  loadFunction(paymentPage, "renderPayments", "openPaymentRowWithKeyboard");
+  context.renderPayments([{ id: value, user_name: value, user_email: value, status: "pending" }]);
+  assert.ok(!table.innerHTML.includes(value));
+  assert.match(table.innerHTML, /&lt;b data-marker=&quot;synthetic&quot;&gt;/);
+  bound["[data-confirm-payment]"]({ stopPropagation() {} });
+  assert.equal(paymentId, value);
+  assert.equal(typeof events.keydown, "function");
 });
