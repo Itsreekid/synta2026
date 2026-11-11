@@ -1,8 +1,16 @@
 # CHANGELOG.md — Synta Academy
 
+## 2026-11-11 — Improve Python workspace readability
+
+- Enlarged code and console text and matched the login code window's font and colors. On phones, completed Python runs open the console from the editor.
+
 ## 2026-11-11 — Restyle Code Pratique
 
 - Brought the login page's navy code-window design to the student editor, console and variables panels, with clearer syntax highlighting, controls and empty-state text.
+
+## 2026-11-11 — Give the navbar logo breathing room
+
+- Centered the logo with responsive height limits and consistent vertical padding.
 
 ## 2026-11-11 — Unify the mobile homepage menu
 

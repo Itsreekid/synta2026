@@ -1,10 +1,21 @@
 # CURRENT_STATE.md — Synta Academy
 
+### 2026-11-11 — Code Pratique readability and results
+
+- Matched the login code window's font stack and switched Python to a dedicated CodeMirror theme so the Dracula background cannot override the academy palette. Increased editor and console type and enabled visual wrapping.
+- Phones open the console when a Python run finishes if the student is still on the editor tab. Python receives the original indentation.
+- EJS, script syntax, mobile result routing and 16 regression tests passed. Next verify the authenticated layout, interactive input and live output in a desktop and phone browser.
+
 ### 2026-11-11 — Code Pratique workspace design
 
 - Matched the editor, console and variables to the login code window using shared navy, cyan and orange styles. Improved the variables empty state, focus rings and tablet panel sizing.
 - Verified EJS rendering, inline script syntax, existing event handlers and 16 regression tests. Python runtime logic and the deferred Web mode were preserved.
 - Next check the authenticated workspace visually on desktop, tablet and phone and exercise Python input and a course-file handoff in the browser.
+
+### 2026-11-11 — Navbar logo spacing
+
+- Constrained the official navbar logo to 56px high on desktop, 50px on tablet and 44px on phones. Block image layout removes the inline-image baseline gap; 8px navbar padding keeps the logo vertically centered within the existing header heights.
+- Homepage stylesheet hash refreshed. Browser visual verification remains pending.
 
 ### 2026-11-11 — Footer/menu pre-release review
 
