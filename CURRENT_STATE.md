@@ -1,8 +1,12 @@
 # CURRENT_STATE.md — Synta Academy
 
+### 2026-11-11 — Bugi status badge
+
+- Added a green En ligne pill around the label and dot. The Hors ligne state for exhausted free replies depends on the pending account allowance.
+
 ### 2026-11-11 — Bugi chat controls
 
-- Restyled the popup in blue with French controls. Students can attach editor code or a local .py file, copy reply snippets, and run Python snippets in the console without overwriting the editor. Template and snippet action checks passed. Desktop and phone visual checks are pending.
+- Restyled the popup in blue with French controls. Students can attach editor code or a local .py file, copy reply snippets, and load and run Python snippets in the editor with the green Play button. Template and snippet action checks passed. Desktop and phone visual checks are pending.
 
 ### 2026-11-11 — Bugi typing and repeat explanations
 

@@ -372,7 +372,19 @@
         }
         .ai-drawer-header { justify-content: space-between; padding: 10px 12px; background: linear-gradient(120deg, #184d91, #102f5b 78%); color: white; }
         .ai-avatar { width: 44px; height: 44px; }
-        .ai-status { display: flex; align-items: center; gap: 5px; font-size: 12px; color: #e5f0ff; }
+        .ai-status {
+            display: flex;
+            width: fit-content;
+            align-items: center;
+            gap: 5px;
+            padding: 2px 7px;
+            border: 1px solid #5ac88d;
+            border-radius: 999px;
+            background: #123c43;
+            color: #a7f3c3;
+            font-size: 12px;
+            line-height: 1.3;
+        }
         .ai-status::before { content: ""; width: 7px; height: 7px; border-radius: 50%; background: #4ade80; }
         .ai-close-btn, .ai-send-btn { flex: none; width: 44px; height: 44px; border-radius: 50%; }
         .ai-close-btn { background: transparent; color: #e4f2f9; font-size: 16px; }
@@ -1381,7 +1393,7 @@
         <header class="ai-drawer-header">
             <div class="ai-identity">
                 <img class="ai-avatar" src="/source/icons.jpg" alt="">
-                <div><strong id="ai-title">Bugi</strong><span class="ai-status">Assistant Python</span></div>
+                <div><strong id="ai-title">Bugi</strong><span class="ai-status">En ligne</span></div>
             </div>
             <div class="ai-header-actions">
                 <button type="button" onclick="clearBugiHistory()" class="ai-close-btn" aria-label="Vider l’historique" title="Vider l’historique"><i class="fas fa-trash" aria-hidden="true"></i></button>
@@ -1892,11 +1904,8 @@ function showPythonResultOnMobile() {
 let lastPythonRunCode = null;
 
 function runPython() {
-    if (pyEditor) runPythonCode(pyEditor.getValue());
-}
-
-function runPythonCode(code) {
     if (!pyEditor || pythonRunInProgress) return;
+    const code = pyEditor.getValue();
     const runBtn = document.getElementById('run-btn');
     if (!code.trim()) {
         clearConsole();
@@ -2611,11 +2620,12 @@ function renderBugiAnswer(bubble, text) {
         });
         actions.append(copy);
         if (snippet.trim() && ['', 'python', 'py', 'python3'].includes(language)) {
-            const run = makeBugiCodeAction('fa-play', 'Exécuter dans la console Python', () => {
+            const run = makeBugiCodeAction('fa-play', 'Remplacer le code de l’éditeur et exécuter', () => {
                 if (!pyEditor || pythonRunInProgress) return;
+                pyEditor.setValue(snippet);
                 toggleAiDrawer(false);
                 if (window.matchMedia('(max-width: 700px)').matches) switchMobilePane('console');
-                runPythonCode(snippet);
+                runPython();
             });
             run.classList.add('ai-run');
             actions.append(run);
