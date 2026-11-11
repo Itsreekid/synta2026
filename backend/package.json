@@ -12,7 +12,7 @@
     "start": "node server.js",
     "migrate": "node scripts/migrate.js",
     "dev": "nodemon server.js",
-    "test": "node --experimental-vm-modules --test tests/security.test.js tests/homepage.test.js",
+    "test": "node --experimental-vm-modules --test tests/security.test.js tests/homepage.test.js tests/bugi-learning.test.js",
     "test:r2": "node test-r2.js"
   },
   "keywords": [

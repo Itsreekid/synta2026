@@ -274,6 +274,8 @@ Two roles exist: `user` (student) and `admin`.
 | AI ignores instructions injected in student code | ✅ | Prompt includes security instructions |
 | `POST /api/ai/debug` requires an authenticated cookie JWT | ✅ | `ai-api.js`: `authApiMiddleware` |
 | Bugi uses Gemini Flash-Lite with a fallback for an unavailable model | ✅ | Two models in `ai-api.js` |
+| Successful Bugi exchanges persist per account and students can delete them | ✅ | Signed-in history API |
+| Bugi uses evidence from student work to adapt hints | ✅ | Distinct, supported observations drive reinforcement and progress. Asking about a topic records interest only. |
 
 ---
 

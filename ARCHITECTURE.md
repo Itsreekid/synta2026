@@ -378,10 +378,19 @@ Both mechanisms work in `requireAdmin.js`. This can lead to situations where a u
 /api/tracking/*      Quiz responses, weak topics, lesson progress, feedback
 /api/admin/*         Student management, payment confirmation, course/offer admin, notifications
 /api/session/*       Placement quiz flow (register, questions, submit, set-password)
-/api/ai/debug        Gemini-powered code debugger (Bugi)
+/api/ai/debug        Gemini-powered tutor; stores successful exchanges
+/api/ai/history      Signed-in student transcript pagination and deletion (GET/DELETE)
 /api/events          Calendar events (static + live sessions)
 /health              Health check
 ```
+### Bugi learning intelligence
+
+The signed-in debug handler fetches academic context, the latest exchange for follow-up questions, and up to 300 learning observations from the previous 180 days in parallel. `backend/services/bugi-learning.js` normalizes the Python taxonomy, derives the account's learning profile from distinct observations, and selects relevant observations and explicit preferences. The prompt uses a conservative UTF-8 byte cap as a token-budget proxy. `BUGI_LEARNING_CONTEXT_TOKENS` is optional (64–1200, default 720).
+
+Gemini can append structured metadata to its normal reply. The backend strips it before saving the transcript and validates signal kinds, concept keys and excerpts from the current student input. It stores only canonical keys and fingerprints, linked to the tutor reply. A learning write failure does not fail the reply. History deletion advances the account revision and cascades to evidence in the same transaction. Reply persistence locks the account row and checks the captured revision before writing the transcript and evidence. The Gemini call runs outside the transaction. A stale reply retains the HTTP success response shape with an empty saved array. Raw attachments and excerpts are never written into evidence records.
+
+Future quiz selection can call `getBugiLearningProfile(pool, verifiedStudentId)` and `getBugiPracticeRecommendations(profile)` from the backend. No quiz endpoint is exposed.
+The internal on-demand deep analysis entry point is `analyzeStudentLearning(pool, verifiedStudentId)` in `backend/services/learning-intelligence.js`. It sends a bounded summary of supported difficulties, progress and explicit preferences, without IDs, transcripts or code. It uses only `LEARNING_GEMINI_API_KEY`, rejects reuse of the chat key, and pauses independently on a provider quota error. Use a separate Gemini project for a separate quota. Set `LEARNING_GEMINI_ENABLED=false` to disable it. The normal chat path continues to use `GEMINI_API_KEY` and never invokes deep analysis.
 
 ---
 

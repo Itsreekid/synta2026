@@ -1,7 +1,9 @@
 import { createHash } from "node:crypto";
 import express from "express";
 import pool from "../config/db.js";
-import { BUGI_INSTRUCTIONS, BUGI_MESSAGES } from "../services/bugi-character.js";
+import { BUGI_MESSAGES } from "../services/bugi-character.js";
+import { BUGI_PRIMARY_MODEL, buildBugiGeminiRequest, parseBugiReply, readBugiGeminiText } from "../services/bugi-provider.js";
+import { buildBugiLearningContext, extractBugiEvidence, getBugiLearningProfile, saveBugiLearningEvidence } from "../services/bugi-learning.js";
 import { authRateLimit } from "../middleware/authRateLimit.js";
 import { requireAdmin } from "../middleware/requireAdmin.js";
 import { authApiMiddleware } from "../middleware/requireAuth.js";
@@ -10,7 +12,7 @@ const router = express.Router();
 
 // ── Model configuration ──────────────────────────────────────────
 const MODELS = [
-    'gemini-3.5-flash-lite',
+    BUGI_PRIMARY_MODEL,
     'gemini-3.5-flash',
 ];
 
@@ -27,11 +29,7 @@ const limitBugi = authRateLimit(15, 5 * 60 * 1000, req => req.user.id);
 // ── Core Gemini request ──────────────────────────────────────────
 async function callGemini(model, context, apiKey) {
     const url  = `${GEMINI_BASE}/${model}:generateContent`;
-    const body = {
-        systemInstruction: { parts: [{ text: BUGI_INSTRUCTIONS }] },
-        contents: [{ role: "user", parts: [{ text: JSON.stringify(context) }] }],
-        generationConfig: { maxOutputTokens: 480, thinkingConfig: { thinkingLevel: "minimal" } }
-    };
+    const body = buildBugiGeminiRequest(context);
 
     const res = await fetch(url, {
         method: 'POST',
@@ -50,14 +48,7 @@ async function callGemini(model, context, apiKey) {
         throw Object.assign(new Error("Gemini returned an HTTP error."), { status: res.status });
     }
 
-    const data = await res.json();
-    const candidate = data?.candidates?.[0];
-    const text = candidate?.content?.parts?.filter(part => !part.thought).map(part => part.text ?? "").join("").trim();
-    if (!text || candidate.finishReason === "MAX_TOKENS") {
-        throw new Error("Gemini returned an incomplete answer.");
-    }
-
-    return text;
+    return readBugiGeminiText(await res.json());
 }
 
 async function generateAnswer(context, apiKey) {
@@ -69,8 +60,8 @@ async function generateAnswer(context, apiKey) {
     }
 }
 
-function getAnswer(userId, context, apiKey) {
-    const key = createHash("sha256").update(JSON.stringify([userId, context])).digest("hex");
+function getAnswer(userId, revision, context, apiKey) {
+    const key = createHash("sha256").update(JSON.stringify([userId, revision, context])).digest("hex");
     const cached = answers.get(key);
     if (cached?.expires > Date.now()) return cached.promise;
 
@@ -93,26 +84,88 @@ function getAnswer(userId, context, apiKey) {
 const LEVELS = new Set(["1ere", "2eme", "3eme", "bac", "other"]);
 const BRANCHES = new Set(["informatique", "mathematiques", "sciences", "technique", "lettres", "economie", "other"]);
 
-async function loadLearningContext(userId) {
-    const [profile, topics] = await Promise.allSettled([
-        pool.query("SELECT class, branch FROM users WHERE id = $1", [userId]),
-        pool.query(
-            "SELECT category FROM user_weak_topics WHERE user_id = $1 AND attempts > 0 AND success_rate < 70 ORDER BY success_rate, category LIMIT 2",
-            [userId]
-        )
-    ]);
-    const row = profile.value?.rows[0];
+async function loadBugiAccount(userId) {
+    const result = await pool.query("SELECT class, branch, bugi_history_revision::text AS revision FROM users WHERE id = $1", [userId]);
+    const row = result.rows[0];
+    if (!row) return null;
     return {
+        revision: row.revision,
         level: LEVELS.has(row?.class) ? row.class : undefined,
-        branch: BRANCHES.has(row?.branch) ? row.branch : undefined,
-        topics: topics.value?.rows.map(topic => topic.category.slice(0, 60)) ?? []
+        branch: BRANCHES.has(row?.branch) ? row.branch : undefined
     };
+}
+
+const configuredBudget = Number(process.env.BUGI_LEARNING_CONTEXT_TOKENS);
+const learningBudget = Number.isInteger(configuredBudget) && configuredBudget >= 64 && configuredBudget <= 1200
+    ? configuredBudget : 720;
+
+const HISTORY_PAGE_SIZE = 20;
+
+router.get("/history", authApiMiddleware, async (req, res) => {
+    const { before = null } = req.query;
+    if (before !== null && (typeof before !== "string" || !/^[1-9]\d{0,18}$/.test(before) || BigInt(before) > 9223372036854775807n)) {
+        return res.status(400).json({ success: false });
+    }
+    try {
+        const { rows } = await pool.query(
+            `SELECT id::text, role, message FROM bugi_messages
+             WHERE user_id = $1 AND ($2::bigint IS NULL OR id < $2::bigint)
+             ORDER BY bugi_messages.id DESC LIMIT $3`,
+            [req.user.id, before, HISTORY_PAGE_SIZE + 1]
+        );
+        const page = rows.slice(0, HISTORY_PAGE_SIZE);
+        const next = rows.length > HISTORY_PAGE_SIZE ? page.at(-1).id : null;
+        res.set("Cache-Control", "no-store");
+        return res.json({ messages: page.reverse(), next });
+    } catch {
+        return res.status(503).json({ success: false, message: BUGI_MESSAGES.busy });
+    }
+});
+
+async function withHistoryTransaction(work) {
+    const client = await pool.connect();
+    try {
+        await client.query("BEGIN");
+        const result = await work(client);
+        await client.query("COMMIT");
+        return result;
+    } catch (error) {
+        await client.query("ROLLBACK");
+        throw error;
+    } finally {
+        client.release();
+    }
+}
+
+router.delete("/history", authApiMiddleware, async (req, res) => {
+    try {
+        await withHistoryTransaction(async client => {
+            // UPDATE takes the same account lock that reply persistence takes.
+            await client.query(
+                "UPDATE users SET bugi_history_revision = bugi_history_revision + 1 WHERE id = $1",
+                [req.user.id]
+            );
+            await client.query("DELETE FROM bugi_messages WHERE user_id = $1", [req.user.id]);
+        });
+        return res.sendStatus(204);
+    } catch {
+        return res.status(503).json({ success: false, message: BUGI_MESSAGES.busy });
+    }
+});
+
+async function loadRecentExchange(userId) {
+    const { rows } = await pool.query(
+        `SELECT role, LEFT(message, 600) AS message FROM bugi_messages
+         WHERE user_id = $1 ORDER BY id DESC LIMIT 2`,
+        [userId]
+    );
+    return rows.reverse();
 }
 
 router.post("/debug", authApiMiddleware, limitBugi, async (req, res) => {
     try {
-        const { code = "", error = "", question = "", previousAnswer = "" } = req.body ?? {};
-        const valid = [[code, 12000], [error, 3000], [question, 500], [previousAnswer, 1200]]
+        const { code = "", error = "", question = "" } = req.body ?? {};
+        const valid = [[code, 12000], [error, 3000], [question, 500]]
             .every(([value, limit]) => typeof value === "string" && value.length <= limit);
         if (!valid || (!code.trim() && !question.trim())) {
             return res.status(400).json({ success: false, message: BUGI_MESSAGES.invalid });
@@ -124,11 +177,49 @@ router.post("/debug", authApiMiddleware, limitBugi, async (req, res) => {
             return res.status(503).json({ success: false, message: BUGI_MESSAGES.busy });
         }
 
-        const learning = await loadLearningContext(req.user.id);
-        const context = { code, consoleOutput: error, question, previousAnswer, learning };
+        const userId = req.user.id;
+        const account = await loadBugiAccount(userId);
+        if (!account) return res.status(401).json({ success: false, message: BUGI_MESSAGES.session });
+        const { revision, ...academic } = account;
+        const student = { code, consoleOutput: error, question };
+        const [recent, profile] = await Promise.allSettled([
+            question.trim() ? loadRecentExchange(userId) : [],
+            getBugiLearningProfile(pool, userId)
+        ]);
+        const learning = profile.status === "fulfilled"
+            ? buildBugiLearningContext(profile.value, student, learningBudget)
+            : undefined;
+        const context = { ...student, academic, recent: recent.value, learning };
+        const { explanation, topics, metadata } = parseBugiReply(await getAnswer(userId, revision, context, apiKey));
+        if (!explanation || explanation.length > 4000) throw new Error("Invalid Bugi reply.");
 
-        const explanation = await getAnswer(req.user.id, context, apiKey);
-        return res.json({ success: true, explanation });
+        const prompt = question.trim() || (error ? BUGI_MESSAGES.debugError : BUGI_MESSAGES.reviewCode);
+        const priorTutor = recent.value?.find(message => message.role === "tutor")?.message;
+        const evidence = extractBugiEvidence(metadata, student, priorTutor);
+        const saved = await withHistoryTransaction(async client => {
+            const { rows } = await client.query(
+                "SELECT bugi_history_revision::text AS revision FROM users WHERE id = $1 FOR UPDATE",
+                [userId]
+            );
+            if (rows[0]?.revision !== revision) return [];
+
+            const { rows: messages } = await client.query(
+                `INSERT INTO bugi_messages (user_id, role, message, topics)
+                 VALUES ($1, 'student', $2, '{}'), ($1, 'tutor', $3, $4::text[]) RETURNING id::text, role`,
+                [userId, prompt, explanation, topics]
+            );
+            if (evidence.length) {
+                await client.query("SAVEPOINT bugi_evidence");
+                try {
+                    await saveBugiLearningEvidence(client, userId, messages.find(row => row.role === "tutor")?.id, evidence);
+                } catch {
+                    await client.query("ROLLBACK TO SAVEPOINT bugi_evidence");
+                    console.warn("[AI] Bugi learning evidence could not be saved.");
+                }
+            }
+            return messages;
+        });
+        return res.json({ success: true, explanation, saved });
     } catch (error) {
         if (error.status === 429) {
             const retryAfter = Math.max(1, Math.ceil((quotaPauseUntil - Date.now()) / 1000));

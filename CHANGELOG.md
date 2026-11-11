@@ -1,5 +1,21 @@
 # CHANGELOG.md — Synta Academy
 
+## 2026-11-11 — Isolate deep learning analysis
+
+- Added on-demand student learning analysis with a dedicated Gemini credential and independent quota backoff.
+
+## 2026-11-11 — Prevent Bugi history from returning after a clear
+
+- Added per-account history revisions so replies generated before a cross-device clear cannot restore the transcript or learning evidence.
+
+## 2026-11-11 — Add Bugi learning profiles
+
+- Bugi uses evidence of student work to adapt hints, track progress and preserve explicit preferences. Clearing history also removes its learning evidence.
+
+## 2026-11-11 — Save Bugi conversations across devices
+
+- Added account-scoped transcript history and deletion. Recurring topics help Bugi tailor hints without a separate Gemini request.
+
 ## 2026-11-11 — Redesign Bugi chat
 
 - Bugi now opens in a responsive Messenger-style popup with message bubbles, minimize, and an unread indicator.

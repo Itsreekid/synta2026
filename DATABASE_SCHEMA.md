@@ -404,6 +404,13 @@ Migration `202611100001_add_live_session_audience.sql` adds the nullable audienc
 
 ---
 
+#### Bugi conversation storage
+
+- Migration `202611110001_create_bugi_messages.sql` creates `bugi_messages` with a generated bigint `id`, UUID `user_id` referencing `users.id` with deletion cascade, `role` (student or tutor), `message` (1–4,000 characters), `created_at` (timestamp with time zone), and `topics` (up to two controlled topic labels).
+- Index by account and message order for authenticated, paginated retrieval. Use the verified session account for reads, writes, and deletion. Persist the visible chat transcript without automatically storing raw editor contents, uploaded Python files, or console output.
+- Use repeated tutor topic labels as study suggestions, without writing them into quiz performance records. Deleting history also removes these conversation-derived suggestions.
+- Send the current question, a bounded recent exchange, and up to two relevant topic labels to Gemini. Gather labels with the existing reply call to avoid a separate analysis request.
+
 ### 2.15 `notifications`
 
 **Purpose:** Per-user notification messages (bell icon in UI).
@@ -609,3 +616,10 @@ CREATE TABLE live_session_attendance (
 );
 ```
 
+
+### Bugi learning evidence
+
+Migration `202611110002_create_bugi_learning_evidence.sql` adds `bugi_learning_evidence`. The tutor message ID links to `bugi_messages.id` with cascading deletion. Each row stores a canonical concept, signal kind and SHA-256 fingerprint of supporting evidence. The primary key is (message_id, concept, kind). Profiles are derived from account-owned transcript evidence, so clearing history also clears the profile. No raw evidence excerpts or attachments are stored in this table.
+### Bugi history revision
+
+Migration `202611110003_add_bugi_history_revision.sql` adds `users.bugi_history_revision` (non-negative bigint, default zero). Clearing history advances this revision under the account row lock and deletes the transcript in one transaction. Reply persistence locks the same account row and rejects stale revisions before writing messages or evidence.

@@ -403,6 +403,8 @@
             scrollbar-color: #6c899b transparent;
         }
         .ai-chat-history > * { flex-shrink: 0; }
+        .ai-history-more { align-self: center; padding: 6px 12px; color: #164d91; background: #f3f8fb; border: 1px solid #c6d8e3; border-radius: 12px; cursor: pointer; }
+        .ai-history-more[hidden] { display: none; }
         .ai-welcome { padding: 8px 12px; text-align: center; color: #395569; line-height: 1.6; }
         .ai-chat-history:has(.ai-bubble) .ai-welcome { display: none; }
         .ai-input-bar { padding: 10px 12px; background: #e0edfb; border-top: 1px solid #c3d7ee; flex-wrap: wrap; gap: 4px; }
@@ -1400,7 +1402,8 @@
                 <button type="button" id="ai-close" onclick="toggleAiDrawer(false)" class="ai-close-btn" aria-label="Réduire la conversation" title="Réduire la conversation"><i class="fas fa-minus" aria-hidden="true"></i></button>
             </div>
         </header>
-        <div class="ai-chat-history" id="ai-chat-history" data-account="<%= user.id %>" role="log" aria-label="Messages Bugi" aria-live="polite">
+        <div class="ai-chat-history" id="ai-chat-history" role="log" aria-label="Messages Bugi" aria-live="polite">
+            <button type="button" class="ai-history-more" id="ai-history-more" onclick="loadBugiHistory()" hidden>Messages précédents</button>
             <div class="ai-welcome" lang="ar" dir="rtl">
                 عسلامة<% if (profile?.firstName) { %> يا <bdi><%= profile.firstName %></bdi><% } %>! أنا بوجي 🐞 اسألني على الكود ولا ابعثلي الخطأ.
             </div>
@@ -1726,7 +1729,6 @@ function switchMode(mode) {
         statusText.textContent = 'Python prêt';
         subtitle.innerHTML = 'Écrivez et exécutez du <a href="#">Python</a> directement dans votre navigateur – sans installation.';
         populateExamples('python');
-        loadBugiHistory();
         if (pyEditor) pyEditor.refresh();
     } else {
         statusText.textContent = 'HTML/CSS/JS prêt';
@@ -2422,6 +2424,7 @@ function toggleAiDrawer(forceOpen = null) {
         document.getElementById('ai-close').focus();
         const history = document.getElementById('ai-chat-history');
         history.scrollTop = history.scrollHeight;
+        if (!bugiHistoryLoaded) return loadBugiHistory();
     } else {
         launcher.setAttribute('aria-label', 'Ouvrir la conversation avec Bugi');
         if (bugiReturnFocus?.getClientRects().length) bugiReturnFocus.focus();
@@ -2496,23 +2499,24 @@ bugiFileInput.addEventListener('change', async () => {
 function sendBugiMessage() {
     const input = document.getElementById('ai-user-input');
     const question = input.value.trim();
-    if ((!question && !bugiAttachment) || bugiRequest) return;
+    if ((!question && !bugiAttachment) || bugiRequest || bugiHistoryLoading || bugiHistoryClearing) return;
 
     const attachment = bugiAttachment;
     input.value = '';
     const message = [question, attachment?.label].filter(Boolean).join('\n');
-    requestBugi(message, { code: attachment?.code ?? '', question, previousAnswer });
+    requestBugi(message, { code: attachment?.code ?? '', question });
 }
 
 async function requestBugi(message, payload, onAnswer) {
-    if (bugiRequest) return;
+    if (bugiRequest || bugiHistoryLoading || bugiHistoryClearing) return;
 
     const history = document.getElementById('ai-chat-history');
     const send = document.getElementById('ai-send-btn');
     const controller = new AbortController();
     bugiRequest = controller;
     send.disabled = true;
-    history.append(makeBugiBubble(message, true));
+    const student = makeBugiBubble(message, true);
+    history.append(student);
 
     const typing = document.createElement('div');
     typing.className = 'ai-typing';
@@ -2539,6 +2543,10 @@ async function requestBugi(message, payload, onAnswer) {
 
         if (typeof data?.explanation === 'string' && data.explanation.trim()) {
             showBugiAnswer(reply, data.explanation);
+            for (const entry of data.saved ?? []) {
+                const bubble = entry.role === 'student' ? student : reply;
+                bubble.dataset.messageId = entry.id;
+            }
             onAnswer?.();
         } else if (response.status === 401) {
             reply.textContent = bugiCopy.session;
@@ -2564,7 +2572,6 @@ async function requestBugi(message, payload, onAnswer) {
     }
     history.append(reply);
     history.scrollTop = history.scrollHeight;
-    saveBugiHistory();
     if (document.getElementById('ai-drawer').hidden) {
         document.getElementById('ai-unread').hidden = false;
         document.getElementById('ai-launcher').setAttribute('aria-label', 'Ouvrir Bugi, nouveau message');
@@ -2574,8 +2581,10 @@ async function requestBugi(message, payload, onAnswer) {
 // ----------------------------------------------------------------
 // AI LOCAL STORAGE HISTORY
 // ----------------------------------------------------------------
-const BUGI_STORAGE_KEY = 'cp_bugi_history:' + document.getElementById('ai-chat-history').dataset.account;
-let previousAnswer = '';
+let bugiHistoryLoaded = false;
+let bugiHistoryLoading = false;
+let bugiHistoryClearing = false;
+let bugiHistoryCursor = null;
 
 function makeBugiCodeAction(icon, label, action) {
     const button = document.createElement('button');
@@ -2635,53 +2644,69 @@ function renderBugiAnswer(bubble, text) {
 }
 
 function showBugiAnswer(bubble, text) {
-    previousAnswer = text.slice(0, 1200);
     bubble.dataset.reply = text;
     renderBugiAnswer(bubble, text);
 }
 
-function saveBugiHistory() {
-    const bubbles = [...document.querySelectorAll('#ai-chat-history .ai-bubble')].slice(-20);
-    const entries = bubbles.map(bubble => ({
-        user: bubble.classList.contains('user'),
-        reply: typeof bubble.dataset.reply === 'string',
-        text: bubble.dataset.reply ?? bubble.textContent
-    }));
-    try { localStorage.setItem(BUGI_STORAGE_KEY, JSON.stringify(entries)); } catch {}
-}
+async function loadBugiHistory() {
+    if (bugiRequest || bugiHistoryLoading || bugiHistoryClearing || (bugiHistoryLoaded && !bugiHistoryCursor)) return;
+    const history = document.getElementById('ai-chat-history');
+    const more = document.getElementById('ai-history-more');
+    const cursor = bugiHistoryCursor;
+    bugiHistoryLoading = true;
+    more.disabled = true;
 
-function loadBugiHistory() {
-    const historyEl = document.getElementById('ai-chat-history');
-    if (historyEl.dataset.loaded) return;
-    historyEl.dataset.loaded = 'true';
     try {
-        const entries = JSON.parse(localStorage.getItem(BUGI_STORAGE_KEY) || '[]');
-        if (!Array.isArray(entries)) return;
-        for (const entry of entries.slice(-20)) {
-            if (typeof entry?.text !== 'string') continue;
-            const bubble = makeBugiBubble('', entry.user === true);
-            if (!entry.user && entry.reply) {
-                bubble.dataset.reply = entry.text;
-                renderBugiAnswer(bubble, entry.text);
-            } else {
-                bubble.textContent = entry.text;
-            }
-            historyEl.append(bubble);
+        const response = await fetch(cursor ? '/api/ai/history?before=' + encodeURIComponent(cursor) : '/api/ai/history');
+        if (!response.ok) throw new Error('History unavailable');
+        const data = await response.json();
+        const bubbles = document.createDocumentFragment();
+        const existing = new Set([...history.querySelectorAll('[data-message-id]')].map(node => node.dataset.messageId));
+        for (const entry of data.messages) {
+            if (existing.has(entry.id)) continue;
+            const student = entry.role === 'student';
+            const bubble = makeBugiBubble(student ? entry.message : '', student);
+            bubble.dataset.messageId = entry.id;
+            if (!student) renderBugiAnswer(bubble, entry.message);
+            bubbles.append(bubble);
         }
-        historyEl.scrollTop = historyEl.scrollHeight;
-    } catch {}
+        const priorHeight = history.scrollHeight;
+        const priorTop = history.scrollTop;
+        history.querySelector('.ai-welcome').after(bubbles);
+        history.scrollTop = cursor ? priorTop + history.scrollHeight - priorHeight : history.scrollHeight;
+        bugiHistoryLoaded = true;
+        bugiHistoryCursor = data.next;
+        more.textContent = 'Messages précédents';
+        more.hidden = !data.next;
+    } catch {
+        more.textContent = 'Réessayer de charger l’historique';
+        more.hidden = false;
+    } finally {
+        bugiHistoryLoading = false;
+        more.disabled = false;
+    }
 }
 
-function clearBugiHistory() {
-    if (!confirm("Effacer l’historique avec Bugi ?")) return;
-    bugiRequest?.abort();
-    bugiRequest = null;
-    document.getElementById('ai-send-btn').disabled = false;
-    document.getElementById('ai-unread').hidden = true;
-    previousAnswer = '';
-    lastExplainedCode = null;
-    try { localStorage.removeItem(BUGI_STORAGE_KEY); } catch {}
-    document.querySelectorAll('#ai-chat-history .ai-bubble, #ai-chat-history .ai-typing').forEach(node => node.remove());
+async function clearBugiHistory() {
+    if (bugiHistoryClearing || bugiHistoryLoading || bugiRequest) return;
+    if (!confirm("Effacer l’historique avec Bugi sur tous tes appareils ?")) return;
+    bugiHistoryClearing = true;
+    const history = document.getElementById('ai-chat-history');
+    try {
+        const response = await fetch('/api/ai/history', { method: 'DELETE' });
+        if (!response.ok) throw new Error('History unavailable');
+        bugiHistoryLoaded = true;
+        bugiHistoryCursor = null;
+        lastExplainedCode = null;
+        document.getElementById('ai-history-more').hidden = true;
+        document.getElementById('ai-unread').hidden = true;
+        history.querySelectorAll('.ai-bubble').forEach(node => node.remove());
+    } catch {
+        history.append(makeBugiBubble(bugiCopy.busy));
+        history.scrollTop = history.scrollHeight;
+    } finally {
+        bugiHistoryClearing = false;
+    }
 }
 
 function triggerBugiError() {
@@ -2693,9 +2718,9 @@ function triggerBugiError() {
     }
 }
 
-function askAiDebugger() {
-    toggleAiDrawer(true);
-    if (bugiRequest) return;
+async function askAiDebugger() {
+    await toggleAiDrawer(true);
+    if (bugiRequest || bugiHistoryLoading || bugiHistoryClearing) return;
 
     const code = pyEditor?.getValue() ?? '';
     if (!code.trim()) {
@@ -2707,8 +2732,7 @@ function askAiDebugger() {
         const history = document.getElementById('ai-chat-history');
         history.append(makeBugiBubble(bugiCopy.alreadyExplained));
         history.scrollTop = history.scrollHeight;
-        saveBugiHistory();
-        return;
+            return;
     }
 
     const errors = code === lastPythonRunCode
@@ -2716,7 +2740,7 @@ function askAiDebugger() {
         : [];
     const error = errors.map(node => node.textContent).join('\n').slice(0, 3000);
     requestBugi(
-        error ? 'تنجم تعاونّي نصلّح الغلطة هاذي؟' : 'تنجم تشوف الكود وتعطيني ملاحظة؟',
+        error ? bugiCopy.debugError : bugiCopy.reviewCode,
         { code, error },
         () => { lastExplainedCode = code; }
     );

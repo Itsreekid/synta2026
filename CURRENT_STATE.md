@@ -1,5 +1,37 @@
 # CURRENT_STATE.md — Synta Academy
 
+### 2026-11-11 — Separate Gemini key for deep learning analysis
+
+- Added an internal on-demand analysis service that uses only LEARNING_GEMINI_API_KEY. It skips accounts without supported weaknesses and never runs from Bugi chat. LEARNING_GEMINI_ENABLED=false disables it.
+- All 26 tests passed, including disposable PostgreSQL and mocked key isolation, provider failure and quota backoff. No live provider validation or production changes.
+
+### 2026-11-11 — Bugi cross-device clear
+
+- Added account history revisions and atomic PostgreSQL transactions for clearing and saving Bugi history. A reply from a previous revision can return to the requesting device but cannot be stored or restore learning evidence.
+- The disposable PostgreSQL suite covers simultaneous clears, stale and fresh replies, interrupted provider calls, concurrent saves and evidence consistency. Migration 202611110003 follows the two Bugi transcript and evidence migrations.
+- Prepared a staging-only Gemini validation command with six multilingual synthetic cases. The dry run passed. Live provider validation remains pending.
+
+### 2026-11-11 — Bugi learning QA
+
+- Ran the full migration runner twice on disposable PostgreSQL 18 with the repository base schema. All 25 tests passed, including synthetic conversations, account isolation, concurrent evidence writes, foreign keys, indexes and cascades.
+- Tightened evidence validation and deduplication and prioritized practice recommendations by evidence count then recency.
+- A reply already in progress on another device can be saved after a history clear. Existing committed messages and derived evidence are deleted together. Confirm cancellation semantics before production.
+- Live Gemini metadata accuracy, provider token counts and production-scale query performance remain unverified. The synthetic database was dropped and the local server stopped.
+
+### 2026-11-11 — Bugi learning intelligence
+
+- Added account-scoped learning evidence and read-time profiles for topic interest, difficulties, demonstrated progress and explicit preferences. Bugi uses a bounded, relevant subset. Gemini can supply evidence metadata in the same reply.
+- Apply migrations 202611110001 (transcript) then 202611110002 (learning evidence). The migration runner sorts and records both. Production has not been changed. Next verify against staging PostgreSQL and measure real Gemini metadata quality.
+
+### 2026-11-11 — Bugi conversation history
+
+- Implemented the approved Bugi transcript migration, signed-in history pagination and deletion, and topic-based personalization with no additional Gemini call. Successful exchanges are saved. Legacy browser-only history and raw attachments are not imported.
+- Mocked provider and history route checks and all 16 regression tests passed. The migration has not been run on production. Next verify on PostgreSQL and across two signed-in devices.
+
+### 2026-11-11 — Proposed Bugi history and study topics
+
+- Documented the proposed account-scoped Bugi transcript and topic labels in DATABASE_SCHEMA.md. Current history still keeps up to 20 bubbles in the browser. Awaiting schema confirmation before adding a migration.
+
 ### 2026-11-11 — Bugi status badge
 
 - Added a green En ligne pill around the label and dot. The Hors ligne state for exhausted free replies depends on the pending account allowance.
