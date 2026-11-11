@@ -270,10 +270,10 @@ Two roles exist: `user` (student) and `admin`.
 | Behavior | Status | Evidence |
 |----------|--------|----------|
 | AI responds in Tunisian Darja (Arabic script) | ✅ | System prompt in `ai-api.js` |
-| AI explains code errors in a structured format | ✅ | Prompt template in `ai-api.js` |
+| Bugi gives a brief diagnosis and focused correction | ✅ | System instruction in `ai-api.js` |
 | AI ignores instructions injected in student code | ✅ | Prompt includes security instructions |
 | `POST /api/ai/debug` requires an authenticated cookie JWT | ✅ | `ai-api.js`: `authApiMiddleware` |
-| AI uses Gemini with model fallback chain | ✅ | 3-model fallback in `ai-api.js` |
+| Bugi uses Gemini Flash-Lite with a fallback for an unavailable model | ✅ | Two models in `ai-api.js` |
 
 ---
 

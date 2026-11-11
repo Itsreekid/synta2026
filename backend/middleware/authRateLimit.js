@@ -1,4 +1,4 @@
-export function authRateLimit(limit, windowMs = 15 * 60 * 1000) {
+export function authRateLimit(limit, windowMs = 15 * 60 * 1000, keyFor = req => req.ip) {
   const attempts = new Map();
   let nextCleanup = 0;
 
@@ -11,7 +11,7 @@ export function authRateLimit(limit, windowMs = 15 * 60 * 1000) {
       nextCleanup = now + windowMs;
     }
 
-    const key = req.ip;
+    const key = keyFor(req);
     let bucket = attempts.get(key);
     if ((!bucket || bucket.expires <= now) && attempts.size < 10000) {
       bucket = { expires: now + windowMs, count: 0 };

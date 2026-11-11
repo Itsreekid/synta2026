@@ -490,7 +490,7 @@
             direction: rtl;
             text-align: right;
         }
-        .ai-bubble.ai strong { color: #f59e0b; }
+        .ai-bubble.ai { white-space: pre-wrap; }
         .ai-bubble.ai pre {
             background: #1a1c2e;
             padding: 12px;
@@ -1430,10 +1430,10 @@
                 <button onclick="toggleAiDrawer()" class="ai-close-btn" title="Fermer">&times;</button>
             </div>
         </div>
-        <div class="ai-chat-history" id="ai-chat-history">
+        <div class="ai-chat-history" id="ai-chat-history" data-account="<%= user.id %>">
             <!-- Messages appended dynamically -->
             <div style="text-align:center; color:#64748b; font-size:13px; margin-top:20px;">
-                مرحبا! أنا مساعدك الذكي Bugi. <br>إذا واجهت أي خطأ في الكود، اضغط على زر "إصلاح بالذكاء الاصطناعي".
+                عسلامة<% if (profile?.firstName) { %> يا <%= profile.firstName %><% } %>! أنا بوجي 🐞 اسألني على الكود ولا ابعثلي الخطأ.
             </div>
         </div>
         <!-- Input bar -->
@@ -1933,6 +1933,8 @@ function showPythonResultOnMobile() {
     consoleTab.focus();
 }
 
+let lastPythonRunCode = null;
+
 function runPython() {
     if (!pyEditor || pythonRunInProgress) return;
     const code = pyEditor.getValue();
@@ -1944,6 +1946,7 @@ function runPython() {
         return;
     }
 
+    lastPythonRunCode = code;
     if (requiresSyllabusPythonRuntime(code)) {
         runPythonWithPyodide(code);
         return;
@@ -2457,7 +2460,7 @@ async function sendBugiMessage() {
     if (!text) return;
 
     // Get current code context for Bugi
-    const code = pyEditor ? pyEditor.getValue().trim() : '';
+    const code = pyEditor ? pyEditor.getValue() : '';
 
     // Append student's message
     const userBubble = document.createElement('div');
@@ -2484,7 +2487,7 @@ async function sendBugiMessage() {
         const response = await fetch('/api/ai/debug', {
             method:  'POST',
             headers: { 'Content-Type': 'application/json' },
-            body:    JSON.stringify({ code, error: text })
+            body:    JSON.stringify({ code, question: text, previousAnswer })
         });
         const data = await response.json();
 
@@ -2541,41 +2544,67 @@ function toggleAiDrawer(forceOpen = null) {
 // ----------------------------------------------------------------
 // AI LOCAL STORAGE HISTORY
 // ----------------------------------------------------------------
-const BUGI_STORAGE_KEY = 'cp_bugi_history';
+const BUGI_STORAGE_KEY = 'cp_bugi_history:' + document.getElementById('ai-chat-history').dataset.account;
+let previousAnswer = '';
+
+function renderBugiAnswer(bubble, text) {
+    const blocks = text.split(/```(?:[a-zA-Z0-9_+-]+)?\r?\n([\s\S]*?)```/);
+    blocks.forEach((block, index) => {
+        if (index % 2 === 0) {
+            bubble.append(document.createTextNode(block));
+            return;
+        }
+        const pre = document.createElement('pre');
+        const code = document.createElement('code');
+        code.textContent = block.trimEnd();
+        pre.append(code);
+        bubble.append(pre);
+    });
+}
+
+function showBugiAnswer(bubble, text) {
+    previousAnswer = text.slice(0, 1200);
+    bubble.dataset.reply = text;
+    renderBugiAnswer(bubble, text);
+}
 
 function saveBugiHistory() {
-    const historyEl = document.getElementById('ai-chat-history');
-    if (!historyEl) return;
-    
-    // Extract only actual bubbles (avoid typing indicators or default welcome)
-    const bubbles = Array.from(historyEl.querySelectorAll('.ai-bubble'));
-    const htmlToSave = bubbles.map(b => b.outerHTML).join('');
-    localStorage.setItem(BUGI_STORAGE_KEY, htmlToSave);
+    const bubbles = [...document.querySelectorAll('#ai-chat-history .ai-bubble')].slice(-20);
+    const entries = bubbles.map(bubble => ({
+        user: bubble.classList.contains('user'),
+        reply: typeof bubble.dataset.reply === 'string',
+        text: bubble.dataset.reply ?? bubble.textContent
+    }));
+    try { localStorage.setItem(BUGI_STORAGE_KEY, JSON.stringify(entries)); } catch {}
 }
 
 function loadBugiHistory() {
-    const saved = localStorage.getItem(BUGI_STORAGE_KEY);
-    if (saved) {
+    try {
+        const entries = JSON.parse(localStorage.getItem(BUGI_STORAGE_KEY) || '[]');
+        if (!Array.isArray(entries)) return;
         const historyEl = document.getElementById('ai-chat-history');
-        if (historyEl) {
-            historyEl.innerHTML += saved;
-            setTimeout(() => { historyEl.scrollTop = historyEl.scrollHeight; }, 100);
+        for (const entry of entries.slice(-20)) {
+            if (typeof entry?.text !== 'string') continue;
+            const bubble = document.createElement('div');
+            bubble.className = entry.user ? 'ai-bubble user' : 'ai-bubble ai';
+            if (!entry.user && entry.reply) {
+                bubble.dataset.reply = entry.text;
+                renderBugiAnswer(bubble, entry.text);
+            } else {
+                bubble.textContent = entry.text;
+            }
+            historyEl.append(bubble);
         }
-    }
+        historyEl.scrollTop = historyEl.scrollHeight;
+    } catch {}
 }
 
 function clearBugiHistory() {
-    if(confirm('Es-tu sûr de vouloir effacer tout l\'historique avec Bugi ?')) {
-        localStorage.removeItem(BUGI_STORAGE_KEY);
-        const historyEl = document.getElementById('ai-chat-history');
-        if (historyEl) {
-            historyEl.innerHTML = `
-                <div style="text-align:center; color:#64748b; font-size:13px; margin-top:20px;">
-                    مرحبا! أنا مساعدك الذكي Bugi. <br>إذا واجهت أي خطأ في الكود، اضغط على زر "إصلاح بالذكاء الاصطناعي".
-                </div>
-            `;
-        }
-    }
+    if (!confirm("Effacer l’historique avec Bugi ?")) return;
+    previousAnswer = '';
+    lastAiCode = null;
+    try { localStorage.removeItem(BUGI_STORAGE_KEY); } catch {}
+    document.querySelectorAll('#ai-chat-history .ai-bubble, #ai-chat-history .ai-typing').forEach(node => node.remove());
 }
 
 function triggerBugiError() {
@@ -2591,8 +2620,13 @@ async function askAiDebugger() {
     if (!pyEditor) return;
     if (aiCooldown) return;
     
-    const code = pyEditor.getValue().trim();
-    if (!code) return;
+    const code = pyEditor.getValue();
+    if (!code.trim()) {
+        toggleAiDrawer(true);
+        enableBugiInput();
+        document.getElementById('ai-user-input')?.focus();
+        return;
+    }
 
     // Apply 4-second cooldown to prevent spam
     aiCooldown = true;
@@ -2613,15 +2647,11 @@ async function askAiDebugger() {
     toggleAiDrawer(true);
     enableBugiInput();
 
-    // Grab console context
-    const consoleEl = document.getElementById('py-console');
-    const errorSpans = consoleEl.querySelectorAll('.console-error');
-    let errorText = "";
-    if (errorSpans.length > 0) {
-        errorSpans.forEach(s => errorText += s.textContent + "\n");
-    } else {
-        errorText = consoleEl.textContent.trim().substring(0, 500); 
-    }
+    // Use errors only when they came from this version of the editor.
+    const errors = code === lastPythonRunCode
+        ? [...document.querySelectorAll('#py-console .console-error')]
+        : [];
+    const errorText = errors.map(node => node.textContent).join('\n');
 
     const historyEl = document.getElementById('ai-chat-history');
     
@@ -2629,7 +2659,8 @@ async function askAiDebugger() {
     const userMsg = document.createElement('div');
     userMsg.className = 'ai-bubble user';
     
-    if (code !== lastAiCode) {
+    const repeated = code === lastAiCode;
+    if (!repeated) {
         userMsg.innerHTML = `مرحباً Bugi، ساعدني في إصلاح هذا الخطأ 🤖`;
         lastAiCode = code;
     } else {
@@ -2651,7 +2682,7 @@ async function askAiDebugger() {
         const response = await fetch('/api/ai/debug', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ code, error: errorText })
+            body: JSON.stringify({ code, error: errorText.slice(0, 3000), previousAnswer: repeated ? previousAnswer : "" })
         });
 
         const data = await response.json();
@@ -2662,18 +2693,10 @@ async function askAiDebugger() {
         const aiMsg = document.createElement('div');
         aiMsg.className = 'ai-bubble ai';
 
-        if (!response.ok) {
-            // Show friendly Darja error, not raw JSON
-            const isOverload = data.error && (data.error.includes('UNAVAILABLE') || data.error.includes('503') || data.error.includes('overload'));
-            if (isOverload) {
-                aiMsg.innerHTML = `⚠️ Bugi مشغول بارشا تو — حاول بعد شوية! 😅`;
-            } else {
-                aiMsg.innerHTML = `⚠️ باهی كان مزلت فما مشكلة حاول جرب خمم شوى وحدك . نتفاضى و نجيك 🔄`;
-            }
+        if (data.success && data.explanation) {
+            showBugiAnswer(aiMsg, data.explanation);
         } else {
-            let htmlResponse = escapeHtml(data.explanation);
-            htmlResponse = htmlResponse.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
-            aiMsg.innerHTML = htmlResponse;
+            aiMsg.textContent = data.message || 'بوجي مشغول تو، جرّب بعد شوية 🐞';
         }
 
         historyEl.appendChild(aiMsg);

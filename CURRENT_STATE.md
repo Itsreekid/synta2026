@@ -1,5 +1,17 @@
 # CURRENT_STATE.md — Synta Academy
 
+### 2026-11-11 — Bugi Gemini usage
+
+- Use Gemini 3.5 Flash-Lite first with a 480-token output budget and minimal thinking. Fall back to 3.5 Flash only if Flash-Lite returns 404. Honor provider quota cooldowns.
+- Deduplicate and reuse identical requests for five minutes within the same account and backend process. Limit each authenticated account to 15 requests per five minutes.
+- Mocked provider tests verified cache isolation, deduplication, model fallback and quota handling. All 16 existing regression tests passed. Live free-tier quotas and answer quality remain to be checked.
+
+### 2026-11-11 — Bugi tutoring
+
+- Shortened Tunisian Darja replies to a focused diagnosis and correction. Direct questions work without code, follow-ups include the last reply, and debugging omits stale console errors.
+- The student UI greets by first name. Gemini receives academic level, branch and up to two existing weak-topic labels. History uses account-scoped JSON and safe text rendering. Legacy shared HTML history is no longer loaded.
+- Verified template rendering, mocked provider fallback and request validation, and 16 regression tests. Next verify live answer quality with Gemini and sample student exercises.
+
 ### 2026-11-11 — Code Pratique readability and results
 
 - Matched the login code window's font stack and switched Python to a dedicated CodeMirror theme so the Dracula background cannot override the academy palette. Increased editor and console type and enabled visual wrapping.

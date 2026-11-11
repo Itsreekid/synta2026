@@ -1,5 +1,13 @@
 # CHANGELOG.md — Synta Academy
 
+## 2026-11-11 — Reduce Bugi API usage
+
+- Prefer Flash-Lite, limit answer tokens, reuse identical requests and pause when Gemini reports a quota limit.
+
+## 2026-11-11 — Make Bugi more direct
+
+- Bugi gives shorter Tunisian Darja hints, answers follow-up questions and adapts to available academic context. Python snippets render in separate code blocks.
+
 ## 2026-11-11 — Improve Python workspace readability
 
 - Enlarged code and console text and matched the login code window's font and colors. On phones, completed Python runs open the console from the editor.
