@@ -1,5 +1,9 @@
 # CURRENT_STATE.md — Synta Academy
 
+### 2026-11-11 — Bugi chat palette
+
+- Tinted the chat and composer blue-gray, raised contrast between message surfaces, and removed extra whitespace around code snippets. Browser visual verification is pending.
+
 ### 2026-11-11 — Bugi offer setup
 
 - Added an admin offer checkbox that stores a Bugi feature in the existing offer JSON. Updated the expired-login copy.
