@@ -984,7 +984,7 @@
         .cp-export-btn { width:44px; min-width:44px; justify-content:center; padding:8px !important; }
         .cp-action-label { display:none; }
         .cp-run-btn:disabled { cursor:wait; opacity:.72 !important; transform:none; }
-        .cp-export-btn { min-height:42px; padding:8px 12px !important; border-radius:9px !important; border-color:#39445d !important; }
+        .cp-export-btn { min-height:42px; padding:8px 12px !important; border-radius:9px !important; border-color:#39445d; }
         .cp-shortcut { color:#8b96aa; font-size:11px; white-space:nowrap; }
         .cp-console { padding:16px; background:#171d2a; color:#d5dbea; font-size:15px; line-height:1.7; overflow-wrap:anywhere; }
         .cp-console-output { display:block; white-space:pre-wrap; overflow-wrap:anywhere; }
@@ -997,7 +997,7 @@
         .cp-ai-btn:hover { background:#65409d; }
         .cp-clear-btn { min-height:32px; padding:5px 9px; border-color:#414d64; border-radius:7px; color:#c0c9d8; }
         .cp-clear-btn:hover { border-color:#718096; background:#293348; }
-        .cp-visualizer { min-width:0; background:#171d2a !important; padding:12px !important; }
+        .cp-visualizer { min-width:0; background:#171d2a; padding:12px; }
         .cp-visualizer-empty { display:flex; min-height:100%; align-items:center; justify-content:center; gap:10px; padding:14px; color:#94a3b8; text-align:center; font-size:13px; line-height:1.55; }
         .cp-visualizer-empty > span:first-child { color:#64748b; }
         .vis-card { margin-bottom:8px; padding:10px; border:1px solid #303b55; border-radius:9px; background:#20283a; }
@@ -1018,7 +1018,7 @@
             .ide-ribbon { grid-template-columns:minmax(0,1fr) auto; }
             .cp-toolbar-group { grid-column:1 / -1; justify-content:space-between; }
             .cp-toolbar { border-left:0 !important; padding-left:0 !important; }
-            #mode-python { grid-template-columns:minmax(0,1fr) minmax(0,1fr); grid-template-rows:minmax(300px,1.5fr) minmax(220px,.8fr); }
+            #mode-python { grid-template-columns:minmax(0,1fr) minmax(0,1fr); grid-template-rows:minmax(0,1.5fr) minmax(0,1fr); }
             #mode-python > .cp-panel:first-child { grid-column:1 / -1; }
             #mode-web { grid-template-columns:minmax(0,1fr) minmax(0,1fr); }
         }
@@ -1086,6 +1086,88 @@
         .vis-val-number { color: #ff7b1a; background: rgba(255, 123, 26, 0.1); }
         .vis-val-bool { color: #a855f7; background: rgba(168, 85, 247, 0.1); }
         .vis-val-list { color: #3b82f6; background: rgba(59, 130, 246, 0.1); }
+        /* Login code-window styling, shared by the visible workspace panels. */
+        .cp-code-window {
+            --cp-window: #012235;
+            --cp-chrome: #032a3e;
+            --cp-edge: #16465b;
+            --cp-text: #e7f4fa;
+            --cp-muted: #a4c0cf;
+            --cp-cyan: #80d4eb;
+            background: var(--cp-window);
+            border-color: var(--cp-edge);
+            box-shadow: 0 8px 22px rgba(1, 34, 53, .12);
+            color-scheme: dark;
+        }
+        .cp-code-window .cp-panel-header,
+        .cp-code-window .cp-editor-footer {
+            background: var(--cp-chrome);
+            border-color: var(--cp-edge);
+        }
+        .cp-code-window .cp-panel-header { min-height: 48px; }
+        .cp-window-title { display: flex; align-items: center; gap: 10px; min-width: 0; }
+        .cp-code-window .cp-panel-dots span { width: 5px; height: 5px; background: #8bb4c7; }
+        .cp-code-window .cp-panel-filename { color: var(--cp-text); }
+        .cp-code-window .cp-panel-badge {
+            flex: none;
+            border: 1px solid var(--cp-edge);
+            background: var(--cp-window);
+            color: var(--cp-cyan);
+        }
+        .cp-code-window .cp-editor-body,
+        .cp-code-window .cp-editor-body .CodeMirror,
+        .cp-code-window .cp-editor-body .CodeMirror-gutters,
+        .cp-code-window .cp-console,
+        .cp-code-window .cp-visualizer {
+            background: var(--cp-window);
+            color: var(--cp-text);
+            border-color: var(--cp-edge);
+        }
+        .cp-code-window .CodeMirror-lines { padding: 14px 0; }
+        .cp-code-window .CodeMirror pre.CodeMirror-line,
+        .cp-code-window .CodeMirror pre.CodeMirror-line-like { padding-inline: 10px; }
+        .cp-code-window .cm-s-dracula .cm-keyword,
+        .cp-code-window .cm-s-dracula .cm-builtin,
+        .cp-code-window .cm-s-dracula .cm-def,
+        .cp-code-window .console-ready,
+        .cp-code-window .vis-var-name { color: var(--cp-cyan); }
+        .cp-code-window .cm-s-dracula .cm-operator { color: var(--cp-text); }
+        .cp-code-window .cm-s-dracula .cm-string,
+        .cp-code-window .cm-s-dracula .cm-string-2,
+        .cp-code-window .cm-s-dracula .cm-number,
+        .cp-code-window .vis-val-number { color: #ffba7a; }
+        .cp-code-window .cp-editor-body .CodeMirror-linenumber,
+        .cp-code-window .cm-s-dracula .cm-comment,
+        .cp-code-window .console-comment,
+        .cp-code-window .cp-shortcut,
+        .cp-code-window .cp-visualizer-empty,
+        .cp-code-window .vis-var-type { color: var(--cp-muted); }
+        .cp-code-window .cm-s-dracula .CodeMirror-selected { background: #24536b; }
+        .cp-code-window .cp-run-btn { background: #f6851f; color: var(--cp-window); box-shadow: none; }
+        .cp-code-window .cp-run-btn:hover { background: #ffa34f; }
+        .cp-code-window .cp-export-btn,
+        .cp-code-window .cp-ai-btn,
+        .cp-code-window .cp-clear-btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            border: 1px solid var(--cp-edge);
+            background: var(--cp-window);
+            color: var(--cp-text);
+            cursor: pointer;
+        }
+        .cp-code-window .cp-export-btn:hover,
+        .cp-code-window .cp-ai-btn:hover,
+        .cp-code-window .cp-clear-btn:hover { background: var(--cp-edge); }
+        .cp-code-window button:focus-visible { outline: 2px solid var(--cp-cyan); outline-offset: 2px; }
+        .cp-code-window .cp-visualizer { flex: 1; min-height: 0; overflow-y: auto; }
+        .cp-code-window .cp-visualizer-empty { flex: 1; min-height: 0; margin: 0; }
+        .cp-code-window .cp-visualizer-empty > span:first-child { color: var(--cp-cyan); }
+        .cp-code-window .cp-visualizer-hint { display: block; margin-top: 6px; font-size: 12px; }
+        .cp-code-window .vis-card { background: var(--cp-chrome); border-color: var(--cp-edge); }
+        .cp-code-window .vis-val-string { color: #85e3c0; }
+        .cp-code-window .vis-val-bool { color: #d7bdfb; }
+        .cp-code-window .vis-val-list { color: var(--cp-cyan); }
     </style>
 </head>
 <body>
@@ -1169,10 +1251,10 @@
             <div class="mode-panel active" id="mode-python" style="flex:1;min-width:0;gap:14px;">
 
                 <!-- Editor panel -->
-                <div class="cp-panel" data-mobile-pane="editor" role="tabpanel" aria-label="Éditeur Python">
+                <div class="cp-panel cp-code-window" data-mobile-pane="editor" role="tabpanel" aria-label="Éditeur Python">
                     <div class="cp-panel-header">
-                        <div style="display:flex;align-items:center;gap:8px;">
-                            <div class="cp-panel-dots">
+                        <div class="cp-window-title">
+                            <div class="cp-panel-dots" aria-hidden="true">
                                 <span class="dot-red"></span>
                                 <span class="dot-yellow"></span>
                                 <span class="dot-green"></span>
@@ -1192,24 +1274,24 @@
                             <button class="cp-run-btn" id="run-btn" onclick="runPython()" title="Exécuter le code (Ctrl + Entrée)" aria-label="Exécuter le code">
                                 <i class="fas fa-play" aria-hidden="true"></i><span class="cp-action-label">Exécuter le code</span>
                             </button>
-                            <button class="cp-export-btn" onclick="exportPythonCode()" title="Exporter en .py" style="background:#2d3250; color:#c8cce8; border:1px solid #333550; padding:10px 16px; border-radius:8px; cursor:pointer; font-size:14px; display:flex; align-items:center; gap:8px; font-weight:600; font-family:'Tajawal', sans-serif; transition:all 0.2s;">
+                            <button class="cp-export-btn" onclick="exportPythonCode()" title="Exporter en .py" aria-label="Exporter en .py">
                                 <i class="fas fa-download" aria-hidden="true"></i><span class="cp-action-label">Exporter</span>
                             </button>
                         </div>
-                        <span class="cp-shortcut">Ctrl + Enter</span>
+                        <span class="cp-shortcut">Ctrl + Entrée</span>
                     </div>
                 </div>
 
                 <!-- Console panel -->
-                <div class="cp-panel" data-mobile-pane="console" role="tabpanel" aria-label="Console Python">
+                <div class="cp-panel cp-code-window" data-mobile-pane="console" role="tabpanel" aria-label="Console Python">
                     <div class="cp-panel-header">
-                        <div style="display:flex;align-items:center;gap:8px;">
-                            <div class="cp-panel-dots">
+                        <div class="cp-window-title">
+                            <div class="cp-panel-dots" aria-hidden="true">
                                 <span class="dot-red"></span>
                                 <span class="dot-yellow"></span>
                                 <span class="dot-green"></span>
                             </div>
-                            <span class="cp-panel-filename">console</span>
+                            <span class="cp-panel-filename">Console</span>
                         </div>
                         <div style="display:flex; gap:8px;">
                             <button class="cp-ai-btn" type="button" onclick="askAiDebugger()" title="Demander une explication à Bugi" aria-label="Demander une explication à Bugi">
@@ -1221,26 +1303,26 @@
                     <div class="cp-console" id="py-console">
                         <span class="console-ready">Python 3.10 prêt !</span><br>
                         <span class="console-comment"># Écrivez du code et Cliquez Exécuter</span><br>
-                        <span class="console-comment"># Raccourci : Ctrl + Enter</span><br>
+                        <span class="console-comment"># Raccourci : Ctrl + Entrée</span><br>
                     </div>
                 </div>
                 
                 <!-- Visualizer panel -->
-                <div class="cp-panel" data-mobile-pane="visualizer" role="tabpanel" aria-label="Variables en mémoire">
+                <div class="cp-panel cp-code-window" data-mobile-pane="visualizer" role="tabpanel" aria-label="Variables en mémoire">
                     <div class="cp-panel-header">
-                        <div style="display:flex;align-items:center;gap:8px;">
-                            <div class="cp-panel-dots">
+                        <div class="cp-window-title">
+                            <div class="cp-panel-dots" aria-hidden="true">
                                 <span class="dot-red"></span>
                                 <span class="dot-yellow"></span>
                                 <span class="dot-green"></span>
                             </div>
-                            <span class="cp-panel-filename">variables en mémoire</span>
+                            <span class="cp-panel-filename">Variables</span>
                         </div>
                     </div>
-                    <div class="cp-visualizer" id="py-visualizer" style="flex: 1; background: #1e2030; padding: 16px; overflow-y: auto;">
+                    <div class="cp-visualizer" id="py-visualizer">
                         <div class="cp-visualizer-empty">
                             <span style="font-size: 32px; opacity: 0.8;">◇</span>
-                            <span>Aucune variable.<br><br><span style="color:#4a5380;font-size:12px;">Exécute ton code pour voir les variables apparaître ici.</span></span>
+                            <span>Aucune variable.<span class="cp-visualizer-hint">Exécute ton code pour voir les variables apparaître ici.</span></span>
                         </div>
                     </div>
                 </div>
@@ -2209,7 +2291,7 @@ function renderStateVisualizer(dict) {
         vis.innerHTML = `
             <div class="cp-visualizer-empty">
                 <span style="font-size: 32px; opacity: 0.8;">◇</span>
-                <span>Aucune variable.<br><br><span style="color:#4a5380;font-size:12px;">Exécute ton code pour voir les variables apparaître ici.</span></span>
+                <span>Aucune variable.<span class="cp-visualizer-hint">Exécute ton code pour voir les variables apparaître ici.</span></span>
             </div>`;
     }
 }
@@ -2222,7 +2304,7 @@ function clearConsole() {
         vis.innerHTML = `
             <div class="cp-visualizer-empty">
                 <span style="font-size: 32px; opacity: 0.8;">◇</span>
-                <span>Aucune variable.<br><br><span style="color:#4a5380;font-size:12px;">Exécute ton code pour voir les variables apparaître ici.</span></span>
+                <span>Aucune variable.<span class="cp-visualizer-hint">Exécute ton code pour voir les variables apparaître ici.</span></span>
             </div>`;
     }
 }

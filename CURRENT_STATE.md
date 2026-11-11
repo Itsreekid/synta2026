@@ -1,5 +1,11 @@
 # CURRENT_STATE.md — Synta Academy
 
+### 2026-11-11 — Code Pratique workspace design
+
+- Matched the editor, console and variables to the login code window using shared navy, cyan and orange styles. Improved the variables empty state, focus rings and tablet panel sizing.
+- Verified EJS rendering, inline script syntax, existing event handlers and 16 regression tests. Python runtime logic and the deferred Web mode were preserved.
+- Next check the authenticated workspace visually on desktop, tablet and phone and exercise Python input and a course-file handoff in the browser.
+
 ### 2026-11-11 — Footer/menu pre-release review
 
 - Fixed a closed-menu visibility inheritance conflict and reserved the footer logo's intrinsic aspect ratio to avoid a lazy-load layout jump.

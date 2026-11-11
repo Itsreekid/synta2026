@@ -1,5 +1,9 @@
 # CHANGELOG.md — Synta Academy
 
+## 2026-11-11 — Restyle Code Pratique
+
+- Brought the login page's navy code-window design to the student editor, console and variables panels, with clearer syntax highlighting, controls and empty-state text.
+
 ## 2026-11-11 — Unify the mobile homepage menu
 
 - Navigation and account buttons now open and close inside one scrollable panel with coordinated motion, replacing the separate moving/fixed sections.
