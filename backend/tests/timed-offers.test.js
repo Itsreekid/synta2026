@@ -351,8 +351,59 @@ test("timed offers on disposable PostgreSQL", { skip: !process.env.BUGI_QA_POSTG
             const testStudent = await user("browser-installment");
             const token = (id, role) => jwt.sign({ id, role, email: "synthetic@example.invalid" }, process.env.JWT_SECRET);
             await withTimedOfferBrowser(process.env.TIMED_QA_CHROME, "http://127.0.0.1:" + server.address().port,
-              async ({ open, evaluate, until, errors }) => {
+              async ({ open, evaluate, until, errors, screenshot }) => {
                 const studentToken = token(learner, "user");
+                if (process.env.TIMED_QA_SCREENSHOTS) {
+                  for (const width of [390, 768, 1440]) {
+                    await open("/app/offers", studentToken, width);
+                    await until(() => evaluate("document.querySelectorAll('.offer-card').length > 1"), "offers screenshot");
+                    await screenshot(process.env.TIMED_QA_SCREENSHOTS + "-" + width + ".png");
+                  }
+                }
+                for (const width of [320, 360, 375, 390, 430, 768, 1024, 1280, 1440, 1920]) {
+                  await open("/app/offers", studentToken, width);
+                  await until(() => evaluate("document.querySelector('.offer-card')"), "responsive catalog");
+                  const layout = await evaluate(`(async () => {
+                    const original = window.fetch;
+                    const arabic = 'شرح تمارين طويلة في البرمجة والخوارزميات مع تصحيح الأمثلة خطوة بخطوة';
+                    const cases = [
+                      {id:'owned',title:'Offre déjà possédée',fixed_price:'180.00',access_mode:'monthly',
+                       timed_sales_enabled:true,is_purchased:true,features:[{text:'Python',active:true}]},
+                      {id:'featured',title:'عرض البرمجة المتقدم · Bac informatique',fixed_price:'440.25',
+                       discount_percentage:'150.50',access_mode:'academic_year',timed_sales_enabled:true,
+                       scheduled_checkout_enabled:true,upgrades_enabled:true,is_best_seller:true,
+                       features:Array.from({length:16},(_,i)=>({text:i===0?arabic:arabic+' · Révision Python '+i,active:i%2===0}))},
+                      {id:'short',title:'Pro · Révision',fixed_price:'100.00',features:[{text:'Révision et exercices',active:false}]},
+                      {id:'inactive',title:'Offre indisponible',fixed_price:'90.00',access_mode:'monthly',timed_sales_enabled:false},
+                      {id:'purchase',title:'Offre disponible',fixed_price:'20.00',can_purchase:true}
+                    ];
+                    window.fetch = (url,...args) => url==='/api/offers' ?
+                      Promise.resolve(new Response(JSON.stringify({offers:cases,userBalance:80}))) : original(url,...args);
+                    try { await initOffers(); } finally { window.fetch=original; }
+                    const cards=[...document.querySelectorAll('.offer-card')];
+                    const features=cards[1].querySelector('.features-section');
+                    const body=document.getElementById('main-section');
+                    const action = cards.map(card=>card.querySelector('.acheter-btn').textContent.trim());
+                    return {
+                      count:cards.length, allVisible:cards.every(card=>card.getBoundingClientRect().width>0),
+                      horizontalOverflow:body.scrollWidth>body.clientWidth+1,
+                      cardOverflow:cards.some(card=>card.scrollWidth>card.clientWidth+1),
+                      featureCount:features.children.length, featureScroll:getComputedStyle(features).overflowY,
+                      featureClipped:features.scrollHeight>features.clientHeight+1,
+                      rtl:getComputedStyle(features.querySelector('.feature-text')).direction,
+                      featured:cards.filter(card=>card.classList.contains('featured')).length,
+                      badges:document.querySelectorAll('.discount-badge').length,
+                      labels:action, disabled:cards.map(card=>card.querySelector('.acheter-btn').disabled)
+                    };
+                  })()`);
+                  assert.deepEqual(layout, {
+                    count: 5, allVisible: true, horizontalOverflow: false, cardOverflow: false,
+                    featureCount: 16, featureScroll: "visible", featureClipped: false, rtl: "rtl",
+                    featured: 1, badges: 1,
+                    labels: ["Déjà possédé", "Passer à cette offre", "Solde insuffisant", "Indisponible", "Acheter"],
+                    disabled: [true, false, true, true, false]
+                  }, "layout at " + width + "px");
+                }
                 for (const [width, title, label] of [[1280, edit.title, "Renouveler"], [390, "Browser annual", "Acheter"]]) {
                   const selectedId = width < 500 ? annualId : offerId;
                   const expected = await createOfferQuote(db, learner, selectedId);

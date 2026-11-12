@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { spawn } from "node:child_process";
-import { mkdtemp, readFile, rm } from "node:fs/promises";
+import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { setTimeout as wait } from "node:timers/promises";
@@ -75,7 +75,11 @@ export async function withTimedOfferBrowser(executable, origin, run) {
       await command("Page.navigate", { url: origin + path });
       await until(async () => evaluate(`location.pathname === ${JSON.stringify(path)} && document.readyState === 'complete'`), path);
     };
-    await run({ open, evaluate, until, errors });
+    const screenshot = async path => {
+      const { data } = await command("Page.captureScreenshot", { format: "png" });
+      await writeFile(path, Buffer.from(data, "base64"));
+    };
+    await run({ open, evaluate, until, errors, screenshot });
   } finally {
     socket?.close();
     if (browser.exitCode === null) browser.kill();

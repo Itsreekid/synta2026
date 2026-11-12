@@ -16,7 +16,7 @@ async function initOffers() {
 
     try {
         // Show loading state
-        offersList.innerHTML = '<div class="loading">Chargement des offres...</div>';
+        offersList.innerHTML = '<div class="loading" role="status">Chargement des offres...</div>';
 
         // Fetch offers + user balance from the REST API (auth via HttpOnly cookie)
         const response = await fetch('/api/offers', { credentials: 'include' });
@@ -36,14 +36,16 @@ async function initOffers() {
         }
 
         // Render dynamic offers
+        const formatPrice = new Intl.NumberFormat('fr-TN', { maximumFractionDigits: 2 });
         offersList.innerHTML = offers.map((offer, index) => {
             const renewable = offer.can_renew;
             const timedUnavailable = offer.access_mode && !offer.timed_sales_enabled;
-            const isFeatured = offer.title.toLowerCase().includes('pro') || offer.title.toLowerCase().includes('integral') || offer.is_best_seller;
+            const monthly = offer.access_mode === 'monthly';
+            const isFeatured = offer.is_best_seller === true;
 
             const price = parseFloat(offer.fixed_price || offer.price || 0);
             const discountAmount = parseFloat(offer.discount_percentage || 0);
-            const originalPrice = (price + discountAmount).toFixed(1);
+            const originalPrice = formatPrice.format(price + discountAmount);
 
             // Format dates
             const formatDate = (dateStr) => {
@@ -80,52 +82,52 @@ async function initOffers() {
             }
 
             return `
-                <div class="offer-card ${isFeatured ? 'featured' : ''}">
-                    ${isFeatured ? '<div class="best-seller-banner">عرضنا الأكثر مبيعا</div>' : ''}
+                <article class="offer-card ${isFeatured ? 'featured' : ''}" aria-labelledby="offer-title-${index}">
+                    <header class="offer-card-heading">
+                        <h2 id="offer-title-${index}" dir="auto">${escapeOfferHtml(offer.title)}</h2>
+                        ${isFeatured ? '<span class="best-seller-banner" lang="ar" dir="rtl">عرضنا الأكثر مبيعا</span>' : ''}
+                    </header>
                     
                     <div class="offer-image-section">
-                        <img src="${escapeOfferHtml(offerImage)}" alt="${escapeOfferHtml(offer.title)}">
+                        <img src="${escapeOfferHtml(offerImage)}" alt="${escapeOfferHtml(offer.title)}" decoding="async" ${index > 2 ? 'loading="lazy"' : ''}>
                     </div>
 
-                    <div class="offer-price-section">
-                        ${discountAmount > 0 ? `<div class="discount-badge">-${discountAmount}</div>` : ''}
+                    <div class="offer-price-section" dir="ltr">
                         <div class="price-comparison">
                             ${discountAmount > 0 ? `<span class="original-price">${originalPrice} DT</span>` : ''}
                             <div class="current-price-container">
-                                <span class="current-price">${price}</span>
-                                <span class="currency-label">DT</span>
+                                <span class="current-price">${formatPrice.format(price)}</span>
+                                <span class="currency-label">${monthly ? 'DT / mois' : 'DT'}</span>
                             </div>
                         </div>
+                        ${discountAmount > 0 ? `<span class="discount-badge">-${formatPrice.format(discountAmount)}</span>` : ''}
                     </div>
 
                     <div class="validity-box">
-                        <i class="far fa-clock"></i>
-                        <span>${dateRange}</span>
+                        <i class="far fa-clock" aria-hidden="true"></i>
+                        <span>${monthly ? 'Accès mensuel' : dateRange}</span>
                     </div>
 
-                    <div class="features-section">
+                    <ul class="features-section" role="list">
                         ${featureItems.map(item => `
-                            <div class="feature-item">
-                                <span class="feature-text">${escapeOfferHtml(item.text)}</span>
-                                <div class="check-icon">
-                                    <img src="/source/icons/${item.active ? 'true' : 'false'}.png" alt="icon" style="width: 100%; height: 100%; object-fit: contain;">
-                                </div>
-                            </div>
+                            <li class="feature-item">
+                                <span class="check-icon"><img src="/source/icons/${item.active ? 'true' : 'false'}.png" alt=""></span>
+                                <span><span class="offer-sr-only">${item.active ? 'Inclus : ' : 'Non inclus : '}</span><span class="feature-text" dir="auto">${escapeOfferHtml(item.text)}</span></span>
+                            </li>
                         `).join('')}
-                    </div>
+                    </ul>
 
                     <div class="purchase-section">
                         ${offer.scheduled_checkout_enabled && !offer.is_purchased && offer.access_mode === 'academic_year' &&
                             (offer.upgrades_enabled || offer.installment_max > 1) ?
                             `<button class="acheter-btn scheduled-offer-btn" type="button" data-scheduled-index="${index}">${offer.upgrades_enabled ? 'Passer à cette offre' : 'Choisir mon paiement'}</button>` :
-                        `<button class="acheter-btn ${offer.is_purchased ? 'purchased-btn' : ''}"
+                        `<button type="button" class="acheter-btn ${offer.is_purchased && !renewable ? 'purchased-btn' : ''}"
                             ${!offer.can_purchase || timedUnavailable ? 'disabled' : ''}
-                            data-offer-index="${index}"
-                            ${offer.is_purchased ? 'style="background-color: #10b981; color: white;"' : ''}>
+                            data-offer-index="${index}">
                             ${timedUnavailable ? 'Indisponible' : renewable && offer.can_purchase ? 'Renouveler' : offer.is_purchased ? 'Déjà possédé' : (offer.can_purchase ? 'Acheter' : 'Solde insuffisant')}
                         </button>`}
                     </div>
-                </div>
+                </article>
             `;
         }).join('');
 
@@ -141,8 +143,7 @@ async function initOffers() {
             button.addEventListener('click', () => window.openScheduledOfferCheckout(offers[Number(button.dataset.scheduledIndex)]));
         }
 
-        // ── Mobile: Prev / Next button navigation ──
-        initMobileOfferNav(offersList, offers.length);
+        initMobileOfferNav(offersList);
 
 
     } catch (error) {
@@ -321,121 +322,38 @@ style.textContent = `
 `;
 document.head.appendChild(style);
 
-/**
- * initMobileOfferNav
- * ─────────────────────────────────────────────────────────────
- * Implements indexed Prev / Next navigation for the offers page
- * on mobile viewports (≤ 768 px).
- *
- * Behaviour:
- *  • One card is visible at a time, centred in the viewport.
- *  • Prev and Next buttons below the card navigate between offers.
- *  • An indicator (e.g. "2 / 3") reflects the current position.
- *  • Prev is disabled on the first offer; Next is disabled on the last.
- *  • On desktop the nav bar stays hidden; the grid layout takes over.
- *  • ResizeObserver recalculates card positions after images load or
- *    the viewport resizes, so the scroll offset is always correct.
- *  • Cleans up listeners/observers when called again (idempotent).
- *
- * @param {HTMLElement} list  - the #offers-list scroll container
- * @param {number}      total - total number of offer cards
- */
-function initMobileOfferNav(list, total) {
-    const MOBILE_BP  = 768;   // must match CSS breakpoint
-
-    const navEl    = document.getElementById('mobile-offer-nav');
-    const prevBtn  = document.getElementById('nav-prev-btn');
-    const nextBtn  = document.getElementById('nav-next-btn');
-    const indicator= document.getElementById('offer-indicator');
-
-    if (!list || !navEl || !prevBtn || !nextBtn || !indicator) return;
-
-    // ── Clean up a previous call ──────────────────────────────────────
-    if (list._mobileNavCleanup) list._mobileNavCleanup();
-
-    let currentIndex = 0;
-
-    // ── Collect card elements (populated after innerHTML render) ──────
-    function getCards() {
-        return Array.from(list.querySelectorAll('.offer-card'));
-    }
-
-    // ── Scroll the list so card[index] is fully visible ──────────────
-    // Cards are flex 100%, so multiplying index * container width is perfect.
-    function scrollToCard(index) {
-        const cards = getCards();
-        if (!cards[index]) return;
-        list.scrollTo({ left: index * list.clientWidth, behavior: 'smooth' });
-    }
-
-    // ── Update button states + indicator ─────────────────────────────
-    function syncUI() {
-        if (window.innerWidth > MOBILE_BP) {
-            // Desktop: hide nav entirely
-            navEl.style.display = 'none';
-            navEl.setAttribute('aria-hidden', 'true');
-            return;
-        }
-
-        if (total <= 1) {
-            // Only one offer — no need for navigation
-            navEl.style.display = 'none';
-            navEl.setAttribute('aria-hidden', 'true');
-            return;
-        }
-
-        navEl.style.display = 'flex';
-        navEl.setAttribute('aria-hidden', 'false');
-
-        prevBtn.disabled = (currentIndex === 0);
-        nextBtn.disabled = (currentIndex === total - 1);
-        indicator.textContent = `${currentIndex + 1} / ${total}`;
-    }
-
-    // ── Navigate ──────────────────────────────────────────────────────
-    function goTo(index) {
-        const cards = getCards();
-        currentIndex = Math.max(0, Math.min(index, cards.length - 1));
-        scrollToCard(currentIndex);
-        syncUI();
-    }
-
-    // ── Event handlers ────────────────────────────────────────────────
-    function onPrev() { goTo(currentIndex - 1); }
-    function onNext() { goTo(currentIndex + 1); }
-    function onResize() {
-        // Re-scroll to keep current card aligned after resize
-        requestAnimationFrame(() => {
-            scrollToCard(currentIndex);
-            syncUI();
-        });
-    }
-
-    prevBtn.addEventListener('click', onPrev);
-    nextBtn.addEventListener('click', onNext);
-    window.addEventListener('resize', onResize, { passive: true });
-
-    // ── ResizeObserver: recalculate after images load ─────────────────
-    let ro = null;
-    if (typeof ResizeObserver !== 'undefined') {
-        ro = new ResizeObserver(() => {
-            requestAnimationFrame(() => scrollToCard(currentIndex));
-        });
-        ro.observe(list);
-        list.querySelectorAll('img').forEach(img => ro.observe(img));
-    }
-
-    // ── Initial state ─────────────────────────────────────────────────
-    syncUI();
-
-    // ── Cleanup ───────────────────────────────────────────────────────
-    list._mobileNavCleanup = function () {
-        prevBtn.removeEventListener('click', onPrev);
-        nextBtn.removeEventListener('click', onNext);
-        window.removeEventListener('resize', onResize);
-        if (ro) ro.disconnect();
+function initMobileOfferNav(list) {
+    const nav = document.getElementById('mobile-offer-nav');
+    const previous = document.getElementById('nav-prev-btn');
+    const next = document.getElementById('nav-next-btn');
+    const indicator = document.getElementById('offer-indicator');
+    const cards = [...list.querySelectorAll('.offer-card')];
+    if (!nav || !previous || !next || !indicator) return;
+    list._mobileNavCleanup?.();
+    nav.hidden = cards.length < 2;
+    if (nav.hidden) return;
+    let index = 0;
+    const sync = () => {
+        previous.disabled = index === 0;
+        next.disabled = index === cards.length - 1;
+        indicator.textContent = (index + 1) + ' / ' + cards.length;
     };
+    const go = offset => {
+        index = Math.max(0, Math.min(cards.length - 1, index + offset));
+        cards[index].scrollIntoView({ block: 'start' });
+        sync();
+    };
+    const scroller = document.getElementById('main-section');
+    const track = () => {
+        if (!window.matchMedia('(max-width: 600px)').matches) return;
+        const top = nav.getBoundingClientRect().bottom;
+        const visible = cards.findLastIndex(card => card.getBoundingClientRect().top <= top + 28);
+        index = Math.max(0, visible);
+        sync();
+    };
+    previous.onclick = () => go(-1);
+    next.onclick = () => go(1);
+    scroller?.addEventListener('scroll', track, { passive: true });
+    list._mobileNavCleanup = () => scroller?.removeEventListener('scroll', track);
+    sync();
 }
-
-
-

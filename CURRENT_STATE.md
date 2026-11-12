@@ -1,5 +1,10 @@
 # CURRENT_STATE.md — Synta Academy
 
+### 2026-11-12 — Student offer cards
+
+- Replaced the clipped offer carousel with a responsive grid. Cards display all features and one purchase action, and use the saved featured status. Monthly prices display `DT / mois`.
+- Validated responsive rendering and checkout in local Chrome with synthetic data and disposable PostgreSQL. Production verification remains pending.
+
 ### 2026-11-11 — Offer editor viewport
 
 - Kept the title, header close button and form buttons outside the scrolling fields. Chrome verified the Save button stays visible with 30 features in short mobile and desktop windows.

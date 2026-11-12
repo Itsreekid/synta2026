@@ -1,5 +1,9 @@
 # CHANGELOG.md — Synta Academy
 
+## 2026-11-12 — Student offer cards
+
+- Refined offer cards and removed nested feature scrolling. Added responsive browser coverage for card content, bilingual text and purchase states.
+
 ## 2026-11-11 — Manage course thumbnails in the admin editor
 
 - Added offer image reuse, recent R2 images, uploads and removal. Refined the admin toolbar, Live Sessions heading and offer dialog.
