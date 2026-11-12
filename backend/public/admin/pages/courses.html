@@ -187,6 +187,8 @@
         .quiz-question-card textarea,.quiz-question-card input,.quiz-question-card select { width:100%; padding:.65rem; border:1px solid var(--border); border-radius:8px; font:inherit; }
         .quiz-question-fields { display:grid; grid-template-columns:1fr 1fr; gap:.65rem; margin-top:.65rem; }
         .quiz-builder-hint { color:var(--text-muted); font-size:.84rem; }
+        .quiz-settings { display: flex; flex-wrap: wrap; align-items: center; gap: .75rem 1.25rem; }
+        .quiz-settings input[type="number"] { width: 7rem; margin-inline-start: .5rem; padding: .5rem; }
         #quizBuilderModal .quiz-builder { padding: clamp(1rem, 3vw, 1.75rem); max-height: 92dvh; background: #f4f8fb; }
         #quizBuilderHeading { margin: 0; color: #062c40; }
         .quiz-question-card > strong { display: block; margin-bottom: .7rem; color: #062c40; }
@@ -687,6 +689,10 @@
             </div>
             <label style="display:block;margin:.8rem 0">Titre du quiz<input id="quizLessonTitle" style="display:block;width:100%;padding:.7rem;border:1px solid var(--border);border-radius:8px" placeholder="Ex. Mini-défi : les variables"></label>
             <label style="display:block;margin:.8rem 0">Petite consigne (facultatif)<input id="quizLessonDescription" style="display:block;width:100%;padding:.7rem;border:1px solid var(--border);border-radius:8px" placeholder="3 questions pour vérifier ce que tu as retenu"></label>
+            <div class="quiz-settings">
+                <label>Temps total (secondes)<input type="number" id="quizTimeLimit" min="15" max="3600" step="1" required></label>
+                <label><input type="checkbox" id="quizPreview"> Disponible en aperçu gratuit</label>
+            </div>
             <div id="quizQuestionBuilder"></div>
             <div class="quiz-builder-footer"><button type="button" class="btn" onclick="closeQuizBuilder()">Annuler</button><button type="button" class="btn btn-primary" id="quizSaveButton" onclick="saveQuizBuilder()">Enregistrer le quiz</button></div>
         </div>
@@ -1040,6 +1046,8 @@
             document.getElementById('quizBuilderHeading').textContent = lesson ? 'Modifier le quiz' : 'Créer un quiz interactif';
             document.getElementById('quizLessonTitle').value = lesson?.title || '';
             document.getElementById('quizLessonDescription').value = lesson?.description || '';
+            document.getElementById('quizTimeLimit').value = lesson?.content?.timeLimitSeconds ?? 90;
+            document.getElementById('quizPreview').checked = Boolean(lesson?.is_preview);
             const existing = lesson?.content?.questions || [];
             const defaults = [
                 { type:'multiple_choice', text:'Quelle réponse est correcte ?', options:['Réponse A','Réponse B','Réponse C'], answer:'Réponse A' },
@@ -1104,6 +1112,10 @@
             if (saveButton.disabled) return;
             const title = document.getElementById('quizLessonTitle').value.trim();
             const description = document.getElementById('quizLessonDescription').value.trim();
+            const timeLimitSeconds = document.getElementById('quizTimeLimit').valueAsNumber;
+            if (!Number.isInteger(timeLimitSeconds) || timeLimitSeconds < 15 || timeLimitSeconds > 3600) {
+                return showToast('Indique un temps compris entre 15 et 3 600 secondes.', 'error');
+            }
             const questions = [...document.querySelectorAll('.quiz-question-card')].map(collectQuizQuestion);
             if (!title) return showToast('Donne un titre à ce quiz.', 'error');
             if (questions.some(question => !question.text)) return showToast('Chaque question doit avoir un énoncé.', 'error');
@@ -1111,7 +1123,9 @@
             if (questions.some(question => question.type === 'code_drag_drop' && (question.options.length < 2 || !question.options.includes(question.answer) || !question.text.includes('___')))) return showToast('Le quiz code doit avoir au moins 2 mots, la bonne réponse et le symbole ___ dans l’énoncé.', 'error');
             if (questions.some(question => question.type === 'ordering' && question.items.length < 2)) return showToast('Ajoute au moins 2 éléments à remettre dans l’ordre.', 'error');
             if (questions.some(question => question.type === 'matching' && question.pairs.length < 2)) return showToast('Ajoute au moins 2 paires à associer.', 'error');
-            const body = { title, description, type:'quiz', duration:0, isPreview:false, content:{ version:1, questions } };
+            const body = { title, description, type:'quiz', duration:0,
+                isPreview:document.getElementById('quizPreview').checked,
+                content:{ version:1, questions, timeLimitSeconds } };
             saveButton.disabled = true;
             saveButton.textContent = 'Enregistrement…';
             try {

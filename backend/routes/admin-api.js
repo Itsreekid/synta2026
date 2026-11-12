@@ -735,6 +735,8 @@ router.patch("/api/admin/lessons/:lessonId", requireAdmin, async (req, res) => {
 function isValidInteractiveQuiz(content) {
   const allowedTypes = new Set(["multiple_choice", "true_false", "code_drag_drop", "ordering", "matching"]);
   if (!content || !Array.isArray(content.questions) || content.questions.length !== 3) return false;
+  if (Object.hasOwn(content, "timeLimitSeconds") && (!Number.isInteger(content.timeLimitSeconds) ||
+      content.timeLimitSeconds < 15 || content.timeLimitSeconds > 3600)) return false;
   return content.questions.every((question) => {
     if (!question || typeof question.text !== "string" || !question.text.trim() || !allowedTypes.has(question.type)) return false;
     if (question.type === "multiple_choice") return Array.isArray(question.options) && question.options.length >= 2 && question.options.includes(question.answer);

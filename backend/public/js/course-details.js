@@ -1568,8 +1568,16 @@ async function openQuizLesson(lessonId, loadedContent = null) {
         }
         if (document.querySelector('.quiz-modal')) return;
         const trigger = document.activeElement;
+        const backgroundVideo = document.querySelector('#current-lesson-video, video.course-replay-player');
+        backgroundVideo?.pause();
+        const configuredTime = lesson.content.timeLimitSeconds;
+        const timeLimit = Number.isInteger(configuredTime) && configuredTime >= 15 && configuredTime <= 3600 ? configuredTime : 90;
+        const deadline = performance.now() + timeLimit * 1000;
+        let timer;
+        let finished = false;
         let currentQuestionIndex = 0;
         let score = 0;
+        let answeredQuestions = 0;
         let selectedAnswer = null;
         let renderedQuestionIndex = -1;
 
@@ -1580,29 +1588,42 @@ async function openQuizLesson(lessonId, loadedContent = null) {
         modal.setAttribute('aria-label', lesson.title || 'Mini-défi');
         modal.innerHTML = `
             <div class="video-modal-content quiz-modal-content">
-                <button class="close-modal" type="button" aria-label="Fermer">✕</button>
+                <div class="quiz-time-track" aria-hidden="true"><div class="quiz-time-fill"></div></div>
                 <div id="quiz-content"></div>
             </div>
         `;
         const closeQuizModal = () => {
+            clearInterval(timer);
             modal.remove();
-            document.removeEventListener('keydown', handleQuizEscape);
+            modal.removeEventListener('keydown', keepQuizFocus);
+            document.querySelector('.content-wrapper')?.removeAttribute('inert');
             trigger?.focus();
         };
-        const handleQuizEscape = event => {
-            if (event.key === 'Escape') closeQuizModal();
+        const keepQuizFocus = event => {
+            if (event.key !== 'Tab') return;
+            const controls = [...modal.querySelectorAll('button:not(:disabled), select:not(:disabled), a[href]')];
+            const edge = event.shiftKey ? controls[0] : controls.at(-1);
+            if (controls.length && (document.activeElement === edge || !controls.includes(document.activeElement))) {
+                event.preventDefault();
+                (event.shiftKey ? controls.at(-1) : controls[0]).focus();
+            }
         };
         if (window.matchMedia('(max-width: 768px)').matches) {
             document.getElementById('app-sidebar')?.classList.remove('active');
             document.getElementById('sidebar-overlay')?.classList.remove('active');
             document.querySelector('.mobile-menu-toggle')?.classList.remove('active');
         }
-        modal.querySelector('.close-modal').addEventListener('click', closeQuizModal);
-        modal.addEventListener('click', event => { if (event.target === modal) closeQuizModal(); });
-        document.addEventListener('keydown', handleQuizEscape);
+        modal.addEventListener('keydown', keepQuizFocus);
         document.body.appendChild(modal);
-        modal.querySelector('.close-modal').focus();
+        document.querySelector('.content-wrapper')?.setAttribute('inert', '');
         renderQuestion();
+        modal.querySelector('.quiz-prompt').focus();
+        const timeBar = modal.querySelector('.quiz-time-fill');
+        timer = setInterval(() => {
+            const remaining = Math.max(0, deadline - performance.now());
+            timeBar.style.transform = `scaleX(${remaining / (timeLimit * 1000)})`;
+            if (!remaining) showResults(true);
+        }, 100);
 
         function renderQuestion() {
             const question = questions[currentQuestionIndex];
@@ -1683,6 +1704,7 @@ async function openQuizLesson(lessonId, loadedContent = null) {
         }
 
         async function submitAnswer(question, container) {
+            if (finished || performance.now() >= deadline) return showResults(true);
             if (selectedAnswer === null || (question.type === 'matching' && (Object.keys(selectedAnswer).length !== question.pairs.length || Object.values(selectedAnswer).some(value => !value)))) {
                 const feedback = container.querySelector('#quiz-feedback');
                 feedback.textContent = 'Choisis une réponse avant de continuer.';
@@ -1695,6 +1717,9 @@ async function openQuizLesson(lessonId, loadedContent = null) {
             else if (question.type === 'ordering') isCorrect = selectedAnswer.every((item,index) => item === question.answer[index]);
             else if (question.type === 'matching') isCorrect = question.pairs.every((pair,index) => selectedAnswer[index] === pair.right);
             if (isCorrect) score++;
+            answeredQuestions++;
+            void fetch('/api/tracking/response', { method:'POST', credentials:'include', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ lessonId, questionId:`q${currentQuestionIndex + 1}`, category:question.type, selectedOption:JSON.stringify(selectedAnswer), isCorrect, pointsEarned:isCorrect ? 1 : 0 }) })
+                .catch(error => console.warn('Quiz response tracking failed:', error));
             const feedback = container.querySelector('#quiz-feedback');
             const correction = question.type === 'matching' ? question.pairs.map(pair => `${pair.left} → ${pair.right}`).join(' · ')
                 : question.type === 'ordering' ? question.answer.join(' → ')
@@ -1704,9 +1729,8 @@ async function openQuizLesson(lessonId, loadedContent = null) {
             const checkButton = container.querySelector('#quiz-check-button');
             checkButton.textContent = currentQuestionIndex === questions.length - 1 ? 'Voir mon résultat' : 'Question suivante';
             checkButton.onclick = () => {
+                if (finished || performance.now() >= deadline) return showResults(true);
                 checkButton.disabled = true;
-                void fetch('/api/tracking/response', { method:'POST', credentials:'include', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ lessonId, questionId:`q${currentQuestionIndex + 1}`, category:question.type, selectedOption:JSON.stringify(selectedAnswer), isCorrect, pointsEarned:isCorrect ? 1 : 0 }) })
-                    .catch(error => console.warn('Quiz response tracking failed:', error));
                 currentQuestionIndex++;
                 if (currentQuestionIndex < questions.length) {
                     renderQuestion();
@@ -1718,16 +1742,34 @@ async function openQuizLesson(lessonId, loadedContent = null) {
             container.querySelectorAll('button,select').forEach(control => { if (control !== checkButton) control.disabled = true; });
         }
 
-        function showResults() {
+        async function showResults(timedOut = false) {
+            if (finished) return;
+            finished = true;
+            clearInterval(timer);
+            modal.querySelector('.quiz-time-track').hidden = true;
             const passed = score >= 2;
-            modal.querySelector('#quiz-content').innerHTML = `<div class="quiz-results"><div class="quiz-result-emoji">${passed ? '🎉' : '🌱'}</div><span class="quiz-type-label">Mini-défi terminé</span><h2>${passed ? 'Bravo, continue comme ça !' : 'Chaque essai te fait progresser !'}</h2><p>Tu as obtenu <strong>${score} / ${questions.length}</strong></p><div class="quiz-result-stars">${'⭐'.repeat(score)}${'☆'.repeat(questions.length - score)}</div><button class="quiz-check-button" id="quiz-finish">Continuer le cours</button></div>`;
-            const completion = Promise.resolve().then(() => window.SyntaAPI.markLessonComplete(lessonId, 100))
-                .catch(error => console.warn('Quiz completion failed:', error));
+            modal.querySelector('#quiz-content').innerHTML = `<div class="quiz-results"><span class="quiz-type-label">Quiz terminé</span><h2 tabindex="-1">${timedOut ? 'Temps écoulé' : passed ? 'Bien joué !' : 'Quiz terminé'}</h2><p>Tu as obtenu <strong>${score} / ${questions.length}</strong></p><p id="quiz-next-message" role="status"></p><button class="quiz-check-button" id="quiz-finish" disabled>Chargement…</button></div>`;
+            modal.querySelector('.quiz-results h2').focus();
+            if (answeredQuestions === questions.length) {
+                void Promise.resolve().then(() => window.SyntaAPI.markLessonComplete(lessonId, 100))
+                    .catch(error => console.warn('Quiz completion failed:', error));
+            }
             const finish = modal.querySelector('#quiz-finish');
-            finish.focus();
+            const next = nextCourseItem(lessonId, true);
+            const hasAccess = next && (next.is_preview || await checkUserAccess(currentCourse.id));
+            if (next && !hasAccess) {
+                modal.querySelector('#quiz-next-message').textContent = 'Découvre les offres pour débloquer la prochaine leçon.';
+                const offers = document.createElement('a');
+                offers.className = 'quiz-check-button quiz-offer-link';
+                offers.href = '/app/offers';
+                offers.textContent = 'Voir les offres';
+                finish.before(offers);
+            }
+            finish.textContent = next && hasAccess ? 'Leçon suivante' : 'Continuer le cours';
+            finish.disabled = false;
             finish.addEventListener('click', () => {
                 closeQuizModal();
-                void completion.then(() => { if (currentCourse && !courseOverview) return loadCourseDetails(currentCourse.id); });
+                if (next && hasAccess) void playLesson(next.id);
             });
         }
 
@@ -1779,7 +1821,15 @@ function showError(message) {
 /**
  * Mark a lesson as complete, and auto-navigate to the next available lesson
  */
+function nextCourseItem(lessonId, skipQuizzes = false) {
+    const items = (currentCourse?.modules || []).flatMap(module => module.lessons || []);
+    const index = items.findIndex(item => item.id === lessonId);
+    if (index === -1) return null;
+    return items.slice(index + 1).find(item => !skipQuizzes || item.type !== 'quiz') || null;
+}
+
 async function completeLessonAndNext(lessonId) {
+    const request = ++lessonRequest;
     try {
         // Mark as complete in backend
         await fetch('/api/tracking/progress', {
@@ -1793,31 +1843,10 @@ async function completeLessonAndNext(lessonId) {
         
         const hasAccess = await checkUserAccess(currentCourse.id);
         
-        let foundCurrent = false;
-        let nextLessonId = null;
-        let nextLessonIsLocked = false;
-        
-        for (const mod of currentCourse.modules) {
-            for (const les of mod.lessons) {
-                if (foundCurrent) {
-                    nextLessonId = les.id;
-                    nextLessonIsLocked = !hasAccess && !les.is_preview;
-                    break;
-                }
-                if (les.id === lessonId) {
-                    foundCurrent = true;
-                }
-            }
-            if (nextLessonId) break;
-        }
-        
-        // Refresh the mounted course overview before opening the next lesson.
-        restoreCourseContent();
-        await loadCourseDetails(currentCourse.id);
-        
-        // Play next lesson if exists and accessible
-        if (nextLessonId && !nextLessonIsLocked) {
-            playLesson(nextLessonId);
+        if (request !== lessonRequest) return;
+        const next = nextCourseItem(lessonId);
+        if (next && (hasAccess || next.is_preview)) {
+            void playLesson(next.id);
         } else {
             // Reached the end of the course or next lesson is locked
             switchCoursePlayerTo('chapters');

@@ -625,3 +625,5 @@ The catalog cards now use native links. Course details group the description, co
 - Course quizzes now appear as lightning buttons on the preceding lesson row, with icon-only access for quiz-only chapters.
 
 - Student quiz shows authored titles and corrections and advances independently of response tracking. The admin editor keeps save controls visible and preserves commas inside answer choices.
+
+- Course quizzes run over the mounted lesson with a configurable orange time bar. Legacy quizzes default to 90 seconds. Admins can opt a quiz into free preview. Results lead to the next lesson or the existing offers page.
