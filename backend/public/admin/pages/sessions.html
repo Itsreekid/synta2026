@@ -566,7 +566,7 @@ async function deleteSessionResource(resourceId) {
 
 async function updateReplay(sessionId) {
     const session = allSessions.find(item => item.id === sessionId);
-    const replayUrl = prompt('Lien du replay (laisser vide pour le retirer) :', session?.replay_url || '');
+    const replayUrl = prompt('Collez le lien de partage Google Drive ou le lien du replay. Vérifiez que les élèves ont accès au fichier dans Drive. Laissez vide pour retirer le lien.', session?.replay_url || '');
     if (replayUrl === null) return;
 
     try {

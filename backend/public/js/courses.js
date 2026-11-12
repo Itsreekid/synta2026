@@ -2,6 +2,10 @@
 // Courses Page — REST API version (replaces Supabase SDK calls)
 // =====================================================
 
+function courseCardText(value) {
+    return String(value ?? '').replace(/[&<>]/g, character => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[character]));
+}
+
 async function initCoursesPage() {
     const coursesList = document.getElementById('courses-list');
     if (!coursesList) return; // Prevent running on other pages
@@ -76,22 +80,22 @@ async function loadCourses(filters = {}) {
         courses.forEach((course, index) => {
             const enrollment = enrollments.find(e => e.course_id === course.id);
             const isEnrolled = enrollment ? enrollment.is_enrolled : false;
-            const progress = enrollment ? (enrollment.progress || 0) : 0;
+            const progress = Math.round(Math.max(0, Math.min(100, Number(enrollment?.progress) || 0)));
 
             // Use real stats from the database
-            const lessonsCount = course.lessons_count || 0;
-            const quizzesCount = course.quizzes_count || 0;
-            const livesCount = course.lives_count || 0;
+            const lessonsCount = Number(course.lessons_count) || 0;
+            const quizzesCount = Number(course.quizzes_count) || 0;
+            const livesCount = Number(course.lives_count) || 0;
 
             const ctaText = isEnrolled ? 'Continuer le cours &rarr;' : 'Découvrir le cours &rarr;';
             const statusLabel = isEnrolled ? 'En cours' : 'Disponible';
             const statusColor = isEnrolled ? '#f97316' : '#10b981';
 
             const cardHtml = `
-                <div class="course-card" style="background: white; border-radius: 20px; overflow: hidden; box-shadow: 0 4px 20px rgba(0,0,0,0.04); display: flex; flex-direction: column; transition: transform 0.3s, box-shadow 0.3s; cursor: pointer;" onmouseover="this.style.transform='translateY(-5px)'; this.style.boxShadow='0 10px 25px rgba(0,0,0,0.08)';" onmouseout="this.style.transform='none'; this.style.boxShadow='0 4px 20px rgba(0,0,0,0.04)';" onclick="window.location.href='/app/course-details?id=${course.id}'">
+                <a class="course-card course-card-link" href="/app/course-details?id=${encodeURIComponent(course.id)}">
                     
                     <div class="course-thumbnail" style="position: relative; padding-top: 56.25%;">
-                        <img data-thumbnail-index="${index}" alt="" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; object-fit: cover;">
+                        <img data-thumbnail-index="${index}" alt="" decoding="async" ${index > 2 ? 'loading="lazy"' : ''} style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; object-fit: cover;">
                         <div style="position: absolute; top: 1rem; left: 1rem; display: flex; gap: 0.5rem;">
                             <span style="background: ${statusColor}; color: white; padding: 0.3rem 0.8rem; border-radius: 20px; font-size: 0.75rem; font-weight: 600; box-shadow: 0 2px 5px rgba(0,0,0,0.2);">
                                 ${statusLabel}
@@ -100,9 +104,9 @@ async function loadCourses(filters = {}) {
                     </div>
                     
                     <div class="course-info" style="padding: 1.2rem; flex: 1; display: flex; flex-direction: column;">
-                        ${course.category ? `<span style="color: #64748b; font-size: 0.75rem; font-weight: 700; text-transform: uppercase; margin-bottom: 0.4rem; letter-spacing: 0.5px;">${formatCategory(course.category)}</span>` : ''}
+                        ${course.category ? `<span style="color: #64748b; font-size: 0.75rem; font-weight: 700; text-transform: uppercase; margin-bottom: 0.4rem; letter-spacing: 0.5px;">${courseCardText(formatCategory(course.category))}</span>` : ''}
                         
-                        <h3 style="margin: 0 0 1rem; color: #1e293b; font-size: 1.1rem; font-weight: 700; line-height: 1.3; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;">${course.title}</h3>
+                        <h3 class="course-card-title">${courseCardText(course.title)}</h3>
                         
                         <!-- Progress -->
                         ${progress > 0 || isEnrolled ? `
@@ -130,11 +134,11 @@ async function loadCourses(filters = {}) {
                         </div>
                         
                         <!-- CTA Button -->
-                        <button style="width: 100%; background: ${isEnrolled ? '#f97316' : '#f8fafc'}; color: ${isEnrolled ? 'white' : '#f97316'}; border: ${isEnrolled ? 'none' : '1px solid #fed7aa'}; padding: 0.75rem; border-radius: 10px; font-weight: 600; font-size: 0.9rem; cursor: pointer; transition: all 0.2s; font-family: inherit;">
+                        <span class="course-card-action${isEnrolled ? ' is-enrolled' : ''}">
                             ${ctaText}
-                        </button>
+                        </span>
                     </div>
-                </div>
+                </a>
             `;
 
             if (isEnrolled) {
@@ -156,7 +160,6 @@ async function loadCourses(filters = {}) {
             coursesList.innerHTML = activeCourseHtml + regularCoursesHtml;
             for (const image of coursesList.querySelectorAll('[data-thumbnail-index]')) {
                 const course = courses[Number(image.dataset.thumbnailIndex)];
-                image.alt = course.title || '';
                 image.src = resolveCourseImage(course.thumbnail_url) ||
                     'https://via.placeholder.com/400x225/fff7ed/f97316?text=' + encodeURIComponent(course.title);
             }

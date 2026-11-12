@@ -544,3 +544,5 @@
 
 - Added opt-in monthly and academic-year offers, audited installments, checkout expiry quotes, timed purchase history and deduplicated expiry reminders.
 - Added admin-reviewed academic calendar drafts using the dedicated Learning Gemini integration.
+
+- Reorganized student course details for mobile and desktop, removed placeholder activity statistics, and added Google Drive replay preview support.

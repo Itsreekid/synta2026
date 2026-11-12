@@ -613,3 +613,7 @@ Admin course management now supports shared chapters, lesson management, and les
 ## 2026-11-12 — Timed offer access
 
 Implemented monthly and academic-year access, independent course grants, installment management, signed checkout quotes, wallet history and expiry reminders. The migration was tested on a disposable production-shaped PostgreSQL schema. Both runtime feature flags default off. Production rollout and live calendar verification are pending separate authorization. Follow [the technical plan](OFFER_ACCESS_TECHNICAL_PLAN.md) for activation and compatible rollback.
+
+## 2026-11-12 — Student course navigation
+
+The catalog cards now use native links. Course details group the description, counts and lesson action above the content tabs. Directs et replays links both player modes, and Google Drive file shares use a preview with an external fallback. Validate playback and permissions with an actual shared recording in staging.

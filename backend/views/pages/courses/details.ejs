@@ -636,6 +636,31 @@
             .hero-stats { justify-content: center; }
             .hero-mascot { display: none; }
         }
+        .course-hero { padding: clamp(1rem, 3vw, 2rem); gap: 1.25rem; align-items: flex-start; }
+        .course-thumbnail-hero:not(:empty) { display: block; width: clamp(92px, 14vw, 200px); height: auto; aspect-ratio: 16 / 10; border-radius: 12px; box-shadow: none; }
+        .course-title-wrapper { min-width: 0; }
+        #course-title { margin: 0 0 .4rem; font-size: clamp(1.35rem, 2.7vw, 2rem); line-height: 1.2; color: #062c40; overflow-wrap: anywhere; }
+        .course-subtitle { margin-bottom: .85rem; overflow-wrap: anywhere; }
+        .course-hero .course-stats-grid { margin: .75rem 0; max-width: 32rem; gap: .35rem; }
+        .course-hero .stat-box { padding: .4rem .15rem; min-width: 0; }
+        .course-hero .stat-icon { display: none; }
+        .course-hero .buy-button { width: auto; min-height: 44px; padding: .6rem 1rem; margin-top: .25rem; }
+        .course-main { gap: 1rem; }
+        .course-badge[hidden], .buy-button[hidden] { display: none; }
+        .course-content-tabs { scroll-margin-top: 1rem; }
+        #progress-container { margin-bottom: 0 !important; }
+        #modules-container { max-height: none; overflow: visible; }
+        .course-player-actions { display: flex; flex-wrap: wrap; gap: .5rem; }
+        .course-replay-external { display: inline-flex; margin-top: .75rem; }
+        @media (max-width: 1024px) {
+            .course-hero { flex-direction: row; text-align: start; }
+        }
+        @media (max-width: 600px) {
+            .course-hero { display: grid; grid-template-columns: minmax(0, 1fr); gap: .65rem; border-radius: 16px; }
+            .course-thumbnail-hero:not(:empty) { width: 96px; }
+            .course-hero .buy-button { width: 100%; }
+            .course-hero .stat-box span { letter-spacing: 0; }
+        }
     </style>
 </head>
 <body>
@@ -649,34 +674,45 @@
                 <a href="/app/courses" class="back-link" style="display: inline-flex; align-items: center; gap: 0.5rem; padding: 0.5rem 1rem; background: white; border: 1px solid #e2e8f0; border-radius: 99px; font-weight: 600; color: #64748b; text-decoration: none; box-shadow: 0 2px 4px rgba(0,0,0,0.02); transition: all 0.2s ease; margin-bottom: 1.5rem;" onmouseover="this.style.transform='translateX(-4px)'; this.style.color='#1e293b'; this.style.boxShadow='0 4px 6px rgba(0,0,0,0.05)';" onmouseout="this.style.transform='translateX(0)'; this.style.color='#64748b'; this.style.boxShadow='0 2px 4px rgba(0,0,0,0.02)';">
                     <i class="fas fa-arrow-left"></i> Retour aux cours
                 </a>
-                
+
                 <div class="course-layout">
                     <!-- Main Content -->
                     <div class="course-main">
-                        
+
                         <!-- Hero Banner -->
                         <div class="course-hero">
                             <div class="hero-bg-accent"></div>
-                            <div class="course-thumbnail-hero" id="course-thumbnail-hero">
-                                <!-- Thumbnail -->
-                            </div>
+                            <div class="course-thumbnail-hero" id="course-thumbnail-hero"></div>
                             <div class="course-title-wrapper">
-                                <span class="course-badge" id="course-category-badge">Niveau Requis</span>
+                                <span class="course-badge" id="course-category-badge" hidden></span>
                                 <h1 id="course-title">Chargement...</h1>
                                 <p class="course-subtitle" id="course-description">Chargement de la description...</p>
-                                <div class="hero-stats">
-                                    <div class="hero-stat-item"><span style="color: #f97316;">🔥</span> 5 jours de suite</div>
-                                    <div class="hero-stat-item"><span style="color: #eab308;">⭐</span> 125 XP</div>
+                            <div class="course-stats-grid">
+                                <div class="stat-box" style="background: #eff6ff; border-color: #dbeafe; color: #3b82f6;">
+                                    <div class="stat-icon"><i class="fas fa-book-open"></i></div>
+                                    <strong id="lessons-count" style="color: #2563eb;">0</strong>
+                                    <span style="color: #60a5fa;">Leçons</span>
+                                </div>
+                                <div class="stat-box" style="background: #fdf4ff; border-color: #fae8ff; color: #d946ef;">
+                                    <div class="stat-icon"><i class="fas fa-question-circle"></i></div>
+                                    <strong id="quizzes-count" style="color: #c026d3;">0</strong>
+                                    <span style="color: #e879f9;">Quiz</span>
+                                </div>
+                                <div class="stat-box" style="background: #fff1f2; border-color: #ffe4e6; color: #f43f5e;">
+                                    <div class="stat-icon"><i class="fas fa-video"></i></div>
+                                    <strong id="lives-count" style="color: #e11d48;">0</strong>
+                                    <span style="color: #fb7185;">Séances</span>
+                                </div>
+                                <div class="stat-box" style="background: #fefce8; border-color: #fef08a; color: #eab308;">
+                                    <div class="stat-icon"><i class="fas fa-language"></i></div>
+                                    <strong id="course-language" style="color: #ca8a04;">Français</strong>
+                                    <span style="color: #facc15;">Langue</span>
                                 </div>
                             </div>
-                            <div class="hero-mascot">
-                                <div class="mascot-bubble bubble-1"></div>
-                                <div class="mascot-bubble bubble-2"></div>
-                                <div class="mascot-bubble bubble-3"></div>
-                                <img src="/source/Robot%20for%20web.webp" alt="Mascot">
+
+                                <button type="button" class="buy-button" id="buy-button" hidden>Découvrir les offres</button>
                             </div>
                         </div>
-                        
                         <!-- Progress Area -->
                         <div class="progress-card" id="progress-container" style="padding: 1.25rem 1.5rem; display: flex; flex-wrap: wrap; align-items: center; gap: 1.5rem; margin-bottom: 2rem;">
                             <div style="flex: 1; min-width: 200px; display: flex; align-items: center; justify-content: space-between;">
@@ -694,13 +730,13 @@
                                 </div>
                             </div>
                         </div>
-                        
+
                         <nav class="course-content-tabs" role="tablist" aria-label="Contenu du cours">
                             <button class="course-content-tab is-active" id="chapters-tab" type="button" role="tab" aria-selected="true" aria-controls="chapters-panel" data-course-tab="chapters">
                                 <i class="fas fa-book-open" aria-hidden="true"></i> Chapitres
                             </button>
-                            <button class="course-content-tab" id="live-tab" type="button" role="tab" aria-selected="false" aria-controls="live-panel" data-course-tab="live">
-                                <i class="fas fa-video" aria-hidden="true"></i> Séances en direct
+                            <button class="course-content-tab" id="live-tab" type="button" role="tab" aria-selected="false" tabindex="-1" aria-controls="live-panel" data-course-tab="live">
+                                <i class="fas fa-video" aria-hidden="true"></i> Directs et replays
                                 <span class="course-live-tab-count" id="live-tab-count">0</span>
                             </button>
                         </nav>
@@ -726,44 +762,9 @@
                             </div>
                         </section>
                     </div>
-                    
+
                     <!-- Sidebar -->
                     <div class="course-sidebar">
-                        <div class="sidebar-card">
-                            <div class="course-thumbnail-sidebar" id="course-thumbnail">
-                                <!-- Thumbnail -->
-                            </div>
-                            
-                            <div class="course-stats-grid">
-                                <div class="stat-box" style="background: #eff6ff; border-color: #dbeafe; color: #3b82f6;">
-                                    <div class="stat-icon"><i class="fas fa-book-open"></i></div>
-                                    <strong id="lessons-count" style="color: #2563eb;">0</strong>
-                                    <span style="color: #60a5fa;">Leçons</span>
-                                </div>
-                                <div class="stat-box" style="background: #fdf4ff; border-color: #fae8ff; color: #d946ef;">
-                                    <div class="stat-icon"><i class="fas fa-question-circle"></i></div>
-                                    <strong id="quizzes-count" style="color: #c026d3;">0</strong>
-                                    <span style="color: #e879f9;">Quiz</span>
-                                </div>
-                                <div class="stat-box" style="background: #fff1f2; border-color: #ffe4e6; color: #f43f5e;">
-                                    <div class="stat-icon"><i class="fas fa-video"></i></div>
-                                    <strong id="lives-count" style="color: #e11d48;">0</strong>
-                                    <span style="color: #fb7185;">Lives</span>
-                                </div>
-                                <div class="stat-box" style="background: #fefce8; border-color: #fef08a; color: #eab308;">
-                                    <div class="stat-icon"><i class="fas fa-language"></i></div>
-                                    <strong id="course-language" style="color: #ca8a04;">Français</strong>
-                                    <span style="color: #facc15;">Langue</span>
-                                </div>
-                            </div>
-                            
-                            <div style="display: flex; align-items: center; gap: 0.5rem; color: #64748b; font-size: 0.85rem; margin-bottom: 1.5rem; justify-content: center; background: #f8fafc; padding: 0.5rem 1rem; border-radius: 99px;">
-                                <i class="far fa-clock"></i> Dernière activité: Aujourd'hui
-                            </div>
-                            
-                            <button class="buy-button" id="buy-button">Découvrir les offres</button>
-                        </div>
-                        
                         <!-- Resources -->
                         <div class="sidebar-card">
                             <h4 style="margin: 0 0 1rem; color: #1e293b; font-size: 1rem;">📁 Ressources</h4>

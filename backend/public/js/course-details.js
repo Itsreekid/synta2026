@@ -37,9 +37,31 @@ document.addEventListener('click', (event) => {
         openReplayPlayer(replayButton.dataset.replayUrl, replayButton.dataset.replayTitle, JSON.parse(replayButton.dataset.replayResources || '[]'), replayButton.dataset.sessionId);
         return;
     }
+    if (event.target.closest('#buy-button') && currentCourse) {
+        if (event.target.closest('#buy-button').dataset.hasAccess === 'true') {
+            setCourseContentTab('chapters');
+            document.getElementById('chapters-tab')?.focus();
+            document.querySelector('.course-content-tabs')?.scrollIntoView({ block: 'start' });
+        } else {
+            window.location.href = '/app/offers';
+        }
+        return;
+    }
     const tab = event.target.closest('[data-course-tab]');
     if (!tab) return;
     setCourseContentTab(tab.dataset.courseTab);
+});
+
+document.addEventListener('keydown', event => {
+    if (!event.target.matches('[data-course-tab]')) return;
+    const tabs = [...document.querySelectorAll('[data-course-tab]')];
+    const index = tabs.indexOf(event.target);
+    const next = { ArrowLeft: (index + tabs.length - 1) % tabs.length,
+        ArrowRight: (index + 1) % tabs.length, Home: 0, End: tabs.length - 1 }[event.key];
+    if (next === undefined) return;
+    event.preventDefault();
+    setCourseContentTab(tabs[next].dataset.courseTab);
+    tabs[next].focus();
 });
 
 function setCourseContentTab(selected) {
@@ -65,7 +87,8 @@ async function switchCoursePlayerTo(panelName) {
     }
     restoreCourseContent();
     setCourseContentTab(panelName);
-    document.getElementById(`${panelName}-panel`)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    document.getElementById(panelName === 'live' ? 'live-tab' : 'chapters-tab')?.focus({ preventScroll: true });
+    document.querySelector('.course-content-tabs')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
 
 async function persistLessonVideoPosition(video, force = false) {
@@ -242,8 +265,9 @@ async function renderCourseInfo(course, totalLessons, hasAccess, courseProgress,
     
     // Update category badge
     const catBadge = document.getElementById('course-category-badge');
-    if (catBadge && course.category) {
-        catBadge.textContent = course.category;
+    if (catBadge) {
+        catBadge.textContent = course.category || '';
+        catBadge.hidden = !course.category;
     }
 
     // Update Progress Area
@@ -279,19 +303,14 @@ async function renderCourseInfo(course, totalLessons, hasAccess, courseProgress,
     // Update buy button
     const buyButton = document.getElementById('buy-button');
     if (buyButton) {
+        buyButton.dataset.hasAccess = String(Boolean(hasAccess));
+        buyButton.hidden = false;
         if (hasAccess) {
-            buyButton.textContent = 'Continuer le cours';
+            buyButton.textContent = 'Voir les leçons';
             buyButton.style.background = 'linear-gradient(135deg, #10b981, #059669)';
             buyButton.style.boxShadow = '0 8px 20px rgba(16, 185, 129, 0.3)';
-            buyButton.onclick = () => {
-                // Focus the first uncompleted lesson
-                document.getElementById('modules-container').scrollIntoView({ behavior: 'smooth' });
-            };
         } else {
             buyButton.textContent = 'Découvrir les offres';
-            buyButton.onclick = () => {
-                window.location.href = '/app/offers';
-            };
         }
     }
 }
@@ -396,15 +415,32 @@ function renderReplaySidebar(sidebar, sessions, selectedSessionId = '') {
     </section>`;
 }
 
+function driveReplayPreview(url) {
+    if (url.protocol !== 'https:' || url.hostname !== 'drive.google.com' || url.username || url.password) return null;
+    const fileId = url.pathname.match(/^\/file\/d\/([\w-]+)(?:\/|$)/)?.[1]
+        || (url.pathname === '/open' ? url.searchParams.get('id') : null);
+    if (!fileId || !/^[\w-]+$/.test(fileId)) return null;
+    const preview = new URL(`https://drive.google.com/file/d/${fileId}/preview`);
+    const resourceKey = url.searchParams.get('resourcekey');
+    if (resourceKey) preview.searchParams.set('resourcekey', resourceKey);
+    return preview.href;
+}
+
 function openReplayPlayer(replayUrl, title, resources = [], sessionId = '') {
     document.querySelector('video.course-replay-player')?.pause();
     let parsed;
     try { parsed = new URL(replayUrl, window.location.href); } catch { return showError('Lien du replay invalide'); }
     if (!['http:', 'https:'].includes(parsed.protocol)) return showError('Lien du replay invalide');
-    const youtubeId = parsed.hostname.includes('youtu.be') ? parsed.pathname.slice(1) : parsed.searchParams.get('v');
-    const vimeoId = parsed.hostname.includes('vimeo.com') ? parsed.pathname.split('/').filter(Boolean).pop() : null;
+    const drivePreview = driveReplayPreview(parsed);
+    const youtubeId = parsed.hostname === 'youtu.be' ? parsed.pathname.slice(1) : parsed.searchParams.get('v');
+    const vimeoId = ['vimeo.com', 'www.vimeo.com', 'player.vimeo.com'].includes(parsed.hostname) ? parsed.pathname.split('/').filter(Boolean).pop() : null;
     let player;
-    if (youtubeId && (parsed.hostname.includes('youtube.com') || parsed.hostname.includes('youtu.be'))) {
+    if (drivePreview) {
+        player = document.createElement('iframe');
+        player.src = drivePreview;
+        player.title = title || 'Replay Google Drive';
+        player.allowFullscreen = true;
+    } else if (youtubeId && ['youtube.com', 'www.youtube.com', 'm.youtube.com', 'youtu.be'].includes(parsed.hostname)) {
         player = document.createElement('iframe');
         player.src = `https://www.youtube-nocookie.com/embed/${encodeURIComponent(youtubeId)}?autoplay=1`;
         player.allow = 'autoplay; encrypted-media; picture-in-picture';
@@ -444,13 +480,30 @@ function openReplayPlayer(replayUrl, title, resources = [], sessionId = '') {
     switchButton.className = 'course-player-switch';
     switchButton.innerHTML = '<i class="fas fa-book-open" aria-hidden="true"></i> Retour aux chapitres';
     switchButton.addEventListener('click', () => switchCoursePlayerTo('chapters'));
-    heading.append(titleElement, switchButton);
+    const actions = document.createElement('div');
+    actions.className = 'course-player-actions';
+    const replayListButton = document.createElement('button');
+    replayListButton.type = 'button';
+    replayListButton.className = 'course-player-switch';
+    replayListButton.textContent = 'Directs et replays';
+    replayListButton.addEventListener('click', () => switchCoursePlayerTo('live'));
+    actions.append(switchButton, replayListButton);
+    heading.append(titleElement, actions);
     const frame = document.createElement('div');
     frame.className = 'video-container course-player-frame';
     frame.appendChild(player);
     const details = document.createElement('div');
     details.className = 'lesson-details-content';
     details.innerHTML = '<p>Replay de votre séance en direct.</p>';
+    if (drivePreview) {
+        const link = document.createElement('a');
+        link.className = 'course-replay-external';
+        link.href = parsed.href;
+        link.target = '_blank';
+        link.rel = 'noopener noreferrer';
+        link.textContent = 'Ouvrir dans Google Drive';
+        details.appendChild(link);
+    }
     wrapper.append(heading, frame, details);
     courseMain.replaceChildren(wrapper);
 
@@ -678,7 +731,7 @@ async function showLessonInMainArea(lesson, videoUrl, pdfUrl, practiceFiles = []
     // Replace main content with the video (when present), lesson resources, and actions.
     courseMain.innerHTML = `
         <div class="video-section-wrapper" style="width: 100%; display: flex; flex-direction: column; gap: 1rem;">
-            <div class="course-player-heading"><span class="course-player-mode">Leçon</span><button class="course-player-switch" type="button" onclick="switchCoursePlayerTo('live')"><i class="fas fa-video" aria-hidden="true"></i> Séances en direct</button></div>
+            <div class="course-player-heading"><span class="course-player-mode">Leçon</span><button class="course-player-switch" type="button" onclick="switchCoursePlayerTo('live')"><i class="fas fa-video" aria-hidden="true"></i> Directs et replays</button></div>
             ${videoUrl ? `<div class="video-container" style="background: #000; border-radius: 12px; overflow: hidden; position: relative; aspect-ratio: 16/9; width: 100%; box-shadow: 0 15px 35px rgba(0,0,0,0.2);">
                 <video 
                     id="current-lesson-video"
