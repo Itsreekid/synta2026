@@ -8,11 +8,13 @@ import {
   collectInstallment, changeInstallmentDeadline, reverseInstallmentPayment
 } from "../services/timed-offers.js";
 import { calendarSuggestions } from "../services/offer-calendar.js";
+import { suggestInstallments } from "../services/offer-installment-advisor.js";
 import { quoteOfferUpgrade, confirmOfferUpgrade, saveUpgradePolicy, correctUpgradeClaim, upgradesEnabled } from "../services/offer-upgrades.js";
 
 const router = express.Router();
 const quoteLimit = authRateLimit(30, 60000, req => req.user.id);
 const calendarLimit = authRateLimit(4, 60000, req => req.user.id);
+const installmentAdviceLimit = authRateLimit(4, 60000, req => req.user.id);
 const reply = work => async (req, res) => {
   try {
     if (req.params.id && !UUID.test(req.params.id)) return res.status(400).json({ success: false, error: "Étudiant invalide." });
@@ -158,5 +160,8 @@ router.patch(arrangements + "/:arrangementId/deadline", requireAdmin, reply(req 
 ));
 router.post("/api/admin/offers/calendar-suggestions", requireAdmin, calendarLimit, reply(req =>
   calendarSuggestions(pool, req.body?.academic_year_start, req.body?.refresh === true, req.body?.source_url)
+));
+router.post("/api/admin/offers/installment-suggestions", requireAdmin, installmentAdviceLimit, reply(req =>
+  suggestInstallments(req.body ?? {})
 ));
 export default router;

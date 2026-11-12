@@ -292,6 +292,8 @@
                         </label>
                         <label>Échéance 2, jours après confirmation <input type="number" id="upgrade-due-2" min="1" max="366"></label>
                         <label>Échéance 3, jours après confirmation <input type="number" id="upgrade-due-3" min="1" max="366"></label>
+                        <button type="button" class="btn" id="suggest-upgrade-installments" hidden>Suggérer les tranches</button>
+                        <div id="upgrade-installment-preview" aria-live="polite"></div>
                         <label class="upgrade-check"><input type="checkbox" id="upgrade-enabled"> <span>Autoriser les surclassements vers cette offre</span></label>
                         <details id="upgrade-source-picker">
                             <summary id="upgrade-source-summary">Choisir les offres éligibles</summary>
@@ -776,6 +778,9 @@
                 rules.replaceChildren();
                 const picker = document.getElementById('upgrade-source-picker');
                 const summary = document.getElementById('upgrade-source-summary');
+                const suggest = document.getElementById('suggest-upgrade-installments');
+                const preview = document.getElementById('upgrade-installment-preview');
+                preview.replaceChildren();
                 picker.open = false;
                 const rows = sources.map(source => {
                     const row = document.createElement('div');
@@ -797,6 +802,7 @@
                 });
                 const sync = () => {
                     document.getElementById('upgrade-mode-help').hidden = policy.access_mode === 'academic_year';
+                    suggest.hidden = policy.access_mode !== 'academic_year' || Number(maximum.value) < 2;
                     picker.hidden = !enabled.checked;
                     const selected = rows.filter(row => row.allowed.checked);
                     summary.textContent = selected.length === 1 ? selected[0].title :
@@ -807,8 +813,55 @@
                         field.closest('label').hidden = field.disabled;
                     });
                 };
-                maximum.onchange = enabled.onchange = sync;
+                maximum.onchange = () => { preview.replaceChildren(); sync(); };
+                enabled.onchange = sync;
                 for (const row of rows) row.allowed.onchange = sync;
+                const adviceInput = () => ({
+                    price: document.getElementById('fixed_price').value,
+                    minimum: document.getElementById('offer-initial-payment').value,
+                    count: Number(maximum.value),
+                    cutoff: cutoffDate.value
+                });
+                suggest.onclick = async () => {
+                    const input = JSON.stringify(adviceInput());
+                    const current = () => document.getElementById('offerId').value === offer.id && input === JSON.stringify(adviceInput());
+                    suggest.disabled = true;
+                    preview.textContent = 'Préparation d’une proposition…';
+                    try {
+                        const response = await fetch('/api/admin/offers/installment-suggestions', {
+                            method:'POST', headers:{'Content-Type':'application/json'}, body:input
+                        });
+                        const data = await response.json();
+                        if (!current()) return;
+                        if (!response.ok) throw new Error(data.error);
+                        preview.textContent = (data.source === 'gemini' ? 'Échéances suggérées par Gemini. ' : 'Échéances standard. ') +
+                            'Premier paiement : ' + data.dueNow + ' DT. Dates indicatives pour une confirmation aujourd’hui à Tunis.';
+                        const list = document.createElement('ul');
+                        data.offsets.forEach((offset, index) => {
+                            const row = document.createElement('li');
+                            row.textContent = 'Tranche ' + (index + 2) + ' · Reste ' + data.schedule[index + 1].remaining +
+                                ' DT · ' + (offset === null ? 'Aucune échéance définie' : 'J+' + offset + ' (' + data.exampleDates[index] + ')');
+                            list.append(row);
+                        });
+                        const use = document.createElement('button');
+                        use.type = 'button';
+                        use.className = 'btn';
+                        use.textContent = 'Appliquer les échéances au formulaire';
+                        use.onclick = () => {
+                            if (!current()) {
+                                preview.textContent = 'Les conditions ont changé. Demandez une nouvelle proposition.';
+                                return;
+                            }
+                            data.offsets.forEach((offset, index) => { dueDates[index].value = offset ?? ''; });
+                            preview.textContent = 'Échéances reprises. Enregistrez les règles de paiement pour les valider.';
+                        };
+                        preview.append(list, use);
+                    } catch (error) {
+                        if (current()) preview.textContent = error.message || 'Proposition indisponible.';
+                    } finally {
+                        suggest.disabled = false;
+                    }
+                };
                 sync();
                 panel.hidden = false;
                 status.textContent = '';
