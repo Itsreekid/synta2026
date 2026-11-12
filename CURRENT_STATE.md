@@ -659,3 +659,5 @@ Local loopback Chromium tests exercised the actual student and admin templates a
 Implemented locally behind TIMED_OFFER_UPGRADES_ENABLED, which defaults off. Scheduled annual checkout, verified source credit, wallet collection, admin external confirmation and audited credit corrections reuse the existing timed access paths. Disposable database and browser fixtures exercise the upgrade. Production configuration and staging provider checks remain separate.
 
 - Upgrade audit added tampering, stale quote, revoked/reversed credit, forced rollback, cutoff, and accounting checks. Checkout shows remaining access and exact Tunis expiry. Hosted staging still needs a designated URL and synthetic access.
+
+- Offer editor now displays the API validation reason inline, including incompatible timed terms and unavailable migrations.

@@ -135,8 +135,18 @@ router.post("/api/admin/offers", requireAdmin, async (req, res) => {
     return res.json({ success: true });
   } catch (err) {
     if (err.status === 400) return res.status(400).json({ success: false, error: err.message });
-    console.error("Error managing offer:", err.message);
-    return res.status(500).json({ success: false, error: "Internal server error" });
+    if (err.code === "23514") {
+      const error = err.constraint === "offers_timed_terms"
+        ? "Vérifiez le prix, le minimum de la première tranche et les dates d’accès."
+        : "Ces réglages sont incompatibles avec les règles d’accès ou de surclassement enregistrées.";
+      return res.status(409).json({ success: false, error });
+    }
+    if (err.code === "42703" || err.code === "42P01") {
+      console.error("Offer settings schema unavailable:", err.code);
+      return res.status(503).json({ success: false, error: "Les réglages d’offre sont temporairement indisponibles. Vérifiez les migrations du serveur." });
+    }
+    console.error("Error managing offer:", err.code ?? err.name);
+    return res.status(500).json({ success: false, error: "Impossible d’enregistrer l’offre pour le moment." });
   }
 });
 

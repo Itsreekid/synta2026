@@ -58,8 +58,10 @@ const AdminDashboard = {
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(data)
             });
-            if (!response.ok) throw new Error('Failed to manage offer');
-            const result = await response.json();
+            const result = await response.json().catch(() => null);
+            if (!response.ok || !result) {
+                return { success: false, error: result?.error || 'Impossible d’enregistrer l’offre pour le moment.' };
+            }
             return result;
         } catch (error) {
             console.error('Error managing offer:', error);

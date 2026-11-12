@@ -250,6 +250,7 @@
             <form id="offerForm">
                 <div class="offer-form-fields">
                     <input type="hidden" id="offerId">
+                    <p id="offer-save-error" role="alert" tabindex="-1" hidden style="color:#9f2318"></p>
                     <fieldset class="form-group">
                         <legend>Durée d’accès</legend>
                         <label for="offer-access-mode">Type d’accès</label>
@@ -796,6 +797,7 @@
         }
 
         function loadOfferAccessFields(offer = {}) {
+            document.getElementById('offer-save-error').hidden = true;
             void loadUpgradePolicy(offer);
             accessMode.value = offer.access_mode || '';
             academicYear.value = offer.academic_year_start ?? '';
@@ -805,13 +807,18 @@
         }
         accessMode.addEventListener('change', syncOfferAccessFields);
         academicYear.addEventListener('change', syncOfferAccessFields);
+        let calendarPending = false;
         async function suggestCalendar(refresh) {
+            if (calendarPending) return;
             const year = Number(academicYear.value);
             if (!Number.isInteger(year) || year < 2000 || year > 9998) {
                 calendarResults.textContent = 'Choisissez une année scolaire.';
                 return;
             }
             const generation = ++calendarGeneration;
+            calendarPending = true;
+            const buttons = [document.getElementById('offer-calendar-suggest'), document.getElementById('offer-calendar-refresh')];
+            buttons.forEach(button => { button.disabled = true; });
             calendarResults.textContent = 'Recherche des dates…';
             try {
                 const response = await fetch('/api/admin/offers/calendar-suggestions', {
@@ -821,7 +828,9 @@
                 const data = await response.json();
                 if (generation !== calendarGeneration) return;
                 if (!response.ok) throw new Error(data.error);
-                calendarResults.textContent = 'Dates suggérées. Choisissez une date, puis enregistrez pour la valider.';
+                calendarResults.textContent = data.refresh_limited
+                    ? 'Gemini limite les recherches. Voici les dernières dates enregistrées pour cette année. Vérifiez les sources avant de choisir.'
+                    : 'Dates suggérées. Choisissez une date, puis enregistrez pour la valider.';
                 const labels = { bac_main: 'Fin du Bac principal', classes_end: 'Fin des cours', bac_control: 'Fin du Bac de contrôle' };
                 for (const [type, date] of Object.entries(data.dates || {})) {
                     if (!Object.hasOwn(labels, type)) continue;
@@ -846,6 +855,9 @@
                 }
             } catch (error) {
                 if (generation === calendarGeneration) calendarResults.textContent = error.message || 'Suggestions indisponibles.';
+            } finally {
+                calendarPending = false;
+                buttons.forEach(button => { button.disabled = false; });
             }
         }
         document.getElementById('offer-calendar-suggest').addEventListener('click', () => suggestCalendar(false));
@@ -853,6 +865,13 @@
 
         document.getElementById('offerForm').addEventListener('submit', async (e) => {
             e.preventDefault();
+            const errorNotice = document.getElementById('offer-save-error');
+            errorNotice.hidden = true;
+            const showSaveError = message => {
+                errorNotice.textContent = message;
+                errorNotice.hidden = false;
+                errorNotice.focus();
+            };
             console.log('Form submitted');
             showLoader(true);
 
@@ -881,11 +900,11 @@
                     closeModal();
                     await initOffers();
                 } else {
-                    alert('Erreur: ' + result.error);
+                    showSaveError(result.error || 'Impossible d’enregistrer l’offre.');
                 }
             } catch (err) {
                 console.error('Error submitting form:', err);
-                alert('Une erreur est survenue lors de l\'enregistrement.');
+                showSaveError('Une erreur est survenue lors de l’enregistrement.');
             } finally {
                 showLoader(false);
             }

@@ -3,11 +3,10 @@ import { fail, validDate } from "./timed-offers.js";
 const model = "gemini-3.5-flash-lite";
 export async function calendarSuggestions(db, year, refresh = false) {
   if (!Number.isInteger(year) || year < 2000 || year > 9998) fail(400, "Année scolaire invalide.");
-  if (!refresh) {
-    const { rows: [cached] } = await db.query(
-      "SELECT suggestions,fetched_at FROM offer_academic_calendars WHERE academic_year_start=$1", [year]);
-    if (cached) return { ...cached.suggestions, fetched_at: cached.fetched_at, cached: true };
-  }
+  const { rows: [cached] } = await db.query(
+    "SELECT suggestions,fetched_at FROM offer_academic_calendars WHERE academic_year_start=$1", [year]);
+  const saved = cached && { ...cached.suggestions, fetched_at: cached.fetched_at, cached: true };
+  if (saved && !refresh) return saved;
   const key = process.env.LEARNING_GEMINI_API_KEY?.trim();
   if (!key || key === process.env.GEMINI_API_KEY?.trim() ||
       process.env.LEARNING_GEMINI_ENABLED?.trim().toLowerCase() === "false") fail(503, "Suggestions indisponibles.");
@@ -27,7 +26,10 @@ bac_control=YYYY-MM-DD. Use last exam day, not first. Omit uncertain dates.`
         }] }]
       })
     });
-    if (response.status === 429) fail(429, "Quota des suggestions atteint.");
+    if (response.status === 429) {
+      if (saved) return { ...saved, refresh_limited: true };
+      fail(429, "Gemini limite les recherches pour le moment. Réessayez plus tard ou saisissez la date manuellement.");
+    }
     if (!response.ok) fail(503, "Suggestions indisponibles.");
     payload = await response.json();
   } catch (error) {

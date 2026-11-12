@@ -61,9 +61,15 @@ test("calendar suggestions isolate credentials and accept only grounded dates", 
   assert.deepEqual((await calendarSuggestions(db, 2026)).dates, { bac_main: "2027-06-09" });
   assert.equal(stored.sources.length, 1);
   assert.equal((await calendarSuggestions(db, 2026)).cached, true);
+  remote.mock.mockImplementation(async () => ({ status: 429 }));
+  const fallback = await calendarSuggestions(db, 2026, true);
+  assert.equal(fallback.refresh_limited, true);
+  assert.deepEqual(fallback.dates, stored.dates);
+  stored = undefined;
+  await assert.rejects(calendarSuggestions(db, 2026), { status: 429 });
   process.env.LEARNING_GEMINI_ENABLED = "false";
   await assert.rejects(calendarSuggestions(db, 2026, true), { status: 503 });
-  assert.equal(remote.mock.callCount(), 1);
+  assert.equal(remote.mock.callCount(), 3);
 });
 
 test("monthly boundaries include short-month final days and preserve the nominal anchor", () => {
@@ -285,6 +291,10 @@ test("timed offers on disposable PostgreSQL", { skip: !process.env.BUGI_QA_POSTG
         assert.equal((await call("/api/admin/offers", { id: learner, body: edit })).status, 403);
         const saved = await call("/api/admin/offers", { id: admin, role: "admin", body: edit });
         assert.equal(saved.status, 200, await saved.text());
+        const invalidMinimum = await call("/api/admin/offers", { id: admin, role: "admin",
+          body: { ...edit, minimum_initial_payment: "149.00" } });
+        assert.equal(invalidMinimum.status, 400);
+        assert.match((await invalidMinimum.json()).error, /inférieure ou égale au prix/);
         const quoted = await call(quotePath, { id: learner, body: { offerId } });
         assert.equal(quoted.status, 200);
         const quote = await quoted.json();
