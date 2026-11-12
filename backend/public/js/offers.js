@@ -123,7 +123,7 @@ async function initOffers() {
                         </button>
                         ${offer.scheduled_checkout_enabled && !offer.is_purchased && offer.access_mode === 'academic_year' &&
                             (offer.upgrades_enabled || offer.installment_max > 1) ?
-                            `<button class="acheter-btn scheduled-offer-btn" type="button" data-scheduled-index="${index}">Tranches et surclassement</button>` : ''}
+                            `<button class="acheter-btn scheduled-offer-btn" type="button" data-scheduled-index="${index}">${offer.upgrades_enabled ? 'Passer à cette offre' : 'Payer en plusieurs fois'}</button>` : ''}
                     </div>
                 </div>
             `;
