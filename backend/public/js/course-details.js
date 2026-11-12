@@ -561,7 +561,25 @@ function renderModulesAndLessons(modules, hasAccess, courseProgress) {
     }
 
     container.innerHTML = modules.map((module, moduleIndex) => {
-        const lessons = module.lessons || [];
+        const lessons = [];
+        const leadingQuizzes = [];
+        for (const lesson of module.lessons || []) {
+            if (lesson.type === 'quiz') {
+                const previous = lessons.at(-1);
+                (previous ? previous.quizzes : leadingQuizzes).push(lesson);
+            } else {
+                lessons.push({ lesson, quizzes: lessons.length ? [] : leadingQuizzes });
+            }
+        }
+        const quizIcons = quizzes => quizzes.map(quiz => {
+            const locked = !hasAccess && !quiz.is_preview;
+            const label = `${locked ? 'Mini-défi verrouillé' : 'Ouvrir le mini-défi'} : ${quiz.title || 'Quiz'}`;
+            return `<button type="button" class="lesson-icon quiz" data-quiz-id="${escapeHtml(quiz.id)}"
+                aria-label="${escapeHtml(label)}" title="${escapeHtml(label)}" ${locked ? 'disabled' : ''}
+                onclick="event.stopPropagation(); playLesson(this.dataset.quizId)">
+                <i class="fas fa-${locked ? 'lock' : 'bolt'}" aria-hidden="true"></i>
+            </button>`;
+        }).join('');
 
         return `
             <div class="module-card">
@@ -570,16 +588,13 @@ function renderModulesAndLessons(modules, hasAccess, courseProgress) {
                     <span class="module-toggle" id="toggle-${moduleIndex}">▼</span>
                 </div>
                 <div class="lessons-list" id="lessons-${moduleIndex}">
-                    ${lessons.length > 0 ? lessons.map(lesson => {
+                    ${lessons.length > 0 ? lessons.map(({ lesson, quizzes }) => {
             const isLocked = !hasAccess && !lesson.is_preview;
             const isCompleted = completedIds.includes(lesson.id);
             const duration = formatDuration(lesson.duration);
             
             let iconClass = 'active';
-            let iconHtml = lesson.type === 'quiz'
-                ? '<i class="fas fa-bolt"></i>'
-                : '<i class="fas fa-play" style="margin-left: 2px;"></i>';
-            if (lesson.type === 'quiz') iconClass = 'quiz';
+            let iconHtml = '<i class="fas fa-play" style="margin-left: 2px;"></i>';
             
             if (isLocked) {
                 iconClass = 'locked';
@@ -590,20 +605,21 @@ function renderModulesAndLessons(modules, hasAccess, courseProgress) {
             }
 
             return `
-                            <div class="lesson-item ${lesson.type === 'quiz' ? 'quiz-item' : ''} ${isLocked ? 'locked' : ''}" ${!isLocked ? `onclick="playLesson('${lesson.id}')"` : ''} style="${!isLocked ? 'cursor: pointer;' : ''}">
+                            <div class="lesson-item ${isLocked ? 'locked' : ''}" ${!isLocked ? `onclick="playLesson('${lesson.id}')"` : ''} style="${!isLocked ? 'cursor: pointer;' : ''}">
                                 <div class="lesson-info">
                                     <div class="lesson-icon ${iconClass}">
                                         ${iconHtml}
                                     </div>
                                     <div class="lesson-details">
                                         <div class="lesson-title">${escapeHtml(lesson.title)}</div>
-                                        ${lesson.type === 'quiz' ? '<span class="quiz-checkpoint-badge"><i class="fas fa-bolt" aria-hidden="true"></i> Mini-défi · 3 questions</span>' : ''}
                                         ${lesson.duration && lesson.duration > 0 ? `<div class="lesson-duration"><i class="far fa-clock"></i> ${duration}</div>` : ''}
                                     </div>
                                 </div>
+                                ${quizzes.length ? `<div class="lesson-quiz-actions">${quizIcons(quizzes)}</div>` : ''}
                             </div>
                         `;
-        }).join('') : '<p style="padding: 1rem; color: #94a3b8; text-align: center;">Aucune leçon dans ce module</p>'}
+        }).join('') : leadingQuizzes.length ? `<div class="lesson-quiz-actions">${quizIcons(leadingQuizzes)}</div>` :
+            '<p style="padding: 1rem; color: #94a3b8; text-align: center;">Aucune leçon dans ce module</p>'}
                 </div>
             </div>
         `;
@@ -1547,9 +1563,11 @@ async function openQuizLesson(lessonId, loadedContent = null) {
         const lesson = contentData.lesson || {};
         const questions = lesson.content?.questions;
         if (!Array.isArray(questions) || questions.length !== 3) {
-            window.SyntaAPI.showError('Quiz non disponible ou mal configuré');
+            showError('Ce quiz est indisponible pour le moment.');
             return;
         }
+        if (document.querySelector('.quiz-modal')) return;
+        const trigger = document.activeElement;
         let currentQuestionIndex = 0;
         let score = 0;
         let selectedAnswer = null;
@@ -1566,19 +1584,10 @@ async function openQuizLesson(lessonId, loadedContent = null) {
                 <div id="quiz-content"></div>
             </div>
         `;
-        const positionQuizModal = () => {
-            const mainArea = document.getElementById('main-section');
-            const bounds = mainArea?.getBoundingClientRect();
-            if (!bounds) return;
-            modal.style.setProperty('--quiz-area-left', `${Math.max(0, bounds.left)}px`);
-            modal.style.setProperty('--quiz-area-top', `${Math.max(0, bounds.top)}px`);
-            modal.style.setProperty('--quiz-area-width', `${Math.min(window.innerWidth, bounds.right) - Math.max(0, bounds.left)}px`);
-            modal.style.setProperty('--quiz-area-height', `${Math.min(window.innerHeight, bounds.bottom) - Math.max(0, bounds.top)}px`);
-        };
         const closeQuizModal = () => {
             modal.remove();
-            window.removeEventListener('resize', positionQuizModal);
             document.removeEventListener('keydown', handleQuizEscape);
+            trigger?.focus();
         };
         const handleQuizEscape = event => {
             if (event.key === 'Escape') closeQuizModal();
@@ -1588,12 +1597,11 @@ async function openQuizLesson(lessonId, loadedContent = null) {
             document.getElementById('sidebar-overlay')?.classList.remove('active');
             document.querySelector('.mobile-menu-toggle')?.classList.remove('active');
         }
-        positionQuizModal();
-        window.addEventListener('resize', positionQuizModal);
         modal.querySelector('.close-modal').addEventListener('click', closeQuizModal);
         modal.addEventListener('click', event => { if (event.target === modal) closeQuizModal(); });
         document.addEventListener('keydown', handleQuizEscape);
         document.body.appendChild(modal);
+        modal.querySelector('.close-modal').focus();
         renderQuestion();
 
         function renderQuestion() {
@@ -1618,10 +1626,10 @@ async function openQuizLesson(lessonId, loadedContent = null) {
                 interaction = (question.pairs || []).map((pair,index) => `<label class="quiz-match-row"><strong>${escapeQuizHtml(pair.left)}</strong><select data-match-index="${index}"><option value="">Choisir…</option>${options.map(option => `<option value="${escapeQuizHtml(option)}">${escapeQuizHtml(option)}</option>`).join('')}</select></label>`).join('');
             }
             quizContent.innerHTML = `
-                <div class="quiz-game-header"><span>✨ Mini-défi</span><span>Question ${currentQuestionIndex + 1} sur 3</span></div>
-                <div class="quiz-progress"><span style="width:${Math.round((currentQuestionIndex / questions.length) * 100)}%"></span></div>
+                <div class="quiz-game-header"><span>${escapeQuizHtml(lesson.title || 'Quiz')}</span><span>Question ${currentQuestionIndex + 1} sur ${questions.length}</span></div>
+                <div class="quiz-progress" role="progressbar" aria-label="Progression du quiz" aria-valuemin="0" aria-valuemax="${questions.length}" aria-valuenow="${currentQuestionIndex + 1}"><span style="width:${Math.round(((currentQuestionIndex + 1) / questions.length) * 100)}%"></span></div>
                 <p class="quiz-type-label">${typeLabels[question.type] || 'Question'}</p>
-                <h2 class="quiz-prompt">${escapeQuizHtml(question.text).replaceAll('___','<span class="quiz-blank">_____</span>')}</h2>
+                <h2 class="quiz-prompt" tabindex="-1">${question.type === 'code_drag_drop' ? 'Quel élément complète le code ?' : escapeQuizHtml(question.text)}</h2>
                 <div class="quiz-interaction">${interaction}</div>
                 <div class="quiz-feedback" id="quiz-feedback" aria-live="polite"></div>
                 <button class="quiz-check-button" id="quiz-check-button">Vérifier</button>`;
@@ -1643,7 +1651,11 @@ async function openQuizLesson(lessonId, loadedContent = null) {
                     button.addEventListener('dragstart', event => event.dataTransfer.setData('text/plain', button.textContent));
                 });
                 dropZone.addEventListener('dragover', event => event.preventDefault());
-                dropZone.addEventListener('drop', event => { event.preventDefault(); placeToken(event.dataTransfer.getData('text/plain')); });
+                dropZone.addEventListener('drop', event => {
+                    event.preventDefault();
+                    const token = event.dataTransfer.getData('text/plain');
+                    if (question.options.includes(token)) placeToken(token);
+                });
             }
             container.querySelectorAll('[data-move]').forEach(button => button.addEventListener('click', () => {
                 const index = Number(button.closest('[data-order-index]').dataset.orderIndex);
@@ -1660,6 +1672,7 @@ async function openQuizLesson(lessonId, loadedContent = null) {
                     event.preventDefault();
                     const from = Number(event.dataTransfer.getData('text/plain'));
                     const to = Number(row.dataset.orderIndex);
+                    if (!/^\d+$/.test(event.dataTransfer.getData('text/plain')) || from >= selectedAnswer.length) return;
                     selectedAnswer.splice(to, 0, selectedAnswer.splice(from, 1)[0]);
                     renderQuestion();
                 });
@@ -1683,32 +1696,44 @@ async function openQuizLesson(lessonId, loadedContent = null) {
             else if (question.type === 'matching') isCorrect = question.pairs.every((pair,index) => selectedAnswer[index] === pair.right);
             if (isCorrect) score++;
             const feedback = container.querySelector('#quiz-feedback');
-            feedback.textContent = isCorrect ? 'Bien joué ! Tu as compris 👏' : 'Pas tout à fait — retiens la bonne réponse et continue 💡';
+            const correction = question.type === 'matching' ? question.pairs.map(pair => `${pair.left} → ${pair.right}`).join(' · ')
+                : question.type === 'ordering' ? question.answer.join(' → ')
+                : question.type === 'true_false' ? (question.answer ? 'Vrai' : 'Faux') : question.answer;
+            feedback.textContent = isCorrect ? 'Bonne réponse !' : `Réponse attendue : ${correction}`;
             feedback.className = `quiz-feedback ${isCorrect ? 'is-correct' : 'is-incorrect'}`;
             const checkButton = container.querySelector('#quiz-check-button');
             checkButton.textContent = currentQuestionIndex === questions.length - 1 ? 'Voir mon résultat' : 'Question suivante';
-            checkButton.onclick = async () => {
-                try {
-                    await fetch('/api/tracking/response', { method:'POST', credentials:'include', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ lessonId, questionId:`q${currentQuestionIndex + 1}`, category:question.type, selectedOption:JSON.stringify(selectedAnswer), isCorrect, pointsEarned:isCorrect ? 1 : 0 }) });
-                } catch (error) { console.warn('Quiz response tracking failed:', error); }
+            checkButton.onclick = () => {
+                checkButton.disabled = true;
+                void fetch('/api/tracking/response', { method:'POST', credentials:'include', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ lessonId, questionId:`q${currentQuestionIndex + 1}`, category:question.type, selectedOption:JSON.stringify(selectedAnswer), isCorrect, pointsEarned:isCorrect ? 1 : 0 }) })
+                    .catch(error => console.warn('Quiz response tracking failed:', error));
                 currentQuestionIndex++;
-                if (currentQuestionIndex < questions.length) renderQuestion();
+                if (currentQuestionIndex < questions.length) {
+                    renderQuestion();
+                    container.querySelector('.quiz-prompt').focus();
+                }
                 else showResults();
             };
             checkButton.classList.add('is-next');
             container.querySelectorAll('button,select').forEach(control => { if (control !== checkButton) control.disabled = true; });
         }
 
-        async function showResults() {
+        function showResults() {
             const passed = score >= 2;
             modal.querySelector('#quiz-content').innerHTML = `<div class="quiz-results"><div class="quiz-result-emoji">${passed ? '🎉' : '🌱'}</div><span class="quiz-type-label">Mini-défi terminé</span><h2>${passed ? 'Bravo, continue comme ça !' : 'Chaque essai te fait progresser !'}</h2><p>Tu as obtenu <strong>${score} / ${questions.length}</strong></p><div class="quiz-result-stars">${'⭐'.repeat(score)}${'☆'.repeat(questions.length - score)}</div><button class="quiz-check-button" id="quiz-finish">Continuer le cours</button></div>`;
-            await window.SyntaAPI.markLessonComplete(lessonId, 100);
-            modal.querySelector('#quiz-finish').addEventListener('click', () => { modal.remove(); loadCourseDetails(currentCourse.id); });
+            const completion = Promise.resolve().then(() => window.SyntaAPI.markLessonComplete(lessonId, 100))
+                .catch(error => console.warn('Quiz completion failed:', error));
+            const finish = modal.querySelector('#quiz-finish');
+            finish.focus();
+            finish.addEventListener('click', () => {
+                closeQuizModal();
+                void completion.then(() => { if (currentCourse && !courseOverview) return loadCourseDetails(currentCourse.id); });
+            });
         }
 
     } catch (error) {
         console.error('Error opening quiz:', error);
-        window.SyntaAPI.showError(error.message || 'Impossible d’ouvrir le quiz');
+        showError('Impossible d’ouvrir le quiz.');
     }
 }
 

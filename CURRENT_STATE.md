@@ -621,3 +621,7 @@ The catalog cards now use native links. Course details group the description, co
 - Course players now discard outdated lesson requests, show video loading and failure states, and request fresh media links on retry. Real-device playback remains a staging check.
 
 - The course catalog reloads when browser Back restores a cached page, preserves existing cards during refresh, and provides a retry state on catalog failures.
+
+- Course quizzes now appear as lightning buttons on the preceding lesson row, with icon-only access for quiz-only chapters.
+
+- Student quiz shows authored titles and corrections and advances independently of response tracking. The admin editor keeps save controls visible and preserves commas inside answer choices.

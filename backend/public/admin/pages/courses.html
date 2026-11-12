@@ -187,6 +187,12 @@
         .quiz-question-card textarea,.quiz-question-card input,.quiz-question-card select { width:100%; padding:.65rem; border:1px solid var(--border); border-radius:8px; font:inherit; }
         .quiz-question-fields { display:grid; grid-template-columns:1fr 1fr; gap:.65rem; margin-top:.65rem; }
         .quiz-builder-hint { color:var(--text-muted); font-size:.84rem; }
+        #quizBuilderModal .quiz-builder { padding: clamp(1rem, 3vw, 1.75rem); max-height: 92dvh; background: #f4f8fb; }
+        #quizBuilderHeading { margin: 0; color: #062c40; }
+        .quiz-question-card > strong { display: block; margin-bottom: .7rem; color: #062c40; }
+        .quiz-question-card > label { display: block; margin-bottom: .65rem; }
+        .quiz-builder-footer { position: sticky; bottom: 0; display: flex; flex-wrap: wrap; justify-content: flex-end; gap: .55rem; padding: .75rem 0; background: #f4f8fb; border-top: 1px solid #dbe5ec; }
+        @media (max-width: 560px) { .quiz-builder .quiz-question-fields { grid-template-columns: minmax(0, 1fr); } }
         .chapter-lessons { padding:0 .5rem .6rem 1rem; }
         .chapter-form { display:grid; grid-template-columns:1fr 1fr auto; gap:.6rem; margin:1rem 0; }
         .chapter-form input, .chapter-form select { min-width:0; padding:.65rem; border:1px solid var(--border); border-radius:8px; }
@@ -673,16 +679,16 @@
         </div>
     </div>
 
-    <div id="quizBuilderModal" class="modal">
+    <div id="quizBuilderModal" class="modal" role="dialog" aria-modal="true" aria-labelledby="quizBuilderHeading">
         <div class="modal-content quiz-builder">
             <div style="display:flex;justify-content:space-between;align-items:center;gap:1rem">
-                <div><h2 id="quizBuilderHeading">Créer un quiz</h2><p class="quiz-builder-hint">3 questions courtes · 5 styles interactifs · le quiz se place dans l’ordre des leçons</p></div>
+                <div><h2 id="quizBuilderHeading">Créer un quiz</h2><p class="quiz-builder-hint">Prépare trois questions et leurs corrections.</p></div>
                 <button type="button" class="btn-icon" onclick="closeQuizBuilder()" aria-label="Fermer"><i class="fas fa-times"></i></button>
             </div>
             <label style="display:block;margin:.8rem 0">Titre du quiz<input id="quizLessonTitle" style="display:block;width:100%;padding:.7rem;border:1px solid var(--border);border-radius:8px" placeholder="Ex. Mini-défi : les variables"></label>
             <label style="display:block;margin:.8rem 0">Petite consigne (facultatif)<input id="quizLessonDescription" style="display:block;width:100%;padding:.7rem;border:1px solid var(--border);border-radius:8px" placeholder="3 questions pour vérifier ce que tu as retenu"></label>
             <div id="quizQuestionBuilder"></div>
-            <div style="display:flex;justify-content:flex-end;gap:.6rem;margin-top:1rem"><button type="button" class="btn" onclick="closeQuizBuilder()">Annuler</button><button type="button" class="btn btn-primary" onclick="saveQuizBuilder()"><i class="fas fa-save"></i> Enregistrer le quiz</button></div>
+            <div class="quiz-builder-footer"><button type="button" class="btn" onclick="closeQuizBuilder()">Annuler</button><button type="button" class="btn btn-primary" id="quizSaveButton" onclick="saveQuizBuilder()">Enregistrer le quiz</button></div>
         </div>
     </div>
 
@@ -1042,6 +1048,7 @@
             ];
             renderQuizQuestionBuilder([0,1,2].map(index => existing[index] || defaults[index]));
             document.getElementById('quizBuilderModal').style.display = 'flex';
+            document.getElementById('quizLessonTitle').focus();
         }
 
         function closeQuizBuilder() { document.getElementById('quizBuilderModal').style.display = 'none'; }
@@ -1051,10 +1058,10 @@
             document.getElementById('quizQuestionBuilder').innerHTML = questions.map((question, index) => `
                 <section class="quiz-question-card" data-question-index="${index}">
                     <strong>Question ${index + 1}</strong>
-                    <select data-question-type onchange="renderQuizQuestionFields(${index},this.value)" style="margin-top:.55rem">
+                    <label>Type de question<select data-question-type onchange="renderQuizQuestionFields(${index},this.value)" style="margin-top:.35rem">
                         ${Object.entries(typeNames).map(([value,label]) => `<option value="${value}" ${question.type === value ? 'selected' : ''}>${label}</option>`).join('')}
-                    </select>
-                    <textarea data-question-text rows="2" placeholder="Écris une question courte" style="margin-top:.55rem">${escHtml(question.text || '')}</textarea>
+                    </select></label>
+                    <label>Énoncé<textarea data-question-text rows="2" placeholder="Écris une question courte" style="margin-top:.35rem">${escHtml(question.text || '')}</textarea></label>
                     <div class="quiz-question-fields" data-question-fields>${quizFieldsHtml(question)}</div>
                 </section>`).join('');
         }
@@ -1065,7 +1072,7 @@
             if (type === 'ordering') return `<label style="grid-column:1/-1">Éléments dans le bon ordre<textarea data-items rows="3" placeholder="Un élément par ligne">${escHtml((question.items || question.answer || []).join('\n'))}</textarea></label><span class="quiz-builder-hint">L’élève devra remettre ces éléments dans l’ordre.</span>`;
             if (type === 'matching') return `<label style="grid-column:1/-1">Paires à associer<textarea data-pairs rows="4" placeholder="Terme | Définition&#10;Variable | Zone mémoire">${escHtml((question.pairs || []).map(pair => `${pair.left} | ${pair.right}`).join('\n'))}</textarea></label><span class="quiz-builder-hint">Une paire par ligne, séparée par |</span>`;
             const isCode = type === 'code_drag_drop';
-            return `<label>Réponses possibles (séparées par virgules)<input data-options value="${escHtml((question.options || []).join(', '))}" placeholder="mot1, mot2, mot3"></label><label>Bonne réponse<input data-answer value="${escHtml(question.answer || '')}" placeholder="Copie exactement la bonne réponse"></label>${isCode ? '<span class="quiz-builder-hint" style="grid-column:1/-1">Dans la question, indique la zone à compléter avec ___ ; l’élève glissera un mot dans le code.</span>' : ''}`;
+            return `<label>Choix de réponse (un par ligne)<textarea data-options rows="3">${escHtml((question.options || []).join('\n'))}</textarea></label><label>Bonne réponse<input data-answer value="${escHtml(question.answer || '')}" placeholder="Saisis l’un des choix"></label>${isCode ? '<span class="quiz-builder-hint" style="grid-column:1/-1">Indique la zone à compléter avec ___ dans l’énoncé.</span>' : ''}`;
         }
 
         function renderQuizQuestionFields(index, type) {
@@ -1088,11 +1095,13 @@
                 }).filter(pair => pair.left && pair.right);
                 return { type, text, pairs };
             }
-            const options = card.querySelector('[data-options]').value.split(',').map(value => value.trim()).filter(Boolean);
+            const options = [...new Set(card.querySelector('[data-options]').value.split('\n').map(value => value.trim()).filter(Boolean))];
             return { type, text, options, answer:card.querySelector('[data-answer]').value.trim() };
         }
 
         async function saveQuizBuilder() {
+            const saveButton = document.getElementById('quizSaveButton');
+            if (saveButton.disabled) return;
             const title = document.getElementById('quizLessonTitle').value.trim();
             const description = document.getElementById('quizLessonDescription').value.trim();
             const questions = [...document.querySelectorAll('.quiz-question-card')].map(collectQuizQuestion);
@@ -1103,6 +1112,8 @@
             if (questions.some(question => question.type === 'ordering' && question.items.length < 2)) return showToast('Ajoute au moins 2 éléments à remettre dans l’ordre.', 'error');
             if (questions.some(question => question.type === 'matching' && question.pairs.length < 2)) return showToast('Ajoute au moins 2 paires à associer.', 'error');
             const body = { title, description, type:'quiz', duration:0, isPreview:false, content:{ version:1, questions } };
+            saveButton.disabled = true;
+            saveButton.textContent = 'Enregistrement…';
             try {
                 const url = activeQuizLessonId ? `/api/admin/lessons/${activeQuizLessonId}` : `/api/admin/modules/${activeQuizModuleId}/lessons`;
                 const response = await fetch(url, { method:activeQuizLessonId ? 'PATCH' : 'POST', credentials:'include', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body) });
@@ -1112,6 +1123,10 @@
                 showToast(activeQuizLessonId ? 'Quiz mis à jour.' : 'Quiz ajouté dans le chapitre.', 'success');
                 await loadChapterManager();
             } catch (error) { showToast(error.message, 'error'); }
+            finally {
+                saveButton.disabled = false;
+                saveButton.textContent = 'Enregistrer le quiz';
+            }
         }
 
         function editInteractiveQuiz(lessonId) {

@@ -654,6 +654,19 @@
         .course-replay-external { display: inline-flex; margin-top: .75rem; }
         .course-video-status { display: flex; align-items: center; flex-wrap: wrap; gap: .65rem; padding: .8rem 1rem; margin-bottom: .5rem; border-radius: 10px; background: #eaf3f8; color: #062c40; }
         .course-video-status[hidden], .course-video-status button[hidden] { display: none; }
+        .lesson-quiz-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: .35rem; margin-inline-start: auto; }
+        button.lesson-icon.quiz { border: 0; width: 44px; height: 44px; flex: 0 0 44px; cursor: pointer; }
+        button.lesson-icon.quiz:disabled { opacity: .55; cursor: default; }
+        button.lesson-icon.quiz:focus-visible { outline: 2px solid #6d28d9; outline-offset: 2px; }
+        .quiz-modal.quiz-modal { inset: 0; width: 100%; height: 100%; height: 100dvh; background: rgb(4 31 46 / .66); }
+        .quiz-modal .quiz-modal-content { border: 1px solid #dbe5ec; border-radius: 18px; }
+        .quiz-modal .quiz-game-header { align-items: flex-start; }
+        .quiz-modal .quiz-game-header span:first-child { color: #062c40; overflow-wrap: anywhere; }
+        .quiz-modal .quiz-game-header span:last-child { flex-shrink: 0; }
+        .quiz-modal .quiz-choice { min-height: 48px; }
+        .quiz-modal .quiz-check-button { min-height: 48px; background: #0b647d; box-shadow: none; }
+        .quiz-modal .quiz-check-button.is-next { background: #087554; }
+        .quiz-modal .quiz-feedback { overflow-wrap: anywhere; }
         @media (max-width: 1024px) {
             .course-hero { flex-direction: row; text-align: start; }
         }
