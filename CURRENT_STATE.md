@@ -665,3 +665,7 @@ Implemented locally behind TIMED_OFFER_UPGRADES_ENABLED, which defaults off. Sch
 - The offer calendar accepts a public source URL via Gemini URL Context, and the editor displays consecutive school years as YYYY/YYYY.
 
 - Admin upgrade rules use an expandable source checklist with aligned controls and conditional deadline and partial-payment fields.
+
+- Installment suggestions now display a French recovery message for plain-text gateway failures.
+
+- Student offer cards now show a single checkout action. The scheduled checkout uses a centered responsive dialog and separates credit, due-now amount, and the remaining schedule.

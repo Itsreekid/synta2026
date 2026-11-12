@@ -500,8 +500,13 @@ test("timed offers on disposable PostgreSQL", { skip: !process.env.BUGI_QA_POSTG
                     await open("/app/offers", token(id, "user"), width);
                     const selector = `[...document.querySelectorAll('.offer-card')].find(c=>c.querySelector('img')?.alt==='Browser upgrade target')?.querySelector('[data-scheduled-index]')`;
                     await until(() => evaluate(`Boolean(${selector})`), "scheduled checkout button");
+                    assert.equal(await evaluate(`${selector}.closest('.purchase-section').querySelectorAll('button').length`), 1);
                     assert.equal(await evaluate(`${selector}.closest('.offer-card').querySelector('.feature-text').textContent`), "<b>Libellé synthétique</b>");
                     await evaluate(`${selector}.click()`);
+                    assert.equal(await evaluate(`(() => {
+                      const box = document.querySelector('.offer-checkout-dialog').getBoundingClientRect();
+                      return box.left > 0 && box.top > 0 && Math.abs(box.left + box.width / 2 - innerWidth / 2) < 2;
+                    })()`), true);
                     if (useCredit) await until(() => evaluate("document.querySelector('dialog [name=source]')?.options.length > 1"), "eligible credit option");
                     await evaluate(`(() => {
                       const f=document.querySelector('dialog form');

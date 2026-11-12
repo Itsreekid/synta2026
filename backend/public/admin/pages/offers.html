@@ -332,8 +332,14 @@
                             <input type="number" id="fixed_price" step="0.1" required>
                         </div>
                         <div class="form-group">
-                            <label>Réduction (%)</label>
-                            <input type="number" id="discount_percentage" value="0">
+                            <label for="discount_enabled">Afficher une réduction</label>
+                            <select id="discount_enabled">
+                                <option value="no">Non</option>
+                                <option value="yes">Oui</option>
+                            </select>
+                            <label id="discount_amount_field" hidden>Réduction (DT)
+                                <input type="number" id="discount_percentage" min="0.01" step="0.01" disabled>
+                            </label>
                         </div>
                     </div>
                     <div class="form-group">
@@ -594,6 +600,7 @@
             try {
                 document.getElementById('modalTitle').textContent = 'Nouvelle Offre';
                 document.getElementById('offerForm').reset();
+                syncOfferDiscount();
                 loadOfferAccessFields();
                 document.getElementById('offerId').value = '';
                 document.getElementById('offerImageUrl').value = '';
@@ -656,7 +663,9 @@
                 }
 
                 document.getElementById('fixed_price').value = offer.fixed_price || 0;
-                document.getElementById('discount_percentage').value = offer.discount_percentage || 0;
+                document.getElementById('discount_enabled').value = Number(offer.discount_percentage) > 0 ? 'yes' : 'no';
+                document.getElementById('discount_percentage').value = Number(offer.discount_percentage) > 0 ? offer.discount_percentage : '';
+                syncOfferDiscount();
                 document.getElementById('is_active').checked = !!offer.is_active;
                 document.getElementById('is_best_seller').checked = !!offer.is_best_seller;
                 if(typeof updateSwitchUI === 'function') updateSwitchUI();
@@ -829,11 +838,17 @@
                     preview.textContent = 'Préparation d’une proposition…';
                     try {
                         const response = await fetch('/api/admin/offers/installment-suggestions', {
-                            method:'POST', headers:{'Content-Type':'application/json'}, body:input
+                            method:'POST', headers:{'Content-Type':'application/json', Accept:'application/json'}, body:input
                         });
-                        const data = await response.json();
+                        const data = response.headers.get('content-type')?.includes('application/json')
+                            ? await response.json().catch(() => null) : null;
                         if (!current()) return;
-                        if (!response.ok) throw new Error(data.error);
+                        if (!response.ok || !data) {
+                            const message = [502, 503, 504].includes(response.status)
+                                ? 'Le serveur est temporairement indisponible. Réessayez dans un instant ou renseignez les échéances manuellement.'
+                                : 'Impossible de préparer la proposition. Vous pouvez renseigner les échéances manuellement.';
+                            throw new Error(data?.error || message);
+                        }
                         preview.textContent = (data.source === 'gemini' ? 'Échéances suggérées par Gemini. ' : 'Échéances standard. ') +
                             'Premier paiement : ' + data.dueNow + ' DT. Dates indicatives pour une confirmation aujourd’hui à Tunis.';
                         const list = document.createElement('ul');
@@ -952,6 +967,15 @@
         document.getElementById('offer-calendar-suggest').addEventListener('click', () => suggestCalendar(false));
         document.getElementById('offer-calendar-refresh').addEventListener('click', () => suggestCalendar(true));
 
+        function syncOfferDiscount() {
+            const enabled = document.getElementById('discount_enabled').value === 'yes';
+            const amount = document.getElementById('discount_percentage');
+            document.getElementById('discount_amount_field').hidden = !enabled;
+            amount.disabled = !enabled;
+            amount.required = enabled;
+        }
+        document.getElementById('discount_enabled').addEventListener('change', syncOfferDiscount);
+
         document.getElementById('offerForm').addEventListener('submit', async (e) => {
             e.preventDefault();
             const errorNotice = document.getElementById('offer-save-error');
@@ -975,7 +999,8 @@
                     academic_year_start: academicYearStart(),
                     access_cutoff_date: document.getElementById('offer-access-cutoff').value || null,
                     minimum_initial_payment: document.getElementById('offer-initial-payment').value || null,
-                    discount_percentage: parseInt(document.getElementById('discount_percentage').value),
+                    discount_percentage: document.getElementById('discount_enabled').value === 'yes'
+                        ? document.getElementById('discount_percentage').value : null,
                     is_active: document.getElementById('is_active').checked,
                     is_best_seller: document.getElementById('is_best_seller').checked,
                     target_classes: Array.from(document.querySelectorAll('#target_classes_group input[type="checkbox"]:checked')).map(cb => cb.value.toLowerCase()),

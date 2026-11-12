@@ -90,7 +90,7 @@ async function initOffers() {
                     <div class="offer-price-section">
                         ${discountAmount > 0 ? `<div class="discount-badge">-${discountAmount}</div>` : ''}
                         <div class="price-comparison">
-                            <span class="original-price">${originalPrice} DT</span>
+                            ${discountAmount > 0 ? `<span class="original-price">${originalPrice} DT</span>` : ''}
                             <div class="current-price-container">
                                 <span class="current-price">${price}</span>
                                 <span class="currency-label">DT</span>
@@ -115,15 +115,15 @@ async function initOffers() {
                     </div>
 
                     <div class="purchase-section">
-                        <button class="acheter-btn ${offer.is_purchased ? 'purchased-btn' : ''}" 
+                        ${offer.scheduled_checkout_enabled && !offer.is_purchased && offer.access_mode === 'academic_year' &&
+                            (offer.upgrades_enabled || offer.installment_max > 1) ?
+                            `<button class="acheter-btn scheduled-offer-btn" type="button" data-scheduled-index="${index}">${offer.upgrades_enabled ? 'Passer à cette offre' : 'Choisir mon paiement'}</button>` :
+                        `<button class="acheter-btn ${offer.is_purchased ? 'purchased-btn' : ''}"
                             ${!offer.can_purchase || timedUnavailable ? 'disabled' : ''}
                             data-offer-index="${index}"
                             ${offer.is_purchased ? 'style="background-color: #10b981; color: white;"' : ''}>
                             ${timedUnavailable ? 'Indisponible' : renewable && offer.can_purchase ? 'Renouveler' : offer.is_purchased ? 'Déjà possédé' : (offer.can_purchase ? 'Acheter' : 'Solde insuffisant')}
-                        </button>
-                        ${offer.scheduled_checkout_enabled && !offer.is_purchased && offer.access_mode === 'academic_year' &&
-                            (offer.upgrades_enabled || offer.installment_max > 1) ?
-                            `<button class="acheter-btn scheduled-offer-btn" type="button" data-scheduled-index="${index}">${offer.upgrades_enabled ? 'Passer à cette offre' : 'Payer en plusieurs fois'}</button>` : ''}
+                        </button>`}
                     </div>
                 </div>
             `;

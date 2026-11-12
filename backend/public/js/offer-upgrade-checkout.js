@@ -4,7 +4,8 @@
             credentials: 'include',
             ...(body && { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
         });
-        const result = await response.json();
+        const result = await response.json().catch(() => null);
+        if (!result) throw new Error('Le paiement est temporairement indisponible. Réessayez dans un instant.');
         if (!response.ok || result.success === false) throw new Error(result.error || 'Opération indisponible.');
         return result;
     }
@@ -12,11 +13,27 @@
     window.openScheduledOfferCheckout = async function (offer, adminStudentId = null) {
         const root = adminStudentId ? '/api/admin/student/' + encodeURIComponent(adminStudentId) + '/offer-upgrade' : '/api/purchase/offer-upgrade';
         const dialog = document.createElement('dialog');
-        dialog.style.cssText = 'width:min(92vw,34rem);max-height:85dvh;overflow:auto;padding:1.25rem;border:1px solid #dce6ef;border-radius:16px;color:#062c40';
-        dialog.innerHTML = '<form><h2></h2><label>Offre source <select name="source"><option value="">Sans crédit</option></select></label><br>' +
-            '<label>Nombre de paiements <select name="count"></select></label><p role="status"></p><div data-quote></div>' +
-            '<button type="submit">Afficher le devis</button> <button type="button" data-reset hidden>Nouveau devis</button> ' +
-            '<button type="button" data-close>Fermer</button></form>';
+        dialog.className = 'offer-checkout-dialog';
+        dialog.setAttribute('aria-labelledby', 'offer-checkout-title');
+        dialog.innerHTML = `<form>
+            <header class="offer-checkout-header">
+                <div><p>Choisis ton paiement</p><h2 id="offer-checkout-title" dir="auto"></h2></div>
+                <button type="button" data-close aria-label="Fermer">×</button>
+            </header>
+            <div class="offer-checkout-content">
+                <div class="offer-checkout-options">
+                    <label data-source-field hidden>Crédit d’une offre déjà payée
+                        <select name="source"><option value="">Sans utiliser de crédit</option></select>
+                    </label>
+                    <label>Nombre de paiements <select name="count"></select></label>
+                </div>
+                <p class="offer-checkout-status" role="status"></p><div data-quote></div>
+            </div>
+            <footer class="offer-checkout-footer">
+                <button type="button" data-reset hidden>Nouveau devis</button>
+                <button type="submit">Afficher le devis</button>
+            </footer>
+        </form>`;
         document.body.appendChild(dialog);
         dialog.addEventListener('close', () => dialog.remove(), { once: true });
         const form = dialog.querySelector('form');
@@ -27,7 +44,7 @@
         form.querySelector('h2').textContent = offer.title;
         form.querySelector('[data-close]').onclick = () => dialog.close();
         for (let count = 1; count <= (offer.installment_max || 1); count++) {
-            form.elements.count.add(new Option(String(count), String(count)));
+            form.elements.count.add(new Option(count === 1 ? '1 paiement · intégral' : count + ' paiements', String(count)));
         }
         dialog.showModal();
         let currentQuote;
@@ -66,7 +83,8 @@
                 currentQuote = await request(root + '/quote', { targetId: offer.id,
                     sourceId: form.elements.source.value || null, count: Number(form.elements.count.value) });
                 const q = currentQuote;
-                const summary = document.createElement('p');
+                const summary = document.createElement('div');
+                summary.className = 'offer-checkout-totals';
                 const tunisDate = new Intl.DateTimeFormat('fr-FR', {
                     timeZone: 'Africa/Tunis', dateStyle: 'long', timeStyle: 'short'
                 });
@@ -74,24 +92,40 @@
                 const days = Math.floor(q.remainingMinutes / 1440);
                 const hours = Math.floor(q.remainingMinutes % 1440 / 60);
                 const duration = [days && days + ' j', hours && hours + ' h', q.remainingMinutes % 60 + ' min'].filter(Boolean).join(' ');
-                summary.textContent = 'Prix : ' + q.price + ' DT · Crédit : ' + q.credit + ' DT · À payer maintenant : ' +
-                    q.dueNow + ' DT · Solde annuel : ' + q.remaining + ' DT. Année scolaire ' + q.academicYear + '–' +
-                    (q.academicYear + 1) + '. Dernier jour inclus : ' + cutoffDate.format(new Date(q.cutoff + 'T00:00:00Z')) +
-                    '. Fin d’accès : ' + tunisDate.format(new Date(q.expires_at)) + ' (Tunis). Accès restant : environ ' + duration + '.';
+                for (const [label, value] of [['Prix', q.price], ['Crédit', q.credit], ['À payer maintenant', q.dueNow], ['Solde annuel', q.remaining]]) {
+                    const metric = document.createElement('div');
+                    const amount = document.createElement('strong');
+                    amount.textContent = value + ' DT';
+                    metric.append(label + ' : ', amount);
+                    summary.append(metric);
+                }
                 quoteArea.append(summary);
+                const terms = document.createElement('p');
+                terms.className = 'offer-checkout-terms';
+                terms.textContent = 'Année scolaire ' + q.academicYear + '/' + (q.academicYear + 1) +
+                    '. Dernier jour inclus : ' + cutoffDate.format(new Date(q.cutoff + 'T00:00:00Z')) +
+                    '. Fin d’accès : ' + tunisDate.format(new Date(q.expires_at)) + ' (Tunis). Accès restant : environ ' + duration + '.';
+                quoteArea.append(terms);
                 const list = document.createElement('ol');
-                for (const row of q.schedule) {
+                list.className = 'offer-checkout-schedule';
+                for (const [index, row] of q.schedule.entries()) {
+                    if (row.remaining === '0.00') continue;
                     const item = document.createElement('li');
-                    item.textContent = row.amount + ' DT · Reste ' + row.remaining + ' DT · ' +
+                    item.textContent = 'Tranche ' + (index + 1) + ' : ' + row.remaining + ' DT · ' +
                         (row.dueDate ? cutoffDate.format(new Date(row.dueDate + 'T00:00:00Z')) : 'Aucune échéance définie');
                     list.append(item);
                 }
-                quoteArea.append(list);
+                if (list.children.length) {
+                    const heading = document.createElement('strong');
+                    heading.textContent = 'Paiements restants';
+                    quoteArea.append(heading, list);
+                }
                 if (q.sourceDebt !== '0.00') {
                     const debt = document.createElement('p');
                     debt.textContent = 'Dette de l’offre source : ' + q.sourceDebt + ' DT. Solde de l’offre annuelle : ' + q.remaining + ' DT.';
                     quoteArea.append(debt);
                     const acknowledgement = document.createElement('label');
+                    acknowledgement.className = 'offer-checkout-check';
                     acknowledgement.innerHTML = '<input name="acceptDebt" type="checkbox" required> Je confirme que les deux obligations restent payables.';
                     quoteArea.append(acknowledgement);
                 }
@@ -102,7 +136,8 @@
                         '<label><input name="verified" type="checkbox" required> Paiement vérifié</label>';
                     quoteArea.append(external);
                 }
-                submit.textContent = 'Confirmer';
+                submit.textContent = q.dueNow === '0.00' ? 'Confirmer sans paiement' :
+                    adminStudentId ? 'Confirmer le paiement externe' : 'Confirmer et payer ' + q.dueNow + ' DT';
                 refresh.hidden = false;
             } catch (error) {
                 status.textContent = error.message;
@@ -117,6 +152,7 @@
             try {
                 const { sources } = await request(root + '/' + encodeURIComponent(offer.id) + '/sources');
                 for (const source of sources) form.elements.source.add(new Option(source.title, source.id));
+                form.querySelector('[data-source-field]').hidden = sources.length === 0;
             } catch (error) { status.textContent = error.message; }
         }
 
