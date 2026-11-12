@@ -633,3 +633,7 @@ The catalog cards now use native links. Course details group the description, co
 - On desktop the course overview and resources share a sticky right sidebar. On narrower screens the overview appears above the chapters.
 
 - The course overview Resources card lists distinct file formats from course lessons and live sessions the student can access. File links stay with the lesson or replay.
+
+- Course chapter and replay panels override the shared mobile section height so they scroll within the main course page with Resources below.
+
+- Admins can upload or replace a video lesson's MP4/WebM via private R2 upload, or remove its video reference while retaining the lesson and stored objects. Verify a real R2 upload in staging.

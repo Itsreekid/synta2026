@@ -5,7 +5,7 @@ import pool from "../config/db.js";
 import { requireAdmin } from "../middleware/requireAdmin.js";
 import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
-import { createR2UploadUrl, deleteFromR2, listRecentR2Objects, uploadToR2 } from "../utils/r2Utils.js";
+import { createR2UploadUrl, deleteFromR2, listRecentR2Objects, readR2ObjectMetadata, uploadToR2 } from "../utils/r2Utils.js";
 import { offerEntitlement, legacyOfferEntitlement } from "../utils/offerAccess.js";
 
 import { COURSE_IMAGE_PREFIX, courseImagePath, decodeCourseImage, isCourseImageKey } from "../utils/courseImages.js";
@@ -551,7 +551,8 @@ router.get("/api/admin/courses/:courseId/modules", requireAdmin, async (req, res
               COALESCE(json_agg(json_build_object(
                 'id', l.id, 'title', l.title, 'description', l.description,
                 'type', l.type, 'duration', l.duration, 'order_index', l.order_index,
-                'is_preview', l.is_preview, 'has_document', (l.pdf_key IS NOT NULL), 'content', l.content,
+                'is_preview', l.is_preview, 'has_document', (l.pdf_key IS NOT NULL),
+                'has_video', (NULLIF(TRIM(l.video_key), '') IS NOT NULL), 'content', l.content,
                 'resources', COALESCE((SELECT json_agg(json_build_object(
                   'id', lr.id, 'title', lr.title, 'file_name', lr.file_name, 'file_size', lr.file_size
                 ) ORDER BY lr.created_at) FROM learning_resources lr WHERE lr.lesson_id = l.id), '[]'::json)
@@ -755,6 +756,55 @@ router.delete("/api/admin/lessons/:lessonId", requireAdmin, async (req, res) => 
   } catch (error) {
     console.error("Error deleting lesson:", error.message);
     res.status(500).json({ success: false, error: "Could not delete lesson" });
+  }
+});
+
+const lessonVideoLimit = 1024 ** 3;
+const lessonVideoTypes = { mp4: "video/mp4", webm: "video/webm" };
+
+router.post("/api/admin/lessons/:lessonId/video-upload-url", requireAdmin, async (req, res) => {
+  const { fileName, size } = req.body || {};
+  const extension = typeof fileName === "string" ? /\.(mp4|webm)$/i.exec(fileName)?.[1].toLowerCase() : null;
+  if (!extension || !Number.isSafeInteger(size) || size < 1 || size > lessonVideoLimit) {
+    return res.status(400).json({ error: "Choisissez une vidéo MP4 ou WebM de 1 Go maximum." });
+  }
+  try {
+    const { rows: [lesson] } = await pool.query("SELECT id FROM lessons WHERE id=$1 AND type='video'", [req.params.lessonId]);
+    if (!lesson) return res.status(404).json({ error: "Leçon vidéo introuvable." });
+    const key = `lesson-videos/${lesson.id}/${randomUUID()}.${extension}`;
+    const contentType = lessonVideoTypes[extension];
+    const uploadUrl = await createR2UploadUrl(key, contentType);
+    res.json({ success: true, key, uploadUrl, contentType });
+  } catch (error) {
+    console.error("Lesson video upload preparation failed:", error.code ?? error.name);
+    res.status(500).json({ error: "Impossible de préparer le téléversement." });
+  }
+});
+
+router.patch("/api/admin/lessons/:lessonId/video", requireAdmin, async (req, res) => {
+  const { lessonId } = req.params;
+  const { key } = req.body || {};
+  try {
+    if (key !== null) {
+      const prefix = `lesson-videos/${lessonId}/`;
+      const file = typeof key === "string" && key.startsWith(prefix) &&
+        /^[0-9a-f-]{36}\.(mp4|webm)$/.exec(key.slice(prefix.length));
+      if (!file) return res.status(400).json({ error: "Vidéo invalide pour cette leçon." });
+      const object = await readR2ObjectMetadata(key);
+      if (object.ContentType !== lessonVideoTypes[file[1]] ||
+          !Number.isSafeInteger(object.ContentLength) || object.ContentLength < 1 || object.ContentLength > lessonVideoLimit) {
+        return res.status(400).json({ error: "La vidéo téléversée est invalide." });
+      }
+    }
+    const result = await pool.query("UPDATE lessons SET video_key=$1 WHERE id=$2 AND type='video' RETURNING id", [key, lessonId]);
+    if (!result.rowCount) return res.status(404).json({ error: "Leçon vidéo introuvable." });
+    res.json({ success: true, has_video: key !== null });
+  } catch (error) {
+    if (error.$metadata?.httpStatusCode === 404) {
+      return res.status(400).json({ error: "Le fichier n’a pas été téléversé." });
+    }
+    console.error("Lesson video update failed:", error.code ?? error.name);
+    res.status(500).json({ error: "Impossible de modifier la vidéo." });
   }
 });
 

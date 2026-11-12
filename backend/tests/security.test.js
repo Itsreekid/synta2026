@@ -372,7 +372,7 @@ test("admin installment enrollment grants an overlapping offer once and enforces
   };
   const call = await loadRoute("admin-api", {
     "../config/db.js": { default: { query, connect: async () => ({ query, release() {} }) } },
-    "../utils/r2Utils.js": { createR2UploadUrl() {}, deleteFromR2() {}, listRecentR2Objects() {}, uploadToR2() {} },
+    "../utils/r2Utils.js": { createR2UploadUrl() {}, deleteFromR2() {}, readR2ObjectMetadata() {}, listRecentR2Objects() {}, uploadToR2() {} },
   });
   const request = {
     user: { id: USER, role: "admin" }, params: { id: USER },
@@ -598,7 +598,7 @@ test("admin offer status affects the active KPI and checkout without revoking a 
   };
   const call = await loadRoute("admin-api", {
     "../config/db.js": { default: { query } },
-    "../utils/r2Utils.js": { createR2UploadUrl() {}, deleteFromR2() {}, listRecentR2Objects() {}, uploadToR2() {} },
+    "../utils/r2Utils.js": { createR2UploadUrl() {}, deleteFromR2() {}, readR2ObjectMetadata() {}, listRecentR2Objects() {}, uploadToR2() {} },
   });
   const route = "patch /api/admin/offers/:id/status";
   const adminUser = { id: USER, role: "admin" };
@@ -743,7 +743,7 @@ test("course image upload and recent picker use only the course image folder", a
   const call = await loadRoute("admin-api", {
     "../config/db.js": { default: { query() { throw new Error("No database access expected"); } } },
     "../utils/r2Utils.js": {
-      createR2UploadUrl() {}, deleteFromR2() {},
+      createR2UploadUrl() {}, deleteFromR2() {}, readR2ObjectMetadata() {},
       async listRecentR2Objects(prefix, filter, limit) {
         assert.equal(prefix, "Courses-th/");
         assert.equal(limit, 24);
@@ -769,6 +769,40 @@ test("course image upload and recent picker use only the course image folder", a
   assert.equal(uploaded.contentType, "image/png");
   assert.equal(uploaded.bytes.toString("base64"), png);
   assert.equal(result.body.url, courseImages.courseImagePath(uploaded.path));
+});
+
+test("lesson video replacement verifies the uploaded object and removal only clears the lesson reference", async () => {
+  const lessonId = USER;
+  const user = { id: USER, role: "admin" };
+  const path = "/api/admin/lessons/:lessonId/video";
+  const params = { lessonId };
+  let key;
+  let metadata;
+  const updates = [];
+  const call = await loadRoute("admin-api", {
+    "../config/db.js": { default: { async query(sql, values) {
+      if (sql.startsWith("SELECT")) return { rows: [{ id: lessonId }] };
+      updates.push(Array.from(values));
+      return { rowCount: 1 };
+    } } },
+    "../utils/r2Utils.js": {
+      createR2UploadUrl(path, type) { key = path; assert.equal(type, "video/mp4"); return "https://example.invalid/upload"; },
+      readR2ObjectMetadata(path) { assert.equal(path, key); return metadata; },
+      deleteFromR2() { assert.fail("Removing a lesson reference must preserve the stored object"); },
+      listRecentR2Objects() {}, uploadToR2() {}
+    }
+  });
+  const prepared = await call("post " + path + "-upload-url", { params, user, body: { fileName: "test.MP4", size: 16 } });
+  assert.equal(prepared.statusCode, 200);
+  assert.match(key, /^lesson-videos\//);
+  assert.equal((await call("patch " + path, { params, user: { id: USER }, body: { key: null } })).statusCode, 403);
+  assert.equal((await call("patch " + path, { params, user, body: { key: "another/file.mp4" } })).statusCode, 400);
+  metadata = { ContentType: "text/plain", ContentLength: 16 };
+  assert.equal((await call("patch " + path, { params, user, body: { key } })).statusCode, 400);
+  metadata.ContentType = "video/mp4";
+  assert.equal((await call("patch " + path, { params, user, body: { key } })).statusCode, 200);
+  assert.equal((await call("patch " + path, { params, user, body: { key: null } })).statusCode, 200);
+  assert.deepEqual(updates, [[key, lessonId], [null, lessonId]]);
 });
 
 test("course image delivery requires a session and refuses keys outside the image folder", async () => {

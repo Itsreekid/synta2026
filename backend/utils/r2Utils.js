@@ -100,6 +100,10 @@ export async function createR2UploadUrl(key, contentType, expiresIn = 900) {
   return getSignedUrl(r2Client, command, { expiresIn });
 }
 
+export function readR2ObjectMetadata(key) {
+  return r2Client.send(new HeadObjectCommand({ Bucket: R2_BUCKET, Key: key }));
+}
+
 /**
  * Delete a file from R2
  * @param {string} key - R2 object key

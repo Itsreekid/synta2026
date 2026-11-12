@@ -972,6 +972,8 @@
                                 <div style="flex:1;min-width:150px"><i class="fas fa-grip-lines drag-grip" aria-hidden="true"></i><strong>${escHtml(lesson.title)}</strong><small style="display:block;color:var(--text-muted)">${lesson.type === 'quiz' ? 'Quiz interactif' : escHtml(lesson.type)} · ordre ${lesson.order_index}${lesson.is_preview ? ' · aperçu' : ''}${(lesson.resources || []).length + (lesson.has_document ? 1 : 0)} ressource(s) · glisser pour déplacer</small></div>
                                 <input aria-label="Ordre de la leçon" type="number" min="0" value="${lesson.order_index}" style="width:72px;padding:.4rem;border:1px solid var(--border);border-radius:7px" onchange="updateLessonOrder('${lesson.id}',this.value)">
                                 ${lesson.type !== 'quiz' ? `<button class="btn" type="button" onclick="uploadLessonPracticeFiles('${lesson.id}')"><i class="fas fa-paperclip"></i> Ressources (${(lesson.resources || []).length + (lesson.has_document ? 1 : 0)})</button>` : `<button class="btn" type="button" onclick="editInteractiveQuiz('${lesson.id}')"><i class="fas fa-sliders-h"></i> Modifier le quiz</button>`}
+                                ${lesson.type === 'video' ? `<button class="btn" type="button" onclick="uploadLessonVideo('${lesson.id}',this)"><i class="fas fa-video" aria-hidden="true"></i> ${lesson.has_video ? 'Remplacer la vidéo' : 'Ajouter une vidéo'}</button>
+                                ${lesson.has_video ? `<button class="btn-icon danger" type="button" aria-label="Retirer la vidéo" title="Retirer la vidéo" onclick="removeLessonVideo('${lesson.id}',this)"><i class="fas fa-video-slash" aria-hidden="true"></i></button>` : ''}` : ''}
                                 <button class="btn-icon" title="Modifier le titre" onclick="editLesson('${lesson.id}')"><i class="fas fa-pen"></i></button>
                                 <button class="btn-icon danger" title="Supprimer la leçon" onclick="deleteLesson('${lesson.id}')"><i class="fas fa-trash"></i></button>
                             </div>
@@ -1254,6 +1256,56 @@
         async function updateLessonOrder(lessonId, orderIndex) {
             await chapterRequest(`/api/admin/lessons/${lessonId}`, 'PATCH', { orderIndex:Number(orderIndex) });
             await loadChapterManager();
+        }
+
+        function uploadLessonVideo(lessonId, button) {
+            const input = document.createElement('input');
+            input.type = 'file';
+            input.accept = '.mp4,.webm,video/mp4,video/webm';
+            input.onchange = async () => {
+                const file = input.files[0];
+                if (!file) return;
+                const controls = [...button.closest('.lesson-row').querySelectorAll('button')];
+                controls.forEach(control => { control.disabled = true; });
+                const label = button.textContent;
+                button.textContent = 'Téléversement…';
+                const url = '/api/admin/lessons/' + encodeURIComponent(lessonId);
+                try {
+                    const response = await fetch(url + '/video-upload-url', {
+                        method:'POST', credentials:'include', headers:{'Content-Type':'application/json'},
+                        body:JSON.stringify({ fileName:file.name, size:file.size })
+                    });
+                    const data = await response.json();
+                    if (!response.ok) throw new Error(data.error || 'Téléversement indisponible.');
+                    const upload = await fetch(data.uploadUrl, {
+                        method:'PUT', headers:{'Content-Type':data.contentType}, body:file
+                    });
+                    if (!upload.ok) throw new Error('Le téléversement a échoué. Réessayez.');
+                    try { await chapterRequest(url + '/video', 'PATCH', { key:data.key }); }
+                    catch { return; }
+                    await loadChapterManager();
+                } catch (error) {
+                    showToast(error.message, 'error');
+                } finally {
+                    button.textContent = label;
+                    controls.forEach(control => { control.disabled = false; });
+                }
+            };
+            input.click();
+        }
+
+        async function removeLessonVideo(lessonId, button) {
+            if (!confirm('Retirer la vidéo de cette leçon ? La leçon et ses ressources seront conservées.')) return;
+            const controls = [...button.closest('.lesson-row').querySelectorAll('button')];
+            controls.forEach(control => { control.disabled = true; });
+            try {
+                await chapterRequest('/api/admin/lessons/' + encodeURIComponent(lessonId) + '/video', 'PATCH', { key:null });
+                await loadChapterManager();
+            } catch {
+                // chapterRequest already shows the error.
+            } finally {
+                controls.forEach(control => { control.disabled = false; });
+            }
         }
 
         async function chapterRequest(url, method, body) {
