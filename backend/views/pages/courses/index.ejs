@@ -74,7 +74,8 @@
 
                 <!-- ══ COURSE GRID ══ -->
                 <div class="courses-list" id="courses-list" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 1.5rem; margin-top: 1rem;">
-                    <!-- Courses loaded by courses.js -->
+                    <div class="loading" role="status">Chargement des cours…</div>
+                    <noscript>Activez JavaScript pour afficher le catalogue des cours.</noscript>
                 </div>
             </div>
         </section>
@@ -85,6 +86,6 @@
     <script src="/js/user.js"></script>
     <script src="/js/api-client.js"></script>
     <script src="/js/course-image.js"></script>
-    <script src="/js/courses.js"></script>
+    <script src="/js/courses.js?v=2"></script>
 </body>
 </html>

@@ -5,6 +5,15 @@
 let currentCourse = null;
 let currentEnrollment = null;
 let currentLiveSessions = [];
+let courseOverview = null;
+let playerReturnTab = 'chapters';
+let lessonRequest = 0;
+
+window.addEventListener('popstate', event => {
+    if (courseOverview && !event.state?.coursePlayer) {
+        switchCoursePlayerTo(playerReturnTab, false);
+    }
+});
 
 async function initCourseDetailsPage() {
     const urlParams = new URLSearchParams(window.location.search);
@@ -32,6 +41,11 @@ if (document.readyState === 'loading') {
 }
 
 document.addEventListener('click', (event) => {
+    if (courseOverview && event.target.closest('.course-details-container > .back-link')) {
+        event.preventDefault();
+        switchCoursePlayerTo(playerReturnTab);
+        return;
+    }
     const replayButton = event.target.closest('[data-replay-url]');
     if (replayButton) {
         openReplayPlayer(replayButton.dataset.replayUrl, replayButton.dataset.replayTitle, JSON.parse(replayButton.dataset.replayResources || '[]'), replayButton.dataset.sessionId);
@@ -78,21 +92,23 @@ function setCourseContentTab(selected) {
     });
 }
 
-async function switchCoursePlayerTo(panelName) {
+function switchCoursePlayerTo(panelName, leaveHistory = true) {
+    lessonRequest++;
     document.querySelector('video.course-replay-player')?.pause();
     const video = document.getElementById('current-lesson-video');
     if (video && Number.isFinite(video.currentTime) && video.dataset.lessonId) {
         video.pause();
-        await persistLessonVideoPosition(video, true);
+        void persistLessonVideoPosition(video, true);
     }
     restoreCourseContent();
     setCourseContentTab(panelName);
+    if (leaveHistory && history.state?.coursePlayer) history.back();
     document.getElementById(panelName === 'live' ? 'live-tab' : 'chapters-tab')?.focus({ preventScroll: true });
     document.querySelector('.course-content-tabs')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
 
 async function persistLessonVideoPosition(video, force = false) {
-    if (!video?.dataset.lessonId || !Number.isFinite(video.currentTime)) return;
+    if (!video?.dataset.lessonId || video.readyState < 1 || !Number.isFinite(video.currentTime)) return;
     const position = Math.floor(video.currentTime);
     const lastSaved = Number(video.dataset.lastSavedPosition) || 0;
     if (!force && Math.abs(position - lastSaved) < 10) return;
@@ -427,6 +443,7 @@ function driveReplayPreview(url) {
 }
 
 function openReplayPlayer(replayUrl, title, resources = [], sessionId = '') {
+    lessonRequest++;
     document.querySelector('video.course-replay-player')?.pause();
     let parsed;
     try { parsed = new URL(replayUrl, window.location.href); } catch { return showError('Lien du replay invalide'); }
@@ -457,7 +474,6 @@ function openReplayPlayer(replayUrl, title, resources = [], sessionId = '') {
         player.controls = true;
         player.autoplay = true;
         player.playsInline = true;
-        player.src = parsed.href;
     }
     player.className = 'course-replay-player';
     if (player instanceof HTMLVideoElement) player.setAttribute('controlsList', 'nodownload');
@@ -465,9 +481,7 @@ function openReplayPlayer(replayUrl, title, resources = [], sessionId = '') {
     const courseMain = document.querySelector('.course-main');
     const courseSidebar = document.querySelector('.course-sidebar');
     if (!courseMain || !courseSidebar) return;
-    if (courseMain.dataset.originalContent) restoreCourseContent();
-    courseMain.dataset.originalContent = courseMain.innerHTML;
-    courseSidebar.dataset.originalContent = courseSidebar.innerHTML;
+    enterCoursePlayer(courseMain, courseSidebar, 'live');
 
     const wrapper = document.createElement('div');
     wrapper.className = 'video-section-wrapper course-replay-view';
@@ -506,6 +520,21 @@ function openReplayPlayer(replayUrl, title, resources = [], sessionId = '') {
     }
     wrapper.append(heading, frame, details);
     courseMain.replaceChildren(wrapper);
+    if (player instanceof HTMLVideoElement) {
+        prepareCourseVideo(player, parsed.href, async () => {
+            const request = ++lessonRequest;
+            try {
+                const response = await fetch(`/api/live/course/${encodeURIComponent(currentCourse.id)}`, { credentials: 'include' });
+                if (!response.ok) throw new Error('Replay indisponible');
+                const session = (await response.json()).find(item => item.id === sessionId);
+                if (request !== lessonRequest || !player.isConnected) return;
+                if (!session?.replay_url) throw new Error('Replay indisponible');
+                openReplayPlayer(session.replay_url, session.title, session.resources || [], sessionId);
+            } catch {
+                if (request === lessonRequest) showError('Impossible de recharger le replay. Réessayez dans un instant.');
+            }
+        });
+    }
 
     if (resources.length) details.appendChild(createResourceSection(resources, 'Fichiers utilisés pendant la séance'));
     renderReplaySidebar(courseSidebar, currentLiveSessions, sessionId);
@@ -614,12 +643,14 @@ function formatDuration(seconds) {
  * Play lesson (open video player)
  */
 async function playLesson(lessonId) {
+    const request = ++lessonRequest;
     try {
         // Fetch lesson details + signed video URL via REST API
         let contentData;
         try {
             contentData = await window.SyntaAPI.getContentUrl(lessonId);
         } catch (fetchErr) {
+            if (request !== lessonRequest) return;
             // 403 = not enrolled
             if (fetchErr.message && fetchErr.message.includes('Access denied')) {
                 showError('Vous devez être inscrit à ce cours pour accéder à cette leçon.');
@@ -627,19 +658,14 @@ async function playLesson(lessonId) {
             }
             throw fetchErr;
         }
+        if (request !== lessonRequest) return;
 
-        const videoUrl = contentData.videoUrl;
+        const videoUrl = contentData.videoError ? null : contentData.videoUrl;
         const lesson = contentData.lesson || { id: lessonId, title: 'Leçon', video_key: true };
 
         // Quiz checkpoints have no video URL; send them to the interactive quiz player.
         if (lesson.type === 'quiz' || contentData.type === 'quiz') {
             await openQuizLesson(lessonId, contentData);
-            return;
-        }
-
-        // Server signalled video is unavailable (R2 error) but returned 200
-        if (contentData.videoError) {
-            showError(contentData.videoError);
             return;
         }
 
@@ -665,19 +691,11 @@ async function playLesson(lessonId) {
             });
         }
 
-        if (videoUrl) {
-            // Mark lesson progress (best-effort)
-            markLessonProgress(lessonId);
-            // Show video in main content area
-            await showLessonInMainArea(lesson, videoUrl, contentData.pdfUrl, practiceFiles);
-        } else if (practiceFiles.length || contentData.pdfUrl) {
-            // A lesson can be a useful downloadable resource even without a video.
-            await showLessonInMainArea(lesson, null, contentData.pdfUrl, practiceFiles);
-        } else {
-            showError('Vidéo non disponible pour cette leçon.');
-        }
+        if (request !== lessonRequest) return;
+        await showLessonInMainArea(lesson, videoUrl, contentData.pdfUrl, practiceFiles, Boolean(contentData.videoError));
 
     } catch (error) {
+        if (request !== lessonRequest) return;
         console.error('Erreur lors de la lecture de la leçon:', error);
         showError('Impossible de lire la vidéo: ' + (error.message || 'Erreur inconnue'));
     }
@@ -713,18 +731,50 @@ async function updateCourseProgress(userId, courseId) {
 /**
  * Show lesson video and attached resources in the course main area
  */
-async function showLessonInMainArea(lesson, videoUrl, pdfUrl, practiceFiles = []) {
+function prepareCourseVideo(video, source, retry) {
+    const status = document.createElement('div');
+    status.className = 'course-video-status';
+    const message = document.createElement('span');
+    message.setAttribute('role', 'status');
+    message.textContent = 'Chargement de la vidéo…';
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.className = 'course-player-switch';
+    button.textContent = 'Réessayer';
+    button.hidden = true;
+    button.addEventListener('click', async () => {
+        button.disabled = true;
+        try { await retry(); } finally { button.disabled = false; }
+    });
+    status.append(message, button);
+    video.parentElement.before(status);
+    const showFailure = () => {
+        status.hidden = false;
+        message.textContent = 'La vidéo ne se charge pas. Vérifiez votre connexion puis réessayez.';
+        button.hidden = false;
+    };
+    const timeout = setTimeout(() => {
+        if (video.isConnected && video.readyState < 2) showFailure();
+    }, 15000);
+    video.addEventListener('loadeddata', () => {
+        clearTimeout(timeout);
+        status.hidden = true;
+    });
+    video.addEventListener('error', () => {
+        clearTimeout(timeout);
+        video.parentElement.hidden = true;
+        showFailure();
+    });
+    video.src = source;
+}
+
+async function showLessonInMainArea(lesson, videoUrl, pdfUrl, practiceFiles = [], videoUnavailable = false) {
     const courseMain = document.querySelector('.course-main');
     const courseSidebar = document.querySelector('.course-sidebar');
-    const modulesContainer = document.getElementById('modules-container');
+    const modulesContainer = courseOverview?.main.find(node => node.nodeType === 1 && node.id === 'chapters-panel')
+        ?.querySelector('#modules-container') || document.getElementById('modules-container');
 
-    // Store original content to restore later
-    if (!courseMain.dataset.originalContent) {
-        courseMain.dataset.originalContent = courseMain.innerHTML;
-    }
-    if (!courseSidebar.dataset.originalContent) {
-        courseSidebar.dataset.originalContent = courseSidebar.innerHTML;
-    }
+    enterCoursePlayer(courseMain, courseSidebar, 'chapters');
 
     // Legacy PDFs and newly uploaded files are presented in one resource section.
 
@@ -741,11 +791,10 @@ async function showLessonInMainArea(lesson, videoUrl, pdfUrl, practiceFiles = []
                     controls 
                     controlsList="nodownload"
                     style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; object-fit: cover;"
-                    src="${videoUrl}"
                 >
                     Votre navigateur ne supporte pas la lecture de vidéos.
                 </video>
-            </div>` : `<div class="lesson-files-only" style="display:flex;align-items:center;gap:.75rem;padding:1.25rem 1.5rem;border:1px solid #dbeafe;border-radius:14px;background:#eff6ff;color:#1e40af"><i class="fas fa-folder-open" aria-hidden="true"></i><span>Les fichiers de cette leçon sont disponibles ci-dessous.</span></div>`}
+            </div>` : '<div class="course-video-status" data-lesson-media-status role="status"></div>'}
             
             <div class="lesson-actions" style="display: flex; gap: 1rem; width: 100%;">
                 <button class="btn-complete-next" onclick="completeLessonAndNext('${lesson.id}')" style="flex: 1; padding: 1rem; background: linear-gradient(135deg, #10b981 0%, #059669 100%); color: white; border: none; border-radius: 12px; font-weight: 600; font-size: 1rem; cursor: pointer; transition: all 0.3s ease; box-shadow: 0 4px 15px rgba(16, 185, 129, 0.3); display: flex; align-items: center; justify-content: center; gap: 0.5rem;">
@@ -764,6 +813,22 @@ async function showLessonInMainArea(lesson, videoUrl, pdfUrl, practiceFiles = []
             </div>
         </div>
     `;
+    const mediaStatus = courseMain.querySelector('[data-lesson-media-status]');
+    if (mediaStatus) {
+        mediaStatus.textContent = videoUnavailable ? 'La vidéo est temporairement indisponible.' :
+            practiceFiles.length ? 'Les fichiers de cette leçon sont disponibles ci-dessous.' : 'Aucune vidéo disponible pour cette leçon.';
+        if (videoUnavailable) {
+            const retry = document.createElement('button');
+            retry.type = 'button';
+            retry.className = 'course-player-switch';
+            retry.textContent = 'Réessayer';
+            retry.addEventListener('click', async () => {
+                retry.disabled = true;
+                try { await playLesson(lesson.id); } finally { retry.disabled = false; }
+            });
+            mediaStatus.appendChild(retry);
+        }
+    }
 
     if (practiceFiles.length) {
         const details = courseMain.querySelector('.lesson-details-content');
@@ -773,6 +838,7 @@ async function showLessonInMainArea(lesson, videoUrl, pdfUrl, practiceFiles = []
     // Replace sidebar with modules section
     if (modulesContainer && courseSidebar) {
         const modulesClone = modulesContainer.cloneNode(true);
+        modulesClone.removeAttribute('id');
         modulesClone.style.cssText = '';
         courseSidebar.innerHTML = '';
         courseSidebar.appendChild(modulesClone);
@@ -796,8 +862,8 @@ async function showLessonInMainArea(lesson, videoUrl, pdfUrl, practiceFiles = []
     }
 
     // Disable right-click on video
-    setTimeout(() => {
-        const video = document.getElementById('current-lesson-video');
+    {
+        const video = courseMain.querySelector('#current-lesson-video');
         if (video) {
             video.addEventListener('contextmenu', (e) => e.preventDefault());
             video.addEventListener('loadedmetadata', () => {
@@ -806,8 +872,10 @@ async function showLessonInMainArea(lesson, videoUrl, pdfUrl, practiceFiles = []
             }, { once: true });
             video.addEventListener('timeupdate', () => persistLessonVideoPosition(video));
             video.addEventListener('pause', () => persistLessonVideoPosition(video, true));
+            if (lesson.id) video.addEventListener('playing', () => markLessonProgress(lesson.id), { once: true });
+            prepareCourseVideo(video, videoUrl, () => playLesson(lesson.id));
         }
-    }, 100);
+    }
 
     // Ensure video player is ALWAYS on top on mobile layout
     if (courseMain) {
@@ -825,19 +893,33 @@ async function showLessonInMainArea(lesson, videoUrl, pdfUrl, practiceFiles = []
 /**
  * Restore course content
  */
+function enterCoursePlayer(courseMain, courseSidebar, returnTab) {
+    if (!courseOverview) {
+        courseOverview = { main: [...courseMain.childNodes], sidebar: [...courseSidebar.childNodes] };
+    }
+    playerReturnTab = returnTab;
+    if (!history.state?.coursePlayer) {
+        history.pushState({ ...history.state, coursePlayer: true }, '', window.location.href);
+    }
+    const backLink = document.querySelector('.course-details-container > .back-link');
+    if (backLink) {
+        backLink.setAttribute('href', window.location.pathname + window.location.search);
+        backLink.querySelector('span').textContent = 'Retour au cours';
+    }
+}
+
 function restoreCourseContent() {
+    if (!courseOverview) return;
     const courseMain = document.querySelector('.course-main');
     const courseSidebar = document.querySelector('.course-sidebar');
-
-    if (courseMain.dataset.originalContent) {
-        courseMain.innerHTML = courseMain.dataset.originalContent;
-        courseMain.style.order = ''; // Reset layout order
-        delete courseMain.dataset.originalContent;
-    }
-
-    if (courseSidebar.dataset.originalContent) {
-        courseSidebar.innerHTML = courseSidebar.dataset.originalContent;
-        delete courseSidebar.dataset.originalContent;
+    courseMain.replaceChildren(...courseOverview.main);
+    courseMain.style.order = '';
+    courseSidebar.replaceChildren(...courseOverview.sidebar);
+    courseOverview = null;
+    const backLink = document.querySelector('.course-details-container > .back-link');
+    if (backLink) {
+        backLink.setAttribute('href', '/app/courses');
+        backLink.querySelector('span').textContent = 'Retour aux cours';
     }
 }
 
@@ -1704,7 +1786,8 @@ async function completeLessonAndNext(lessonId) {
             if (nextLessonId) break;
         }
         
-        // Reload course details to refresh progress bar & icons
+        // Refresh the mounted course overview before opening the next lesson.
+        restoreCourseContent();
         await loadCourseDetails(currentCourse.id);
         
         // Play next lesson if exists and accessible
@@ -1712,8 +1795,7 @@ async function completeLessonAndNext(lessonId) {
             playLesson(nextLessonId);
         } else {
             // Reached the end of the course or next lesson is locked
-            restoreCourseContent();
-            window.scrollTo({ top: 0, behavior: 'smooth' });
+            switchCoursePlayerTo('chapters');
         }
         
     } catch (err) {

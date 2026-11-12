@@ -652,6 +652,8 @@
         #modules-container { max-height: none; overflow: visible; }
         .course-player-actions { display: flex; flex-wrap: wrap; gap: .5rem; }
         .course-replay-external { display: inline-flex; margin-top: .75rem; }
+        .course-video-status { display: flex; align-items: center; flex-wrap: wrap; gap: .65rem; padding: .8rem 1rem; margin-bottom: .5rem; border-radius: 10px; background: #eaf3f8; color: #062c40; }
+        .course-video-status[hidden], .course-video-status button[hidden] { display: none; }
         @media (max-width: 1024px) {
             .course-hero { flex-direction: row; text-align: start; }
         }
@@ -672,7 +674,7 @@
         <section id="main-section" class="main-section">
             <div class="course-details-container">
                 <a href="/app/courses" class="back-link" style="display: inline-flex; align-items: center; gap: 0.5rem; padding: 0.5rem 1rem; background: white; border: 1px solid #e2e8f0; border-radius: 99px; font-weight: 600; color: #64748b; text-decoration: none; box-shadow: 0 2px 4px rgba(0,0,0,0.02); transition: all 0.2s ease; margin-bottom: 1.5rem;" onmouseover="this.style.transform='translateX(-4px)'; this.style.color='#1e293b'; this.style.boxShadow='0 4px 6px rgba(0,0,0,0.05)';" onmouseout="this.style.transform='translateX(0)'; this.style.color='#64748b'; this.style.boxShadow='0 2px 4px rgba(0,0,0,0.02)';">
-                    <i class="fas fa-arrow-left"></i> Retour aux cours
+                    <i class="fas fa-arrow-left" aria-hidden="true"></i> <span>Retour aux cours</span>
                 </a>
 
                 <div class="course-layout">

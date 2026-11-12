@@ -2,24 +2,24 @@
 // Courses Page — REST API version (replaces Supabase SDK calls)
 // =====================================================
 
+let currentCategory = '';
+let catalogRequest = 0;
+
 function courseCardText(value) {
     return String(value ?? '').replace(/[&<>]/g, character => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[character]));
 }
 
-async function initCoursesPage() {
+function initCoursesPage() {
     const coursesList = document.getElementById('courses-list');
     if (!coursesList) return; // Prevent running on other pages
 
-    try {
-        await loadCourses();
-        setupFilters();
-    } catch (err) {
-        console.error('Failed to initialize courses page:', err);
-        if (coursesList) {
-            coursesList.innerHTML = '<div class="error-message">Erreur de connexion à la base de données. Veuillez rafraîchir la page.</div>';
-        }
-    }
+    setupFilters();
+    applyFilters();
 }
+
+window.addEventListener('pageshow', event => {
+    if (event.persisted) applyFilters({ keepCards: true });
+});
 
 if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', initCoursesPage);
@@ -30,13 +30,15 @@ if (document.readyState === 'loading') {
 /**
  * Load courses from the REST API
  */
-async function loadCourses(filters = {}) {
+async function loadCourses(filters = {}, { keepCards = false } = {}) {
     const coursesList = document.getElementById('courses-list');
     if (!coursesList) return;
+    const request = ++catalogRequest;
+    const hasCards = keepCards && Boolean(coursesList.querySelector('.course-card'));
 
     try {
         // Show loading state
-        coursesList.innerHTML = '<div class="loading">Chargement des cours...</div>';
+        if (!hasCards) coursesList.innerHTML = '<div class="loading" role="status">Chargement des cours…</div>';
 
         // Build query string
         const params = new URLSearchParams();
@@ -44,9 +46,13 @@ async function loadCourses(filters = {}) {
         if (filters.level) params.append('level', filters.level);
 
         // Fetch published courses from backend
-        const coursesResp = await fetch(`/api/courses?${params.toString()}`, { credentials: 'include' });
+        const coursesResp = await fetch(`/api/courses?${params.toString()}`, {
+            credentials: 'include', cache: 'no-store', signal: AbortSignal.timeout(12000)
+        });
         if (!coursesResp.ok) throw new Error(`HTTP ${coursesResp.status}`);
         let courses = await coursesResp.json();
+        if (request !== catalogRequest) return;
+        if (!Array.isArray(courses)) throw new Error('Réponse du catalogue invalide');
 
         if (filters.search) {
             const q = filters.search.toLowerCase();
@@ -65,13 +71,17 @@ async function loadCourses(filters = {}) {
         // Fetch user enrollments if logged in
         let enrollments = [];
         try {
-            const enrollResp = await fetch('/api/courses/user/my-courses', { credentials: 'include' });
+            const enrollResp = await fetch('/api/courses/user/my-courses', {
+                credentials: 'include', cache: 'no-store', signal: AbortSignal.timeout(3000)
+            });
             if (enrollResp.ok) {
-                enrollments = await enrollResp.json();
+                const result = await enrollResp.json();
+                if (Array.isArray(result)) enrollments = result;
             }
         } catch (err) {
             // Not logged in or error — continue without enrollment data
         }
+        if (request !== catalogRequest) return;
 
         // Render courses
         let activeCourseHtml = '';
@@ -166,11 +176,12 @@ async function loadCourses(filters = {}) {
         }
 
     } catch (error) {
+        if (request !== catalogRequest || hasCards) return;
         console.error('Erreur lors du chargement des cours:', error);
         coursesList.innerHTML = `
             <div class="error-message">
                 Une erreur s'est produite lors du chargement des cours. Veuillez réessayer plus tard.
-                <button onclick="loadCourses()">Réessayer</button>
+                <button type="button" onclick="applyFilters()">Réessayer</button>
             </div>
         `;
     }
@@ -202,8 +213,6 @@ function setupFilters() {
     }
 }
 
-let currentCategory = '';
-
 window.applyCategoryFilter = function(category) {
     currentCategory = category;
     
@@ -231,7 +240,7 @@ window.applyCategoryFilter = function(category) {
 /**
  * Apply current filters
  */
-function applyFilters() {
+function applyFilters(options) {
     const filters = {};
 
     const levelFilter = document.getElementById('level-filter');
@@ -249,7 +258,7 @@ function applyFilters() {
         filters.search = searchInput.value.trim();
     }
 
-    loadCourses(filters);
+    loadCourses(filters, options);
 }
 
 /**

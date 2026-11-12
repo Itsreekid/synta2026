@@ -617,3 +617,7 @@ Implemented monthly and academic-year access, independent course grants, install
 ## 2026-11-12 — Student course navigation
 
 The catalog cards now use native links. Course details group the description, counts and lesson action above the content tabs. Directs et replays links both player modes, and Google Drive file shares use a preview with an external fallback. Validate playback and permissions with an actual shared recording in staging.
+
+- Course players now discard outdated lesson requests, show video loading and failure states, and request fresh media links on retry. Real-device playback remains a staging check.
+
+- The course catalog reloads when browser Back restores a cached page, preserves existing cards during refresh, and provides a retry state on catalog failures.
