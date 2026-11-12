@@ -496,3 +496,11 @@ Cloudflare R2 Bucket
 ## Timed offer architecture
 
 The timed router runs before the legacy purchase router and forwards legacy request bodies. The backend revalidates signed quotes under database locks and writes grants, payments and wallet changes in one transaction. Course authorization checks active grant snapshots and legacy enrollment rights independently. A guarded reminder worker inserts notifications with database deduplication. The calendar suggestion route uses only the dedicated Learning Gemini credential and stores admin-review drafts. See [the technical plan](OFFER_ACCESS_TECHNICAL_PLAN.md) for routes and rollout.
+
+### Timed-offer reconciliation
+
+The admin overview separates confirmed deposit transactions, purchase transactions net of installment reversals, and remaining confirmed installment balances. The historical purchases register is displayed separately because historical rows may lack a verified ledger mapping. Existing R2 links remain bearer URLs until their signed expiry. Protected application requests recheck authorization. Joined Zoom meetings and external media follow provider behavior.
+
+### Offer upgrade credit
+
+The existing timed-offer router serves signed upgrade quotes, atomic confirmations, admin policy and correction operations, and wallet collection of the next scheduled tranche. The shared student row lock serializes source collection, reversal and credit use. Unique payment claims and grant-origin constraints provide database enforcement. The original legacy path remains available for unconfigured offers. The new sales paths require both TIMED_OFFER_SALES_ENABLED and TIMED_OFFER_UPGRADES_ENABLED.

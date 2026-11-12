@@ -639,3 +639,23 @@ The catalog cards now use native links. Course details group the description, co
 - Admins can upload or replace a video lesson's MP4/WebM via private R2 upload, or remove its video reference while retaining the lesson and stored objects. Verify a real R2 upload in staging.
 
 - Student dashboard uses fresh authenticated data, actual chapter completion, and course player replay links. Responsive cards wrap long titles and actions.
+
+- Replays and lessons share the course player frame and details card. Drive replays stay embedded with the standalone Drive link removed.
+
+- First-login dashboard now leads to the free session, course previews and targeted offers. Chapter connectors fill using completed lesson counts. Historical external payment dating awaits approval of an additive audit field.
+
+- Academic-year checkout now displays the school year, estimated remaining access, inclusive cutoff, and Tunis timezone. The monthly expiry rule remains as originally approved. Historical payment entry and financial reconciliation are documented for approval.
+
+## 2026-11-12 — Timed offer reconciliation
+
+Implemented inclusive short-month expiry, audited historical external payments, receipt deduplication, external installment reversals and separated financial KPIs. Local validation uses synthetic records. Staging browser tests and provider checks remain required before activation.
+
+## 2026-11-12 — Final timed-offer staging audit
+
+Local loopback Chromium tests exercised the actual student and admin templates at 1280px and 390px against disposable PostgreSQL. The fixture uses synthetic JWTs and disables remote assets. The protected lesson response now explicitly prohibits caching. A real staging R2 bucket, hosted deployment and real-device playback remain unverified. Keep timed sales off for real students.
+
+## 2026-11-12 — Offer upgrades
+
+Implemented locally behind TIMED_OFFER_UPGRADES_ENABLED, which defaults off. Scheduled annual checkout, verified source credit, wallet collection, admin external confirmation and audited credit corrections reuse the existing timed access paths. Disposable database and browser fixtures exercise the upgrade. Production configuration and staging provider checks remain separate.
+
+- Upgrade audit added tampering, stale quote, revoked/reversed credit, forced rollback, cutoff, and accounting checks. Checkout shows remaining access and exact Tunis expiry. Hosted staging still needs a designated URL and synthetic access.

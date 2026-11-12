@@ -66,6 +66,7 @@ router.get("/", authMiddleware, async (req, res) => {
         is_purchased: isPurchased,
         can_renew: canRenew,
         can_purchase: (!isPurchased || canRenew) && (offer.access_mode ? offer.wallet_can_afford : userBalance >= price),
+        scheduled_checkout_enabled: process.env.TIMED_OFFER_UPGRADES_ENABLED === "true" && process.env.TIMED_OFFER_SALES_ENABLED === "true",
         timed_sales_enabled: process.env.TIMED_OFFER_SALES_ENABLED === "true",
       };
     });

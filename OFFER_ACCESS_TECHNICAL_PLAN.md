@@ -80,3 +80,91 @@ Add the controls in Modifier l’offre, checkout and existing admin student/purc
 3. In isolated staging, enable sales and reminders with synthetic accounts. Verify the displayed Tunis cutoff against the stored grant, replay the same request, exercise an installment and verify a single reminder using a synthetic grant inside the three-day window. Optionally configure the dedicated Learning Gemini key and request a single admin calendar suggestion. Compare the cited dates with the sources before saving any cutoff.
 4. After separate approval to offer timed access to real students, set the production sales flag true and create or activate the specifically approved timed offers. Enable reminders after validating their behavior in staging. Observe purchase failures, grant counts, wallet reconciliation and reminder deduplication.
 5. For a timed-sales incident, turn off the sales flag. The compatible build continues to honor existing grants and accept installment collections. Turn off reminders independently if necessary. Once timed grants exist, keep a compatible application and preserve the additive schema during rollback.
+
+## Proposed historical external payment entry
+
+Pending approval. Add nullable `external_paid_on DATE` to `offer_installment_payments` with a check allowing the field only for external payments. Existing rows keep NULL, and `recorded_at` and `recorded_by` continue to describe the actual entry. The admin confirms the amount, offer and actual paid-on date. Reject future Tunis dates. Include the date in idempotency comparisons and show it alongside the access dates. No wallet credit or debit occurs for an external payment. Decide separately whether importing a monthly entitlement uses its original start date or an explicitly selected start date. If the original entitlement has expired, its payment history can be recorded without activating a new period. Test duplicate submissions, expired periods, mixed legacy and timed access, and a private staging live session before onboarding real students.
+
+## Reconsiderations before production activation
+
+- Monthly proposal: apply a new policy only to future terms. When the nominal anchor does not exist in the target month, use midnight at the start of the following month as the exclusive boundary. Store the nominal boundary month separately from the actual timestamp, so a February period ending March 1 renews to the original March anchor. Queue a single early renewal from the prior expiry. A purchase after expiry starts a new chain with a new anchor. Keep issued grants and queued terms unchanged. Review a policy version and nominal boundary field before migration.
+- Historical entry proposal: record the external payment date separately from the actual admin audit timestamp. Require a verified receipt reference with a database uniqueness rule appropriate to the source. Explicitly confirm the agreed coverage start date, and show the calculated end before saving. An elapsed coverage period is recorded without a current grant. Use append-only corrections linked to the original record, with reason, actor and timestamp. Keep the wallet untouched for external payments. The current schema has request idempotency and no receipt identity or audited correction workflow.
+- Existing access boundaries: new protected requests recheck entitlement. An already issued signed URL can remain usable until it expires, and an open external video or Zoom meeting follows the provider's rules. Immediate playback or meeting termination would require separate delivery controls.
+- Reporting: the Payments list reads transactions, while the Overview KPI reads legacy purchases. Timed sales and collections write transaction records, so the legacy Overview total omits them. The Payments monthly confirmed amount can combine wallet funding and purchases. Propose separate cash-in and sales totals, with an explicit legacy mapping and each collection counted once. Keep the current reports pending approval of that reconciliation scope.
+
+## Approved reconciliation implementation
+
+Migration `202611120001_reconcile_timed_offer_terms.sql` follows the base timed-access migration. It preserves existing timestamps, stores the nominal renewal month for new grants, and adds historical receipt metadata and external reversals. An external reversal does not refund cash, adjust a wallet or revoke access. The receipt identity remains reserved after reversal. Keep the historical purchases total separate from ledger sales until an operator can reconcile unmatched legacy records.
+
+Before production approval, validate on a sanitized staging copy with flags initially off. Confirm legacy counts, sample existing expiries, and compare wallet and sales totals against their source records. Turn the flags on only in staging and verify phone and desktop checkout, one queued renewal, old and expired receipt imports, duplicate rejection, reversal, reminders, and protected video requests. Check that a short-lived R2 URL fails after expiry and that requests after entitlement expiry cannot obtain a fresh link. Zoom may continue an already-joined meeting. After separate approval, back up production and deploy with sales and reminders off. Once grants or reversals exist, retain a compatible build and the additive schema for rollback.
+
+## Final staging audit procedure
+
+Local test entry point: run the backend test suite with `BUGI_QA_POSTGRES_PORT` pointing to the disposable loopback PostgreSQL fixture and `TIMED_QA_CHROME` set to a Chrome executable. The browser uses the existing EJS and admin pages, authenticates synthetic students and administrators, and sends requests to real routes. It blocks remote resources. This validates local integration, with hosted CDN navigation and physical device checks still pending.
+
+Required backend environment names are `DATABASE_URL`, `JWT_SECRET`, `CLOUDFLARE_ACCOUNT_ID`, `R2_ACCESS_KEY`, `R2_SECRET_KEY`, and `R2_BUCKET`. Match `DB_SSL` to the deployment. Set `SIGNED_URL_EXPIRY=300` for lesson videos and start with `TIMED_OFFER_SALES_ENABLED=false` and `TIMED_OFFER_REMINDERS_ENABLED=false`. Optional calendar suggestions use only `LEARNING_GEMINI_API_KEY` and `LEARNING_GEMINI_ENABLED`. Preserve the separate Bugi credential.
+
+Verify that `202611110004_add_timed_offer_access.sql` precedes `202611120001_reconcile_timed_offer_terms.sql` in the migration ledger. Before production approval, run a private staging R2 request immediately after signing and after 300 seconds using a fresh uncached request. Check browser cache behavior separately, including already buffered media and range requests. Confirm that no new URL is issued after the final grant expires and that a valid overlapping or legacy entitlement still works. An already-joined Zoom session and a directly supplied external video URL follow the provider's policies.
+
+## Offer upgrades with installment credit — revised proposal
+
+Status: business rules approved as revised. Final technical approval pending. This section authorizes documentation only.
+
+### Eligibility and offer configuration
+
+- In Modifier l’offre, configure installments independently from upgrades. For newly configured offers, installments disabled permits one payment. Enabled permits up to the configured maximum of two or three, including the student's choice of one. Annual academic-year offers are the only upgrade destinations in the first release.
+- Configure each source-to-target pair separately. Full payment is required by default. A pair can explicitly permit verified partial credit. Show outstanding source debt separately. Preserve the original payment obligations, grants and expiry dates.
+- Monthly offers are permanently excluded as credit sources, including purchases, renewals and installment collections. The source picker hides monthly offers and has no override. Monthly students may buy an annual offer at full price using its permitted schedule. Existing monthly access remains valid through its recorded expiry.
+- API validation rejects a monthly source even if the request bypasses the UI. Database triggers must also reject monthly source rules and claims against monthly payment origins. Check the source offer's current mode and the source grant or arrangement's snapshotted mode. A historical monthly grant remains ineligible after an offer edit. Reject sources whose payment origin cannot be proven. Guard access-mode edits in the same lock order as eligibility changes so configuration cannot become invalid mid-confirmation.
+
+### Calculation and minimum initial payment
+
+Use integer centimes or PostgreSQL NUMERIC. Split the price into near-equal tranches, allocating remainder cents to the earliest installments. Apply credit, then any new money, to the earliest outstanding tranche. With a 440.00 DT target in three tranches, the scheduled amounts are 146.67, 146.67 and 146.66 DT.
+
+| Eligible credit | New payment at activation | Remaining tranches after activation |
+|---|---:|---|
+| 100.00 DT | 46.67 DT | 146.67 + 146.66 DT |
+| 180.00 DT | 0.00 DT | 113.34 + 146.66 DT |
+| 300.00 DT | 0.00 DT | 140.00 DT |
+
+These examples assume no higher configured minimum. Proposed rule for new schedules: the initial threshold is the greater of the first scheduled tranche and the existing configured minimum. Eligible credit satisfies that threshold first. If the threshold exceeds the first tranche, apply any new payment left after it to later tranches. A one-payment purchase requires the full uncovered price. Keep existing arrangements and legacy admin flows on their current rules. Credit equal to the target price can activate after explicit confirmation. Credit above the target price requires manual review, with no automatic transfer, wallet credit, or refund.
+
+### Additive migration and persistence
+
+1. After 202611120001_reconcile_timed_offer_terms.sql, add offer installment policy and upgrade-enabled settings. Represent pre-feature policy as unset so existing offers and arrangements retain their behavior until explicitly configured. Add constraints for a maximum of two or three when installments are enabled and for annual-only destinations.
+2. Add source-to-target rules with a unique pair, explicit partial-credit flag, and database eligibility guards. Add immutable confirmations with student, source, target, request fingerprint, actor, terms snapshot, dates, and linked arrangement.
+3. Add credit claims with foreign keys to canonical source evidence and uniqueness per source payment. Use distinct references for a direct purchase payment and an installment collection, with exactly one evidence type per claim. Never credit both an installment summary and its component collections. Store the source and historical access mode used in verification. Protect offer, grant and payment edits from invalidating eligibility outside an audited correction.
+4. Extend timed grants to reference either an existing payment or a unique upgrade confirmation. Use an exactly-one-origin constraint and keep all existing payment-backed grant rows unchanged. No zero-value cash or wallet transaction is inserted. Add scheduled installment rows with nominal amount and date. Track allocated credit separately from cash paid and include both in remaining target debt.
+5. Add append-only correction records linked to the original claim and actor. Extend student history to include upgrade confirmations and admin reporting to present credit separately. Keep existing financial source rows intact. Verify existing grant rows and arrange deployment migration-first.
+
+### API, audit and concurrency
+
+- POST /api/purchase/offer-upgrade/quote: authenticated student supplies source, target and chosen installment count. Return verified credit, separate source debt, due now, tranche breakdown and target expiry. Sign the short-lived quote against the student, verified evidence and exact terms. Quotes do not reserve credit.
+- POST /api/purchase/offer-upgrade/confirm: authenticated student explicitly confirms, even at zero. Revalidate eligibility, source evidence, target access and terms in a single PostgreSQL transaction. Lock the student, relevant offers in ID order, canonical source evidence and arrangement. A database uniqueness conflict rolls back the entire attempt. An identical retry returns the original result and a conflicting retry returns 409.
+- Admin confirmation in the existing student dialog uses the same service and supports a verified external top-up with actual date and receipt reference. Use the existing Offers editor, student checkout and wallet history. No new pages. Existing collection actions must accept the new schedule and apply new money to the earliest unpaid tranche.
+- A direct source reversal or refund must not bypass an active credit claim. Use a linked, audited correction that recalculates the target balance and leaves the original claim reserved. Wallet changes, refunds and access changes require their own explicitly authorized operations. Sales count confirmed new ledger collections once. Applied credit has zero new revenue.
+
+### Decisions pending final approval
+
+- Confirm the higher-of threshold above and confirm that ordinary annual installments can be initiated from student checkout. Recommend that wallet checkout explicitly confirms and pays its required amount. External payments continue to require admin verification.
+- Confirm later due-date defaults. Recommend administrator-configured offsets from confirmation, shown in the quote. An unset date is Aucune échéance définie. Reject dates beyond the target cutoff. Overdue balances follow existing collection policy.
+- Confirm the eligible source window. Recommend allowing verified completed source purchases even if their access has expired, provided the rule is enabled and the payment is unreversed and unclaimed. Exclude ambiguous legacy records until their provenance is reconciled.
+- Confirm correction authority and manual excess handling. Recommend that first release flags over-price credit for review without confirming the upgrade. Limit credit corrections to authorized admins with a recorded reason, and keep access unchanged unless a separately approved access action is performed.
+
+### Validation and rollback
+
+Run migration twice on disposable PostgreSQL. Assert old grants, transactions and student progress retain their original values. Test the three examples, cent rounding, one- and two-payment schedules, initial minimum floors, equality and excess. Test paid and partial sources, preserved source debt, disallowed legacy evidence, monthly exclusion in the UI, API and direct SQL, including a monthly source relabeled as non-monthly. Test two concurrent confirmations, conflicting idempotency keys, concurrent source reversals, duplicate external receipts, and forced rollback between cash debit and grant issuance. Reconcile funding, cash sales, credit, and outstanding debt independently. Verify desktop and mobile checkout and admin flows.
+
+Use TIMED_OFFER_UPGRADES_ENABLED=false by default. Turning it off blocks new upgrade quotes and confirmations while retaining read access, existing grants, corrections and collections. Once upgrade grants exist, rollback requires a compatible build that reads both grant origins. Retain additive schema and audit records. Production migration, deployment and activation require separate approval.
+
+### Implemented locally after final approval
+
+Migration `202611120002_offer_upgrade_credit.sql` follows the reconciliation migration. The new annual checkout uses existing timed grants and the existing offers, student admin and wallet pages. Existing unset installment policies keep legacy behavior. A non-annual offer can be explicitly set to full payment in the editor. New scheduled checkout is available for annual offers, and only annual offers accept upgrades. Verified legacy wallet-completed records with no timed grant can qualify as direct source evidence. Ambiguous legacy admin payments and already-upgraded source grants are excluded. Where more than one non-monthly timed grant exists for a source offer, use its latest non-revoked grant. Credits above price are rejected with manual-review instructions. The review does not consume the credit or activate the target.
+
+Customers can pay the next scheduled tranche from the existing wallet history. A request binds the tranche position and exact remaining amount so concurrent clicks cannot accidentally collect the following tranche. This servicing operation and admin collections remain available for existing plans when new upgrade sales are disabled. Corrections reduce applied credit and restore target debt. They do not refund cash, release the original claim, or modify access. A source installment reversal can proceed after its allocated credit has been corrected.
+
+### Final local upgrade audit
+
+The browser fixture exercises the existing admin offer editor, mobile credit-only checkout, desktop scheduled purchase and next wallet payment. The upgraded quote shows the inclusive last day, exact expiry in Africa/Tunis and remaining time when quoted. Local PostgreSQL covers signed quote integrity, cross-account attempts, invalid external sources, price and eligibility changes, revoked or reversed evidence, cutoff limits, competing confirmations and a forced failure after the wallet debit. The migration runner is exercised twice, with legacy rows retained. Offer catalog text and image attributes are escaped before HTML rendering.
+
+Hosted validation requires the designated staging URL or Coolify resource, authorized access for synthetic student and admin accounts, and an isolated database seeded with the approved payment scenarios. No hosted staging target was available during this audit. Do not use the production URL or production credentials as a substitute.

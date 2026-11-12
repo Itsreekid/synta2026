@@ -546,3 +546,7 @@
 - Added admin-reviewed academic calendar drafts using the dedicated Learning Gemini integration.
 
 - Reorganized student course details for mobile and desktop, removed placeholder activity statistics, and added Google Drive replay preview support.
+
+- Added inclusive short-month timed access, audited historical payments and reversals, and separate dashboard totals for wallet funding, collected sales and installment debt.
+
+- Added optional annual offer upgrades with exact installment schedules, verified credit, protected wallet collection and audited corrections.

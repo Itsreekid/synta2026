@@ -4,6 +4,12 @@ document.addEventListener('DOMContentLoaded', function () {
     initOffers();
 });
 
+function escapeOfferHtml(value) {
+    return String(value ?? '').replace(/[&<>"']/g, character => ({
+        '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+    }[character]));
+}
+
 async function initOffers() {
     const offersList = document.getElementById('offers-list');
     if (!offersList) return;
@@ -78,7 +84,7 @@ async function initOffers() {
                     ${isFeatured ? '<div class="best-seller-banner">عرضنا الأكثر مبيعا</div>' : ''}
                     
                     <div class="offer-image-section">
-                        <img src="${offerImage}" alt="${offer.title}">
+                        <img src="${escapeOfferHtml(offerImage)}" alt="${escapeOfferHtml(offer.title)}">
                     </div>
 
                     <div class="offer-price-section">
@@ -100,7 +106,7 @@ async function initOffers() {
                     <div class="features-section">
                         ${featureItems.map(item => `
                             <div class="feature-item">
-                                <span class="feature-text">${item.text}</span>
+                                <span class="feature-text">${escapeOfferHtml(item.text)}</span>
                                 <div class="check-icon">
                                     <img src="/source/icons/${item.active ? 'true' : 'false'}.png" alt="icon" style="width: 100%; height: 100%; object-fit: contain;">
                                 </div>
@@ -115,6 +121,9 @@ async function initOffers() {
                             ${offer.is_purchased ? 'style="background-color: #10b981; color: white;"' : ''}>
                             ${timedUnavailable ? 'Indisponible' : renewable && offer.can_purchase ? 'Renouveler' : offer.is_purchased ? 'Déjà possédé' : (offer.can_purchase ? 'Acheter' : 'Solde insuffisant')}
                         </button>
+                        ${offer.scheduled_checkout_enabled && !offer.is_purchased && offer.access_mode === 'academic_year' &&
+                            (offer.upgrades_enabled || offer.installment_max > 1) ?
+                            `<button class="acheter-btn scheduled-offer-btn" type="button" data-scheduled-index="${index}">Tranches et surclassement</button>` : ''}
                     </div>
                 </div>
             `;
@@ -127,6 +136,9 @@ async function initOffers() {
                 try { await subscribeToOffer(offer.id, offer.title, offer.access_mode); }
                 finally { button.disabled = false; }
             });
+        }
+        for (const button of offersList.querySelectorAll('[data-scheduled-index]')) {
+            button.addEventListener('click', () => window.openScheduledOfferCheckout(offers[Number(button.dataset.scheduledIndex)]));
         }
 
         // ── Mobile: Prev / Next button navigation ──
@@ -182,7 +194,14 @@ async function subscribeToOffer(offerId, title, accessMode) {
             request.requestId = data.requestId;
             details += `\nMontant : ${data.price} DT. Fin d’accès : ${expiry} (Tunis).`;
             if (accessMode === 'monthly') {
-                details += '\nRenouvellement manuel. Pour un achat le 29, 30 ou 31, si le mois suivant ne comporte pas ce jour, la période se termine à 00:00 le dernier jour du mois. Un renouvellement continu conserve le jour initial.';
+                details += '\nRenouvellement manuel. Si le mois suivant ne comporte pas le 29, 30 ou 31 choisi, l’accès inclut son dernier jour. Un renouvellement continu conserve le jour initial.';
+            }
+            if (data.access_mode === 'academic_year') {
+                const year = Number(data.academic_year_start);
+                const days = Math.max(0, Math.ceil((Date.parse(data.expires_at) - Date.parse(data.starts_at)) / 86400000));
+                const cutoff = new Intl.DateTimeFormat('fr-FR', { dateStyle: 'long', timeZone: 'UTC' })
+                    .format(new Date(data.access_cutoff_date + 'T00:00:00Z'));
+                details += `\nAnnée scolaire ${year}–${year + 1} · environ ${days} jour(s) d’accès. Accès jusqu’au ${cutoff} inclus (heure de Tunis), quelle que soit la date d’achat.`;
             }
         }
         const confirmed = confirm(details);

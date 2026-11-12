@@ -508,8 +508,9 @@ function openReplayPlayer(replayUrl, title, resources = [], sessionId = '') {
     wrapper.className = 'video-section-wrapper course-replay-view';
     const heading = document.createElement('div');
     heading.className = 'course-player-heading';
-    const titleElement = document.createElement('h1');
-    titleElement.textContent = title || 'Replay de la séance';
+    const mode = document.createElement('span');
+    mode.className = 'course-player-mode';
+    mode.textContent = 'Replay de la séance';
     const switchButton = document.createElement('button');
     switchButton.type = 'button';
     switchButton.className = 'course-player-switch';
@@ -523,21 +524,25 @@ function openReplayPlayer(replayUrl, title, resources = [], sessionId = '') {
     replayListButton.textContent = 'Directs et replays';
     replayListButton.addEventListener('click', () => switchCoursePlayerTo('live'));
     actions.append(switchButton, replayListButton);
-    heading.append(titleElement, actions);
+    heading.append(mode, actions);
     const frame = document.createElement('div');
     frame.className = 'video-container course-player-frame';
     frame.appendChild(player);
     const details = document.createElement('div');
     details.className = 'lesson-details-content';
-    details.innerHTML = '<p>Replay de votre séance en direct.</p>';
-    if (drivePreview) {
-        const link = document.createElement('a');
-        link.className = 'course-replay-external';
-        link.href = parsed.href;
-        link.target = '_blank';
-        link.rel = 'noopener noreferrer';
-        link.textContent = 'Ouvrir dans Google Drive';
-        details.appendChild(link);
+    const titleElement = document.createElement('h1');
+    titleElement.className = 'course-player-title';
+    titleElement.dir = 'auto';
+    titleElement.textContent = title || 'Replay de la séance';
+    details.appendChild(titleElement);
+    const session = currentLiveSessions.find(item => item.id === sessionId);
+    const date = new Date(session?.scheduled_at);
+    if (Number.isFinite(date.getTime())) {
+        const recordedAt = document.createElement('time');
+        recordedAt.className = 'course-replay-date';
+        recordedAt.dateTime = date.toISOString();
+        recordedAt.textContent = date.toLocaleDateString('fr-FR', { dateStyle: 'long', timeZone: 'Africa/Tunis' });
+        details.appendChild(recordedAt);
     }
     wrapper.append(heading, frame, details);
     courseMain.replaceChildren(wrapper);
@@ -817,9 +822,9 @@ async function showLessonInMainArea(lesson, videoUrl, pdfUrl, practiceFiles = []
 
     // Replace main content with the video (when present), lesson resources, and actions.
     courseMain.innerHTML = `
-        <div class="video-section-wrapper" style="width: 100%; display: flex; flex-direction: column; gap: 1rem;">
+        <div class="video-section-wrapper">
             <div class="course-player-heading"><span class="course-player-mode">Leçon</span><button class="course-player-switch" type="button" onclick="switchCoursePlayerTo('live')"><i class="fas fa-video" aria-hidden="true"></i> Directs et replays</button></div>
-            ${videoUrl ? `<div class="video-container" style="background: #000; border-radius: 12px; overflow: hidden; position: relative; aspect-ratio: 16/9; width: 100%; box-shadow: 0 15px 35px rgba(0,0,0,0.2);">
+            ${videoUrl ? `<div class="video-container course-player-frame">
                 <video 
                     id="current-lesson-video"
                     data-lesson-id="${lesson.id}"
@@ -827,7 +832,7 @@ async function showLessonInMainArea(lesson, videoUrl, pdfUrl, practiceFiles = []
                     data-last-saved-position="${Number(lesson.last_position) || 0}"
                     controls 
                     controlsList="nodownload"
-                    style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; object-fit: cover;"
+                    class="course-lesson-player"
                 >
                     Votre navigateur ne supporte pas la lecture de vidéos.
                 </video>
@@ -842,8 +847,8 @@ async function showLessonInMainArea(lesson, videoUrl, pdfUrl, practiceFiles = []
                 </button>
             </div>
             
-            <div class="lesson-details-content" style="padding: 1.5rem; background: white; border-radius: 12px; border: 1px solid #e2e8f0; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05);">
-                <h2 style="margin-top: 0; font-size: 1.5rem; color: #1e293b; font-weight: 700;">${lesson.title}</h2>
+            <div class="lesson-details-content">
+                <h2 class="course-player-title">${escapeQuizHtml(lesson.title)}</h2>
                 <div style="color: #64748b; line-height: 1.6; font-size: 1.05rem;">
                     ${lesson.description || 'Aucune description pour cette leçon.'}
                 </div>

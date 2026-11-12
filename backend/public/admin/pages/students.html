@@ -398,6 +398,7 @@
     <script src="/js/authentication.js"></script>
     <script src="../js/admin-dashboard.js"></script>
     <script src="../js/admin-render.js"></script>
+    <script src="/js/offer-upgrade-checkout.js?v=2"></script>
     <script>
         let currentPage = 1;
         const pageSize = 10;
@@ -580,7 +581,7 @@
             const debt = parseFloat(s.debt || 0);
             let optionsHtml = '';
             if (activeOffers.length > 0) {
-                optionsHtml = activeOffers.filter(o => !o.access_mode).map(o => `<option value="${adminText(o.id)}">${adminText(o.title)} (${adminText(o.fixed_price)} DT)</option>`).join('');
+                optionsHtml = activeOffers.filter(o => !o.access_mode && o.installment_max !== 1).map(o => `<option value="${adminText(o.id)}">${adminText(o.title)} (${adminText(o.fixed_price)} DT)</option>`).join('');
             }
 
             content.innerHTML = `
@@ -692,6 +693,19 @@
                 if (!response.ok || !result.success) throw new Error(result.error || 'Opération indisponible.');
                 return result;
             }
+            function wireCreditCorrection(button, claimId) {
+                button.onclick = async () => {
+                    const reason = prompt('Motif de correction du crédit. Le solde dû sera recalculé.');
+                    if (!reason?.trim()) return;
+                    button.disabled = true;
+                    try {
+                        await send('/api/admin/student/' + encodeURIComponent(studentId) + '/offer-upgrade/claims/' +
+                            encodeURIComponent(claimId) + '/correction', 'POST', { reason, requestId: crypto.randomUUID() });
+                        await openStudentDetailsModal(studentId);
+                    } catch (error) { status.textContent = error.message; }
+                    finally { button.disabled = false; }
+                };
+            }
             function wire(form, action) {
                 let priorInput;
                 let requestId;
@@ -723,7 +737,21 @@
                 const data = await response.json();
                 if (!response.ok) throw new Error();
                 if (!panel.isConnected) return;
-                const timed = offers.filter(offer => offer.access_mode && offer.minimum_initial_payment != null);
+                const scheduled = offers.filter(offer => offer.access_mode === 'academic_year' &&
+                    (offer.upgrades_enabled || offer.installment_max > 1));
+                if (scheduled.length && data.upgradesEnabled) {
+                    const select = document.createElement('select');
+                    select.setAttribute('aria-label', 'Offre annuelle');
+                    for (const offer of scheduled) select.add(new Option(offer.title, offer.id));
+                    const start = document.createElement('button');
+                    start.type = 'button';
+                    start.className = 'btn';
+                    start.textContent = 'Préparer un paiement annuel ou un surclassement';
+                    start.onclick = () => window.openScheduledOfferCheckout(
+                        scheduled.find(offer => offer.id === select.value), studentId);
+                    panel.append(select, start);
+                }
+                const timed = offers.filter(offer => offer.access_mode && offer.installment_max == null && offer.minimum_initial_payment != null);
                 if (timed.length) {
                     const draft = document.createElement('form');
                     draft.innerHTML = '<label>Offre <select name="offerId" required></select></label> <button class="btn btn-primary" type="submit">Créer une tranche sans accès</button>';
@@ -752,6 +780,60 @@
                     info.textContent = detail.join(' · ');
                     card.append(name, info);
                     const itemUrl = url + '/' + encodeURIComponent(item.id);
+                    for (const tranche of item.schedule || []) {
+                        const line = document.createElement('p');
+                        line.textContent = 'Tranche ' + tranche.position + ' · Reste ' + tranche.remaining + ' DT · ' +
+                            (tranche.dueDate || 'Aucune échéance définie');
+                        card.append(line);
+                    }
+                    for (const claim of item.claims || []) {
+                        const row = document.createElement('p');
+                        row.textContent = 'Crédit · ' + claim.sourceTitle + ' · ' + claim.amount + ' DT';
+                        if (claim.correctedAt) row.append(' · Corrigé : ' + claim.reason);
+                        else {
+                            const correct = document.createElement('button');
+                            correct.type = 'button';
+                            correct.className = 'btn';
+                            correct.textContent = 'Corriger le crédit';
+                            wireCreditCorrection(correct, claim.id);
+                            row.append(' ', correct);
+                        }
+                        card.append(row);
+                    }
+                    if (item.starts_at) {
+                        const coverage = document.createElement('p');
+                        coverage.textContent = 'Début d’accès : ' + new Intl.DateTimeFormat('fr-FR', {
+                            timeZone: 'Africa/Tunis', dateStyle: 'short', timeStyle: 'short'
+                        }).format(new Date(item.starts_at)) + ' (Tunis)';
+                        card.append(coverage);
+                    }
+                    for (const payment of item.payments || []) {
+                        const row = document.createElement('p');
+                        row.textContent = [payment.amount + ' DT', payment.source === 'external' ? 'Externe' : 'Portefeuille',
+                            payment.paidOn && 'Payé le ' + payment.paidOn, payment.receipt,
+                            payment.recordedAt && 'Saisi le ' + new Date(payment.recordedAt).toLocaleDateString('fr-FR', { timeZone: 'Africa/Tunis' }),
+                            payment.reversedAt ? 'Contrepassé : ' + payment.reason : null].filter(Boolean).join(' · ');
+                        if (payment.source === 'external' && !payment.reversedAt) {
+                            const reverse = document.createElement('button');
+                            reverse.type = 'button';
+                            reverse.className = 'btn';
+                            reverse.textContent = 'Contrepasser';
+                            reverse.addEventListener('click', async () => {
+                                const reason = prompt('Motif de la contrepassation. Le solde dû change, les dates d’accès et le portefeuille restent identiques.');
+                                if (!reason?.trim()) return;
+                                reverse.disabled = true;
+                                try {
+                                    await send(itemUrl + '/payments/' + encodeURIComponent(payment.id) + '/reversal', 'POST', {
+                                        reason, requestId: crypto.randomUUID()
+                                    });
+                                    await openStudentDetailsModal(studentId);
+                                } catch (error) { showToast(error.message, 'error'); }
+                                finally { reverse.disabled = false; }
+                            });
+                            row.append(' ', reverse);
+                        }
+                        card.append(row);
+                    }
 
                     if (['draft', 'due', 'overdue', 'no_due_date'].includes(item.status)) {
                         const draft = item.status === 'draft';
@@ -759,6 +841,9 @@
                         form.innerHTML = '<label>Montant (DT) <input name="amount" type="number" min="0.01" step="0.01" required></label>' +
                             '<label>Source <select name="source"><option value="wallet">Portefeuille</option><option value="external">Paiement externe</option></select></label>' +
                             '<label><input type="checkbox" name="externalConfirmed"> J’ai vérifié le paiement externe</label>' +
+                            '<label>Date réelle du paiement externe <input name="paidOn" type="date"></label>' +
+                            '<label>Référence du reçu externe <input name="receiptReference" maxlength="120"></label>' +
+                            (draft ? '<label>Début d’accès convenu (Tunis) <input name="coverageStart" type="date"></label>' : '') +
                             (draft ? '<label>Prochaine échéance (facultative) <input name="nextDueDate" type="date"></label>' : '') +
                             '<button class="btn btn-primary" type="submit"></button>';
                         form.querySelector('button').textContent = draft ? 'Confirmer le paiement et accorder l’accès' : 'Enregistrer un paiement';
@@ -766,6 +851,8 @@
                         wire(form, (values, requestId) => send(itemUrl + (draft ? '/confirm' : '/payments'), 'POST', {
                             amount: values.amount, source: values.source, requestId,
                             externalConfirmed: values.externalConfirmed === 'on',
+                            paidOn: values.paidOn || null, receiptReference: values.receiptReference || null,
+                            coverageStart: values.coverageStart || null,
                             nextDueDate: values.nextDueDate || null
                         }));
                         card.append(form);
@@ -783,7 +870,7 @@
                     }
                     panel.append(card);
                 }
-                if (!timed.length && !data.arrangements?.length) panel.remove();
+                if (!timed.length && !data.arrangements?.length && !(scheduled.length && data.upgradesEnabled)) panel.remove();
             } catch {
                 status.textContent = 'Impossible de charger les tranches à durée limitée.';
             }

@@ -633,3 +633,11 @@ Migration `202611110003_add_bugi_history_revision.sql` adds `users.bugi_history_
 ## Timed offer access
 
 Migration `202611110004_add_timed_offer_access.sql` adds offer terms, the enrollment `timed_access_only` marker, and independent grant, course snapshot, installment, payment, deadline audit and calendar draft tables. Legacy enrollments default to false for the new marker. Timed grant windows are half-open timestamp ranges. Notifications reference the grant through a nullable foreign key with a partial unique index. Existing payment and progress records retain their values. See [the technical plan](OFFER_ACCESS_TECHNICAL_PLAN.md) for the complete table and constraint inventory.
+
+### Timed-offer reconciliation migration
+
+`202611120001_reconcile_timed_offer_terms.sql` adds the nullable nominal monthly boundary month on grants, an actual payment date and globally unique normalized receipt reference on external installment payments, and the append-only `offer_installment_reversals` table. A reversal references one original external installment payment and records a unique request ID, reason, actor and timestamp. Existing grant windows and legacy payment metadata are preserved. The migration allows a confirmed arrangement's net paid amount to drop below its minimum after reversal. Confirmation still enforces the initial minimum.
+
+### Offer upgrade credit migration
+
+Migration `202611120002_offer_upgrade_credit.sql` adds offer schedule policy, source rules, confirmations, verified credit claims, corrections and scheduled installment rows. Grants have exactly one origin, either the original payment or a scheduled confirmation. A separate installment credit total reduces outstanding debt. The schedule balances view allocates credit and net cash to the earliest tranche. Monthly source claims and edits to historical grant provenance are rejected in PostgreSQL.

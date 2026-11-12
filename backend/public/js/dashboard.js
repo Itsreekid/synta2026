@@ -134,15 +134,26 @@ function renderLockedContinueState(continueSection) {
     if (dashboardContainer) dashboardContainer.classList.add('locked-mode');
 
     continueSection.innerHTML = `
-        <div class="locked-state" style="display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;gap:1.5rem;background:#fff7ed;padding:2rem;border-radius:var(--radius-lg);border:2px dashed #fdba74;flex:1;min-height:190px;">
-            <div style="width:80px;height:80px;background:white;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:2.5rem;color:var(--orange-primary);box-shadow:0 4px 15px rgba(249,115,22,.15);">🔒</div>
-            <div>
-                <h4 style="margin:0 0 .5rem;color:#1e293b;font-size:1.3rem;font-weight:800;">Aucune formation pour le moment</h4>
-                <p style="margin:0;color:var(--text-muted);font-size:1rem;max-width:300px;">Choisis une offre pour débloquer tes cours. Rien n’apparaît ici tant que tu n’as pas commencé.</p>
+        <div class="dashboard-first-steps">
+            <h4>Commence ton parcours en informatique</h4>
+            <div class="dashboard-first-actions">
+                <a class="btn-primary dashboard-course-link" href="/session">Voir la séance gratuite &rarr;</a>
+                <a href="/app/courses">Explorer les cours et les aperçus</a>
+                <a href="/app/offers">Découvrir les offres</a>
             </div>
-            <a class="btn-primary dashboard-course-link" href="/app/offers" style="padding:.75rem 1.5rem;font-size:1rem;">Découvrir les offres &rarr;</a>
+            <p data-dashboard-recommendation hidden></p>
         </div>
     `;
+    const recommendation = continueSection.querySelector('[data-dashboard-recommendation]');
+    fetchDashboardData('/api/offers', payload => {
+        const offers = Array.isArray(payload?.offers) ? payload.offers : [];
+        const featured = offers.find(offer => offer.is_best_seller && !offer.is_purchased &&
+            (!offer.access_mode || offer.timed_sales_enabled) && offer.title);
+        if (featured && recommendation?.isConnected) {
+            recommendation.textContent = 'Offre mise en avant pour ton parcours · ' + featured.title;
+            recommendation.hidden = false;
+        }
+    });
 }
 
 function renderContinueCourseCard(course, { featured = false } = {}) {
@@ -191,17 +202,17 @@ function renderPathStepper(pathSection, activeCourse, modules, completedIds) {
     }
 
     const completed = new Set(completedIds);
-    const statuses = modules.map(module => {
+    const chapterProgress = modules.map(module => {
         const lessons = (module.lessons || []).filter(lesson => lesson.type !== 'quiz');
-        return lessons.length > 0 && lessons.every(lesson => completed.has(lesson.id));
+        return lessons.length ? lessons.filter(lesson => completed.has(lesson.id)).length / lessons.length : null;
     });
-    const current = completedIds ? statuses.indexOf(false) : -1;
+    const current = completedIds ? chapterProgress.findIndex(value => value !== null && value < 1) : -1;
     let html = '';
 
     modules.forEach((mod, index) => {
         let statusClass = '';
         let iconHtml = index + 1;
-        if (statuses[index]) {
+        if (chapterProgress[index] === 1) {
             statusClass = 'completed';
             iconHtml = '✓';
         } else if (index === current) {
@@ -212,7 +223,7 @@ function renderPathStepper(pathSection, activeCourse, modules, completedIds) {
         const name = mod.title || `Chapitre ${index + 1}`;
 
         html += `
-            <div class="step ${statusClass}" ${index === current ? 'aria-current="step"' : ''}>
+            <div class="step ${statusClass}" style="--chapter-fill:${Math.round((chapterProgress[index] || 0) * 100)}%" ${index === current ? 'aria-current="step"' : ''}>
                 <div class="step-circle">${iconHtml}</div>
                 <span dir="auto">${escapeDashboardHtml(name)}</span>
             </div>

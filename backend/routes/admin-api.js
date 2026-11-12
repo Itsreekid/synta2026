@@ -20,13 +20,25 @@ router.get("/api/admin/overview-stats", requireAdmin, async (req, res) => {
   try {
     const studentResult = await pool.query(`SELECT count(*) FROM users WHERE role = 'user'`);
     const offerResult = await pool.query(`SELECT count(*) FROM offers WHERE is_active = true`);
-    const revenueResult = await pool.query(`SELECT COALESCE(SUM(amount), 0) as total FROM purchases WHERE payment_status = 'completed'`);
+    const { rows: [finance] } = await pool.query(`
+      SELECT
+        (SELECT COALESCE(sum(t.amount),0)::numeric(18,2)::text FROM transactions t
+         WHERE t.type='purchase' AND t.status IN ('completed','approved')
+           AND NOT EXISTS (SELECT 1 FROM offer_installment_payments p JOIN offer_installment_reversals r ON r.payment_id=p.id
+                           WHERE p.transaction_id=t.id)) AS sales_collected,
+        (SELECT COALESCE(sum(amount),0)::numeric(18,2)::text FROM transactions
+         WHERE type='deposit' AND status IN ('completed','approved')) AS wallet_funding,
+        (SELECT COALESCE(sum(quoted_price-paid_total-credit_total),0)::numeric(18,2)::text FROM offer_installment_arrangements
+         WHERE grant_id IS NOT NULL AND cancelled_at IS NULL) AS installment_outstanding,
+        (SELECT COALESCE(sum(amount),0)::numeric(18,2)::text FROM purchases WHERE payment_status='completed') AS legacy_purchases
+    `);
     
     return res.json({
       success: true,
       students: parseInt(studentResult.rows[0].count, 10),
       offers: parseInt(offerResult.rows[0].count, 10),
-      revenue: parseFloat(revenueResult.rows[0].total).toFixed(2)
+      revenue: finance.sales_collected,
+      ...finance
     });
   } catch (err) {
     console.error("Error in overview-stats:", err.message);
@@ -277,7 +289,7 @@ router.post("/api/admin/student/:id/generate-token", requireAdmin, async (req, r
  */
 router.get("/api/admin/active-offers", requireAdmin, async (req, res) => {
   try {
-    const result = await pool.query(`SELECT id, title, fixed_price, access_mode, minimum_initial_payment FROM offers WHERE is_active = true ORDER BY created_at DESC`);
+    const result = await pool.query(`SELECT id, title, fixed_price, access_mode, minimum_initial_payment, installment_max, upgrades_enabled FROM offers WHERE is_active = true ORDER BY created_at DESC`);
     return res.json({ success: true, offers: result.rows });
   } catch (err) {
     return res.status(500).json({ success: false, error: "Internal server error" });
@@ -314,6 +326,10 @@ router.post("/api/admin/student/:id/enroll-partial", requireAdmin, async (req, r
       return res.status(404).json({ success: false, error: "Offer not found" });
     }
     const offer = offerResult.rows[0];
+    if (offer.installment_max === 1) {
+      await client.query("ROLLBACK");
+      return res.status(409).json({ success: false, error: "Cette offre exige un paiement intégral." });
+    }
     if (offer.access_mode) {
       await client.query("ROLLBACK");
       return res.status(409).json({ success: false, error: "Confirmez une tranche via le parcours à durée limitée." });
@@ -994,6 +1010,7 @@ router.get("/api/admin/payments", requireAdmin, async (req, res) => {
            count(*) FILTER (WHERE t.status IN ('completed','approved')
                               AND t.processed_at >= date_trunc('day', NOW()))         AS confirmed_today,
            COALESCE(sum(t.amount) FILTER (WHERE t.status IN ('completed','approved')
+                              AND t.type = 'deposit'
                               AND t.processed_at >= date_trunc('month', NOW())), 0)   AS confirmed_month_amount
          FROM transactions t JOIN users u ON u.id = t.user_id`
       ),

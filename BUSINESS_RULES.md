@@ -329,3 +329,11 @@ Two roles exist: `user` (student) and `admin`.
 ## Timed offer access
 
 Monthly access uses an Africa/Tunis calendar month. Continuous renewals keep the original day and clamp it in shorter months. Annual access includes the administrator-selected cutoff date. Installment drafts carry no debt or access until explicit confirmation. A missing deadline displays as undefined. Overdue debt leaves access intact, and payment after expiry settles debt without reopening access. Current grants survive offer edits and deactivation. The wallet shows recorded expiry, and eligible grants receive one in-app reminder in the three-day window. See [the technical plan](OFFER_ACCESS_TECHNICAL_PLAN.md).
+
+### Revised timed-offer rules
+
+New monthly terms include the final day when their anchor does not exist in the target month. Existing stored expiry instants stay fixed. Continuous renewals start at the previous expiry and calculate their new boundary from the nominal month. An approved historical external payment uses the explicitly entered Tunis coverage start. Expired coverage is recorded as an expired historical grant. Reversals change net installment debt and sales reporting while preserving the original payment, wallet and access window.
+
+### Offer upgrade credit
+
+Annual destinations only. Monthly payments never qualify, including after an offer is relabeled. A configured pair normally requires a fully paid source. Verified partial credit is opt-in per pair, preserves source debt and requires a separate acknowledgment. The required initial coverage is the larger of the first tranche and the configured minimum. Eligible credit counts toward it without changing wallet balance or cash sales. Unset later due dates remain undefined and do not suspend access. Credit corrections preserve grant windows and the original evidence claim.

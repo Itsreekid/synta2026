@@ -122,6 +122,7 @@ router.get("/lesson/:lessonId/resources/:resourceId/code", authApiMiddleware, as
  * GET /api/content/lesson/:lessonId — PROTECTED
  */
 router.get("/lesson/:lessonId", authApiMiddleware, async (req, res) => {
+  res.set("Cache-Control", "private, no-store");
   try {
     const { lessonId } = req.params;
     const userId = req.user?.id;

@@ -272,6 +272,18 @@
                             <input type="number" id="offer-initial-payment" min="0.01" step="0.01" placeholder="Facultatif">
                         </div>
                     </fieldset>
+                    <fieldset id="upgrade-policy" class="form-group" hidden>
+                        <legend>Tranches et surclassements</legend>
+                        <label>Nombre maximal de paiements
+                            <select id="upgrade-max"><option value="1">Paiement intégral</option><option value="2">2</option><option value="3">3</option></select>
+                        </label>
+                        <label>Échéance 2, jours après confirmation <input type="number" id="upgrade-due-2" min="1" max="366"></label>
+                        <label>Échéance 3, jours après confirmation <input type="number" id="upgrade-due-3" min="1" max="366"></label>
+                        <label><input type="checkbox" id="upgrade-enabled"> Autoriser les surclassements vers cette offre</label>
+                        <div id="upgrade-source-rules"></div>
+                        <button type="button" class="btn" id="save-upgrade-policy">Enregistrer les règles de paiement</button>
+                        <p id="upgrade-policy-status" role="status"></p>
+                    </fieldset>
                     <div class="form-group">
                         <label>Titre</label>
                         <input type="text" id="title" required placeholder="Ex: Pack Bac Info Pro">
@@ -720,7 +732,71 @@
             academicYear.required = annual;
             cutoffDate.required = annual;
         }
+        async function loadUpgradePolicy(offer) {
+            const panel = document.getElementById('upgrade-policy');
+            panel.hidden = true;
+            if (!offer.id) return;
+            const status = document.getElementById('upgrade-policy-status');
+            const save = document.getElementById('save-upgrade-policy');
+            const rules = document.getElementById('upgrade-source-rules');
+            const maximum = document.getElementById('upgrade-max');
+            const enabled = document.getElementById('upgrade-enabled');
+            const dueDates = [document.getElementById('upgrade-due-2'), document.getElementById('upgrade-due-3')];
+            const url = '/api/admin/offers/' + encodeURIComponent(offer.id) + '/upgrade-policy';
+            try {
+                const response = await fetch(url);
+                const { policy, sources } = await response.json();
+                if (!response.ok || !policy || document.getElementById('offerId').value !== offer.id) return;
+                maximum.value = policy.installment_max || '1';
+                for (const option of maximum.options) option.disabled = option.value !== '1' && policy.access_mode !== 'academic_year';
+                enabled.disabled = policy.access_mode !== 'academic_year';
+                enabled.checked = policy.upgrades_enabled;
+                dueDates.forEach((field, index) => { field.value = policy.installment_due_offsets[index] ?? ''; });
+                rules.replaceChildren();
+                const rows = sources.map(source => {
+                    const row = document.createElement('div');
+                    const label = document.createElement('label');
+                    const allowed = document.createElement('input');
+                    allowed.type = 'checkbox';
+                    allowed.checked = source.allow_partial != null;
+                    label.append(allowed, ' ' + source.title);
+                    const partialLabel = document.createElement('label');
+                    const partial = document.createElement('input');
+                    partial.type = 'checkbox';
+                    partial.checked = source.allow_partial === true;
+                    partialLabel.append(partial, ' Autoriser les paiements partiels vérifiés');
+                    row.append(label, partialLabel);
+                    rules.append(row);
+                    return { sourceId: source.id, allowed, partial };
+                });
+                const sync = () => {
+                    rules.hidden = !enabled.checked;
+                    dueDates.forEach((field, index) => { field.disabled = index >= Number(maximum.value) - 1; });
+                };
+                maximum.onchange = enabled.onchange = sync;
+                sync();
+                panel.hidden = false;
+                status.textContent = '';
+                save.onclick = async () => {
+                    save.disabled = true;
+                    try {
+                        const max = Number(maximum.value);
+                        const result = await fetch(url, { method:'PUT', headers:{'Content-Type':'application/json'},
+                            body:JSON.stringify({ maximum:max, enabled:enabled.checked,
+                                offsets:dueDates.slice(0,max-1).map(field => field.value ? field.valueAsNumber : null),
+                                rules:enabled.checked ? rows.filter(row => row.allowed.checked).map(row =>
+                                    ({ sourceId:row.sourceId, allowPartial:row.partial.checked })) : [] }) });
+                        const data = await result.json();
+                        if (!result.ok) throw new Error(data.error);
+                        status.textContent = 'Règles enregistrées.';
+                    } catch (error) { status.textContent = error.message || 'Enregistrement impossible.'; }
+                    finally { save.disabled = false; }
+                };
+            } catch { status.textContent = 'Règles indisponibles.'; }
+        }
+
         function loadOfferAccessFields(offer = {}) {
+            void loadUpgradePolicy(offer);
             accessMode.value = offer.access_mode || '';
             academicYear.value = offer.academic_year_start ?? '';
             cutoffDate.value = offer.access_cutoff_date?.slice(0, 10) ?? '';

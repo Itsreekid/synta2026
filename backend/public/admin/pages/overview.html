@@ -160,8 +160,9 @@
         <div class="stat-card">
             <div class="stat-icon revenue"><i class="fas fa-money-bill-wave"></i></div>
             <div class="stat-info">
-                <h3>Revenus totaux</h3>
+                <h3>Ventes encaissées</h3>
                 <div class="value" id="count-revenue">0.00 DT</div>
+                <div id="finance-breakdown"></div>
             </div>
         </div>
     </div>
@@ -197,6 +198,9 @@
                     document.getElementById('count-students').textContent = stats.students;
                     document.getElementById('count-offers').textContent = stats.offers;
                     document.getElementById('count-revenue').textContent = stats.revenue + ' DT';
+                    document.getElementById('finance-breakdown').textContent =
+                        'Recharges : ' + stats.wallet_funding + ' DT · Tranches à encaisser : ' + stats.installment_outstanding +
+                        ' DT · Achats historiques (registre séparé) : ' + stats.legacy_purchases + ' DT';
                 }
             }
             document.getElementById('loading').style.display = 'none';
