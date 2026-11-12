@@ -9,7 +9,7 @@ import { requireAdmin } from "../middleware/requireAdmin.js";
 import { createZoomMeeting, deleteZoomMeeting } from "../utils/zoomClient.js";
 import { createR2UploadUrl, generateSignedUrl } from "../utils/r2Utils.js";
 import { r2Client, R2_BUCKET } from "../config/r2.js";
-import { liveSessionAccess, offerEntitlement } from "../utils/offerAccess.js";
+import { liveSessionAccess, offerEntitlement, enrollmentAccess } from "../utils/offerAccess.js";
 
 const router = express.Router();
 const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -21,7 +21,7 @@ async function getEligibleStudents(courseId, offerId, studentIds = null) {
      JOIN users u ON u.id = e.user_id
      WHERE e.course_id = $1 AND u.role = 'user'
        AND ($2::uuid IS NULL OR ${offerEntitlement("u.id", "$2", "e.course_id")})
-       AND (e.expires_at IS NULL OR e.expires_at > NOW())
+       AND ${enrollmentAccess("e")}
        AND ($3::uuid[] IS NULL OR u.id = ANY($3))
      ORDER BY u.name, u.email`,
     [courseId, offerId || null, studentIds]

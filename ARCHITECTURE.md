@@ -492,3 +492,7 @@ Cloudflare R2 Bucket
 | LOW | Add TypeScript for type safety |
 | LOW | Add automated tests (Jest + supertest) |
 
+
+## Timed offer architecture
+
+The timed router runs before the legacy purchase router and forwards legacy request bodies. The backend revalidates signed quotes under database locks and writes grants, payments and wallet changes in one transaction. Course authorization checks active grant snapshots and legacy enrollment rights independently. A guarded reminder worker inserts notifications with database deduplication. The calendar suggestion route uses only the dedicated Learning Gemini credential and stores admin-review drafts. See [the technical plan](OFFER_ACCESS_TECHNICAL_PLAN.md) for routes and rollout.

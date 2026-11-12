@@ -1,3 +1,4 @@
+import { enrollmentAccess } from "../utils/offerAccess.js";
 // =====================================================
 // COURSES API ROUTES
 // =====================================================
@@ -78,7 +79,7 @@ router.get("/", authMiddleware, async (req, res) => {
           OR EXISTS (
             SELECT 1 FROM enrollments e
             WHERE e.course_id = c.id AND e.user_id = $1
-              AND (e.expires_at IS NULL OR e.expires_at > NOW())
+              AND ${enrollmentAccess("e")}
           )
         )
     `;
@@ -137,7 +138,7 @@ router.get("/user/my-courses", authMiddleware, async (req, res) => {
               ) as last_lesson_activity
        FROM courses c
        JOIN enrollments e ON c.id = e.course_id AND e.user_id = $1
-         AND (e.expires_at IS NULL OR e.expires_at > NOW())
+         AND ${enrollmentAccess("e")}
        WHERE e.user_id = $1
          AND c.is_published = true
        ORDER BY COALESCE(e.last_accessed, (
@@ -208,7 +209,7 @@ router.get("/:courseId", authMiddleware, async (req, res) => {
            OR EXISTS (
              SELECT 1 FROM enrollments e
              WHERE e.course_id = c.id AND e.user_id = $2
-               AND (e.expires_at IS NULL OR e.expires_at > NOW())
+               AND ${enrollmentAccess("e")}
            )
          )`,
       [courseId, userId]

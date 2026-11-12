@@ -1,3 +1,4 @@
+import { enrollmentAccess } from "../utils/offerAccess.js";
 // =====================================================
 // TRACKING API ROUTES
 // =====================================================
@@ -129,7 +130,7 @@ router.post("/position", authMiddleware, async (req, res) => {
                 JOIN enrollments e ON e.course_id = cm.course_id
                 WHERE cm.module_id = l.module_id
                   AND e.user_id = $1
-                  AND (e.expires_at IS NULL OR e.expires_at > NOW())
+                  AND ${enrollmentAccess("e")}
               ) AS enrolled
        FROM lessons l
        WHERE l.id = $2`,

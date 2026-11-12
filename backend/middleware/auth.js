@@ -1,3 +1,4 @@
+import { enrollmentAccess } from "../utils/offerAccess.js";
 // =====================================================
 // AUTH MIDDLEWARE (Bearer token + helpers)
 // Replaces Supabase-based token verification with JWT.
@@ -50,7 +51,7 @@ export async function checkLessonAccess(userId, lessonId) {
        JOIN lessons l ON l.module_id = cm.module_id
        WHERE e.user_id = $1
          AND l.id = $2
-         AND (e.expires_at IS NULL OR e.expires_at > NOW())
+         AND ${enrollmentAccess("e")}
        LIMIT 1`,
       [userId, lessonId]
     );
@@ -67,18 +68,11 @@ export async function checkLessonAccess(userId, lessonId) {
 export async function checkCourseEnrollment(userId, courseId) {
   try {
     const result = await pool.query(
-      `SELECT id, expires_at FROM enrollments
-       WHERE user_id = $1 AND course_id = $2
-       LIMIT 1`,
+      `SELECT 1 FROM enrollments e WHERE e.user_id = $1 AND e.course_id = $2
+       AND ${enrollmentAccess("e")} LIMIT 1`,
       [userId, courseId]
     );
-
-    if (result.rowCount === 0) return false;
-
-    const { expires_at } = result.rows[0];
-    if (expires_at && new Date(expires_at) < new Date()) return false;
-
-    return true;
+    return result.rowCount > 0;
   } catch (error) {
     console.error("Error checking course enrollment:", error);
     return false;

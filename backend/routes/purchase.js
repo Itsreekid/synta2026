@@ -43,7 +43,7 @@ router.post("/course", authApiMiddleware, async (req, res) => {
     }
 
     const existing = await client.query(
-      `SELECT id FROM enrollments WHERE user_id = $1 AND course_id = $2`,
+      `SELECT id FROM enrollments WHERE user_id = $1 AND course_id = $2 AND NOT timed_access_only`,
       [userId, courseId]
     );
     if (existing.rowCount > 0) {
@@ -54,7 +54,7 @@ router.post("/course", authApiMiddleware, async (req, res) => {
     if (course.is_free) {
       await client.query(
         `INSERT INTO enrollments (user_id, course_id, amount_paid, enrolled_at)
-         VALUES ($1, $2, 0, NOW())`,
+         VALUES ($1, $2, 0, NOW()) ON CONFLICT(user_id,course_id) DO UPDATE SET timed_access_only=false,expires_at=NULL,offer_id=NULL WHERE enrollments.timed_access_only`,
         [userId, courseId]
       );
       await client.query("COMMIT");
@@ -84,7 +84,7 @@ router.post("/course", authApiMiddleware, async (req, res) => {
 
     await client.query(
       `INSERT INTO enrollments (user_id, course_id, amount_paid, payment_id, enrolled_at)
-       VALUES ($1, $2, $3, $4, NOW())`,
+       VALUES ($1, $2, $3, $4, NOW()) ON CONFLICT(user_id,course_id) DO UPDATE SET timed_access_only=false,expires_at=NULL,offer_id=NULL,amount_paid=EXCLUDED.amount_paid,payment_id=EXCLUDED.payment_id WHERE enrollments.timed_access_only`,
       [userId, courseId, course.price, ledger.rows[0].id]
     );
 
@@ -147,6 +147,10 @@ router.post("/offer", authApiMiddleware, async (req, res) => {
       await client.query("ROLLBACK");
       return res.status(404).json({ error: "Offer unavailable" });
     }
+    if (offer.access_mode) {
+      await client.query("ROLLBACK");
+      return res.status(409).json({ error: "Un devis est requis pour cette offre." });
+    }
     const price = Number(offer.fixed_price);
     if (!offer.course_ids.length || !Number.isFinite(price) || price < 0 || offer.fixed_price == null) {
       await client.query("ROLLBACK");
@@ -174,7 +178,7 @@ router.post("/offer", authApiMiddleware, async (req, res) => {
       `INSERT INTO enrollments (user_id, course_id, amount_paid, offer_id)
        SELECT $1, course_id, 0, $3 FROM unnest($2::uuid[]) AS courses(course_id)
        ON CONFLICT (user_id, course_id) DO UPDATE
-       SET expires_at = NULL, offer_id = EXCLUDED.offer_id
+       SET expires_at = NULL, timed_access_only = false, offer_id = EXCLUDED.offer_id
        WHERE enrollments.expires_at <= NOW()`, [userId, offer.course_ids, offerId]
     );
     await client.query("COMMIT");

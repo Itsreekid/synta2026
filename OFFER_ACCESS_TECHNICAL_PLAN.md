@@ -1,8 +1,8 @@
 # Monthly and academic-year offer access — technical approval plan
 
-Status: approved in principle. Final approval of the business rules and the migration is pending. The SQL, application behavior, provider configuration and production data have not changed. This plan supersedes the earlier two-column expiry sketch.
+Status: approved for local implementation and validation. Implemented in the workspace. Production activation requires separate approval.
 
-## Findings from the current implementation
+## Findings from the pre-change implementation
 
 - `backend/routes/purchase.js:104` takes a student row lock, verifies the offer under a shared row lock and writes a payment, wallet ledger entry and course enrollments. Its existing active-payment check returns alreadyPurchased. Existing checkout confirms the title only, then posts the offer ID.
 - `backend/routes/admin-api.js:279` confirms installments, records the initial payment and debt and grants access in one operation today. It accepts zero as the paid amount. It has no pending arrangement or separate grant confirmation.
@@ -72,3 +72,11 @@ Add the controls in Modifier l’offre, checkout and existing admin student/purc
 - Test an upgraded production-shaped schema in disposable PostgreSQL, including old payments with NULL offer IDs, status constraints, migration idempotency and unchanged historical entitlement. Check direct course purchases and legacy enrollments that share a course with a timed grant.
 - Test calendar rollover, leap years, Tunis midnight, simultaneous renewal and checkout, repeated confirmations, user/admin isolation, stale quotes, disabled/edited offers, expiry of one overlapping grant, and duplicate reminder jobs. Also verify overdue debt leaves access intact, deadlines can change without moving expiry, post-expiry collections do not reopen access, and exact decimal arithmetic rejects excess precision. Force a rollback after the wallet debit and replay concurrent initial and later payment requests to verify atomicity and idempotency.
 - Baseline before implementation: 31 existing regression tests passed; one opt-in PostgreSQL test skipped. No proposed migration was run. No Gemini request was made.
+
+## Rollout and rollback
+
+1. On staging, restore a sanitized production-shaped backup and verify the migration ledger, legacy checkout, student progress and wallet balances. Keep both timed feature flags false during the first start. Keep the current release available and take a fresh production backup before any approved production rollout.
+2. Release the reviewed build with `TIMED_OFFER_SALES_ENABLED=false` and `TIMED_OFFER_REMINDERS_ENABLED=false`. The container migration runner applies `202611110004_add_timed_offer_access.sql` before starting the server. Verify the migration log, application health and legacy admin, wallet and course access.
+3. In isolated staging, enable sales and reminders with synthetic accounts. Verify the displayed Tunis cutoff against the stored grant, replay the same request, exercise an installment and verify a single reminder using a synthetic grant inside the three-day window. Optionally configure the dedicated Learning Gemini key and request a single admin calendar suggestion. Compare the cited dates with the sources before saving any cutoff.
+4. After separate approval to offer timed access to real students, set the production sales flag true and create or activate the specifically approved timed offers. Enable reminders after validating their behavior in staging. Observe purchase failures, grant counts, wallet reconciliation and reminder deduplication.
+5. For a timed-sales incident, turn off the sales flag. The compatible build continues to honor existing grants and accept installment collections. Turn off reminders independently if necessary. Once timed grants exist, keep a compatible application and preserve the additive schema during rollback.

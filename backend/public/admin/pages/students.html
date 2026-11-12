@@ -580,7 +580,7 @@
             const debt = parseFloat(s.debt || 0);
             let optionsHtml = '';
             if (activeOffers.length > 0) {
-                optionsHtml = activeOffers.map(o => `<option value="${adminText(o.id)}">${adminText(o.title)} (${adminText(o.fixed_price)} DT)</option>`).join('');
+                optionsHtml = activeOffers.filter(o => !o.access_mode).map(o => `<option value="${adminText(o.id)}">${adminText(o.title)} (${adminText(o.fixed_price)} DT)</option>`).join('');
             }
 
             content.innerHTML = `
@@ -647,6 +647,8 @@
             content.querySelector('[data-student-pay-debt]')?.addEventListener('click', () => handlePayDebt(s.id));
             content.querySelector('[data-student-enroll]')?.addEventListener('click', () => handleEnrollPartial(s.id));
 
+            loadTimedInstallments(content, id, activeOffers);
+
             deleteBtn.onclick = async () => {
                 if(confirm("Voulez-vous vraiment supprimer cet étudiant ? Cette action est irréversible.")) {
                     const delRes = await window.AdminDashboard.deleteStudent(id);
@@ -669,6 +671,122 @@
                     alert("Erreur lors de la génération du lien.");
                 }
             };
+        }
+
+        async function loadTimedInstallments(content, studentId, offers) {
+            const panel = document.createElement('section');
+            panel.style.marginTop = '1rem';
+            const title = document.createElement('h3');
+            title.textContent = 'Tranches · offres à durée limitée';
+            const status = document.createElement('p');
+            status.setAttribute('role', 'status');
+            panel.append(title, status);
+            content.append(panel);
+            const url = '/api/admin/student/' + encodeURIComponent(studentId) + '/installment-arrangements';
+
+            async function send(path, method, body) {
+                const response = await fetch(path, {
+                    method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body)
+                });
+                const result = await response.json();
+                if (!response.ok || !result.success) throw new Error(result.error || 'Opération indisponible.');
+                return result;
+            }
+            function wire(form, action) {
+                let priorInput;
+                let requestId;
+                form.addEventListener('submit', async event => {
+                    event.preventDefault();
+                    const button = form.querySelector('[type="submit"]');
+                    if (button.disabled) return;
+                    const values = Object.fromEntries(new FormData(form));
+                    const signature = JSON.stringify(values);
+                    if (signature !== priorInput) {
+                        priorInput = signature;
+                        requestId = crypto.randomUUID();
+                    }
+                    button.disabled = true;
+                    status.textContent = '';
+                    try {
+                        await action(values, requestId);
+                        await openStudentDetailsModal(studentId);
+                    } catch (error) {
+                        status.textContent = error.message;
+                    } finally {
+                        button.disabled = false;
+                    }
+                });
+            }
+
+            try {
+                const response = await fetch(url);
+                const data = await response.json();
+                if (!response.ok) throw new Error();
+                if (!panel.isConnected) return;
+                const timed = offers.filter(offer => offer.access_mode && offer.minimum_initial_payment != null);
+                if (timed.length) {
+                    const draft = document.createElement('form');
+                    draft.innerHTML = '<label>Offre <select name="offerId" required></select></label> <button class="btn btn-primary" type="submit">Créer une tranche sans accès</button>';
+                    for (const offer of timed) {
+                        draft.elements.offerId.add(new Option(offer.title + ' · minimum ' + offer.minimum_initial_payment + ' DT', offer.id));
+                    }
+                    wire(draft, values => send(url, 'POST', values));
+                    panel.append(draft);
+                }
+                const states = {
+                    draft: 'Brouillon · accès non activé', settled: 'Réglée', no_due_date: 'Aucune échéance définie',
+                    overdue: 'En retard', due: 'Échéance définie', cancelled: 'Annulée'
+                };
+                for (const item of data.arrangements || []) {
+                    const card = document.createElement('div');
+                    card.style.cssText = 'padding:.75rem;margin-top:.75rem;border:1px solid #ccdce5;border-radius:8px';
+                    const name = document.createElement('strong');
+                    name.textContent = item.title;
+                    const info = document.createElement('p');
+                    const detail = [states[item.status], 'Prix : ' + item.quoted_price + ' DT'];
+                    if (item.remaining != null) detail.push('Reste : ' + item.remaining + ' DT');
+                    if (item.next_due_date) detail.push('Échéance : ' + item.next_due_date);
+                    if (item.expires_at) detail.push('Fin d’accès : ' + new Intl.DateTimeFormat('fr-FR', {
+                        timeZone: 'Africa/Tunis', dateStyle: 'short', timeStyle: 'short'
+                    }).format(new Date(item.expires_at)) + ' (Tunis)');
+                    info.textContent = detail.join(' · ');
+                    card.append(name, info);
+                    const itemUrl = url + '/' + encodeURIComponent(item.id);
+
+                    if (['draft', 'due', 'overdue', 'no_due_date'].includes(item.status)) {
+                        const draft = item.status === 'draft';
+                        const form = document.createElement('form');
+                        form.innerHTML = '<label>Montant (DT) <input name="amount" type="number" min="0.01" step="0.01" required></label>' +
+                            '<label>Source <select name="source"><option value="wallet">Portefeuille</option><option value="external">Paiement externe</option></select></label>' +
+                            '<label><input type="checkbox" name="externalConfirmed"> J’ai vérifié le paiement externe</label>' +
+                            (draft ? '<label>Prochaine échéance (facultative) <input name="nextDueDate" type="date"></label>' : '') +
+                            '<button class="btn btn-primary" type="submit"></button>';
+                        form.querySelector('button').textContent = draft ? 'Confirmer le paiement et accorder l’accès' : 'Enregistrer un paiement';
+                        if (draft) form.elements.amount.min = item.required_initial_payment;
+                        wire(form, (values, requestId) => send(itemUrl + (draft ? '/confirm' : '/payments'), 'POST', {
+                            amount: values.amount, source: values.source, requestId,
+                            externalConfirmed: values.externalConfirmed === 'on',
+                            nextDueDate: values.nextDueDate || null
+                        }));
+                        card.append(form);
+                    }
+                    if (['due', 'overdue', 'no_due_date'].includes(item.status)) {
+                        const form = document.createElement('form');
+                        form.innerHTML = '<label>Nouvelle échéance <input name="nextDueDate" type="date"></label>' +
+                            '<label>Motif <input name="reason" maxlength="500" required></label>' +
+                            '<button class="btn" type="submit">Modifier l’échéance</button>';
+                        form.elements.nextDueDate.value = item.next_due_date || '';
+                        wire(form, (values, requestId) => send(itemUrl + '/deadline', 'PATCH', {
+                            nextDueDate: values.nextDueDate || null, reason: values.reason, requestId
+                        }));
+                        card.append(form);
+                    }
+                    panel.append(card);
+                }
+                if (!timed.length && !data.arrangements?.length) panel.remove();
+            } catch {
+                status.textContent = 'Impossible de charger les tranches à durée limitée.';
+            }
         }
 
         window.handleEnrollPartial = async (studentId) => {

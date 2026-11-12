@@ -629,3 +629,7 @@ Migration `202611110003_add_bugi_history_revision.sql` adds `users.bugi_history_
 - Snapshot expiry per confirmed offer grant in `payments.access_expires_at` (nullable timestamp with time zone). Review the active-offer unique index and access checks so renewals preserve history and overlapping valid grants keep course access. Calendar edits do not retroactively change existing grants.
 - Gemini calendar lookup would use only LEARNING_GEMINI_API_KEY and return draft dates and sources. Propose a shared academic calendar record keyed by school year to reuse reviewed suggestions. Admins choose or override the cutoff; only an explicitly approved value can determine student access.
 - Propose a per-grant reminder deduplication key so a scheduled job inserts one existing in-app notification three days before expiry. No automatic wallet debit is proposed. Installment timing is pending owner confirmation.
+
+## Timed offer access
+
+Migration `202611110004_add_timed_offer_access.sql` adds offer terms, the enrollment `timed_access_only` marker, and independent grant, course snapshot, installment, payment, deadline audit and calendar draft tables. Legacy enrollments default to false for the new marker. Timed grant windows are half-open timestamp ranges. Notifications reference the grant through a nullable foreign key with a partial unique index. Existing payment and progress records retain their values. See [the technical plan](OFFER_ACCESS_TECHNICAL_PLAN.md) for the complete table and constraint inventory.

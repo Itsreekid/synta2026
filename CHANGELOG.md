@@ -539,3 +539,8 @@
 - Added authenticated lesson and live-session endpoints that check access before reading small Python files from private R2 into Code Pratique, avoiding browser-to-R2 CORS for editor loading.
 - Files larger than 1 MB remain downloadable; no schema change.
 
+
+## 2026-11-12
+
+- Added opt-in monthly and academic-year offers, audited installments, checkout expiry quotes, timed purchase history and deduplicated expiry reminders.
+- Added admin-reviewed academic calendar drafts using the dedicated Learning Gemini integration.

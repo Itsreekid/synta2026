@@ -10,6 +10,7 @@ import { authRateLimit } from "../middleware/authRateLimit.js";
 import * as offerAccess from "../utils/offerAccess.js";
 import * as learnerProfile from "../utils/learnerProfile.js";
 import * as courseImages from "../utils/courseImages.js";
+import * as timedOffers from "../services/timed-offers.js";
 
 const SECRET = "local-test-secret";
 const USER = "10000000-0000-0000-0000-000000000001";
@@ -40,6 +41,7 @@ async function loadRoute(name, doubles) {
     crypto: { default: crypto },
     "node:crypto": { randomUUID: crypto.randomUUID },
     "../utils/courseImages.js": courseImages,
+    "../services/timed-offers.js": timedOffers,
     "../middleware/requireAdmin.js": { requireAdmin: admin },
     "../middleware/requireAuth.js": {
       authApiMiddleware: guard,
@@ -583,7 +585,7 @@ test("admin offer status affects the active KPI and checkout without revoking a 
       offers.set(id, active);
       return { rows: [{ is_active: active }] };
     }
-    if (sql.startsWith("SELECT * FROM offers")) return {
+    if (sql.startsWith("SELECT *, access_cutoff_date::text")) return {
       rows: [...offers].map(([id, is_active]) => ({ id, is_active }))
     };
     if (sql.includes("FROM offers")) {

@@ -1,3 +1,4 @@
+import { offerTerms } from "../services/timed-offers.js";
 import { randomUUID } from "node:crypto";
 import express from "express";
 import pool from "../config/db.js";
@@ -5,7 +6,7 @@ import { requireAdmin } from "../middleware/requireAdmin.js";
 import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
 import { createR2UploadUrl, deleteFromR2, listRecentR2Objects, uploadToR2 } from "../utils/r2Utils.js";
-import { offerEntitlement } from "../utils/offerAccess.js";
+import { offerEntitlement, legacyOfferEntitlement } from "../utils/offerAccess.js";
 
 import { COURSE_IMAGE_PREFIX, courseImagePath, decodeCourseImage, isCourseImageKey } from "../utils/courseImages.js";
 
@@ -38,7 +39,7 @@ router.get("/api/admin/overview-stats", requireAdmin, async (req, res) => {
  */
 router.get("/api/admin/offers", requireAdmin, async (req, res) => {
   try {
-    const result = await pool.query(`SELECT * FROM offers ORDER BY created_at DESC`);
+    const result = await pool.query(`SELECT *, access_cutoff_date::text AS access_cutoff_date FROM offers ORDER BY created_at DESC`);
     return res.json({ success: true, data: result.rows });
   } catch (err) {
     console.error("Error fetching offers:", err.message);
@@ -92,6 +93,8 @@ router.post("/api/admin/offers", requireAdmin, async (req, res) => {
   try {
     const { id, title, description, fixed_price, discount_percentage, is_active, target_classes, target_branches, valid_from, valid_until, features, is_best_seller, image_url } = req.body;
     
+    const hasTerms = Object.hasOwn(req.body, "access_mode");
+    const terms = hasTerms ? offerTerms(req.body) : [null, null, null, null];
     await ensureOffersSchema();
     
     const parsedDiscount = discount_percentage ? parseFloat(discount_percentage) : null;
@@ -103,18 +106,23 @@ router.post("/api/admin/offers", requireAdmin, async (req, res) => {
     if (id) {
       // Update
       await pool.query(
-        `UPDATE offers SET title=$1, description=$2, fixed_price=$3, discount_percentage=$4, is_active=$5, target_classes=$6, target_branches=$7, valid_from=$8, valid_until=$9, features=$10, is_best_seller=$11, image_url=$12 WHERE id=$13`,
-        [title, description, fixed_price, parsedDiscount, is_active, classesArray, branchesArray, parsedValidFrom, parsedValidUntil, JSON.stringify(features || []), !!is_best_seller, image_url || null, id]
+        `UPDATE offers SET title=$1, description=$2, fixed_price=$3, discount_percentage=$4, is_active=$5, target_classes=$6, target_branches=$7, valid_from=$8, valid_until=$9, features=$10, is_best_seller=$11, image_url=$12,
+           access_mode=CASE WHEN $18 THEN $14 ELSE access_mode END,
+           academic_year_start=CASE WHEN $18 THEN $15 ELSE academic_year_start END,
+           access_cutoff_date=CASE WHEN $18 THEN $16 ELSE access_cutoff_date END,
+           minimum_initial_payment=CASE WHEN $18 THEN $17 ELSE minimum_initial_payment END WHERE id=$13`,
+        [title, description, fixed_price, parsedDiscount, is_active, classesArray, branchesArray, parsedValidFrom, parsedValidUntil, JSON.stringify(features || []), !!is_best_seller, image_url || null, id, ...terms, hasTerms]
       );
     } else {
       // Insert
       await pool.query(
-        `INSERT INTO offers (title, description, fixed_price, discount_percentage, is_active, target_classes, target_branches, valid_from, valid_until, features, is_best_seller, image_url) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)`,
-        [title, description, fixed_price, parsedDiscount, is_active, classesArray, branchesArray, parsedValidFrom, parsedValidUntil, JSON.stringify(features || []), !!is_best_seller, image_url || null]
+        `INSERT INTO offers (title, description, fixed_price, discount_percentage, is_active, target_classes, target_branches, valid_from, valid_until, features, is_best_seller, image_url, access_mode, academic_year_start, access_cutoff_date, minimum_initial_payment) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)`,
+        [title, description, fixed_price, parsedDiscount, is_active, classesArray, branchesArray, parsedValidFrom, parsedValidUntil, JSON.stringify(features || []), !!is_best_seller, image_url || null, ...terms]
       );
     }
     return res.json({ success: true });
   } catch (err) {
+    if (err.status === 400) return res.status(400).json({ success: false, error: err.message });
     console.error("Error managing offer:", err.message);
     return res.status(500).json({ success: false, error: "Internal server error" });
   }
@@ -269,7 +277,7 @@ router.post("/api/admin/student/:id/generate-token", requireAdmin, async (req, r
  */
 router.get("/api/admin/active-offers", requireAdmin, async (req, res) => {
   try {
-    const result = await pool.query(`SELECT id, title, fixed_price FROM offers WHERE is_active = true ORDER BY created_at DESC`);
+    const result = await pool.query(`SELECT id, title, fixed_price, access_mode, minimum_initial_payment FROM offers WHERE is_active = true ORDER BY created_at DESC`);
     return res.json({ success: true, offers: result.rows });
   } catch (err) {
     return res.status(500).json({ success: false, error: "Internal server error" });
@@ -292,30 +300,30 @@ router.post("/api/admin/student/:id/enroll-partial", requireAdmin, async (req, r
 
     await client.query("BEGIN");
 
-    const offerResult = await client.query(
-      `SELECT o.*, array_agg(oc.course_id) AS course_ids FROM offers o LEFT JOIN offer_courses oc ON oc.offer_id = o.id WHERE o.id = $1 GROUP BY o.id`,
-      [offerId]
-    );
-
-    if (offerResult.rowCount === 0) {
-      await client.query("ROLLBACK");
-      return res.status(404).json({ success: false, error: "Offer not found" });
-    }
-
-    const offer = offerResult.rows[0];
-    const price = parseFloat(offer.fixed_price || 0);
-    const paid = parseFloat(amountPaid);
-
-    const courseIds = (offer.course_ids || []).filter(Boolean);
-    if (!courseIds.length || !Number.isFinite(paid) || !Number.isFinite(price) || paid < 0 || paid > price) {
-      await client.query("ROLLBACK");
-      return res.status(400).json({ success: false, error: "Invalid amount paid" });
-    }
-
     const userResult = await client.query(`SELECT balance FROM users WHERE id = $1 FOR UPDATE`, [userId]);
     if (!userResult.rowCount) {
       await client.query("ROLLBACK");
       return res.status(404).json({ success: false, error: "Student not found" });
+    }
+    const offerResult = await client.query(
+      `SELECT o.*, ARRAY(SELECT oc.course_id FROM offer_courses oc WHERE oc.offer_id=o.id) AS course_ids
+       FROM offers o WHERE o.id=$1 FOR SHARE`, [offerId]
+    );
+    if (!offerResult.rowCount) {
+      await client.query("ROLLBACK");
+      return res.status(404).json({ success: false, error: "Offer not found" });
+    }
+    const offer = offerResult.rows[0];
+    if (offer.access_mode) {
+      await client.query("ROLLBACK");
+      return res.status(409).json({ success: false, error: "Confirmez une tranche via le parcours à durée limitée." });
+    }
+    const price = parseFloat(offer.fixed_price || 0);
+    const paid = parseFloat(amountPaid);
+    const courseIds = (offer.course_ids || []).filter(Boolean);
+    if (!courseIds.length || !Number.isFinite(paid) || !Number.isFinite(price) || paid < 0 || paid > price) {
+      await client.query("ROLLBACK");
+      return res.status(400).json({ success: false, error: "Invalid amount paid" });
     }
     const owned = await client.query(
       `SELECT ${offerEntitlement("$1", "$2")} AS owned`, [userId, offerId]
@@ -351,7 +359,7 @@ router.post("/api/admin/student/:id/enroll-partial", requireAdmin, async (req, r
       await client.query(
         `INSERT INTO enrollments (user_id, course_id, amount_paid, offer_id, enrolled_at)
          VALUES ($1, $2, 0, $3, NOW()) ON CONFLICT (user_id, course_id) DO UPDATE
-         SET expires_at = NULL, offer_id = EXCLUDED.offer_id WHERE enrollments.expires_at <= NOW()`,
+         SET expires_at = NULL, timed_access_only=false, offer_id = EXCLUDED.offer_id WHERE enrollments.expires_at <= NOW()`,
         [userId, courseId, offerId]
       );
     }
@@ -520,8 +528,8 @@ router.post("/api/admin/courses", requireAdmin, async (req, res) => {
           `INSERT INTO enrollments (user_id, course_id, amount_paid, offer_id, enrolled_at)
            SELECT u.id, $1::uuid, 0, $2::uuid, NOW()
            FROM users u
-           WHERE ${offerEntitlement("u.id", "$2")}
-           ON CONFLICT (user_id, course_id) DO NOTHING`,
+           WHERE ${legacyOfferEntitlement("u.id", "$2")}
+           ON CONFLICT (user_id, course_id) DO UPDATE SET timed_access_only=false,expires_at=NULL,offer_id=EXCLUDED.offer_id WHERE enrollments.timed_access_only`,
           [courseId, oid]
         );
       }

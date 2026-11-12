@@ -609,3 +609,7 @@ Admin course management now supports shared chapters, lesson management, and les
 - Python editor loading uses authenticated same-origin endpoints for lessons and live sessions, verifies the matching lesson access or course enrollment, and reads the private R2 object server-side. This avoids browser-to-R2 CORS for editor loading. Files over 1 MB can still be downloaded but are not loaded into the editor.
 - No database changes. Browser interaction and deployed API/R2 behavior still need verification.
 
+
+## 2026-11-12 — Timed offer access
+
+Implemented monthly and academic-year access, independent course grants, installment management, signed checkout quotes, wallet history and expiry reminders. The migration was tested on a disposable production-shaped PostgreSQL schema. Both runtime feature flags default off. Production rollout and live calendar verification are pending separate authorization. Follow [the technical plan](OFFER_ACCESS_TECHNICAL_PLAN.md) for activation and compatible rollback.

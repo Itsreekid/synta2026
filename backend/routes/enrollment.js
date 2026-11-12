@@ -32,7 +32,7 @@ router.post("/enroll", authApiMiddleware, async (req, res) => {
     const course = courseResult.rows[0];
 
     const existing = await client.query(
-      `SELECT id FROM enrollments WHERE user_id = $1 AND course_id = $2`,
+      `SELECT id FROM enrollments WHERE user_id = $1 AND course_id = $2 AND NOT timed_access_only`,
       [userId, courseId]
     );
     if (existing.rowCount > 0) {
@@ -47,7 +47,7 @@ router.post("/enroll", authApiMiddleware, async (req, res) => {
 
     const enrollResult = await client.query(
       `INSERT INTO enrollments (user_id, course_id, amount_paid, enrolled_at)
-       VALUES ($1, $2, 0, NOW()) ON CONFLICT (user_id, course_id) DO NOTHING RETURNING *`,
+       VALUES ($1, $2, 0, NOW()) ON CONFLICT (user_id, course_id) DO UPDATE SET timed_access_only=false,expires_at=NULL,offer_id=NULL WHERE enrollments.timed_access_only RETURNING *`,
       [userId, courseId]
     );
 
@@ -88,7 +88,7 @@ router.post("/free-enroll/:courseId", authApiMiddleware, async (req, res) => {
     }
 
     const existing = await pool.query(
-      `SELECT id FROM enrollments WHERE user_id = $1 AND course_id = $2`,
+      `SELECT id FROM enrollments WHERE user_id = $1 AND course_id = $2 AND NOT timed_access_only`,
       [userId, courseId]
     );
     if (existing.rowCount > 0) {
@@ -97,7 +97,7 @@ router.post("/free-enroll/:courseId", authApiMiddleware, async (req, res) => {
 
     await pool.query(
       `INSERT INTO enrollments (user_id, course_id, amount_paid, enrolled_at)
-       VALUES ($1, $2, 0, NOW()) ON CONFLICT (user_id, course_id) DO NOTHING`,
+       VALUES ($1, $2, 0, NOW()) ON CONFLICT (user_id, course_id) DO UPDATE SET timed_access_only=false,expires_at=NULL,offer_id=NULL WHERE enrollments.timed_access_only`,
       [userId, courseId]
     );
 

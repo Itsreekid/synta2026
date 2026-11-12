@@ -297,7 +297,9 @@ router.post("/lesson/:lessonId/progress", authApiMiddleware, async (req, res) =>
  */
 router.get("/thumbnail/:thumbnailKey", async (req, res) => {
   try {
-    const decodedKey = decodeURIComponent(req.params.thumbnailKey);
+    const decodedKey = req.params.thumbnailKey;
+    const validationKey = decodedKey.replace(/^thumbnails\//, "Courses-th/");
+    if (!isCourseImageKey(validationKey)) return res.sendStatus(404);
     const thumbnailUrl = await generateSignedUrl(decodedKey, 3600);
     res.json({ url: thumbnailUrl, expiresIn: 3600 });
   } catch (error) {

@@ -104,24 +104,30 @@ async function loadUserNotifications() {
             return;
         }
 
-        eventsList.innerHTML = notifications.map(notif => {
+        eventsList.innerHTML = notifications.map((notif, index) => {
             const date = new Date(notif.created_at);
             const timeStr = date.toLocaleDateString() + ' à ' + date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
             const isUnread = !notif.is_read;
             const bgClass = isUnread ? 'style="background: #fff7ed;"' : '';
             
             return `
-                <div class="notification-event-item" ${bgClass} onclick="markNotificationRead('${notif.id}', '${notif.link || ''}')">
+                <div class="notification-event-item" ${bgClass} data-notification-index="${index}">
                     <div class="event-icon">${notif.type === 'success' ? '🎉' : notif.type === 'warning' ? '⚠️' : '💡'}</div>
                     <div class="event-info">
-                        <div class="event-title" style="font-weight: ${isUnread ? '700' : '500'}; color: #1e293b;">${notif.title}</div>
-                        <div class="event-time" style="font-size: 0.8rem; color: #64748b; margin-top: 2px;">${notif.message}</div>
+                        <div class="event-title" style="font-weight: ${isUnread ? '700' : '500'}; color: #1e293b;" data-notification-title></div>
+                        <div class="event-time" style="font-size: 0.8rem; color: #64748b; margin-top: 2px;" data-notification-message></div>
                         <div class="event-time" style="font-size: 0.7rem; color: #94a3b8; margin-top: 4px;">${timeStr}</div>
                     </div>
                     ${isUnread ? '<div style="width:8px;height:8px;border-radius:50%;background:#f97316;"></div>' : ''}
                 </div>
             `;
         }).join('');
+        for (const element of eventsList.querySelectorAll('[data-notification-index]')) {
+            const notification = notifications[Number(element.dataset.notificationIndex)];
+            element.querySelector('[data-notification-title]').textContent = notification.title;
+            element.querySelector('[data-notification-message]').textContent = notification.message;
+            element.addEventListener('click', () => markNotificationRead(notification.id, notification.link));
+        }
     } catch (error) {
         eventsList.innerHTML = '<div style="padding: 1rem; text-align: center; color: #ef4444;">Erreur de chargement</div>';
     }
@@ -132,7 +138,9 @@ async function markNotificationRead(id, link) {
         await fetch(`/api/user/notifications/${id}/read`, { method: 'POST', credentials: 'include' });
         updateNotificationBadge();
         if (link && link !== 'null' && link !== '') {
-            window.location.href = link;
+            const destination = new URL(link, location.href);
+            if (destination.origin === location.origin) window.location.href = destination.href;
+            else loadUserNotifications();
         } else {
             loadUserNotifications();
         }

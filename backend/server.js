@@ -1,3 +1,6 @@
+import pool from "./config/db.js";
+import timedOfferRoutes from "./routes/timed-offers.js";
+import { sendOfferExpiryReminders } from "./services/offer-reminders.js";
 // =====================================================
 // MAIN SERVER FILE
 // =====================================================
@@ -150,6 +153,7 @@ app.use(userApiRoutes);
 app.use("/api/content", contentRoutes);
 app.use("/api/courses", coursesRoutes);
 app.use("/api/enrollment", enrollmentRoutes);
+app.use(timedOfferRoutes);
 app.use("/api/purchase", purchaseRoutes);
 app.use("/api/offers", offersRoutes);
 app.use("/api/live", liveRoutes);
@@ -209,3 +213,10 @@ process.on("SIGTERM", () => {
   console.log("SIGTERM received, shutting down gracefully...");
   process.exit(0);
 });
+
+if (process.env.TIMED_OFFER_REMINDERS_ENABLED === "true") {
+  const remind = () => sendOfferExpiryReminders(pool).catch(error =>
+    console.error("Offer reminder job failed:", error.code ?? error.name));
+  remind();
+  setInterval(remind, 15 * 60 * 1000).unref();
+}

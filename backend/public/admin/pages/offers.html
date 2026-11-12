@@ -250,6 +250,28 @@
             <form id="offerForm">
                 <div class="offer-form-fields">
                     <input type="hidden" id="offerId">
+                    <fieldset class="form-group">
+                        <legend>Durée d’accès</legend>
+                        <label for="offer-access-mode">Type d’accès</label>
+                        <select id="offer-access-mode">
+                            <option value="">Conditions existantes</option>
+                            <option value="monthly">Accès mensuel</option>
+                            <option value="academic_year">Accès annuel · année scolaire</option>
+                        </select>
+                        <div id="offer-academic-fields" hidden>
+                            <label for="offer-academic-year">Année scolaire (année de début)</label>
+                            <input type="number" id="offer-academic-year" min="2000" max="9998" placeholder="2026">
+                            <label for="offer-access-cutoff">Dernier jour inclus (heure de Tunis)</label>
+                            <input type="date" id="offer-access-cutoff">
+                            <button type="button" class="btn" id="offer-calendar-suggest">Suggérer les dates</button>
+                            <button type="button" class="btn" id="offer-calendar-refresh">Actualiser les suggestions</button>
+                            <div id="offer-calendar-results" aria-live="polite"></div>
+                        </div>
+                        <div id="offer-installment-fields" hidden>
+                            <label for="offer-initial-payment">Minimum de la première tranche (DT)</label>
+                            <input type="number" id="offer-initial-payment" min="0.01" step="0.01" placeholder="Facultatif">
+                        </div>
+                    </fieldset>
                     <div class="form-group">
                         <label>Titre</label>
                         <input type="text" id="title" required placeholder="Ex: Pack Bac Info Pro">
@@ -542,6 +564,7 @@
             try {
                 document.getElementById('modalTitle').textContent = 'Nouvelle Offre';
                 document.getElementById('offerForm').reset();
+                loadOfferAccessFields();
                 document.getElementById('offerId').value = '';
                 document.getElementById('offerImageUrl').value = '';
                 document.getElementById('offerImagePreview').style.display = 'none';
@@ -587,6 +610,7 @@
                 }
 
                 document.getElementById('modalTitle').textContent = 'Modifier l\'offre';
+                loadOfferAccessFields(offer);
                 document.getElementById('offerId').value = offer.id || '';
                 document.getElementById('title').value = offer.title || '';
                 document.getElementById('description').value = offer.description || '';
@@ -680,6 +704,77 @@
             }
         }
 
+        const accessMode = document.getElementById('offer-access-mode');
+        const academicYear = document.getElementById('offer-academic-year');
+        const cutoffDate = document.getElementById('offer-access-cutoff');
+        const calendarResults = document.getElementById('offer-calendar-results');
+        let calendarGeneration = 0;
+
+        function syncOfferAccessFields() {
+            calendarGeneration++;
+            calendarResults.replaceChildren();
+            const annual = accessMode.value === 'academic_year';
+            document.getElementById('offer-academic-fields').hidden = !annual;
+            document.getElementById('offer-installment-fields').hidden = !accessMode.value;
+            document.getElementById('fixed_price').step = accessMode.value ? '0.01' : '0.1';
+            academicYear.required = annual;
+            cutoffDate.required = annual;
+        }
+        function loadOfferAccessFields(offer = {}) {
+            accessMode.value = offer.access_mode || '';
+            academicYear.value = offer.academic_year_start ?? '';
+            cutoffDate.value = offer.access_cutoff_date?.slice(0, 10) ?? '';
+            document.getElementById('offer-initial-payment').value = offer.minimum_initial_payment ?? '';
+            syncOfferAccessFields();
+        }
+        accessMode.addEventListener('change', syncOfferAccessFields);
+        academicYear.addEventListener('change', syncOfferAccessFields);
+        async function suggestCalendar(refresh) {
+            const year = Number(academicYear.value);
+            if (!Number.isInteger(year) || year < 2000 || year > 9998) {
+                calendarResults.textContent = 'Choisissez une année scolaire.';
+                return;
+            }
+            const generation = ++calendarGeneration;
+            calendarResults.textContent = 'Recherche des dates…';
+            try {
+                const response = await fetch('/api/admin/offers/calendar-suggestions', {
+                    method: 'POST', headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ academic_year_start: year, refresh })
+                });
+                const data = await response.json();
+                if (generation !== calendarGeneration) return;
+                if (!response.ok) throw new Error(data.error);
+                calendarResults.textContent = 'Dates suggérées. Choisissez une date, puis enregistrez pour la valider.';
+                const labels = { bac_main: 'Fin du Bac principal', classes_end: 'Fin des cours', bac_control: 'Fin du Bac de contrôle' };
+                for (const [type, date] of Object.entries(data.dates || {})) {
+                    if (!Object.hasOwn(labels, type)) continue;
+                    const row = document.createElement('div');
+                    const button = document.createElement('button');
+                    button.type = 'button';
+                    button.className = 'btn';
+                    button.textContent = labels[type] + ' · ' + date;
+                    button.addEventListener('click', () => { cutoffDate.value = date; });
+                    row.append(button);
+                    for (const source of (data.sources || []).filter(item => item.label === type)) {
+                        const url = new URL(source.url);
+                        if (url.protocol !== 'https:') continue;
+                        const link = document.createElement('a');
+                        link.href = url.href;
+                        link.target = '_blank';
+                        link.rel = 'noopener noreferrer';
+                        link.textContent = source.title || 'Source';
+                        row.append(' ', link);
+                    }
+                    calendarResults.append(row);
+                }
+            } catch (error) {
+                if (generation === calendarGeneration) calendarResults.textContent = error.message || 'Suggestions indisponibles.';
+            }
+        }
+        document.getElementById('offer-calendar-suggest').addEventListener('click', () => suggestCalendar(false));
+        document.getElementById('offer-calendar-refresh').addEventListener('click', () => suggestCalendar(true));
+
         document.getElementById('offerForm').addEventListener('submit', async (e) => {
             e.preventDefault();
             console.log('Form submitted');
@@ -690,7 +785,12 @@
                     id: document.getElementById('offerId').value,
                     title: document.getElementById('title').value,
                     description: document.getElementById('description').value,
-                    fixed_price: parseFloat(document.getElementById('fixed_price').value),
+                    fixed_price: document.getElementById('offer-access-mode').value
+                        ? document.getElementById('fixed_price').value : parseFloat(document.getElementById('fixed_price').value),
+                    access_mode: document.getElementById('offer-access-mode').value || null,
+                    academic_year_start: Number(document.getElementById('offer-academic-year').value),
+                    access_cutoff_date: document.getElementById('offer-access-cutoff').value || null,
+                    minimum_initial_payment: document.getElementById('offer-initial-payment').value || null,
                     discount_percentage: parseInt(document.getElementById('discount_percentage').value),
                     is_active: document.getElementById('is_active').checked,
                     is_best_seller: document.getElementById('is_best_seller').checked,

@@ -30,7 +30,9 @@ async function initOffers() {
         }
 
         // Render dynamic offers
-        offersList.innerHTML = offers.map(offer => {
+        offersList.innerHTML = offers.map((offer, index) => {
+            const renewable = offer.can_renew;
+            const timedUnavailable = offer.access_mode && !offer.timed_sales_enabled;
             const isFeatured = offer.title.toLowerCase().includes('pro') || offer.title.toLowerCase().includes('integral') || offer.is_best_seller;
 
             const price = parseFloat(offer.fixed_price || offer.price || 0);
@@ -108,15 +110,24 @@ async function initOffers() {
 
                     <div class="purchase-section">
                         <button class="acheter-btn ${offer.is_purchased ? 'purchased-btn' : ''}" 
-                            ${!offer.can_purchase || offer.is_purchased ? 'disabled' : ''} 
-                            onclick="subscribeToOffer('${offer.id}', '${offer.title}')"
+                            ${!offer.can_purchase || timedUnavailable ? 'disabled' : ''}
+                            data-offer-index="${index}"
                             ${offer.is_purchased ? 'style="background-color: #10b981; color: white;"' : ''}>
-                            ${offer.is_purchased ? 'Déjà possédé' : (offer.can_purchase ? 'Acheter' : 'Solde insuffisant')}
+                            ${timedUnavailable ? 'Indisponible' : renewable && offer.can_purchase ? 'Renouveler' : offer.is_purchased ? 'Déjà possédé' : (offer.can_purchase ? 'Acheter' : 'Solde insuffisant')}
                         </button>
                     </div>
                 </div>
             `;
         }).join('');
+
+        for (const button of offersList.querySelectorAll('[data-offer-index]')) {
+            const offer = offers[Number(button.dataset.offerIndex)];
+            button.addEventListener('click', async () => {
+                button.disabled = true;
+                try { await subscribeToOffer(offer.id, offer.title, offer.access_mode); }
+                finally { button.disabled = false; }
+            });
+        }
 
         // ── Mobile: Prev / Next button navigation ──
         initMobileOfferNav(offersList, offers.length);
@@ -140,7 +151,7 @@ function updateBalanceInUI(balance) {
     console.log('Balance update received:', balance);
 }
 
-async function subscribeToOffer(offerId, title) {
+async function subscribeToOffer(offerId, title, accessMode) {
     try {
         // Get current user from the REST API
         const userResp = await fetch('/api/user/me', { credentials: 'include' });
@@ -156,8 +167,25 @@ async function subscribeToOffer(offerId, title) {
             return;
         }
 
-        // Show confirmation dialog
-        const confirmed = confirm(`Voulez-vous vraiment acheter l'offre "${title}" ? Le montant sera déduit de votre solde.`);
+        let details = `Voulez-vous acheter l’offre « ${title} » ? Le montant sera déduit de votre solde.`;
+        const request = { offerId };
+        if (accessMode) {
+            const response = await fetch('/api/purchase/offer/quote', {
+                method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ offerId })
+            });
+            const data = await response.json();
+            if (!response.ok) throw new Error(data.error || 'Devis indisponible.');
+            const expiry = new Intl.DateTimeFormat('fr-FR', {
+                timeZone: 'Africa/Tunis', dateStyle: 'long', timeStyle: 'short'
+            }).format(new Date(data.expires_at));
+            request.quote = data.quote;
+            request.requestId = data.requestId;
+            details += `\nMontant : ${data.price} DT. Fin d’accès : ${expiry} (Tunis).`;
+            if (accessMode === 'monthly') {
+                details += '\nRenouvellement manuel. Pour un achat le 29, 30 ou 31, si le mois suivant ne comporte pas ce jour, la période se termine à 00:00 le dernier jour du mois. Un renouvellement continu conserve le jour initial.';
+            }
+        }
+        const confirmed = confirm(details);
         if (!confirmed) return;
 
         showMessage('Traitement de votre achat...', 'info');
@@ -166,7 +194,7 @@ async function subscribeToOffer(offerId, title) {
             method: 'POST',
             credentials: 'include',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ offerId })
+            body: JSON.stringify(request)
         });
 
         const data = await purchaseResp.json();
