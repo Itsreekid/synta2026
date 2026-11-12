@@ -663,3 +663,5 @@ Implemented locally behind TIMED_OFFER_UPGRADES_ENABLED, which defaults off. Sch
 - Offer editor now displays the API validation reason inline, including incompatible timed terms and unavailable migrations.
 
 - The offer calendar accepts a public source URL via Gemini URL Context, and the editor displays consecutive school years as YYYY/YYYY.
+
+- Admin upgrade rules use an expandable source checklist with aligned controls and conditional deadline and partial-payment fields.

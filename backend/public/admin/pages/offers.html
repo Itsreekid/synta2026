@@ -217,6 +217,15 @@
             width: auto;
             margin: 0;
         }
+        #upgrade-policy .upgrade-check { display: flex; align-items: flex-start; gap: .6rem; margin: .5rem 0; line-height: 1.45; cursor: pointer; }
+        #upgrade-policy .upgrade-check input[type="checkbox"] { flex: 0 0 auto; width: 1rem; height: 1rem; margin: .16rem 0 0; accent-color: #b45309; }
+        #upgrade-policy .upgrade-partial { margin-inline-start: 1.6rem; font-size: .9rem; }
+        #upgrade-policy [hidden] { display: none !important; }
+        #upgrade-source-picker { margin: .65rem 0; border: 1px solid #dbe5ec; border-radius: 10px; background: #f7fafc; }
+        #upgrade-source-summary { padding: .7rem .8rem; cursor: pointer; font-weight: 600; overflow-wrap: anywhere; }
+        #upgrade-source-rules { padding: 0 .8rem .45rem; max-height: 15rem; overflow-y: auto; }
+        #upgrade-source-rules > div + div { border-top: 1px solid #e2e8f0; }
+        #upgrade-source-summary:focus-visible, #upgrade-policy input:focus-visible { outline: 2px solid #08758b; outline-offset: 2px; }
     </style>
     <link rel="stylesheet" href="/admin/admin.css">
 </head>
@@ -277,13 +286,17 @@
                     </fieldset>
                     <fieldset id="upgrade-policy" class="form-group" hidden>
                         <legend>Tranches et surclassements</legend>
+                        <p id="upgrade-mode-help" hidden>Les paiements en 2 ou 3 fois sont disponibles pour les offres annuelles. Si vous venez de choisir l’accès annuel, enregistrez l’offre puis rouvrez-la pour définir le nombre de paiements.</p>
                         <label>Nombre maximal de paiements
-                            <select id="upgrade-max"><option value="1">Paiement intégral</option><option value="2">2</option><option value="3">3</option></select>
+                            <select id="upgrade-max"><option value="1">Paiement intégral</option><option value="2">Jusqu’à 2 paiements</option><option value="3">Jusqu’à 3 paiements</option></select>
                         </label>
                         <label>Échéance 2, jours après confirmation <input type="number" id="upgrade-due-2" min="1" max="366"></label>
                         <label>Échéance 3, jours après confirmation <input type="number" id="upgrade-due-3" min="1" max="366"></label>
-                        <label><input type="checkbox" id="upgrade-enabled"> Autoriser les surclassements vers cette offre</label>
-                        <div id="upgrade-source-rules"></div>
+                        <label class="upgrade-check"><input type="checkbox" id="upgrade-enabled"> <span>Autoriser les surclassements vers cette offre</span></label>
+                        <details id="upgrade-source-picker">
+                            <summary id="upgrade-source-summary">Choisir les offres éligibles</summary>
+                            <div id="upgrade-source-rules"></div>
+                        </details>
                         <button type="button" class="btn" id="save-upgrade-policy">Enregistrer les règles de paiement</button>
                         <p id="upgrade-policy-status" role="status"></p>
                     </fieldset>
@@ -761,27 +774,41 @@
                 enabled.checked = policy.upgrades_enabled;
                 dueDates.forEach((field, index) => { field.value = policy.installment_due_offsets[index] ?? ''; });
                 rules.replaceChildren();
+                const picker = document.getElementById('upgrade-source-picker');
+                const summary = document.getElementById('upgrade-source-summary');
+                picker.open = false;
                 const rows = sources.map(source => {
                     const row = document.createElement('div');
                     const label = document.createElement('label');
+                    label.className = 'upgrade-check';
                     const allowed = document.createElement('input');
                     allowed.type = 'checkbox';
                     allowed.checked = source.allow_partial != null;
                     label.append(allowed, ' ' + source.title);
                     const partialLabel = document.createElement('label');
+                    partialLabel.className = 'upgrade-check upgrade-partial';
                     const partial = document.createElement('input');
                     partial.type = 'checkbox';
                     partial.checked = source.allow_partial === true;
-                    partialLabel.append(partial, ' Autoriser les paiements partiels vérifiés');
+                    partialLabel.append(partial, ' Accepter un paiement partiel vérifié');
                     row.append(label, partialLabel);
                     rules.append(row);
-                    return { sourceId: source.id, allowed, partial };
+                    return { sourceId: source.id, title: source.title, allowed, partial, partialLabel };
                 });
                 const sync = () => {
-                    rules.hidden = !enabled.checked;
-                    dueDates.forEach((field, index) => { field.disabled = index >= Number(maximum.value) - 1; });
+                    document.getElementById('upgrade-mode-help').hidden = policy.access_mode === 'academic_year';
+                    picker.hidden = !enabled.checked;
+                    const selected = rows.filter(row => row.allowed.checked);
+                    summary.textContent = selected.length === 1 ? selected[0].title :
+                        selected.length ? selected.length + ' offres sélectionnées' : 'Choisir les offres éligibles';
+                    for (const row of rows) row.partialLabel.hidden = !row.allowed.checked;
+                    dueDates.forEach((field, index) => {
+                        field.disabled = index >= Number(maximum.value) - 1;
+                        field.closest('label').hidden = field.disabled;
+                    });
                 };
                 maximum.onchange = enabled.onchange = sync;
+                for (const row of rows) row.allowed.onchange = sync;
                 sync();
                 panel.hidden = false;
                 status.textContent = '';
