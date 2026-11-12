@@ -63,9 +63,10 @@ export async function transaction(db, work) {
   }
 }
 export async function student(db, id) {
-  const { rows } = await db.query("SELECT id,balance,class,branch FROM users WHERE id=$1 AND role='user' FOR UPDATE", [id]);
-  if (!rows[0]) fail(404, "Étudiant introuvable.");
-  return rows[0];
+  const { rows: [account] } = await db.query("SELECT id,balance,class,branch,role FROM users WHERE id=$1 FOR UPDATE", [id]);
+  if (!account) fail(404, "Compte étudiant introuvable. Reconnectez-vous avec le compte qui a acheté l’offre.");
+  if (account.role !== "user") fail(403, "Connectez-vous avec un compte étudiant pour utiliser ce paiement. Depuis un compte administrateur, ouvrez le dossier de l’étudiant.");
+  return account;
 }
 export async function offer(db, id) {
   const { rows } = await db.query(

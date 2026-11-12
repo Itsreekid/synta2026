@@ -571,6 +571,10 @@ test("timed offers on disposable PostgreSQL", { skip: !process.env.BUGI_QA_POSTG
       await assert.rejects(quoteOfferUpgrade(db, buyer, { sourceId: legacy, targetId: target, count: 3 }), { status: 503 });
       process.env.TIMED_OFFER_UPGRADES_ENABLED = "true";
       try {
+        await assert.rejects(quoteOfferUpgrade(db, admin, { sourceId: legacy, targetId: target, count: 3 }),
+          { status: 403, message: /compte étudiant/ });
+        await assert.rejects(quoteOfferUpgrade(db, randomUUID(), { sourceId: legacy, targetId: target, count: 3 }),
+          { status: 404, message: /Compte étudiant introuvable/ });
         await db.query("INSERT INTO payments(user_id,offer_id,amount,status) VALUES($1,$2,180,'wallet_completed')", [competingBuyer, legacy]);
         const competingQuotes = await Promise.all([target, otherTarget].map(targetId =>
           quoteOfferUpgrade(db, competingBuyer, { sourceId: legacy, targetId, count: 3 })));

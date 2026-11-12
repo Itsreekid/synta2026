@@ -226,6 +226,13 @@
         #upgrade-source-rules { padding: 0 .8rem .45rem; max-height: 15rem; overflow-y: auto; }
         #upgrade-source-rules > div + div { border-top: 1px solid #e2e8f0; }
         #upgrade-source-summary:focus-visible, #upgrade-policy input:focus-visible { outline: 2px solid #08758b; outline-offset: 2px; }
+        label[for="discount_enabled"] { display:flex; align-items:center; gap:.55rem; }
+        #discount_enabled { appearance:none; width:2.5rem; height:1.4rem; margin:0; flex:none; padding:0; border:1px solid #8598a7; border-radius:99px; background:#dbe5ed; cursor:pointer; }
+        #discount_enabled::before { content:''; display:block; width:1rem; height:1rem; margin:.13rem; background:#fff; border-radius:50%; }
+        #discount_enabled:checked { background:#b45309; border-color:#b45309; }
+        #discount_enabled:checked::before { transform:translateX(1.05rem); }
+        #discount_enabled:focus-visible { outline:2px solid #08758b; outline-offset:3px; }
+        #discount_amount_field[hidden] { display:none; }
     </style>
     <link rel="stylesheet" href="/admin/admin.css">
 </head>
@@ -332,11 +339,10 @@
                             <input type="number" id="fixed_price" step="0.1" required>
                         </div>
                         <div class="form-group">
-                            <label for="discount_enabled">Afficher une réduction</label>
-                            <select id="discount_enabled">
-                                <option value="no">Non</option>
-                                <option value="yes">Oui</option>
-                            </select>
+                            <label class="upgrade-check" for="discount_enabled">
+                                <input type="checkbox" id="discount_enabled" role="switch">
+                                <span>Afficher une réduction · <strong id="discount_switch_label">Non</strong></span>
+                            </label>
                             <label id="discount_amount_field" hidden>Réduction (DT)
                                 <input type="number" id="discount_percentage" min="0.01" step="0.01" disabled>
                             </label>
@@ -663,7 +669,7 @@
                 }
 
                 document.getElementById('fixed_price').value = offer.fixed_price || 0;
-                document.getElementById('discount_enabled').value = Number(offer.discount_percentage) > 0 ? 'yes' : 'no';
+                document.getElementById('discount_enabled').checked = Number(offer.discount_percentage) > 0;
                 document.getElementById('discount_percentage').value = Number(offer.discount_percentage) > 0 ? offer.discount_percentage : '';
                 syncOfferDiscount();
                 document.getElementById('is_active').checked = !!offer.is_active;
@@ -968,7 +974,8 @@
         document.getElementById('offer-calendar-refresh').addEventListener('click', () => suggestCalendar(true));
 
         function syncOfferDiscount() {
-            const enabled = document.getElementById('discount_enabled').value === 'yes';
+            const enabled = document.getElementById('discount_enabled').checked;
+            document.getElementById('discount_switch_label').textContent = enabled ? 'Oui' : 'Non';
             const amount = document.getElementById('discount_percentage');
             document.getElementById('discount_amount_field').hidden = !enabled;
             amount.disabled = !enabled;
@@ -999,7 +1006,7 @@
                     academic_year_start: academicYearStart(),
                     access_cutoff_date: document.getElementById('offer-access-cutoff').value || null,
                     minimum_initial_payment: document.getElementById('offer-initial-payment').value || null,
-                    discount_percentage: document.getElementById('discount_enabled').value === 'yes'
+                    discount_percentage: document.getElementById('discount_enabled').checked
                         ? document.getElementById('discount_percentage').value : null,
                     is_active: document.getElementById('is_active').checked,
                     is_best_seller: document.getElementById('is_best_seller').checked,
