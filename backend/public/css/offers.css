@@ -269,14 +269,14 @@
 /* Let the page scroll naturally on every screen. */
 .offers-container { max-width: 1200px; margin: auto; padding: clamp(.6rem, 2vw, 1.5rem); }
 .offers-list {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(min(100%, 270px), 340px));
+    display: flex;
+    flex-wrap: wrap;
     justify-content: center;
     align-items: start;
     gap: clamp(.85rem, 2vw, 2rem);
 }
-.offers-list > :is(.loading, .error-message, .no-courses) { grid-column: 1 / -1; }
-.offer-card { box-sizing: border-box; min-width: 0; scroll-margin-top: 4rem; }
+.offers-list > :is(.loading, .error-message, .no-courses) { flex: 1 0 100%; }
+.offer-card { box-sizing: border-box; flex: 1 1 250px; min-width: 0; max-width: 340px; scroll-margin-top: 4rem; }
 .offer-image-section { height: auto; aspect-ratio: 16 / 9; }
 .offer-card-heading { padding: .65rem 1.2rem 0; text-align: center; }
 .offer-card-heading h2 { margin: 0; font-size: 1rem; overflow-wrap: anywhere; }
@@ -292,13 +292,15 @@
 .mobile-offer-nav { display: none; }
 
 @media (max-width: 600px) {
-    .offers-list { grid-template-columns: minmax(0, 1fr); }
     .offer-card:hover { transform: none; }
     .features-section { padding-inline: .9rem; }
     .validity-box { margin-inline: .9rem; }
     .mobile-offer-nav:not([hidden]) { display: flex; align-items: center; justify-content: center; gap: 1rem; margin-bottom: .7rem; }
     .mob-nav-btn { width: 44px; height: 44px; border: 1px solid var(--oc-border); border-radius: 50%; background: white; color: var(--oc-blue); font-size: 1.4rem; cursor: pointer; }
     .mob-nav-btn:disabled { opacity: .45; cursor: default; }
+}
+@media (max-width: 520px) {
+    .offer-card { flex-basis: 100%; max-width: 100%; }
 }
 @media (prefers-reduced-motion: reduce) {
     .offer-card, .offer-image-section img, .acheter-btn { transition: none; }

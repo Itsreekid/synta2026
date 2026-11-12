@@ -1,5 +1,7 @@
 # CURRENT_STATE.md — Synta Academy
 
+- Student offer cards share a centered row when the available content width fits them and stack on narrow phones. Card styling and checkout are unchanged.
+
 ### 2026-11-12 — Original offer styling restored
 
 - Restored centered prices, rounded gradient buttons, full-width featured banner and original card colors. Cards stay in a responsive grid with natural page scrolling. Checkout and access terms are preserved.
