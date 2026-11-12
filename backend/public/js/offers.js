@@ -10,6 +10,20 @@ function escapeOfferHtml(value) {
     }[character]));
 }
 
+const offerTunisDay = new Intl.DateTimeFormat('fr-FR', { timeZone: 'Africa/Tunis', year: 'numeric', month: '2-digit', day: '2-digit' });
+const offerCivilDate = new Intl.DateTimeFormat('fr-FR', { timeZone: 'UTC', dateStyle: 'long' });
+
+function annualOfferDetails(offer) {
+    const year = Number(offer.academic_year_start);
+    const cutoff = String(offer.access_cutoff_date ?? '').slice(0, 10);
+    const cutoffTime = Date.parse(cutoff + 'T00:00:00Z');
+    if (!year || !Number.isFinite(cutoffTime)) return '';
+    const today = Object.fromEntries(offerTunisDay.formatToParts(new Date()).map(({type, value}) => [type, value]));
+    const days = Math.round((cutoffTime - Date.UTC(today.year, today.month - 1, today.day)) / 86400000);
+    const duration = days < 0 ? 'Période d’accès terminée' : days === 0 ? 'Dernier jour aujourd’hui' : `Encore ${days} j avant le dernier jour inclus`;
+    return `<strong>${year}/${year + 1}</strong><span>Dernier jour inclus : ${offerCivilDate.format(cutoffTime)} (Tunis)</span><span>${duration}</span>`;
+}
+
 async function initOffers() {
     const offersList = document.getElementById('offers-list');
     if (!offersList) return;
@@ -41,6 +55,11 @@ async function initOffers() {
             const renewable = offer.can_renew;
             const timedUnavailable = offer.access_mode && !offer.timed_sales_enabled;
             const monthly = offer.access_mode === 'monthly';
+            const annual = offer.access_mode === 'academic_year';
+            const scheduled = annual && offer.scheduled_checkout_enabled && !offer.is_purchased;
+            const installments = scheduled && Number(offer.installment_max);
+            const upgrade = scheduled && offer.upgrades_enabled;
+            const paymentLabel = installments === 3 ? 'Paiement en 1, 2 ou 3 tranches' : installments === 2 ? 'Paiement en 1 ou 2 tranches' : '';
             const isFeatured = offer.is_best_seller === true;
 
             const price = parseFloat(offer.fixed_price || offer.price || 0);
@@ -82,15 +101,17 @@ async function initOffers() {
             }
 
             return `
-                <article class="offer-card ${isFeatured ? 'featured' : ''}" aria-labelledby="offer-title-${index}">
-                    <header class="offer-card-heading">
-                        <h2 id="offer-title-${index}" dir="auto">${escapeOfferHtml(offer.title)}</h2>
-                        ${isFeatured ? '<span class="best-seller-banner" lang="ar" dir="rtl">عرضنا الأكثر مبيعا</span>' : ''}
-                    </header>
-                    
+                <article class="offer-card ${monthly ? 'offer-monthly' : annual ? 'offer-annual' : 'offer-legacy'} ${isFeatured ? 'featured' : ''}" aria-labelledby="offer-title-${index}">
                     <div class="offer-image-section">
                         <img src="${escapeOfferHtml(offerImage)}" alt="${escapeOfferHtml(offer.title)}" decoding="async" ${index > 2 ? 'loading="lazy"' : ''}>
                     </div>
+                    <header class="offer-card-heading">
+                        <div class="offer-badges">
+                            <span class="offer-type-badge">${monthly ? 'Abonnement mensuel' : annual ? 'Offre année scolaire' : 'Offre à durée limitée'}</span>
+                            ${isFeatured ? '<span class="best-seller-banner" lang="ar" dir="rtl">عرضنا الأكثر مبيعا</span>' : ''}
+                        </div>
+                        <h2 id="offer-title-${index}" dir="auto">${escapeOfferHtml(offer.title)}</h2>
+                    </header>
 
                     <div class="offer-price-section" dir="ltr">
                         <div class="price-comparison">
@@ -103,10 +124,11 @@ async function initOffers() {
                         ${discountAmount > 0 ? `<span class="discount-badge">-${formatPrice.format(discountAmount)}</span>` : ''}
                     </div>
 
-                    <div class="validity-box">
-                        <i class="far fa-clock" aria-hidden="true"></i>
-                        <span>${monthly ? 'Accès mensuel' : dateRange}</span>
-                    </div>
+                    ${monthly || annual || (offer.valid_from && offer.valid_until) ? `<div class="validity-box">
+                        ${monthly ? '<strong>Un mois d’accès</strong><span>Renouvellement manuel. La date de fin est indiquée avant confirmation.</span>' : annual ? annualOfferDetails(offer) : `<span>${dateRange}</span>`}
+                        ${monthly && offer.is_purchased && renewable ? '<span>Accès en cours. Le renouvellement prolonge ton accès à partir de la fin de la période actuelle.</span>' : ''}
+                        ${paymentLabel ? `<span>${paymentLabel}</span>` : ''}
+                    </div>` : ''}
 
                     <ul class="features-section" role="list">
                         ${featureItems.map(item => `
@@ -118,9 +140,8 @@ async function initOffers() {
                     </ul>
 
                     <div class="purchase-section">
-                        ${offer.scheduled_checkout_enabled && !offer.is_purchased && offer.access_mode === 'academic_year' &&
-                            (offer.upgrades_enabled || offer.installment_max > 1) ?
-                            `<button class="acheter-btn scheduled-offer-btn" type="button" data-scheduled-index="${index}">${offer.upgrades_enabled ? 'Passer à cette offre' : 'Choisir mon paiement'}</button>` :
+                        ${scheduled && (upgrade || installments > 1) ?
+                            `<button class="acheter-btn scheduled-offer-btn" type="button" data-scheduled-index="${index}">${upgrade ? 'Passer à cette offre' : 'Choisir mon paiement'}</button>` :
                         `<button type="button" class="acheter-btn ${offer.is_purchased && !renewable ? 'purchased-btn' : ''}"
                             ${!offer.can_purchase || timedUnavailable ? 'disabled' : ''}
                             data-offer-index="${index}">

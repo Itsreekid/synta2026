@@ -39,13 +39,14 @@
     box-shadow: 0 5px 22px #a4441415;
 }
 .offer-card-heading {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    justify-content: space-between;
-    gap: .4rem .7rem;
-    margin-bottom: .65rem;
+    display: grid;
+    gap: .45rem;
+    margin-top: .7rem;
 }
+.offer-badges { display: flex; flex-wrap: wrap; gap: .35rem; }
+.offer-type-badge { padding: .2rem .65rem; border-radius: 999px; background: #edf2f6; color: var(--offer-muted); font-size: .82rem; font-weight: 750; }
+.offer-monthly .offer-type-badge { background: #e4f4f3; color: #125c62; }
+.offer-annual .offer-type-badge { background: #e9eef9; color: #274977; }
 .offer-card-heading h2 {
     margin: 0;
     min-width: 0;
@@ -90,16 +91,16 @@
 .original-price { text-decoration: line-through; }
 .discount-badge { padding: .12rem .48rem; border-radius: 999px; background: #fdece8; color: #9a2b22; font-size: .82rem; font-weight: 800; }
 .validity-box {
-    display: flex;
-    align-items: baseline;
-    gap: .45rem;
+    display: grid;
+    gap: .18rem;
     padding: .42rem .65rem;
     background: #f2f6f9;
     border-radius: 8px;
     color: var(--offer-muted);
     font-size: .86rem;
-    font-weight: 700;
+    line-height: 1.4;
 }
+.validity-box strong { color: var(--offer-ink); }
 .features-section { list-style: none; margin: .55rem 0 .7rem; padding: 0; }
 .feature-item {
     display: grid;

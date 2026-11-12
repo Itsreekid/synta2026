@@ -371,11 +371,15 @@ test("timed offers on disposable PostgreSQL", { skip: !process.env.BUGI_QA_POSTG
                        timed_sales_enabled:true,is_purchased:true,features:[{text:'Python',active:true}]},
                       {id:'featured',title:'عرض البرمجة المتقدم · Bac informatique',fixed_price:'440.25',
                        discount_percentage:'150.50',access_mode:'academic_year',timed_sales_enabled:true,
-                       scheduled_checkout_enabled:true,upgrades_enabled:true,is_best_seller:true,
+                       scheduled_checkout_enabled:true,upgrades_enabled:true,is_best_seller:true,installment_max:3,
+                       academic_year_start:2026,access_cutoff_date:'2027-06-09',
                        features:Array.from({length:16},(_,i)=>({text:i===0?arabic:arabic+' · Révision Python '+i,active:i%2===0}))},
                       {id:'short',title:'Pro · Révision',fixed_price:'100.00',features:[{text:'Révision et exercices',active:false}]},
                       {id:'inactive',title:'Offre indisponible',fixed_price:'90.00',access_mode:'monthly',timed_sales_enabled:false},
-                      {id:'purchase',title:'Offre disponible',fixed_price:'20.00',can_purchase:true}
+                      {id:'purchase',title:'Offre disponible',fixed_price:'20.00',can_purchase:true,access_mode:'monthly',timed_sales_enabled:true},
+                      {id:'renew',title:'Python mensuel',fixed_price:'60',can_purchase:true,can_renew:true,is_purchased:true,access_mode:'monthly',timed_sales_enabled:true},
+                      {id:'annual-two',title:'Bac en deux paiements',fixed_price:'440',access_mode:'academic_year',timed_sales_enabled:true,scheduled_checkout_enabled:true,installment_max:2},
+                      {id:'annual-one',title:'Bac paiement intégral',fixed_price:'440',access_mode:'academic_year',timed_sales_enabled:true,scheduled_checkout_enabled:true,installment_max:1,can_purchase:true}
                     ];
                     window.fetch = (url,...args) => url==='/api/offers' ?
                       Promise.resolve(new Response(JSON.stringify({offers:cases,userBalance:80}))) : original(url,...args);
@@ -393,16 +397,26 @@ test("timed offers on disposable PostgreSQL", { skip: !process.env.BUGI_QA_POSTG
                       rtl:getComputedStyle(features.querySelector('.feature-text')).direction,
                       featured:cards.filter(card=>card.classList.contains('featured')).length,
                       badges:document.querySelectorAll('.discount-badge').length,
-                      labels:action, disabled:cards.map(card=>card.querySelector('.acheter-btn').disabled)
+                      labels:action, disabled:cards.map(card=>card.querySelector('.acheter-btn').disabled),
+                      terms: cards[1].querySelector('.validity-box').textContent.includes('9 juin 2027') && cards[1].textContent.includes('2026/2027'),
+                      paymentOptions: cards.map(card=>[...card.querySelectorAll('.validity-box span')].find(span=>span.textContent.startsWith('Paiement en 1'))?.textContent ?? null),
+                      monthlyTerms: cards[4].textContent.includes('DT / mois') && cards[5].textContent.includes('Renouvellement manuel')
                     };
                   })()`);
                   assert.deepEqual(layout, {
-                    count: 5, allVisible: true, horizontalOverflow: false, cardOverflow: false,
+                    count: 8, allVisible: true, horizontalOverflow: false, cardOverflow: false,
                     featureCount: 16, featureScroll: "visible", featureClipped: false, rtl: "rtl",
                     featured: 1, badges: 1,
-                    labels: ["Déjà possédé", "Passer à cette offre", "Solde insuffisant", "Indisponible", "Acheter"],
-                    disabled: [true, false, true, true, false]
+                    labels: ["Déjà possédé", "Passer à cette offre", "Solde insuffisant", "Indisponible", "Acheter", "Renouveler", "Choisir mon paiement", "Acheter"],
+                    disabled: [true, false, true, true, false, false, false, false],
+                    terms: true, paymentOptions: [null, "Paiement en 1, 2 ou 3 tranches", null, null, null, null, "Paiement en 1 ou 2 tranches", null], monthlyTerms: true
                   }, "layout at " + width + "px");
+                  if (process.env.TIMED_QA_SCREENSHOTS && [390, 1440].includes(width)) {
+                    for (const [index, type] of [[4, 'monthly'], [1, 'annual'], [2, 'legacy']]) {
+                      await evaluate(`document.querySelectorAll('.offer-card')[${index}].scrollIntoView({block:'start',behavior:'instant'})`);
+                      await screenshot(process.env.TIMED_QA_SCREENSHOTS + '-' + type + '-' + width + '.png');
+                    }
+                  }
                 }
                 for (const [width, title, label] of [[1280, edit.title, "Renouveler"], [390, "Browser annual", "Acheter"]]) {
                   const selectedId = width < 500 ? annualId : offerId;
