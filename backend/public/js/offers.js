@@ -102,18 +102,16 @@ async function initOffers() {
 
             return `
                 <article class="offer-card ${monthly ? 'offer-monthly' : annual ? 'offer-annual' : 'offer-legacy'} ${isFeatured ? 'featured' : ''}" aria-labelledby="offer-title-${index}">
+                    ${isFeatured ? '<div class="best-seller-banner" lang="ar" dir="rtl">عرضنا الأكثر مبيعا</div>' : ''}
                     <div class="offer-image-section">
                         <img src="${escapeOfferHtml(offerImage)}" alt="${escapeOfferHtml(offer.title)}" decoding="async" ${index > 2 ? 'loading="lazy"' : ''}>
                     </div>
                     <header class="offer-card-heading">
-                        <div class="offer-badges">
-                            <span class="offer-type-badge">${monthly ? 'Abonnement mensuel' : annual ? 'Offre année scolaire' : 'Offre à durée limitée'}</span>
-                            ${isFeatured ? '<span class="best-seller-banner" lang="ar" dir="rtl">عرضنا الأكثر مبيعا</span>' : ''}
-                        </div>
                         <h2 id="offer-title-${index}" dir="auto">${escapeOfferHtml(offer.title)}</h2>
                     </header>
 
                     <div class="offer-price-section" dir="ltr">
+                        ${discountAmount > 0 ? `<span class="discount-badge">-${formatPrice.format(discountAmount)}</span>` : ''}
                         <div class="price-comparison">
                             ${discountAmount > 0 ? `<span class="original-price">${originalPrice} DT</span>` : ''}
                             <div class="current-price-container">
@@ -121,14 +119,14 @@ async function initOffers() {
                                 <span class="currency-label">${monthly ? 'DT / mois' : 'DT'}</span>
                             </div>
                         </div>
-                        ${discountAmount > 0 ? `<span class="discount-badge">-${formatPrice.format(discountAmount)}</span>` : ''}
                     </div>
 
-                    ${monthly || annual || (offer.valid_from && offer.valid_until) ? `<div class="validity-box">
-                        ${monthly ? '<strong>Un mois d’accès</strong><span>Renouvellement manuel. La date de fin est indiquée avant confirmation.</span>' : annual ? annualOfferDetails(offer) : `<span>${dateRange}</span>`}
+                    <div class="validity-box">
+                        <strong>${monthly ? 'Abonnement mensuel' : annual ? 'Offre année scolaire' : dateRange}</strong>
+                        ${monthly ? '<span>Un mois d’accès. Renouvellement manuel.</span>' : annual ? annualOfferDetails(offer) : ''}
                         ${monthly && offer.is_purchased && renewable ? '<span>Accès en cours. Le renouvellement prolonge ton accès à partir de la fin de la période actuelle.</span>' : ''}
                         ${paymentLabel ? `<span>${paymentLabel}</span>` : ''}
-                    </div>` : ''}
+                    </div>
 
                     <ul class="features-section" role="list">
                         ${featureItems.map(item => `

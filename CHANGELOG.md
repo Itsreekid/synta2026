@@ -1,5 +1,9 @@
 # CHANGELOG.md — Synta Academy
 
+## 2026-11-12 — Restore original student offer styling
+
+- Restored the original card appearance while retaining responsive widths and full feature lists.
+
 ## 2026-11-12 — Clearer subscription terms on student offer cards
 
 - Added distinct monthly, academic-year and legacy badges, plus annual cutoff and installment information and manual monthly renewal copy.

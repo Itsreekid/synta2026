@@ -1,5 +1,9 @@
 # CURRENT_STATE.md — Synta Academy
 
+### 2026-11-12 — Original offer styling restored
+
+- Restored centered prices, rounded gradient buttons, full-width featured banner and original card colors. Cards stay in a responsive grid with natural page scrolling. Checkout and access terms are preserved.
+
 ### 2026-11-12 — Monthly and academic-year offer terms
 
 - The catalog distinguishes access modes, shows manual monthly renewal and the configured annual cutoff, and displays installment options when scheduled checkout is enabled. Exact student-specific amounts and expiry remain in checkout and purchase history.
