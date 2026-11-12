@@ -260,10 +260,12 @@
                             <option value="academic_year">Accès annuel · année scolaire</option>
                         </select>
                         <div id="offer-academic-fields" hidden>
-                            <label for="offer-academic-year">Année scolaire (année de début)</label>
-                            <input type="number" id="offer-academic-year" min="2000" max="9998" placeholder="2026">
+                            <label for="offer-academic-year">Année scolaire</label>
+                            <input type="text" id="offer-academic-year" pattern="[0-9]{4}/[0-9]{4}" placeholder="2026/2027" maxlength="9">
                             <label for="offer-access-cutoff">Dernier jour inclus (heure de Tunis)</label>
                             <input type="date" id="offer-access-cutoff">
+                            <label for="offer-calendar-source">Lien public du calendrier (facultatif)</label>
+                            <input type="text" inputmode="url" id="offer-calendar-source" placeholder="https://…" maxlength="2048">
                             <button type="button" class="btn" id="offer-calendar-suggest">Suggérer les dates</button>
                             <button type="button" class="btn" id="offer-calendar-refresh">Actualiser les suggestions</button>
                             <div id="offer-calendar-results" aria-live="polite"></div>
@@ -719,6 +721,11 @@
 
         const accessMode = document.getElementById('offer-access-mode');
         const academicYear = document.getElementById('offer-academic-year');
+        const calendarSource = document.getElementById('offer-calendar-source');
+        function academicYearStart() {
+            const match = /^(\d{4})\/(\d{4})$/.exec(academicYear.value.trim());
+            return match && Number(match[2]) === Number(match[1]) + 1 ? Number(match[1]) : null;
+        }
         const cutoffDate = document.getElementById('offer-access-cutoff');
         const calendarResults = document.getElementById('offer-calendar-results');
         let calendarGeneration = 0;
@@ -800,7 +807,8 @@
             document.getElementById('offer-save-error').hidden = true;
             void loadUpgradePolicy(offer);
             accessMode.value = offer.access_mode || '';
-            academicYear.value = offer.academic_year_start ?? '';
+            academicYear.value = offer.academic_year_start ? offer.academic_year_start + '/' + (Number(offer.academic_year_start) + 1) : '';
+            calendarSource.value = '';
             cutoffDate.value = offer.access_cutoff_date?.slice(0, 10) ?? '';
             document.getElementById('offer-initial-payment').value = offer.minimum_initial_payment ?? '';
             syncOfferAccessFields();
@@ -810,9 +818,9 @@
         let calendarPending = false;
         async function suggestCalendar(refresh) {
             if (calendarPending) return;
-            const year = Number(academicYear.value);
+            const year = academicYearStart();
             if (!Number.isInteger(year) || year < 2000 || year > 9998) {
-                calendarResults.textContent = 'Choisissez une année scolaire.';
+                calendarResults.textContent = 'Indiquez deux années consécutives au format 2026/2027.';
                 return;
             }
             const generation = ++calendarGeneration;
@@ -823,11 +831,12 @@
             try {
                 const response = await fetch('/api/admin/offers/calendar-suggestions', {
                     method: 'POST', headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ academic_year_start: year, refresh })
+                    body: JSON.stringify({ academic_year_start: year, refresh, source_url: calendarSource.value.trim() })
                 });
                 const data = await response.json();
                 if (generation !== calendarGeneration) return;
                 if (!response.ok) throw new Error(data.error);
+                if (data.source_url && !calendarSource.value) calendarSource.value = data.source_url;
                 calendarResults.textContent = data.refresh_limited
                     ? 'Gemini limite les recherches. Voici les dernières dates enregistrées pour cette année. Vérifiez les sources avant de choisir.'
                     : 'Dates suggérées. Choisissez une date, puis enregistrez pour la valider.';
@@ -883,7 +892,7 @@
                     fixed_price: document.getElementById('offer-access-mode').value
                         ? document.getElementById('fixed_price').value : parseFloat(document.getElementById('fixed_price').value),
                     access_mode: document.getElementById('offer-access-mode').value || null,
-                    academic_year_start: Number(document.getElementById('offer-academic-year').value),
+                    academic_year_start: academicYearStart(),
                     access_cutoff_date: document.getElementById('offer-access-cutoff').value || null,
                     minimum_initial_payment: document.getElementById('offer-initial-payment').value || null,
                     discount_percentage: parseInt(document.getElementById('discount_percentage').value),

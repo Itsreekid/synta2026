@@ -661,3 +661,5 @@ Implemented locally behind TIMED_OFFER_UPGRADES_ENABLED, which defaults off. Sch
 - Upgrade audit added tampering, stale quote, revoked/reversed credit, forced rollback, cutoff, and accounting checks. Checkout shows remaining access and exact Tunis expiry. Hosted staging still needs a designated URL and synthetic access.
 
 - Offer editor now displays the API validation reason inline, including incompatible timed terms and unavailable migrations.
+
+- The offer calendar accepts a public source URL via Gemini URL Context, and the editor displays consecutive school years as YYYY/YYYY.

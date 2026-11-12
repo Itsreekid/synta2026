@@ -37,38 +37,34 @@ test("calendar suggestions isolate credentials and accept only grounded dates", 
     stored = params[1];
     return { rows: [] };
   } };
-  const responseText = "École\nbac_main=2027-06-09\nclasses_end=2027-06-30";
-  const startIndex = Buffer.byteLength("École\nbac_main=");
+  const source = "https://example.com/school-calendar";
   const remote = t.mock.method(globalThis, "fetch", async (_url, request) => {
     assert.equal(request.headers["x-goog-api-key"], "synthetic-learning-key");
-    assert.deepEqual(JSON.parse(request.body).tools, [{ google_search: {} }]);
+    assert.deepEqual(JSON.parse(request.body).tools, [{ url_context: {} }]);
+    assert.match(JSON.parse(request.body).contents[0].parts[0].text, /2026\/2027/);
     return { ok: true, async json() { return { candidates: [{
-      content: { parts: [{ thought: true }, { text: responseText }] },
-      groundingMetadata: {
-        groundingSupports: [{ segment: { partIndex: 1, startIndex, endIndex: startIndex + 10 }, groundingChunkIndices: [0, 1] }],
-        groundingChunks: [
-          { web: { uri: "https://example.invalid/calendar", title: "Synthetic calendar" } },
-          { web: { uri: "javascript:ignored" } }
-        ]
-      }
+      content: { parts: [{ thought: true }, { text: "bac_main=2027-06-09\nclasses_end=2028-06-30" }] },
+      urlContextMetadata: { urlMetadata: [{
+        retrievedUrl: source, urlRetrievalStatus: "URL_RETRIEVAL_STATUS_SUCCESS"
+      }] }
     }] }; } };
   });
-  await assert.rejects(calendarSuggestions(db, 2026), { status: 503 });
+  await assert.rejects(calendarSuggestions(db, 2026, false, source), { status: 503 });
   process.env.LEARNING_GEMINI_API_KEY = process.env.GEMINI_API_KEY;
-  await assert.rejects(calendarSuggestions(db, 2026), { status: 503 });
+  await assert.rejects(calendarSuggestions(db, 2026, false, source), { status: 503 });
   assert.equal(remote.mock.callCount(), 0);
   process.env.LEARNING_GEMINI_API_KEY = "synthetic-learning-key";
-  assert.deepEqual((await calendarSuggestions(db, 2026)).dates, { bac_main: "2027-06-09" });
+  assert.deepEqual((await calendarSuggestions(db, 2026, false, source)).dates, { bac_main: "2027-06-09" });
   assert.equal(stored.sources.length, 1);
-  assert.equal((await calendarSuggestions(db, 2026)).cached, true);
+  assert.equal((await calendarSuggestions(db, 2026, false, source)).cached, true);
   remote.mock.mockImplementation(async () => ({ status: 429 }));
-  const fallback = await calendarSuggestions(db, 2026, true);
+  const fallback = await calendarSuggestions(db, 2026, true, source);
   assert.equal(fallback.refresh_limited, true);
   assert.deepEqual(fallback.dates, stored.dates);
   stored = undefined;
-  await assert.rejects(calendarSuggestions(db, 2026), { status: 429 });
+  await assert.rejects(calendarSuggestions(db, 2026, false, source), { status: 429 });
   process.env.LEARNING_GEMINI_ENABLED = "false";
-  await assert.rejects(calendarSuggestions(db, 2026, true), { status: 503 });
+  await assert.rejects(calendarSuggestions(db, 2026, true, source), { status: 503 });
   assert.equal(remote.mock.callCount(), 3);
 });
 

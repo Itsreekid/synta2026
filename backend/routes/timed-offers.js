@@ -157,6 +157,6 @@ router.patch(arrangements + "/:arrangementId/deadline", requireAdmin, reply(req 
   changeInstallmentDeadline(pool, req.params.id, req.params.arrangementId, req.user.id, req.body ?? {})
 ));
 router.post("/api/admin/offers/calendar-suggestions", requireAdmin, calendarLimit, reply(req =>
-  calendarSuggestions(pool, req.body?.academic_year_start, req.body?.refresh === true)
+  calendarSuggestions(pool, req.body?.academic_year_start, req.body?.refresh === true, req.body?.source_url)
 ));
 export default router;
