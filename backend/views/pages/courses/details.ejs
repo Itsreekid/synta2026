@@ -668,7 +668,11 @@
         .quiz-modal .quiz-check-button.is-next { background: #087554; }
         .quiz-modal .quiz-feedback { overflow-wrap: anywhere; }
         .quiz-time-track { height: 5px; margin-bottom: 1.25rem; border-radius: 99px; overflow: hidden; background: #ffedd5; }
-        .quiz-time-fill { height: 100%; background: #f97316; transform-origin: left; transition: transform 100ms linear; }
+        .quiz-time-fill { height: 100%; background: #f97316; transform: scaleX(.04); transform-origin: left center; transition: transform 100ms linear; }
+        .quiz-modal .quiz-modal-content, .quiz-modal .quiz-choice, .quiz-modal select { font-family: 'Inter', 'Tajawal', sans-serif; }
+        .quiz-modal :is(.quiz-prompt, .quiz-choice, .quiz-match-row strong) { text-align: start; line-height: 1.65; }
+        .quiz-modal :is(.quiz-prompt, .quiz-choice, .quiz-match-row strong, .quiz-game-header span):dir(rtl) { font-family: 'Tajawal', sans-serif; }
+        @media (prefers-reduced-motion: reduce) { .quiz-time-fill { transition: none; } }
         .quiz-offer-link { display: block; text-decoration: none; margin-bottom: .65rem; }
         .quiz-modal .quiz-offer-link { background: #f97316; color: #062c40; }
         @media (max-width: 1024px) {

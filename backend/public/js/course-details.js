@@ -1621,7 +1621,8 @@ async function openQuizLesson(lessonId, loadedContent = null) {
         const timeBar = modal.querySelector('.quiz-time-fill');
         timer = setInterval(() => {
             const remaining = Math.max(0, deadline - performance.now());
-            timeBar.style.transform = `scaleX(${remaining / (timeLimit * 1000)})`;
+            const elapsed = 1 - remaining / (timeLimit * 1000);
+            timeBar.style.transform = `scaleX(${0.04 + 0.96 * elapsed})`;
             if (!remaining) showResults(true);
         }, 100);
 
@@ -1635,22 +1636,22 @@ async function openQuizLesson(lessonId, loadedContent = null) {
             const typeLabels = { multiple_choice:'Choisis la bonne réponse', true_false:'Vrai ou faux ?', code_drag_drop:'Complète le code', ordering:'Remets dans le bon ordre', matching:'Relie chaque élément' };
             let interaction = '';
             if (question.type === 'multiple_choice') {
-                interaction = (question.options || []).map(option => `<button class="quiz-choice" data-choice="${escapeQuizHtml(option)}">${escapeQuizHtml(option)}</button>`).join('');
+                interaction = (question.options || []).map(option => `<button class="quiz-choice" dir="auto" data-choice="${escapeQuizHtml(option)}">${escapeQuizHtml(option)}</button>`).join('');
             } else if (question.type === 'true_false') {
                 interaction = `<button class="quiz-choice" data-choice="true">Vrai</button><button class="quiz-choice" data-choice="false">Faux</button>`;
             } else if (question.type === 'code_drag_drop') {
-                interaction = `<div class="quiz-code-prompt">${escapeQuizHtml(question.text).replace('___','<span class="quiz-drop-zone" data-drop-zone>dépose ici</span>')}</div><div class="quiz-token-tray">${(question.options || []).map((word,index) => `<button class="quiz-token" draggable="true" data-token-index="${index}">${escapeQuizHtml(word)}</button>`).join('')}</div>`;
+                interaction = `<div class="quiz-code-prompt" dir="ltr">${escapeQuizHtml(question.text).replace('___','<span class="quiz-drop-zone" data-drop-zone>dépose ici</span>')}</div><div class="quiz-token-tray">${(question.options || []).map((word,index) => `<button class="quiz-token" dir="auto" draggable="true" data-token-index="${index}">${escapeQuizHtml(word)}</button>`).join('')}</div>`;
             } else if (question.type === 'ordering') {
-                interaction = `<div class="quiz-order-list">${(selectedAnswer || []).map((item,index) => `<div class="quiz-order-item" draggable="true" data-order-index="${index}"><span><i class="fas fa-grip-lines" aria-hidden="true"></i> ${escapeQuizHtml(item)}</span><span><button type="button" data-move="up" aria-label="Monter">↑</button><button type="button" data-move="down" aria-label="Descendre">↓</button></span></div>`).join('')}</div>`;
+                interaction = `<div class="quiz-order-list">${(selectedAnswer || []).map((item,index) => `<div class="quiz-order-item" draggable="true" data-order-index="${index}"><span><i class="fas fa-grip-lines" aria-hidden="true"></i> <bdi>${escapeQuizHtml(item)}</bdi></span><span><button type="button" data-move="up" aria-label="Monter">↑</button><button type="button" data-move="down" aria-label="Descendre">↓</button></span></div>`).join('')}</div>`;
             } else if (question.type === 'matching') {
                 const options = shuffleQuizItems((question.pairs || []).map(pair => pair.right));
-                interaction = (question.pairs || []).map((pair,index) => `<label class="quiz-match-row"><strong>${escapeQuizHtml(pair.left)}</strong><select data-match-index="${index}"><option value="">Choisir…</option>${options.map(option => `<option value="${escapeQuizHtml(option)}">${escapeQuizHtml(option)}</option>`).join('')}</select></label>`).join('');
+                interaction = (question.pairs || []).map((pair,index) => `<label class="quiz-match-row"><strong dir="auto">${escapeQuizHtml(pair.left)}</strong><select dir="auto" data-match-index="${index}"><option value="">Choisir…</option>${options.map(option => `<option dir="auto" value="${escapeQuizHtml(option)}">${escapeQuizHtml(option)}</option>`).join('')}</select></label>`).join('');
             }
             quizContent.innerHTML = `
-                <div class="quiz-game-header"><span>${escapeQuizHtml(lesson.title || 'Quiz')}</span><span>Question ${currentQuestionIndex + 1} sur ${questions.length}</span></div>
+                <div class="quiz-game-header"><span dir="auto">${escapeQuizHtml(lesson.title || 'Quiz')}</span><span>Question ${currentQuestionIndex + 1} sur ${questions.length}</span></div>
                 <div class="quiz-progress" role="progressbar" aria-label="Progression du quiz" aria-valuemin="0" aria-valuemax="${questions.length}" aria-valuenow="${currentQuestionIndex + 1}"><span style="width:${Math.round(((currentQuestionIndex + 1) / questions.length) * 100)}%"></span></div>
                 <p class="quiz-type-label">${typeLabels[question.type] || 'Question'}</p>
-                <h2 class="quiz-prompt" tabindex="-1">${question.type === 'code_drag_drop' ? 'Quel élément complète le code ?' : escapeQuizHtml(question.text)}</h2>
+                <h2 class="quiz-prompt" dir="auto" tabindex="-1">${question.type === 'code_drag_drop' ? 'Quel élément complète le code ?' : escapeQuizHtml(question.text)}</h2>
                 <div class="quiz-interaction">${interaction}</div>
                 <div class="quiz-feedback" id="quiz-feedback" aria-live="polite"></div>
                 <button class="quiz-check-button" id="quiz-check-button">Vérifier</button>`;
@@ -1724,7 +1725,12 @@ async function openQuizLesson(lessonId, loadedContent = null) {
             const correction = question.type === 'matching' ? question.pairs.map(pair => `${pair.left} → ${pair.right}`).join(' · ')
                 : question.type === 'ordering' ? question.answer.join(' → ')
                 : question.type === 'true_false' ? (question.answer ? 'Vrai' : 'Faux') : question.answer;
-            feedback.textContent = isCorrect ? 'Bonne réponse !' : `Réponse attendue : ${correction}`;
+            feedback.textContent = isCorrect ? 'Bonne réponse !' : 'Réponse attendue : ';
+            if (!isCorrect) {
+                const answer = document.createElement('bdi');
+                answer.textContent = correction;
+                feedback.appendChild(answer);
+            }
             feedback.className = `quiz-feedback ${isCorrect ? 'is-correct' : 'is-incorrect'}`;
             const checkButton = container.querySelector('#quiz-check-button');
             checkButton.textContent = currentQuestionIndex === questions.length - 1 ? 'Voir mon résultat' : 'Question suivante';
@@ -1746,7 +1752,8 @@ async function openQuizLesson(lessonId, loadedContent = null) {
             if (finished) return;
             finished = true;
             clearInterval(timer);
-            modal.querySelector('.quiz-time-track').hidden = true;
+            modal.querySelector('.quiz-time-track').hidden = !timedOut;
+            if (timedOut) timeBar.style.transform = 'scaleX(1)';
             const passed = score >= 2;
             modal.querySelector('#quiz-content').innerHTML = `<div class="quiz-results"><span class="quiz-type-label">Quiz terminé</span><h2 tabindex="-1">${timedOut ? 'Temps écoulé' : passed ? 'Bien joué !' : 'Quiz terminé'}</h2><p>Tu as obtenu <strong>${score} / ${questions.length}</strong></p><p id="quiz-next-message" role="status"></p><button class="quiz-check-button" id="quiz-finish" disabled>Chargement…</button></div>`;
             modal.querySelector('.quiz-results h2').focus();

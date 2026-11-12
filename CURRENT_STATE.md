@@ -627,3 +627,5 @@ The catalog cards now use native links. Course details group the description, co
 - Student quiz shows authored titles and corrections and advances independently of response tracking. The admin editor keeps save controls visible and preserves commas inside answer choices.
 
 - Course quizzes run over the mounted lesson with a configurable orange time bar. Legacy quizzes default to 90 seconds. Admins can opt a quiz into free preview. Results lead to the next lesson or the existing offers page.
+
+- The quiz time bar starts at 4% and fills left to right. Authored French and Arabic quiz text uses automatic direction with Inter and Tajawal.
