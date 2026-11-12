@@ -196,7 +196,9 @@ router.get("/api/user/stats", authApiMiddleware, async (req, res) => {
     
     // Count total completed lessons directly from lesson_progress
     const lessonsResult = await pool.query(
-      `SELECT COUNT(*) as total_completed_lessons FROM lesson_progress WHERE user_id = $1 AND completed = true`,
+      `SELECT COUNT(*) as total_completed_lessons
+       FROM lesson_progress lp JOIN lessons l ON l.id = lp.lesson_id
+       WHERE lp.user_id = $1 AND lp.completed = true AND l.type IS DISTINCT FROM 'quiz'`,
       [userId]
     );
     const totalCompletedLessons = parseInt(lessonsResult.rows[0].total_completed_lessons) || 0;

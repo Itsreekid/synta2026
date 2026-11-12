@@ -562,3 +562,38 @@
         text-align: center;
     }
 }
+
+/* Dashboard cards adapt to the width available beside the app sidebar. */
+.dashboard-container > *, .dashboard-container .course-details,
+.dashboard-container .event-item-info, .replay-dashboard-item > div { min-width: 0; }
+.greeting-title, .level-info, .course-details h4, .event-title,
+.replay-dashboard-item > div, .path-title { overflow-wrap: anywhere; }
+.dashboard-course-link, .dashboard-event-link { text-decoration: none; }
+.dashboard-event-link { color: inherit; }
+.dashboard-container a:focus-visible, .dashboard-container button:focus-visible {
+    outline: 2px solid #08758b;
+    outline-offset: 3px;
+}
+.continue-course-grid { grid-template-columns: repeat(auto-fit, minmax(min(100%, 250px), 1fr)); }
+.dashboard-container .continue-course-card .btn-primary { box-sizing: border-box; }
+.replay-dashboard-item { flex-wrap: wrap; gap: .6rem; }
+.stepper-track { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 105px), 1fr)); align-items: start; gap: .8rem .55rem; padding: 0; }
+.step { text-align: center; min-width: 0; }
+.step span { overflow-wrap: anywhere; }
+.step:not(.completed) .step-circle { color: #52677a; }
+.quick-grid { grid-template-columns: repeat(5, minmax(0, 1fr)); gap: .5rem; }
+.quick-icon { width: min(100%, 56px); }
+.quick-btn span { overflow-wrap: anywhere; }
+@media (min-width: 769px) {
+    .dashboard-container { grid-template-columns: minmax(0, 1.8fr) minmax(0, 1fr); }
+}
+@media (max-width: 768px) {
+    .dashboard-container .greeting-card { flex-direction: row; text-align: start; }
+    .dashboard-container .greeting-illustration { font-size: clamp(2.1rem, 10vw, 4rem); margin: 0; }
+    .dashboard-container .level-badge-container { gap: .5rem; }
+    .dashboard-container .quick-grid { grid-template-columns: repeat(auto-fit, minmax(55px, 1fr)); }
+    .dashboard-container .continue-content { text-align: start; }
+}
+@media (prefers-reduced-motion: reduce) {
+    .dashboard-container *, .dashboard-container *::before, .dashboard-container *::after { animation: none; transition: none; }
+}

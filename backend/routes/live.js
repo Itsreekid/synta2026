@@ -177,7 +177,7 @@ router.get("/replays", authApiMiddleware, async (req, res) => {
 
     const result = await pool.query(
       `SELECT DISTINCT ls.id, ls.title, ls.description, ls.scheduled_at,
-              ls.duration_minutes, ls.replay_url, c.title AS course_title
+              ls.duration_minutes, ls.replay_url, ls.course_id, c.title AS course_title
        FROM live_sessions ls
        JOIN courses c ON c.id = ls.course_id
        WHERE ls.scheduled_at < NOW()

@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="fr" dir="ltr">
 <head>
-    <%- include('../../partials/head', { title: 'لوحة التحكم', css: 'dashboard' }) %>
+    <%- include('../../partials/head', { title: 'Tableau de bord', css: 'dashboard' }) %>
 </head>
 <body>
     <%- include('../../partials/header') %>
@@ -44,21 +44,21 @@
                         <div class="stat-item">
                             <span class="stat-icon">📖</span>
                             <div class="stat-info">
-                                <strong id="completed-courses">0</strong>
+                                <strong id="completed-courses">—</strong>
                                 <span>Leçons terminées</span>
                             </div>
                         </div>
                         <div class="stat-item">
                             <span class="stat-icon">🎯</span>
                             <div class="stat-info">
-                                <strong id="overall-progress">0%</strong>
+                                <strong id="overall-progress">—</strong>
                                 <span>Progression globale</span>
                             </div>
                         </div>
                         <div class="stat-item">
                             <span class="stat-icon">🏆</span>
                             <div class="stat-info">
-                                <strong id="achievements">0</strong>
+                                <strong id="achievements">—</strong>
                                 <span>Badges</span>
                             </div>
                         </div>
@@ -145,6 +145,6 @@
 
     <script src="/js/authentication.js?v=2"></script>
     <script src="/js/user.js?v=2"></script>
-    <script src="/js/dashboard.js?v=4"></script>
+    <script src="/js/dashboard.js?v=5"></script>
 </body>
 </html>

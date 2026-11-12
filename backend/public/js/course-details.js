@@ -34,6 +34,14 @@ async function initCourseDetailsPage() {
     window.matchMedia('(min-width: 1025px)').addEventListener('change', positionCourseHero);
     positionCourseHero();
     await loadCourseDetails(courseId);
+    const replayId = urlParams.get('replay');
+    if (replayId) {
+        urlParams.delete('replay');
+        history.replaceState(history.state, '', window.location.pathname + '?' + urlParams.toString());
+        setCourseContentTab('live');
+        const replay = currentLiveSessions.find(session => session.id === replayId && session.replay_url);
+        if (replay) openReplayPlayer(replay.replay_url, replay.title, replay.resources || [], replay.id);
+    }
 }
 
 function positionCourseHero() {

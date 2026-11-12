@@ -637,3 +637,5 @@ The catalog cards now use native links. Course details group the description, co
 - Course chapter and replay panels override the shared mobile section height so they scroll within the main course page with Resources below.
 
 - Admins can upload or replace a video lesson's MP4/WebM via private R2 upload, or remove its video reference while retaining the lesson and stored objects. Verify a real R2 upload in staging.
+
+- Student dashboard uses fresh authenticated data, actual chapter completion, and course player replay links. Responsive cards wrap long titles and actions.

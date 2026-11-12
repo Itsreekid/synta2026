@@ -3,41 +3,21 @@ document.addEventListener('DOMContentLoaded', function () {
     initializeDashboard();
 });
 
-async function fetchWithSWR(url, cacheKey, callback, errorCallback) {
-    const cached = sessionStorage.getItem(cacheKey);
-    let hasReturnedCached = false;
-    
-    if (cached) {
-        try { 
-            callback(JSON.parse(cached)); 
-            hasReturnedCached = true;
-        } catch(e){}
-    }
-    
+async function fetchDashboardData(url, callback, errorCallback) {
     try {
-        const res = await fetch(url, { credentials: 'include' });
-        if (!res.ok) {
-            try {
-                const errBody = await res.json();
-                const errMsg = errBody.message || errBody.error || `HTTP Error: ${res.status}`;
-                if (!hasReturnedCached && errorCallback) errorCallback(errMsg);
-            } catch (e) {
-                if (!hasReturnedCached && errorCallback) errorCallback(`HTTP Error: ${res.status}`);
-            }
-            return;
-        }
-        const fresh = await res.json();
-        
-        const freshStr = JSON.stringify(fresh);
-        if (freshStr !== cached) {
-            sessionStorage.setItem(cacheKey, freshStr);
-            callback(fresh);
-        }
-    } catch (e) {
-        console.error("SWR Error for", url, e);
-        if (!hasReturnedCached && errorCallback) errorCallback(e.message);
+        const response = await fetch(url, {
+            credentials: 'include', cache: 'no-store', signal: AbortSignal.timeout(12000)
+        });
+        if (!response.ok) throw new Error('HTTP ' + response.status);
+        callback(await response.json());
+    } catch (error) {
+        errorCallback?.(error.message);
     }
 }
+
+window.addEventListener('pageshow', event => {
+    if (event.persisted) initializeDashboard();
+});
 
 function initializeDashboard() {
     try {
@@ -54,7 +34,7 @@ function initializeDashboard() {
 }
 
 function loadUserData() {
-    fetchWithSWR('/api/user/me', 'swr_user', (data) => {
+    fetchDashboardData('/api/user/me', (data) => {
         const user = data.user;
         if (!user) return;
 
@@ -79,7 +59,7 @@ function loadUserData() {
 }
 
 function loadStats() {
-    fetchWithSWR(`/api/user/stats?t=${Date.now()}`, 'swr_stats', (stats) => {
+    fetchDashboardData('/api/user/stats', (stats) => {
         const completedEl = document.getElementById('completed-courses');
         if (completedEl) completedEl.textContent = stats.totalCompletedLessons || 0;
 
@@ -154,19 +134,19 @@ function renderLockedContinueState(continueSection) {
     if (dashboardContainer) dashboardContainer.classList.add('locked-mode');
 
     continueSection.innerHTML = `
-        <div class="locked-state" style="display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;gap:1.5rem;background:#fff7ed;padding:2rem;border-radius:var(--radius-lg);border:2px dashed #fdba74;cursor:pointer;transition:all .3s ease;flex:1;height:100%;min-height:250px;" onclick="window.location.href='/app/offers'">
+        <div class="locked-state" style="display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;gap:1.5rem;background:#fff7ed;padding:2rem;border-radius:var(--radius-lg);border:2px dashed #fdba74;flex:1;min-height:190px;">
             <div style="width:80px;height:80px;background:white;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:2.5rem;color:var(--orange-primary);box-shadow:0 4px 15px rgba(249,115,22,.15);">🔒</div>
             <div>
                 <h4 style="margin:0 0 .5rem;color:#1e293b;font-size:1.3rem;font-weight:800;">Aucune formation pour le moment</h4>
                 <p style="margin:0;color:var(--text-muted);font-size:1rem;max-width:300px;">Choisis une offre pour débloquer tes cours. Rien n’apparaît ici tant que tu n’as pas commencé.</p>
             </div>
-            <button class="btn-primary" style="padding:.75rem 1.5rem;font-size:1rem;margin-top:.5rem;">Découvrir les offres &rarr;</button>
+            <a class="btn-primary dashboard-course-link" href="/app/offers" style="padding:.75rem 1.5rem;font-size:1rem;">Découvrir les offres &rarr;</a>
         </div>
     `;
 }
 
 function renderContinueCourseCard(course, { featured = false } = {}) {
-    const progress = Number(course.progress) || 0;
+    const progress = Math.round(Math.max(0, Math.min(100, Number(course.progress) || 0)));
     const started = courseActivityDate(course) > 0 || progress > 0 || (Number(course.completed_lessons) || 0) > 0;
     const cta = started ? (progress >= 100 ? 'Revoir la formation' : 'Continuer') : 'Commencer';
     const category = String(course.category || 'Formation');
@@ -181,7 +161,7 @@ function renderContinueCourseCard(course, { featured = false } = {}) {
                 <span class="course-progress-text">${progress}%</span>
             </div>
         </div>
-        <button class="btn-primary" type="button" onclick="window.location.href='/app/course-details?id=${encodeURIComponent(course.course_id)}'">${cta} &rarr;</button>
+        <a class="btn-primary dashboard-course-link" href="/app/course-details?id=${encodeURIComponent(course.course_id)}">${cta} &rarr;</a>
     </article>`;
 }
 
@@ -198,7 +178,7 @@ function renderPathEmpty(pathSection, title, message) {
     }
 }
 
-function renderPathStepper(pathSection, activeCourse, modules) {
+function renderPathStepper(pathSection, activeCourse, modules, completedIds) {
     const progress = Number(activeCourse.progress) || 0;
     pathSection.style.display = '';
     pathSection.querySelector('.path-title').textContent = activeCourse.title || 'Ton parcours';
@@ -210,28 +190,31 @@ function renderPathStepper(pathSection, activeCourse, modules) {
         return;
     }
 
-    const totalModules = modules.length;
-    const completedIndex = Math.min(totalModules - 1, Math.floor((progress / 100) * totalModules));
-    let html = `<div class="stepper-line"><div class="stepper-line-fill" style="width:${progress}%;"></div></div>`;
+    const completed = new Set(completedIds);
+    const statuses = modules.map(module => {
+        const lessons = (module.lessons || []).filter(lesson => lesson.type !== 'quiz');
+        return lessons.length > 0 && lessons.every(lesson => completed.has(lesson.id));
+    });
+    const current = completedIds ? statuses.indexOf(false) : -1;
+    let html = '';
 
     modules.forEach((mod, index) => {
         let statusClass = '';
         let iconHtml = index + 1;
-        if (progress >= 100 || index < completedIndex) {
+        if (statuses[index]) {
             statusClass = 'completed';
             iconHtml = '✓';
-        } else if (index === completedIndex) {
+        } else if (index === current) {
             statusClass = 'current';
             iconHtml = '📍';
         }
 
-        let shortName = mod.title || `Chapitre ${index + 1}`;
-        if (shortName.length > 15) shortName = `${shortName.substring(0, 12)}...`;
+        const name = mod.title || `Chapitre ${index + 1}`;
 
         html += `
-            <div class="step ${statusClass}">
+            <div class="step ${statusClass}" ${index === current ? 'aria-current="step"' : ''}>
                 <div class="step-circle">${iconHtml}</div>
-                <span>${escapeDashboardHtml(shortName)}</span>
+                <span dir="auto">${escapeDashboardHtml(name)}</span>
             </div>
         `;
     });
@@ -239,8 +222,11 @@ function renderPathStepper(pathSection, activeCourse, modules) {
     stepperTrack.innerHTML = html;
 }
 
+let dashboardPathRequest = 0;
 function loadCoursePath() {
-    fetchWithSWR(`/api/courses/user/my-courses?t=${Date.now()}`, 'swr_courses_v2', (payload) => {
+    const request = ++dashboardPathRequest;
+    fetchDashboardData('/api/courses/user/my-courses', (payload) => {
+        if (request !== dashboardPathRequest) return;
         const courses = (Array.isArray(payload) ? payload : [])
             .filter(course => course && course.is_published !== false && course.course_id);
 
@@ -284,15 +270,21 @@ function loadCoursePath() {
             if (track) track.innerHTML = '<div class="loading-state">Chargement du parcours…</div>';
         }
 
-        fetchWithSWR(
-            `/api/courses/${encodeURIComponent(activeCourse.course_id)}?t=${Date.now()}`,
-            `swr_course_${activeCourse.course_id}`,
+        const courseId = encodeURIComponent(activeCourse.course_id);
+        fetchDashboardData(
+            `/api/courses/${courseId}`,
             (courseDetails) => {
-                if (!pathSection) return;
-                renderPathStepper(pathSection, activeCourse, courseDetails?.modules || []);
+                if (!pathSection || request !== dashboardPathRequest) return;
+                const modules = courseDetails?.modules || [];
+                renderPathStepper(pathSection, activeCourse, modules, null);
+                fetchDashboardData(`/api/tracking/course-progress/${courseId}`, progress => {
+                    if (request === dashboardPathRequest && Array.isArray(progress.completedIds)) {
+                        renderPathStepper(pathSection, activeCourse, modules, progress.completedIds);
+                    }
+                });
             },
             () => {
-                if (!pathSection) return;
+                if (!pathSection || request !== dashboardPathRequest) return;
                 pathSection.style.display = '';
                 const titleEl = pathSection.querySelector('.path-title');
                 const progressEl = pathSection.querySelector('.path-progress-text');
@@ -300,11 +292,12 @@ function loadCoursePath() {
                 if (titleEl) titleEl.textContent = activeCourse.title || 'Ton parcours';
                 if (progressEl) progressEl.textContent = '';
                 if (track) {
-                    track.innerHTML = `<div class="path-empty-state path-empty-state-error">Erreur de chargement. <a href="#" onclick="sessionStorage.removeItem('swr_course_${activeCourse.course_id}'); loadCoursePath(); return false;">Réessayer</a></div>`;
+                    track.innerHTML = '<div class="path-empty-state path-empty-state-error">Erreur de chargement. <button type="button" onclick="loadCoursePath()">Réessayer</button></div>';
                 }
             }
         );
     }, (err) => {
+        if (request !== dashboardPathRequest) return;
         const continueSection = document.getElementById('continue-content-container');
         if (continueSection) {
             continueSection.innerHTML = `
@@ -320,15 +313,14 @@ function loadCoursePath() {
 function loadReplays() {
     const list = document.getElementById('replay-list');
     if (!list) return;
-    fetchWithSWR(`/api/live/replays?t=${Date.now()}`, 'swr_replays', replays => {
+    fetchDashboardData('/api/live/replays', replays => {
         if (!Array.isArray(replays) || !replays.length) {
             list.innerHTML = '<div class="event-item">Les enregistrements publiés par ton enseignant apparaîtront ici.</div>';
             return;
         }
-        const escapeHtml = value => String(value ?? '').replace(/[&<>"']/g, char => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[char]));
         list.innerHTML = replays.slice(0, 5).map(replay => `
-            <article class="replay-dashboard-item"><div><strong>${escapeHtml(replay.title)}</strong><div style="color:#64748b;font-size:.85rem">${escapeHtml(replay.course?.title || 'Formation')} · ${new Date(replay.scheduled_at).toLocaleDateString('fr-FR')}</div></div>
-            <a class="btn-primary" href="${escapeHtml(replay.replay_url)}" target="_blank" rel="noopener noreferrer" style="text-decoration:none;white-space:nowrap">Voir le replay</a></article>`).join('');
+            <article class="replay-dashboard-item"><div><strong>${escapeDashboardHtml(replay.title)}</strong><div style="color:#64748b;font-size:.85rem">${escapeDashboardHtml(replay.course?.title || 'Formation')} · ${new Date(replay.scheduled_at).toLocaleDateString('fr-FR', {timeZone:'Africa/Tunis'})}</div></div>
+            <a class="btn-primary dashboard-course-link" href="${replay.course_id ? '/app/course-details?' + new URLSearchParams({id:replay.course_id,replay:replay.id}) : '/app/courses'}">Voir le replay</a></article>`).join('');
     }, () => { list.innerHTML = '<div class="event-item">Impossible de charger les replays.</div>'; });
 }
 
@@ -336,40 +328,42 @@ function loadEvents() {
     const eventsList = document.getElementById('events-list');
     if (!eventsList) return;
 
-    fetchWithSWR(`/api/live/upcoming?t=${Date.now()}`, 'swr_events', (events) => {
+    fetchDashboardData('/api/live/upcoming', (events) => {
         if (!Array.isArray(events) || events.length === 0) {
             eventsList.innerHTML = '<div class="event-item">Aucun événement à venir</div>';
             return;
         }
         
         // Sort events chronologically to ensure the closest is first
-        events.sort((a, b) => new Date(a.scheduled_at) - new Date(b.scheduled_at));
+        events = events.filter(event => Number.isFinite(Date.parse(event.scheduled_at))).sort((a, b) => new Date(a.scheduled_at) - new Date(b.scheduled_at));
+        if (!events.length) {
+            eventsList.innerHTML = '<div class="event-item">Aucun événement à venir</div>';
+            return;
+        }
 
         // Find the closest date
-        const closestDate = new Date(events[0].scheduled_at).toDateString();
+        const dateOptions = { timeZone: 'Africa/Tunis' };
+        const closestDate = new Date(events[0].scheduled_at).toLocaleDateString('fr-FR', dateOptions);
         
         // Filter to only include events on that closest date
-        const nextEvents = events.filter(e => new Date(e.scheduled_at).toDateString() === closestDate);
-
-        const monthNames = ['janvier', 'février', 'mars', 'avril', 'mai', 'juin',
-                            'juillet', 'août', 'septembre', 'octobre', 'novembre', 'décembre'];
+        const nextEvents = events.filter(e => new Date(e.scheduled_at).toLocaleDateString('fr-FR', dateOptions) === closestDate);
 
         eventsList.innerHTML = nextEvents.map(event => {
             const d = new Date(event.scheduled_at);
-            const dateString = `${d.getDate()} ${monthNames[d.getMonth()]}`;
-            const timeString = d.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
+            const dateString = d.toLocaleDateString('fr-FR', { ...dateOptions, day: 'numeric', month: 'long' });
+            const timeString = d.toLocaleTimeString('fr-FR', { ...dateOptions, hour: '2-digit', minute: '2-digit' });
             const isLive = event.status === 'live';
 
             return `
-                <div class="event-item" onclick="window.location.href='/app/calendar'">
+                <a class="event-item dashboard-event-link" href="/app/calendar">
                     <div class="event-item-info">
-                        <span class="event-tag">📅 ${event.course_title || 'Session'}</span>
-                        <h4 class="event-title">${event.title}</h4>
+                        <span class="event-tag">📅 ${escapeDashboardHtml(event.course?.title || event.course_title || 'Session')}</span>
+                        <h4 class="event-title">${escapeDashboardHtml(event.title)}</h4>
                         <div class="event-time">🗓 ${dateString} - ${timeString}</div>
                         ${isLive ? '<div class="event-live">Session live</div>' : ''}
                     </div>
-                    <div class="event-action">Rejoindre &rarr;</div>
-                </div>
+                    <span class="event-action">Voir &rarr;</span>
+                </a>
             `;
         }).join('');
     }, (errorMsg) => {
