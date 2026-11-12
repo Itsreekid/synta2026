@@ -644,7 +644,28 @@
         .course-hero .course-stats-grid { margin: .75rem 0; max-width: 32rem; gap: .35rem; }
         .course-hero .stat-box { padding: .4rem .15rem; min-width: 0; }
         .course-hero .stat-icon { display: none; }
-        .course-hero .buy-button { width: auto; min-height: 44px; padding: .6rem 1rem; margin-top: .25rem; }
+        @media (min-width: 1025px) {
+            .course-sidebar:has(> .course-hero) {
+                position: sticky;
+                top: 1rem;
+                max-height: calc(100dvh - 6rem);
+                overflow-y: auto;
+                gap: 1rem;
+            }
+            .course-sidebar > .course-hero { display: grid; grid-template-columns: minmax(0, 1fr); flex-shrink: 0; gap: .75rem; padding: 1.25rem; }
+            .course-sidebar > .sidebar-card { flex-shrink: 0; }
+        }
+        #course-resources-list { color: #52677a; font-size: .9rem; }
+        .resource-format-list { list-style: none; display: grid; grid-template-columns: repeat(auto-fit, minmax(76px, 1fr)); gap: .85rem .5rem; margin: 0; padding: 0; }
+        .resource-format-list li { display: grid; justify-items: center; align-content: start; gap: .4rem; text-align: center; font-weight: 600; font-size: .78rem; overflow-wrap: anywhere; }
+        .resource-format-icon { --file-color: #176b9b; width: 49px; min-height: 56px; overflow: hidden; border-radius: 6px 12px 6px 6px; background: #f1f5f9; border: 1px solid #dce5ed; display: grid; grid-template-rows: auto 1fr; }
+        .resource-format-icon > span { padding: .22rem .1rem; color: white; background: var(--file-color); font-size: .63rem; line-height: 1.15; }
+        .resource-format-icon > i { align-self: center; color: var(--file-color); font-size: 1.05rem; }
+        .resource-format-pdf { --file-color: #bb3442; }
+        .resource-format-code { --file-color: #16658d; }
+        .resource-format-sheet { --file-color: #377042; }
+        .resource-format-archive { --file-color: #895711; }
+        .course-hero .buy-button { display: inline-flex; align-items: center; justify-content: center; width: auto; min-height: 44px; padding: .6rem 1rem; margin-top: .25rem; box-sizing: border-box; text-decoration: none; }
         .course-main { gap: 1rem; }
         .course-badge[hidden], .buy-button[hidden] { display: none; }
         .course-content-tabs { scroll-margin-top: 1rem; }
@@ -733,7 +754,7 @@
                                 </div>
                             </div>
 
-                                <button type="button" class="buy-button" id="buy-button" hidden>Découvrir les offres</button>
+                                <a href="/app/offers" class="buy-button" id="buy-button" hidden>Découvrir les offres</a>
                             </div>
                         </div>
                         <!-- Progress Area -->
@@ -791,7 +812,7 @@
                         <!-- Resources -->
                         <div class="sidebar-card">
                             <h4 style="margin: 0 0 1rem; color: #1e293b; font-size: 1rem;">📁 Ressources</h4>
-                            <div id="course-resources-list"><p style="color:#64748b;font-size:.9rem">Les documents ajoutés aux leçons apparaîtront ici.</p></div>
+                            <div id="course-resources-list">Chargement des formats…</div>
                         </div>
                     </div>
                 </div>

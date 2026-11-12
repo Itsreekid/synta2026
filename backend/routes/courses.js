@@ -6,9 +6,41 @@ import express from "express";
 import { liveSessionAccess } from "../utils/offerAccess.js";
 import pool from "../config/db.js";
 import { authMiddleware, checkCourseEnrollment } from "../middleware/auth.js";
+import { authApiMiddleware } from "../middleware/requireAuth.js";
 import { generateSignedUrl } from "../utils/r2Utils.js";
 
 const router = express.Router();
+
+router.get("/:courseId/resource-types", authApiMiddleware, async (req, res) => {
+  try {
+    const { courseId } = req.params;
+    const userId = req.user.id;
+    if (!await checkCourseEnrollment(userId, courseId)) {
+      return res.status(403).json({ error: "Course enrollment required" });
+    }
+    const { rows } = await pool.query(
+      `WITH course_lessons AS (
+         SELECT l.id, l.pdf_key FROM course_modules cm
+         JOIN lessons l ON l.module_id = cm.module_id WHERE cm.course_id = $1
+       ), file_types AS (
+         SELECT 'pdf' AS extension FROM course_lessons WHERE NULLIF(TRIM(pdf_key), '') IS NOT NULL
+         UNION
+         SELECT substring(lower(trim(lr.file_name)) from '[.]([a-z0-9]{1,12})$')
+         FROM learning_resources lr JOIN course_lessons l ON l.id = lr.lesson_id
+         UNION
+         SELECT substring(lower(trim(lr.file_name)) from '[.]([a-z0-9]{1,12})$')
+         FROM learning_resources lr JOIN live_sessions ls ON ls.id = lr.live_session_id
+         WHERE ls.course_id = $1 AND ${liveSessionAccess("$2")}
+       )
+       SELECT extension FROM file_types ORDER BY extension`,
+      [courseId, userId]
+    );
+    res.json({ types: rows.map(row => row.extension || "file") });
+  } catch (error) {
+    console.error("Error loading course resource types:", error.code ?? error.name);
+    res.status(500).json({ error: "Could not load course resource types" });
+  }
+});
 
 router.get("/:courseId/resources", authMiddleware, async (req, res) => {
   try {

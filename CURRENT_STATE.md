@@ -629,3 +629,7 @@ The catalog cards now use native links. Course details group the description, co
 - Course quizzes run over the mounted lesson with a configurable orange time bar. Legacy quizzes default to 90 seconds. Admins can opt a quiz into free preview. Results lead to the next lesson or the existing offers page.
 
 - The quiz time bar starts at 4% and fills left to right. Authored French and Arabic quiz text uses automatic direction with Inter and Tajawal.
+
+- On desktop the course overview and resources share a sticky right sidebar. On narrower screens the overview appears above the chapters.
+
+- The course overview Resources card lists distinct file formats from course lessons and live sessions the student can access. File links stay with the lesson or replay.

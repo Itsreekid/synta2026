@@ -31,7 +31,18 @@ async function initCourseDetailsPage() {
         return;
     }
 
+    window.matchMedia('(min-width: 1025px)').addEventListener('change', positionCourseHero);
+    positionCourseHero();
     await loadCourseDetails(courseId);
+}
+
+function positionCourseHero() {
+    const layout = document.querySelector('.course-layout');
+    const hero = layout?.querySelector('.course-hero');
+    if (!hero) return;
+    const column = window.matchMedia('(min-width: 1025px)').matches ? '.course-sidebar' : '.course-main';
+    const destination = layout.querySelector(column);
+    if (hero.parentElement !== destination) destination?.prepend(hero);
 }
 
 if (document.readyState === 'loading') {
@@ -49,16 +60,6 @@ document.addEventListener('click', (event) => {
     const replayButton = event.target.closest('[data-replay-url]');
     if (replayButton) {
         openReplayPlayer(replayButton.dataset.replayUrl, replayButton.dataset.replayTitle, JSON.parse(replayButton.dataset.replayResources || '[]'), replayButton.dataset.sessionId);
-        return;
-    }
-    if (event.target.closest('#buy-button') && currentCourse) {
-        if (event.target.closest('#buy-button').dataset.hasAccess === 'true') {
-            setCourseContentTab('chapters');
-            document.getElementById('chapters-tab')?.focus();
-            document.querySelector('.course-content-tabs')?.scrollIntoView({ block: 'start' });
-        } else {
-            window.location.href = '/app/offers';
-        }
         return;
     }
     const tab = event.target.closest('[data-course-tab]');
@@ -143,7 +144,7 @@ async function loadCourseDetails(courseId) {
         let liveSessions = [];
         currentLiveSessions = [];
         let liveSessionsLoaded = false;
-        let courseResources = [];
+        let resourceTypes = null;
         let courseProgress = null;
         if (hasAccess) {
             const [liveResult, resourceResult, progressResult] = await Promise.allSettled([
@@ -152,8 +153,8 @@ async function loadCourseDetails(courseId) {
                         if (!response.ok) throw new Error(`Live sessions request failed (${response.status})`);
                         return response.json();
                     }),
-                fetch(`/api/courses/${encodeURIComponent(courseId)}/resources`, { credentials: 'include' })
-                    .then(response => response.ok ? response.json() : { resources: [] }),
+                fetch(`/api/courses/${encodeURIComponent(courseId)}/resource-types`, { credentials: 'include' })
+                    .then(response => response.ok ? response.json() : null),
                 fetch(`/api/tracking/course-progress/${encodeURIComponent(courseId)}`, { credentials: 'include' })
                     .then(response => response.ok ? response.json() : null)
             ]);
@@ -163,7 +164,7 @@ async function loadCourseDetails(courseId) {
                 currentLiveSessions = liveSessions;
                 liveSessionsLoaded = true;
             } else console.error('Live sessions fetch error:', liveResult.reason);
-            if (resourceResult.status === 'fulfilled') courseResources = resourceResult.value.resources || [];
+            if (resourceResult.status === 'fulfilled') resourceTypes = resourceResult.value?.types ?? null;
             else console.error('Course documents fetch error:', resourceResult.reason);
             if (progressResult.status === 'fulfilled') courseProgress = progressResult.value;
             else console.error('Progress fetch error:', progressResult.reason);
@@ -179,7 +180,7 @@ async function loadCourseDetails(courseId) {
         // Render course information
         await renderCourseInfo(course, totalLessons, hasAccess, courseProgress, liveSessionsLoaded ? liveSessions.length : null);
         renderCourseLiveSessions(liveSessions, hasAccess, liveSessionsLoaded);
-        renderCourseResources(courseResources, hasAccess);
+        renderCourseResourceTypes(resourceTypes, hasAccess);
 
         // Render modules and lessons
         renderModulesAndLessons(modulesWithLessons, hasAccess, courseProgress);
@@ -190,24 +191,47 @@ async function loadCourseDetails(courseId) {
     }
 }
 
-function renderCourseResources(resources, hasAccess) {
+function renderCourseResourceTypes(types, hasAccess) {
     const container = document.getElementById('course-resources-list');
     if (!container) return;
     if (!hasAccess) {
-        container.innerHTML = '<p style="color:#64748b;font-size:.9rem">Inscrivez-vous au cours pour accéder aux documents.</p>';
+        container.textContent = 'Les fichiers sont accessibles avec le cours.';
         return;
     }
-    if (!resources.length) {
-        container.innerHTML = '<p style="color:#64748b;font-size:.9rem">Aucun document ajouté pour le moment.</p>';
+    if (!Array.isArray(types) || !types.length) {
+        container.textContent = types === null ? 'Formats temporairement indisponibles.' : 'Aucun fichier ajouté pour le moment.';
         return;
     }
-    const escape = value => String(value ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-    container.innerHTML = resources.map(resource => `
-        <a class="resource-item" href="${escape(resource.url)}" target="_blank" rel="noopener noreferrer" style="text-decoration:none;color:inherit">
-            <span style="color:#ef4444;font-size:1.2rem"><i class="fas fa-file-alt"></i></span>
-            <span style="flex:1;font-size:.9rem;font-weight:600;color:#334155">${escape(resource.title)}<small style="display:block;color:#64748b;font-weight:400">${escape(resource.chapter)}</small></span>
-            <i class="fas fa-arrow-up-right-from-square" style="color:#94a3b8;font-size:.8rem"></i>
-        </a>`).join('');
+    const formats = {
+        pdf: ['PDF', 'Document PDF', 'file-pdf', 'pdf'],
+        py: ['PY', 'Code Python', 'file-code', 'code'],
+        doc: ['DOC', 'Document Word', 'file-word', 'document'],
+        docx: ['DOCX', 'Document Word', 'file-word', 'document'],
+        xls: ['XLS', 'Tableur', 'file-excel', 'sheet'],
+        xlsx: ['XLSX', 'Tableur', 'file-excel', 'sheet'],
+        ppt: ['PPT', 'Présentation', 'file-powerpoint', 'pdf'],
+        pptx: ['PPTX', 'Présentation', 'file-powerpoint', 'pdf'],
+        zip: ['ZIP', 'Archive', 'file-archive', 'archive'],
+    };
+    const list = document.createElement('ul');
+    list.className = 'resource-format-list';
+    for (const type of new Set(types)) {
+        if (typeof type !== 'string' || !/^[a-z0-9]{1,12}$/.test(type)) continue;
+        const [extension, name, symbol, color] = Object.hasOwn(formats, type) ? formats[type] :
+            [type === 'file' ? 'FILE' : type.toUpperCase(), type === 'file' ? 'Autre fichier' : 'Fichier ' + type.toUpperCase(), 'file-alt', 'document'];
+        const item = document.createElement('li');
+        const icon = document.createElement('span');
+        icon.className = 'resource-format-icon resource-format-' + color;
+        icon.setAttribute('aria-hidden', 'true');
+        const badge = document.createElement('span');
+        badge.textContent = extension;
+        const glyph = document.createElement('i');
+        glyph.className = 'fas fa-' + symbol;
+        icon.append(badge, glyph);
+        item.append(icon, name);
+        list.appendChild(item);
+    }
+    container.replaceChildren(list);
 }
 
 /**
@@ -316,19 +340,8 @@ async function renderCourseInfo(course, totalLessons, hasAccess, courseProgress,
     const courseLang = document.getElementById('course-language');
     if (courseLang) courseLang.textContent = 'Arabe';
 
-    // Update buy button
-    const buyButton = document.getElementById('buy-button');
-    if (buyButton) {
-        buyButton.dataset.hasAccess = String(Boolean(hasAccess));
-        buyButton.hidden = false;
-        if (hasAccess) {
-            buyButton.textContent = 'Voir les leçons';
-            buyButton.style.background = 'linear-gradient(135deg, #10b981, #059669)';
-            buyButton.style.boxShadow = '0 8px 20px rgba(16, 185, 129, 0.3)';
-        } else {
-            buyButton.textContent = 'Découvrir les offres';
-        }
-    }
+    const offersLink = document.getElementById('buy-button');
+    if (offersLink) offersLink.hidden = Boolean(hasAccess);
 }
 
 function renderCourseLiveSessions(sessions, hasAccess, loaded) {
@@ -932,6 +945,7 @@ function restoreCourseContent() {
     courseMain.style.order = '';
     courseSidebar.replaceChildren(...courseOverview.sidebar);
     courseOverview = null;
+    positionCourseHero();
     const backLink = document.querySelector('.course-details-container > .back-link');
     if (backLink) {
         backLink.setAttribute('href', '/app/courses');
