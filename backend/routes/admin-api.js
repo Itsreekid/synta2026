@@ -6,7 +6,7 @@ import { requireAdmin } from "../middleware/requireAdmin.js";
 import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
 import { createR2UploadUrl, deleteFromR2, listRecentR2Objects, readR2ObjectMetadata, uploadToR2 } from "../utils/r2Utils.js";
-import { offerEntitlement, legacyOfferEntitlement } from "../utils/offerAccess.js";
+import { offerEntitlement, legacyOfferEntitlement, matchesOfferTarget } from "../utils/offerAccess.js";
 
 import { COURSE_IMAGE_PREFIX, courseImagePath, decodeCourseImage, isCourseImageKey } from "../utils/courseImages.js";
 
@@ -253,7 +253,12 @@ router.get("/api/admin/student/:id", requireAdmin, async (req, res) => {
       [req.params.id]
     );
 
-    return res.json({ success: true, student: studentRes.rows[0], offers: offersRes.rows });
+    const student = studentRes.rows[0];
+    const catalog = await pool.query(`SELECT id,title,fixed_price,access_mode,minimum_initial_payment,installment_max,upgrades_enabled,target_classes,target_branches
+      FROM offers WHERE is_active AND (valid_from IS NULL OR valid_from <= NOW())
+      AND (valid_until IS NULL OR valid_until > NOW()) ORDER BY fixed_price, created_at DESC`);
+    return res.json({ success: true, student, offers: offersRes.rows,
+      eligibleOffers: catalog.rows.filter(offer => matchesOfferTarget(offer, student)) });
   } catch (err) {
     console.error("Error fetching student details:", err.message);
     return res.status(500).json({ success: false, error: "Internal server error" });
@@ -322,7 +327,7 @@ router.post("/api/admin/student/:id/enroll-partial", requireAdmin, async (req, r
 
     await client.query("BEGIN");
 
-    const userResult = await client.query(`SELECT balance FROM users WHERE id = $1 FOR UPDATE`, [userId]);
+    const userResult = await client.query(`SELECT balance,class,branch FROM users WHERE id = $1 FOR UPDATE`, [userId]);
     if (!userResult.rowCount) {
       await client.query("ROLLBACK");
       return res.status(404).json({ success: false, error: "Student not found" });
@@ -336,6 +341,10 @@ router.post("/api/admin/student/:id/enroll-partial", requireAdmin, async (req, r
       return res.status(404).json({ success: false, error: "Offer not found" });
     }
     const offer = offerResult.rows[0];
+    if (!matchesOfferTarget(offer, userResult.rows[0])) {
+      await client.query("ROLLBACK");
+      return res.status(403).json({ success: false, error: "Offre indisponible pour ce profil." });
+    }
     if (offer.installment_max === 1) {
       await client.query("ROLLBACK");
       return res.status(409).json({ success: false, error: "Cette offre exige un paiement intégral." });

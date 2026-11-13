@@ -563,9 +563,6 @@
             deleteBtn.onclick = null;
             tokenBtn.onclick = null;
 
-            const offersRes = await window.AdminDashboard.getActiveOffers();
-            const activeOffers = offersRes.success ? offersRes.offers : [];
-
             const res = await window.AdminDashboard.getStudentDetails(id);
             if (!res.success) {
                 content.innerHTML = '<p style="color: red;">Erreur de chargement</p>';
@@ -573,6 +570,7 @@
             }
 
             const s = res.student;
+            const activeOffers = res.eligibleOffers || [];
             const offers = res.offers || [];
             
             let offersHtml = offers.length > 0 
@@ -752,16 +750,18 @@
                         scheduled.find(offer => offer.id === select.value), studentId);
                     panel.append(select, start);
                 }
-                const timed = offers.filter(offer => offer.access_mode && offer.installment_max == null && offer.minimum_initial_payment != null);
+                const timed = offers.filter(offer => offer.access_mode === 'monthly' ||
+                    (offer.access_mode && offer.installment_max == null && offer.minimum_initial_payment != null));
                 if (timed.length) {
                     const draft = document.createElement('form');
-                    draft.innerHTML = '<label>Offre <select name="offerId" required></select></label> <button class="btn btn-primary" type="submit">Créer une tranche sans accès</button>';
+                    draft.innerHTML = '<label>Offre compatible <select name="offerId" required></select></label> <button class="btn btn-primary" type="submit">Préparer l’inscription</button><p>Pour un paiement déjà reçu, confirmez ensuite le reçu, la date du paiement et la date réelle de début d’accès.</p>';
                     for (const offer of timed) {
-                        draft.elements.offerId.add(new Option(offer.title + ' · minimum ' + offer.minimum_initial_payment + ' DT', offer.id));
+                        draft.elements.offerId.add(new Option(offer.title + ' · ' + offer.fixed_price + ' DT', offer.id));
                     }
                     wire(draft, values => send(url, 'POST', values));
                     panel.append(draft);
                 }
+                if (!offers.length) status.textContent = 'Aucune offre active ne correspond à la classe et à la section de cet étudiant.';
                 const states = {
                     draft: 'Brouillon · accès non activé', settled: 'Réglée', no_due_date: 'Aucune échéance définie',
                     overdue: 'En retard', due: 'Échéance définie', cancelled: 'Annulée'
@@ -848,7 +848,11 @@
                             (draft ? '<label>Prochaine échéance (facultative) <input name="nextDueDate" type="date"></label>' : '') +
                             '<button class="btn btn-primary" type="submit"></button>';
                         form.querySelector('button').textContent = draft ? 'Confirmer le paiement et accorder l’accès' : 'Enregistrer un paiement';
-                        if (draft) form.elements.amount.min = item.required_initial_payment;
+                        if (draft) {
+                            form.elements.amount.min = item.required_initial_payment;
+                            form.elements.amount.max = item.quoted_price;
+                            form.elements.amount.value = item.required_initial_payment;
+                        }
                         wire(form, (values, requestId) => send(itemUrl + (draft ? '/confirm' : '/payments'), 'POST', {
                             amount: values.amount, source: values.source, requestId,
                             externalConfirmed: values.externalConfirmed === 'on',

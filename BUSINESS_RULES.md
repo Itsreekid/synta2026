@@ -328,6 +328,8 @@ Two roles exist: `user` (student) and `admin`.
 
 ## Timed offer access
 
+Admin student offer assignment uses the student catalog’s class and branch targeting. Monthly offers requiring full payment use the full offer price as the minimum for an admin-recorded enrollment. Historical coverage uses the existing verified external payment and receipt workflow.
+
 Monthly access uses an Africa/Tunis calendar month. Continuous renewals keep the original day and clamp it in shorter months. Annual access includes the administrator-selected cutoff date. Installment drafts carry no debt or access until explicit confirmation. A missing deadline displays as undefined. Overdue debt leaves access intact, and payment after expiry settles debt without reopening access. Current grants survive offer edits and deactivation. The wallet shows recorded expiry, and eligible grants receive one in-app reminder in the three-day window. See [the technical plan](OFFER_ACCESS_TECHNICAL_PLAN.md).
 
 ### Revised timed-offer rules

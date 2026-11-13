@@ -213,10 +213,12 @@ export async function createInstallment(db, userId, offerId, actor) {
   if (!timedSalesEnabled()) fail(503, "Nouvelles tranches indisponibles.");
   if (!UUID.test(offerId)) fail(400, "Offre invalide.");
   return transaction(db, async client => {
-    await student(client, userId);
+    const user = await student(client, userId);
     const selected = await offer(client, offerId);
-    if (selected.installment_max != null) fail(409, "Utilisez le parcours de paiement configuré pour cette offre.");
-    if (!selected.minimum_initial_payment) fail(409, "Cette offre ne prévoit pas de paiement en tranches.");
+    if (!matchesOfferTarget(selected, user)) fail(403, "Offre indisponible pour ce profil.");
+    if (selected.access_mode !== 'monthly' && selected.installment_max != null) fail(409, "Utilisez le parcours de paiement configuré pour cette offre.");
+    const minimum = initialArrangementAmount(selected);
+    if (!minimum) fail(409, "Cette offre ne prévoit pas de paiement en tranches.");
     const { rows: [draft] } = await client.query(
       `INSERT INTO offer_installment_arrangements
        (user_id,offer_id,quoted_price,required_initial_payment,quoted_access_mode,quoted_academic_year_start,quoted_cutoff_date,created_by)
@@ -224,10 +226,14 @@ export async function createInstallment(db, userId, offerId, actor) {
        ON CONFLICT(user_id,offer_id) WHERE grant_id IS NULL AND cancelled_at IS NULL
        DO UPDATE SET user_id=EXCLUDED.user_id
        RETURNING id,quoted_price,required_initial_payment`,
-      [userId, offerId, selected.fixed_price, selected.minimum_initial_payment, selected.access_mode,
+      [userId, offerId, selected.fixed_price, minimum, selected.access_mode,
         selected.academic_year_start, selected.access_cutoff_date, actor]);
     return draft;
   });
+}
+function initialArrangementAmount(offer) {
+  if (offer.access_mode === 'monthly' && (offer.installment_max === 1 || !offer.minimum_initial_payment)) return offer.fixed_price;
+  return offer.minimum_initial_payment;
 }
 function paymentInput(input) {
   const paid = amount(input.amount);
@@ -299,9 +305,10 @@ export async function confirmInstallment(db, userId, id, actor, input) {
     }
     if (!timedSalesEnabled()) fail(503, "Nouvelles tranches indisponibles.");
     const selected = await offer(client, identity.offer_id);
+    if (!matchesOfferTarget(selected, user)) fail(403, "Offre indisponible pour ce profil.");
     const draft = await installment(client, userId, id);
     if (draft.grant_id) fail(409, "Cette tranche est déjà confirmée.");
-    if (selected.fixed_price !== draft.quoted_price || selected.minimum_initial_payment !== draft.required_initial_payment ||
+    if (selected.fixed_price !== draft.quoted_price || initialArrangementAmount(selected) !== draft.required_initial_payment ||
         selected.access_mode !== draft.quoted_access_mode || selected.academic_year_start !== draft.quoted_academic_year_start ||
         selected.access_cutoff_date !== draft.cutoff) fail(409, "Les conditions de l’offre ont changé.");
     const { rows: [validation] } = await client.query(

@@ -1,5 +1,9 @@
 # CURRENT_STATE.md — Synta Academy
 
+### 2026-11-13 — Admin offer assignment
+
+- Student details now uses the same class and branch matching as the student catalog. Admins can prepare a monthly enrollment and use the existing verified external payment form to enter the original payment and coverage dates. Full-payment monthly offers require the full price.
+
 - Student offer cards share a centered row when the available content width fits them and stack on narrow phones. Card styling and checkout are unchanged.
 
 ### 2026-11-12 — Original offer styling restored
