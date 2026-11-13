@@ -713,6 +713,28 @@
                     const button = form.querySelector('[type="submit"]');
                     if (button.disabled) return;
                     const values = Object.fromEntries(new FormData(form));
+                    if (values.receiptImage instanceof File) {
+                        const image = values.receiptImage;
+                        values.receiptImage = null;
+                        if (image.size && values.source === 'external') {
+                            if (image.size > 5 * 1024 * 1024) {
+                                status.textContent = 'Le reçu doit faire 5 Mo maximum.';
+                                return;
+                            }
+                            button.disabled = true;
+                            try {
+                                const bytes = new Uint8Array(await image.arrayBuffer());
+                                let binary = '';
+                                for (let i = 0; i < bytes.length; i += 8192) {
+                                    binary += String.fromCharCode(...bytes.subarray(i, i + 8192));
+                                }
+                                values.receiptImage = btoa(binary);
+                            } catch {
+                                status.textContent = 'Impossible de lire le reçu. Sélectionnez à nouveau l’image.';
+                                return;
+                            } finally { button.disabled = false; }
+                        }
+                    }
                     const signature = JSON.stringify(values);
                     if (signature !== priorInput) {
                         priorInput = signature;
@@ -736,7 +758,14 @@
                 const data = await response.json();
                 if (!response.ok) throw new Error();
                 if (!panel.isConnected) return;
-                const scheduled = offers.filter(offer => offer.access_mode === 'academic_year' &&
+                const assignable = offers.filter(offer => offer.has_linked_courses !== false);
+                const unlinked = offers.filter(offer => offer.access_mode && offer.has_linked_courses === false);
+                if (unlinked.length) {
+                    const note = document.createElement('p');
+                    note.textContent = 'Associez au moins un cours avant de préparer une inscription : ' + unlinked.map(offer => offer.title).join(', ');
+                    panel.append(note);
+                }
+                const scheduled = assignable.filter(offer => offer.access_mode === 'academic_year' &&
                     (offer.upgrades_enabled || offer.installment_max > 1));
                 if (scheduled.length && data.upgradesEnabled) {
                     const select = document.createElement('select');
@@ -750,7 +779,7 @@
                         scheduled.find(offer => offer.id === select.value), studentId);
                     panel.append(select, start);
                 }
-                const timed = offers.filter(offer => offer.access_mode === 'monthly' ||
+                const timed = assignable.filter(offer => offer.access_mode === 'monthly' ||
                     (offer.access_mode && offer.installment_max == null && offer.minimum_initial_payment != null));
                 if (timed.length) {
                     const draft = document.createElement('form');
@@ -814,6 +843,14 @@
                             payment.paidOn && 'Payé le ' + payment.paidOn, payment.receipt,
                             payment.recordedAt && 'Saisi le ' + new Date(payment.recordedAt).toLocaleDateString('fr-FR', { timeZone: 'Africa/Tunis' }),
                             payment.reversedAt ? 'Contrepassé : ' + payment.reason : null].filter(Boolean).join(' · ');
+                        if (payment.receiptTransactionId) {
+                            const link = document.createElement('a');
+                            link.href = '/api/admin/payments/' + encodeURIComponent(payment.receiptTransactionId) + '/receipt';
+                            link.textContent = 'Voir le reçu';
+                            link.target = '_blank';
+                            link.rel = 'noopener';
+                            row.append(' · ', link);
+                        }
                         if (payment.source === 'external' && !payment.reversedAt) {
                             const reverse = document.createElement('button');
                             reverse.type = 'button';
@@ -843,12 +880,29 @@
                             '<label>Source <select name="source"><option value="wallet">Portefeuille</option><option value="external">Paiement externe</option></select></label>' +
                             '<label><input type="checkbox" name="externalConfirmed"> J’ai vérifié le paiement externe</label>' +
                             '<label>Date réelle du paiement externe <input name="paidOn" type="date"></label>' +
-                            '<label>Référence du reçu externe <input name="receiptReference" maxlength="120"></label>' +
-                            (draft ? '<label>Début d’accès convenu (Tunis) <input name="coverageStart" type="date"></label>' : '') +
+                            '<label>Référence du reçu (facultative) <input name="receiptReference" minlength="3" maxlength="120" placeholder="N° de virement ou de reçu"></label>' +
+                            '<label>Photo du reçu (facultative) <input name="receiptImage" type="file" accept="image/jpeg,image/png,image/webp"></label>' +
+                            (draft ? '<label>Début d’accès convenu (Tunis) <input name="coverageStart" type="date" disabled style="background:#e9eef3;color:#475569"></label>' +
+                                '<label><input type="checkbox" name="overrideCoverageStart"> Choisir une autre date de début</label>' : '') +
                             (draft ? '<label>Prochaine échéance (facultative) <input name="nextDueDate" type="date"></label>' : '') +
                             '<button class="btn btn-primary" type="submit"></button>';
                         form.querySelector('button').textContent = draft ? 'Confirmer le paiement et accorder l’accès' : 'Enregistrer un paiement';
+                        form.elements.source.value = 'external';
                         if (draft) {
+                            const { source, paidOn, coverageStart, overrideCoverageStart } = form.elements;
+                            const syncCoverage = () => {
+                                const external = source.value === 'external';
+                                overrideCoverageStart.disabled = !external;
+                                coverageStart.disabled = !external || !overrideCoverageStart.checked;
+                                coverageStart.required = !coverageStart.disabled;
+                                coverageStart.style.background = coverageStart.disabled ? '#e9eef3' : '';
+                                coverageStart.style.color = coverageStart.disabled ? '#475569' : '';
+                                if (!external || !overrideCoverageStart.checked) coverageStart.value = external ? paidOn.value : '';
+                            };
+                            paidOn.addEventListener('input', syncCoverage);
+                            source.addEventListener('change', syncCoverage);
+                            overrideCoverageStart.addEventListener('change', syncCoverage);
+                            syncCoverage();
                             form.elements.amount.min = item.required_initial_payment;
                             form.elements.amount.max = item.quoted_price;
                             form.elements.amount.value = item.required_initial_payment;
@@ -856,8 +910,11 @@
                         wire(form, (values, requestId) => send(itemUrl + (draft ? '/confirm' : '/payments'), 'POST', {
                             amount: values.amount, source: values.source, requestId,
                             externalConfirmed: values.externalConfirmed === 'on',
-                            paidOn: values.paidOn || null, receiptReference: values.receiptReference || null,
-                            coverageStart: values.coverageStart || null,
+                            paidOn: values.source === 'external' ? values.paidOn || null : null,
+                            receiptReference: values.source === 'external' ? values.receiptReference || null : null,
+                            receiptImage: values.receiptImage,
+                            coverageStart: draft && values.source === 'external' ?
+                                (values.overrideCoverageStart === 'on' ? values.coverageStart : values.paidOn) || null : null,
                             nextDueDate: values.nextDueDate || null
                         }));
                         card.append(form);

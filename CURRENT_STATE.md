@@ -1,6 +1,12 @@
 # CURRENT_STATE.md — Synta Academy
 
+- The historical enrollment form defaults the Tunis access start to the payment date. Admins can unlock the field to enter a different start date.
+
+- Admin installment receipts support an optional reference and optional raster attachment. Historical dates and admin verification remain required for backdating. Attachments use the existing transaction receipt field and admin viewer.
+
 ### 2026-11-13 — Admin offer assignment
+
+- Timed offers without linked courses are explained in student details and excluded from the enrollment picker.
 
 - Student details now uses the same class and branch matching as the student catalog. Admins can prepare a monthly enrollment and use the existing verified external payment form to enter the original payment and coverage dates. Full-payment monthly offers require the full price.
 

@@ -131,7 +131,9 @@ router.get(arrangements, requireAdmin, reply(async req => {
         WHERE c.confirmation_id=g.upgrade_confirmation_id), '[]'::json) AS claims,
       COALESCE((SELECT json_agg(json_build_object(
         'id', p.id, 'amount', p.amount::text, 'source', p.source, 'paidOn', p.external_paid_on,
-        'receipt', p.external_receipt_reference, 'recordedAt', p.recorded_at, 'recordedBy', p.recorded_by,
+        'receipt', CASE WHEN p.external_receipt_reference LIKE 'admin:%' THEN NULL ELSE p.external_receipt_reference END,
+        'receiptTransactionId', (SELECT t.id FROM transactions t WHERE t.id=p.transaction_id AND t.receipt_url IS NOT NULL),
+        'recordedAt', p.recorded_at, 'recordedBy', p.recorded_by,
         'reversedAt', r.recorded_at, 'reversedBy', r.recorded_by, 'reason', r.reason) ORDER BY p.recorded_at)
         FROM offer_installment_payments p LEFT JOIN offer_installment_reversals r ON r.payment_id=p.id
         WHERE p.arrangement_id=a.id), '[]'::json) AS payments,

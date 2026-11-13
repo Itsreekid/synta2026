@@ -1,5 +1,6 @@
 import { createHash, createHmac, randomUUID, timingSafeEqual } from "node:crypto";
 import { matchesOfferTarget, legacyOfferEntitlement } from "../utils/offerAccess.js";
+import { decodeCourseImage } from "../utils/courseImages.js";
 
 export const UUID = /^[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}$/i;
 const DATE = /^\d{4}-\d{2}-\d{2}$/;
@@ -264,19 +265,29 @@ export async function recordPayment(db, id, input, fingerprint, transactionId, p
      ON CONFLICT (lower(external_receipt_reference)) WHERE external_receipt_reference IS NOT NULL DO NOTHING RETURNING id`,
     [id, input.requestId, fingerprint, transactionId, paid, input.source, actor, input.paidOn ?? null, input.receiptReference ?? null]);
   if (!payment) fail(409, "Cette référence de paiement a déjà été enregistrée.");
+  if (input.receiptImage) {
+    await db.query("UPDATE transactions SET receipt_url=$1 WHERE id=$2", [input.receiptImage, transactionId]);
+  }
   return payment.id;
 }
-export function externalDetails(input, allowCoverage) {
-  if (!input.paidOn && !input.receiptReference && !input.coverageStart) return input;
-  const receiptReference = typeof input.receiptReference === "string" ? input.receiptReference.trim().toLowerCase() : "";
+export function externalDetails(input, allowCoverage, allowOptionalProof = false) {
+  if (!input.paidOn && !input.receiptReference && !input.coverageStart && !input.receiptImage) return input;
+  let receiptReference = typeof input.receiptReference === "string" ? input.receiptReference.trim().toLowerCase() : "";
   const tunisDate = new Intl.DateTimeFormat("sv-SE", { timeZone: "Africa/Tunis", year: "numeric", month: "2-digit", day: "2-digit" }).format(new Date());
+  if (allowOptionalProof && !receiptReference && UUID.test(input.requestId)) receiptReference = `admin:${input.requestId}`;
   if (input.source !== "external" || !validDate(input.paidOn) || input.paidOn > tunisDate ||
       receiptReference.length < 3 || receiptReference.length > 120 ||
       (allowCoverage ? !validDate(input.coverageStart) || input.coverageStart < "2000-01-01" ||
         input.coverageStart > tunisDate : Boolean(input.coverageStart))) {
-    fail(400, "Vérifiez la date, la référence et le début d’accès du paiement externe.");
+    fail(400, "Choisissez Paiement externe, indiquez la date réelle du paiement et, pour une inscription, le début d’accès. Les dates ne peuvent pas être futures.");
   }
-  return { ...input, receiptReference };
+  let receiptImage;
+  if (input.receiptImage) {
+    const image = allowOptionalProof && decodeCourseImage(input.receiptImage);
+    if (!image || !["png", "jpg", "webp"].includes(image.extension)) fail(400, "Joignez une image JPG, PNG ou WebP de 5 Mo maximum.");
+    receiptImage = `data:${image.contentType};base64,${input.receiptImage}`;
+  }
+  return { ...input, receiptReference, receiptImage };
 }
 async function priorOperation(db, table, id, requestId, fingerprint) {
   // Table is a fixed internal identifier, never request data.
@@ -286,10 +297,11 @@ async function priorOperation(db, table, id, requestId, fingerprint) {
   return prior;
 }
 export async function confirmInstallment(db, userId, id, actor, input) {
-  input = externalDetails(input, true);
+  input = externalDetails(input, true, true);
   const paid = paymentInput(input);
   const due = dueDate(input.nextDueDate);
-  const fingerprint = hash(input.paidOn ? ["confirm", paid, input.source, due, input.paidOn, input.receiptReference, input.coverageStart] : ["confirm", paid, input.source, due]);
+  const fingerprint = hash(input.paidOn ? ["confirm", paid, input.source, due, input.paidOn, input.receiptReference, input.coverageStart,
+    ...(input.receiptImage ? [input.receiptImage] : [])] : ["confirm", paid, input.source, due]);
   return transaction(db, async client => {
     const user = await student(client, userId);
     const { rows: [identity] } = await client.query(
@@ -326,10 +338,11 @@ export async function confirmInstallment(db, userId, id, actor, input) {
   });
 }
 export async function collectInstallment(db, userId, id, actor, input, studentCheckout = false) {
-  input = externalDetails(input, false);
+  input = externalDetails(input, false, !studentCheckout);
   const paid = paymentInput(input);
   const fingerprint = hash(studentCheckout ? ["student-collection", paid, input.position] :
-    input.paidOn ? ["collect", paid, input.source, input.paidOn, input.receiptReference] : ["collect", paid, input.source]);
+    input.paidOn ? ["collect", paid, input.source, input.paidOn, input.receiptReference,
+      ...(input.receiptImage ? [input.receiptImage] : [])] : ["collect", paid, input.source]);
   return transaction(db, async client => {
     const user = await student(client, userId);
     const draft = await installment(client, userId, id);

@@ -254,7 +254,8 @@ router.get("/api/admin/student/:id", requireAdmin, async (req, res) => {
     );
 
     const student = studentRes.rows[0];
-    const catalog = await pool.query(`SELECT id,title,fixed_price,access_mode,minimum_initial_payment,installment_max,upgrades_enabled,target_classes,target_branches
+    const catalog = await pool.query(`SELECT id,title,fixed_price,access_mode,minimum_initial_payment,installment_max,upgrades_enabled,target_classes,target_branches,
+      EXISTS (SELECT 1 FROM offer_courses oc WHERE oc.offer_id = offers.id) AS has_linked_courses
       FROM offers WHERE is_active AND (valid_from IS NULL OR valid_from <= NOW())
       AND (valid_until IS NULL OR valid_until > NOW()) ORDER BY fixed_price, created_at DESC`);
     return res.json({ success: true, student, offers: offersRes.rows,
