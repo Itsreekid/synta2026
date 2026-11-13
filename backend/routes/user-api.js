@@ -6,6 +6,7 @@ import { liveSessionAccess } from "../utils/offerAccess.js";
 import { normalizeTunisianPhone, validateLearnerProfile } from "../utils/learnerProfile.js";
 import pool from "../config/db.js";
 import { authApiMiddleware } from "../middleware/requireAuth.js";
+import { createOfferQuote } from "../services/timed-offers.js";
 
 const router = express.Router();
 
@@ -288,7 +289,14 @@ router.get("/api/user/transactions", authApiMiddleware, async (req, res) => {
 router.post("/api/user/transactions", authApiMiddleware, async (req, res) => {
   try {
     const userId = req.user.id;
-    const { amount, payment_method, transaction_code, description, receipt_url } = req.body;
+    const { payment_method, transaction_code, description, receipt_url, renewalOfferId } = req.body;
+    let { amount } = req.body;
+    if (renewalOfferId) {
+      const quote = await createOfferQuote(pool, userId, renewalOfferId);
+      if (quote.access_mode !== 'monthly' || !receipt_url) return res.status(400).json({ error: 'Renouvellement mensuel ou reçu invalide.' });
+      if (String(amount) !== String(quote.price)) return res.status(409).json({ error: 'Le prix a changé. Rouvrez le renouvellement.' });
+      amount = quote.price;
+    }
 
     if (!amount || isNaN(amount) || amount <= 0) {
       return res.status(400).json({ error: "Invalid amount" });

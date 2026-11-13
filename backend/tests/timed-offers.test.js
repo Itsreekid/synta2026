@@ -398,7 +398,7 @@ test("timed offers on disposable PostgreSQL", { skip: !process.env.BUGI_QA_POSTG
                       featured:cards.filter(card=>card.classList.contains('featured')).length,
                       badges:document.querySelectorAll('.discount-badge').length,
                       labels:action, disabled:cards.map(card=>card.querySelector('.acheter-btn').disabled),
-                      terms: cards[1].querySelector('.validity-box').textContent === 'Offre année scolaire 2026/2027',
+                      terms: cards[1].querySelector('.validity-box').textContent === 'Abonnement annuel 2026/2027',
                       namesHidden: cards.every((card,index)=>!card.textContent.includes(cases[index].title)),
                       monthlyTerms: cards[4].textContent.includes('DT / mois') && cards[5].textContent.includes('Renouvellement manuel')
                     };
@@ -407,7 +407,7 @@ test("timed offers on disposable PostgreSQL", { skip: !process.env.BUGI_QA_POSTG
                     count: 8, allVisible: true, horizontalOverflow: false, cardOverflow: false,
                     featureCount: 16, featureScroll: "visible", featureClipped: false, rtl: "rtl",
                     featured: 1, badges: 1,
-                    labels: ["Déjà possédé", "Passer à cette offre", "Solde insuffisant", "Indisponible", "Acheter", "Renouveler", "Choisir mon paiement", "Acheter"],
+                    labels: ["Déjà possédé", "Passer à cette offre", "Solde insuffisant", "Indisponible", "Acheter", "Renouvellement", "Choisir mon paiement", "Acheter"],
                     disabled: [true, false, true, true, false, false, false, false],
                     terms: true, namesHidden: true, monthlyTerms: true
                   }, "layout at " + width + "px");
@@ -418,20 +418,20 @@ test("timed offers on disposable PostgreSQL", { skip: !process.env.BUGI_QA_POSTG
                     }
                   }
                 }
-                for (const [width, title, label] of [[1280, edit.title, "Renouveler"], [390, "Browser annual", "Acheter"]]) {
+                for (const [width, title, label] of [[1280, edit.title, "Renouvellement"], [390, "Browser annual", "Acheter"]]) {
                   const selectedId = width < 500 ? annualId : offerId;
                   const expected = await createOfferQuote(db, learner, selectedId);
                   await open("/app/offers", studentToken, width);
                   assert.equal(await evaluate("innerWidth"), width);
                   try {
-                    await until(() => evaluate(`[...document.querySelectorAll('.offer-card')].some(c => c.querySelector("img")?.alt === ${JSON.stringify(title)})`), title);
+                    await until(() => evaluate(`[...document.querySelectorAll('.offer-card')].some(c => c.dataset.offerId === ${JSON.stringify(selectedId)})`), title);
                   } catch (error) {
                     throw new Error(error.message + " | " + JSON.stringify(await evaluate(
                       "({text:document.querySelector('#offers-list')?.textContent.slice(0,250), js:typeof initOffers, urls:[...document.scripts].map(x=>x.src).filter(Boolean)})")) + " | " + errors.join(" | "));
                   }
                   const clicked = await evaluate(`(() => {
                     const cards = [...document.querySelectorAll('.offer-card')];
-                    const index = cards.findIndex(c => c.querySelector("img")?.alt === ${JSON.stringify(title)});
+                    const index = cards.findIndex(c => c.dataset.offerId === ${JSON.stringify(selectedId)});
                     if (${width} < 500) for (let i=0; i<index; i++) document.getElementById('nav-next-btn').click();
                     const button = cards[index].querySelector('.acheter-btn');
                     if (button.disabled || !button.textContent.includes(${JSON.stringify(label)})) return false;
@@ -439,6 +439,11 @@ test("timed offers on disposable PostgreSQL", { skip: !process.env.BUGI_QA_POSTG
                     return true;
                   })()`);
                   assert.equal(clicked, true);
+                  if (width >= 500) {
+                    await until(() => evaluate("document.querySelector('dialog [data-price]')?.textContent"), "renewal amount");
+                    assert.equal(await evaluate("document.querySelector('dialog [data-price]').textContent"), expected.price + ' DT');
+                    await evaluate("document.querySelector('dialog [data-wallet]').click()");
+                  }
                   const confirmation = await until(() => evaluate("window.lastConfirmation || ''"), "checkout confirmation");
                   assert.match(confirmation, /Fin d’accès.*Tunis/);
                   const formattedExpiry = new Intl.DateTimeFormat("fr-FR", {

@@ -1217,9 +1217,6 @@
 
             <div class="cp-toolbar-group">
                 <div class="cp-toolbar">
-                    <select class="cp-select" id="examples-select" onchange="loadExample()">
-                        <option value="">Exemples...</option>
-                    </select>
                     <button class="cp-btn-toolbar" onclick="clearEditor()" title="Vider l'éditeur" aria-label="Vider l'éditeur"><i class="fas fa-eraser" aria-hidden="true"></i></button>
                     <button class="cp-btn-toolbar" onclick="copyCode()" title="Copier le code" aria-label="Copier le code"><i class="fas fa-copy" aria-hidden="true"></i></button>
                 </div>
@@ -1788,6 +1785,7 @@ window.addEventListener('DOMContentLoaded', () => {
 // ----------------------------------------------------------------
 function populateExamples(mode) {
     const sel = document.getElementById('examples-select');
+    if (!sel) return;
     sel.innerHTML = '<option value="">Exemples de code...</option>';
     const src = mode === 'python' ? PYTHON_EXAMPLES : WEB_EXAMPLES;
     for (const [key, val] of Object.entries(src)) {
@@ -1911,7 +1909,7 @@ function runPython() {
     const runBtn = document.getElementById('run-btn');
     if (!code.trim()) {
         clearConsole();
-        appendConsole('<span class="console-comment">Écris du code ou choisis un exemple, puis lance l’exécution.</span>\n');
+        appendConsole('<span class="console-comment">Écris du code, puis lance l’exécution.</span>\n');
         pyEditor.focus();
         return;
     }

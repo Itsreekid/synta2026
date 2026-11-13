@@ -62,7 +62,7 @@ async function initOffers() {
                 ? `De ${formatDate(offer.valid_from)} Jusqu'à ${formatDate(offer.valid_until)}`
                 : 'Offre à durée limitée';
             const year = Number(offer.academic_year_start);
-            const annualLabel = year ? `Offre année scolaire ${year}/${year + 1}` : 'Offre année scolaire';
+            const annualLabel = year ? `Abonnement annuel ${year}/${year + 1}` : 'Abonnement annuel';
             const accessLabel = monthly ? 'Abonnement mensuel' : annual ? annualLabel : dateRange;
 
             // Use the separate config file for features and images
@@ -89,7 +89,7 @@ async function initOffers() {
             }
 
             return `
-                <article class="offer-card ${monthly ? 'offer-monthly' : annual ? 'offer-annual' : 'offer-legacy'} ${isFeatured ? 'featured' : ''}" aria-labelledby="offer-title-${index}">
+                <article class="offer-card ${monthly ? 'offer-monthly' : annual ? 'offer-annual' : 'offer-legacy'} ${isFeatured ? 'featured' : ''}" data-offer-id="${escapeOfferHtml(offer.id)}" aria-labelledby="offer-title-${index}">
                     ${isFeatured ? '<div class="best-seller-banner" lang="ar" dir="rtl">عرضنا الأكثر مبيعا</div>' : ''}
                     <div class="offer-image-section">
                         <img src="${escapeOfferHtml(offerImage)}" alt="" decoding="async" ${index > 2 ? 'loading="lazy"' : ''}>
@@ -124,9 +124,9 @@ async function initOffers() {
                         ${scheduled && (upgrade || installments > 1) ?
                             `<button class="acheter-btn scheduled-offer-btn" type="button" data-scheduled-index="${index}">${upgrade ? 'Passer à cette offre' : 'Choisir mon paiement'}</button>` :
                         `<button type="button" class="acheter-btn ${offer.is_purchased && !renewable ? 'purchased-btn' : ''}"
-                            ${!offer.can_purchase || timedUnavailable ? 'disabled' : ''}
+                            ${(!offer.can_purchase && !renewable) || timedUnavailable ? 'disabled' : ''}
                             data-offer-index="${index}">
-                            ${timedUnavailable ? 'Indisponible' : renewable && offer.can_purchase ? 'Renouveler' : offer.is_purchased ? 'Déjà possédé' : (offer.can_purchase ? 'Acheter' : 'Solde insuffisant')}
+                            ${timedUnavailable ? 'Indisponible' : renewable ? 'Renouvellement' : offer.is_purchased ? 'Déjà possédé' : (offer.can_purchase ? 'Acheter' : 'Solde insuffisant')}
                         </button>`}
                     </div>
                 </article>
@@ -137,7 +137,10 @@ async function initOffers() {
             const offer = offers[Number(button.dataset.offerIndex)];
             button.addEventListener('click', async () => {
                 button.disabled = true;
-                try { await subscribeToOffer(offer.id, offer.title, offer.access_mode); }
+                try {
+                    if (offer.can_renew && offer.access_mode === 'monthly') await openRenewalDialog(offer);
+                    else await subscribeToOffer(offer.id, offer.title, offer.access_mode);
+                }
                 finally { button.disabled = false; }
             });
         }
@@ -164,6 +167,76 @@ function updateBalanceInUI(balance) {
     const headerBalance = document.getElementById('userBalance');
     if (headerBalance) headerBalance.textContent = parseFloat(balance).toFixed(2);
     console.log('Balance update received:', balance);
+}
+
+async function openRenewalDialog(offer) {
+    const dialog = document.createElement('dialog');
+    dialog.className = 'offer-checkout-dialog';
+    dialog.setAttribute('aria-label', 'Renouvellement mensuel');
+    dialog.innerHTML = `<form>
+        <header class="offer-checkout-header"><h2>Renouvellement mensuel</h2><button type="button" data-close aria-label="Fermer">×</button></header>
+        <div class="offer-checkout-content">
+            <p>Montant de l’offre <strong data-price></strong></p>
+            <p><a href="/app/paiement" target="_blank" rel="noopener">Voir le RIB et D17 dans Mon Portefeuille (nouvel onglet)</a></p>
+            <p>Le reçu est vérifié par l’administration. Une fois le portefeuille crédité, revenez ici pour payer le renouvellement.</p>
+            <label>Reçu de paiement <input type="file" accept="image/jpeg,image/png,image/webp" required></label>
+            <p role="status" aria-live="polite"></p>
+        </div>
+        <footer class="offer-checkout-footer">
+            ${offer.can_purchase ? '<button type="button" data-wallet>Payer avec mon solde</button>' : ''}
+            <button type="submit" disabled>Envoyer le reçu</button>
+        </footer>
+    </form>`;
+    document.body.append(dialog);
+    dialog.addEventListener('close', () => dialog.remove(), { once: true });
+    dialog.querySelector('[data-close]').onclick = () => dialog.close();
+    const wallet = dialog.querySelector('[data-wallet]');
+    if (wallet) wallet.onclick = () => {
+        dialog.close();
+        void subscribeToOffer(offer.id, offer.title, offer.access_mode);
+    };
+    const status = dialog.querySelector('[role=status]');
+    const submit = dialog.querySelector('[type=submit]');
+    dialog.showModal();
+    try {
+        const response = await fetch('/api/purchase/offer/quote', {
+            method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ offerId: offer.id })
+        });
+        const quote = await response.json();
+        if (!response.ok) throw new Error(quote.error || 'Impossible de charger le montant.');
+        dialog.querySelector('[data-price]').textContent = `${quote.price} DT`;
+        submit.disabled = false;
+        dialog.querySelector('form').onsubmit = async event => {
+            event.preventDefault();
+            if (submit.disabled) return;
+            const image = dialog.querySelector('input').files[0];
+            if (!image || image.size > 5 * 1024 * 1024 || !['image/jpeg', 'image/png', 'image/webp'].includes(image.type)) {
+                status.textContent = 'Joignez un reçu JPG, PNG ou WebP de 5 Mo maximum.';
+                return;
+            }
+            submit.disabled = true;
+            try {
+                const receipt = await new Promise((resolve, reject) => {
+                    const reader = new FileReader();
+                    reader.onload = () => resolve(reader.result);
+                    reader.onerror = reject;
+                    reader.readAsDataURL(image);
+                });
+                const result = await fetch('/api/user/transactions', {
+                    method: 'POST', headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ amount: quote.price, renewalOfferId: offer.id, receipt_url: receipt,
+                        transaction_code: 'TXN-' + crypto.randomUUID(), description: 'Demande de dépôt' })
+                });
+                if (!result.ok) throw new Error((await result.json().catch(() => null))?.error || 'Impossible d’envoyer le reçu. Réessayez.');
+                status.textContent = 'Reçu envoyé. La demande apparaît dans Mon Portefeuille.';
+            } catch (error) {
+                status.textContent = error.message || 'Impossible de lire le reçu.';
+                submit.disabled = false;
+            }
+        };
+    } catch (error) {
+        status.textContent = error.message || 'Impossible de charger le montant.';
+    }
 }
 
 async function subscribeToOffer(offerId, title, accessMode) {

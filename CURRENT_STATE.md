@@ -1,5 +1,11 @@
 # CURRENT_STATE.md — Synta Academy
 
+- Annual offer cards show « Abonnement annuel » followed by the academic year configured by the administrator.
+
+- Eligible monthly offers open a renewal dialog with a fixed-price receipt submission, a link to wallet payment details and an existing wallet checkout option. Receipt submission enters the existing pending deposit review flow.
+
+- Removed the examples dropdown from Code Pratique and updated the empty-editor prompt.
+
 - Student offer cards use the access label in the title slot. Annual cards show the configured academic year, while exact expiry and installment options remain in checkout.
 
 - Chapters and Replays tabs are hidden when their respective content is empty. A replay loading error remains visible to enrolled students so they can retry.
