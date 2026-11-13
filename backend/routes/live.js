@@ -83,7 +83,8 @@ router.get("/course/:courseId", authApiMiddleware, async (req, res) => {
 
     const result = await pool.query(
       `SELECT ls.id, ls.title, ls.description, ls.scheduled_at,
-              ls.duration_minutes, ls.status, ls.zoom_join_url, ls.replay_url
+              ls.duration_minutes, ls.status, ls.zoom_join_url, ls.replay_url,
+              md5(jsonb_build_array(ls.title,ls.description,ls.scheduled_at,ls.duration_minutes,ls.replay_url)::text) AS revision
        FROM live_sessions ls
        WHERE ls.course_id = $1
          AND ${liveSessionAccess("$2")}

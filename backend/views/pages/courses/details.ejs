@@ -418,6 +418,8 @@
         .course-content-tab { display:inline-flex; align-items:center; justify-content:center; gap:.6rem; min-height:48px; padding:.7rem 1rem; border:0; border-radius:12px; background:transparent; color:#64748b; font:inherit; font-weight:700; cursor:pointer; transition:background .2s,color .2s,box-shadow .2s; }
         .course-content-tab:hover { color:#1e293b; }
         .course-content-tab.is-active { background:#fff; color:#4f46e5; box-shadow:0 2px 8px rgba(15,23,42,.08); }
+        .course-content-tabs[hidden], .course-content-tab[hidden], .course-unread-dot[hidden] { display:none; }
+        .course-unread-dot { width:8px; height:8px; flex:none; border-radius:50%; background:#dc2626; }
         .course-live-tab-count { display:inline-grid; place-items:center; min-width:23px; height:23px; padding:0 .35rem; border-radius:99px; background:#e0e7ff; color:#4338ca; font-size:.75rem; }
         .course-content-panel[hidden] { display:none !important; }
         .course-panel-heading { margin:.15rem 0 0; color:#1e293b; font-size:1.2rem; }
@@ -784,13 +786,15 @@
                             </div>
                         </div>
 
-                        <nav class="course-content-tabs" role="tablist" aria-label="Contenu du cours">
+                        <nav class="course-content-tabs" role="tablist" aria-label="Contenu du cours" data-viewer="<%= user.id %>">
                             <button class="course-content-tab is-active" id="chapters-tab" type="button" role="tab" aria-selected="true" aria-controls="chapters-panel" data-course-tab="chapters">
                                 <i class="fas fa-book-open" aria-hidden="true"></i> Chapitres
+                                <span class="course-unread-dot" role="img" aria-label="Chapitres mis à jour" hidden></span>
                             </button>
                             <button class="course-content-tab" id="live-tab" type="button" role="tab" aria-selected="false" tabindex="-1" aria-controls="live-panel" data-course-tab="live">
-                                <i class="fas fa-video" aria-hidden="true"></i> Directs et replays
+                                <i class="fas fa-video" aria-hidden="true"></i> Replays
                                 <span class="course-live-tab-count" id="live-tab-count">0</span>
+                                <span class="course-unread-dot" role="img" aria-label="Directs ou replays mis à jour" hidden></span>
                             </button>
                         </nav>
 
@@ -805,9 +809,8 @@
                             <div class="course-live-panel-card">
                                 <div class="course-live-panel-heading">
                                     <div>
-                                        <span class="course-live-eyebrow">Votre calendrier de cours</span>
-                                        <h3>Séances en direct</h3>
-                                        <p>Retrouvez les directs à venir et les replays, classés par mois.</p>
+                                        <h3>Replays du cours</h3>
+                                        <p>Retrouvez les enregistrements, classés par mois.</p>
                                     </div>
                                     <i class="fas fa-calendar-alt" aria-hidden="true"></i>
                                 </div>

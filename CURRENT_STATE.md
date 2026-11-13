@@ -1,5 +1,13 @@
 # CURRENT_STATE.md — Synta Academy
 
+- Chapters and Replays tabs are hidden when their respective content is empty. A replay loading error remains visible to enrolled students so they can retry.
+
+- The Replays tab lists and counts available recordings only. Upcoming live sessions remain in the calendar.
+
+- Replay-only course details open on Replays. Chapter and replay updates show red dots for students with course access until they open the affected tab. Revisions are compared in the student's browser without a time limit.
+
+- The course editor clarifies that Niveau is difficulty. Linked offers target discovery by class and section, and published courses with no linked offer are visible to all users.
+
 - The historical enrollment form defaults the Tunis access start to the payment date. Admins can unlock the field to enter a different start date.
 
 - Admin installment receipts support an optional reference and optional raster attachment. Historical dates and admin verification remain required for backdating. Attachments use the existing transaction receipt field and admin viewer.

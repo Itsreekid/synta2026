@@ -263,8 +263,9 @@ router.get("/:courseId", authMiddleware, async (req, res) => {
     course.modules = await Promise.all(
       modulesResult.rows.map(async (mod) => {
         const lessonsResult = await pool.query(
-          `SELECT id, title, description, type, duration, order_index, is_preview
-           FROM lessons WHERE module_id = $1 ORDER BY order_index ASC`,
+          `SELECT id, title, description, type, duration, order_index, is_preview,
+                  md5(to_jsonb(lessons)::text) AS revision
+           FROM lessons WHERE module_id = $1 ORDER BY order_index ASC, id ASC`,
           [mod.id]
         );
         return { ...mod, lessons: lessonsResult.rows };

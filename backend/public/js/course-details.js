@@ -77,17 +77,19 @@ document.addEventListener('click', (event) => {
 
 document.addEventListener('keydown', event => {
     if (!event.target.matches('[data-course-tab]')) return;
-    const tabs = [...document.querySelectorAll('[data-course-tab]')];
+    const tabs = [...document.querySelectorAll('[data-course-tab]:not([hidden])')];
     const index = tabs.indexOf(event.target);
     const next = { ArrowLeft: (index + tabs.length - 1) % tabs.length,
         ArrowRight: (index + 1) % tabs.length, Home: 0, End: tabs.length - 1 }[event.key];
     if (next === undefined) return;
     event.preventDefault();
-    setCourseContentTab(tabs[next].dataset.courseTab);
+    tabs[next].click();
     tabs[next].focus();
 });
 
 function setCourseContentTab(selected) {
+    const visibleTabs = [...document.querySelectorAll('[data-course-tab]:not([hidden])')];
+    if (!visibleTabs.some(tab => tab.dataset.courseTab === selected)) selected = visibleTabs[0]?.dataset.courseTab;
     document.querySelectorAll('[data-course-tab]').forEach(button => {
         const active = button.dataset.courseTab === selected;
         button.classList.toggle('is-active', active);
@@ -99,6 +101,40 @@ function setCourseContentTab(selected) {
         panel.hidden = !active;
         panel.classList.toggle('is-active', active);
     });
+}
+
+function configureCourseTabs(modules, sessions, hasAccess) {
+    const chapters = document.getElementById('chapters-tab');
+    const replays = document.getElementById('live-tab');
+    chapters.hidden = modules.length === 0;
+    replays.hidden = sessions?.length === 0 || !hasAccess;
+    document.querySelector('.course-content-tabs').hidden = chapters.hidden && replays.hidden;
+    setCourseContentTab(chapters.hidden ? 'live' : 'chapters');
+    if (!hasAccess) return;
+    const scope = document.querySelector('.course-content-tabs')?.dataset.viewer;
+    if (!scope) return;
+    if (modules.length) watchCourseRevision(chapters, `synta:chapter-revision:${scope}:${currentCourse.id}`,
+        modules.map(module => [module.id, module.title, module.description, module.order_index,
+            module.lessons?.map(lesson => [lesson.id, lesson.revision])]));
+    if (sessions) watchCourseRevision(document.getElementById('live-tab'), `synta:live-revision:${scope}:${currentCourse.id}`,
+        sessions.map(session => [session.id, session.revision, (session.resources || []).map(resource => resource.id).sort()])
+            .sort(([a], [b]) => a.localeCompare(b)));
+}
+
+function watchCourseRevision(tab, key, entries) {
+    const revision = JSON.stringify(entries);
+    try {
+        const previous = localStorage.getItem(key);
+        if (previous === null) localStorage.setItem(key, revision);
+        else if (previous !== revision) {
+            const dot = tab.querySelector('.course-unread-dot');
+            dot.hidden = false;
+            tab.addEventListener('click', () => {
+                dot.hidden = true;
+                try { localStorage.setItem(key, revision); } catch { /* Storage can be disabled. */ }
+            }, { once: true });
+        }
+    } catch { /* Storage can be disabled. */ }
 }
 
 function switchCoursePlayerTo(panelName, leaveHistory = true) {
@@ -168,7 +204,7 @@ async function loadCourseDetails(courseId) {
             ]);
 
             if (liveResult.status === 'fulfilled') {
-                liveSessions = liveResult.value;
+                liveSessions = liveResult.value.filter(session => session.replay_url);
                 currentLiveSessions = liveSessions;
                 liveSessionsLoaded = true;
             } else console.error('Live sessions fetch error:', liveResult.reason);
@@ -192,6 +228,7 @@ async function loadCourseDetails(courseId) {
 
         // Render modules and lessons
         renderModulesAndLessons(modulesWithLessons, hasAccess, courseProgress);
+        configureCourseTabs(modulesWithLessons, liveSessionsLoaded ? liveSessions : null, hasAccess);
 
     } catch (error) {
         console.error('Erreur lors du chargement du cours:', error);
@@ -360,22 +397,21 @@ function renderCourseLiveSessions(sessions, hasAccess, loaded) {
 
     if (count) count.textContent = String(sessions.length);
     if (!hasAccess) {
-        container.innerHTML = '<p style="color:#64748b">Inscrivez-vous à ce cours pour voir ses séances en direct et leurs replays.</p>';
+        container.innerHTML = '<p style="color:#64748b">Inscrivez-vous à ce cours pour voir ses replays.</p>';
         return;
     }
     if (!loaded) {
-        container.innerHTML = '<p style="color:#b45309">Impossible de charger les séances pour le moment. Actualisez la page pour réessayer.</p>';
+        container.innerHTML = '<p style="color:#b45309">Impossible de charger les replays pour le moment. Actualisez la page pour réessayer.</p>';
         return;
     }
     if (!sessions.length) {
-        container.innerHTML = '<div class="course-live-empty"><i class="far fa-calendar-times" aria-hidden="true"></i><strong>Aucune séance pour le moment</strong><span>Les prochains directs et leurs replays apparaîtront ici.</span></div>';
+        container.innerHTML = '<div class="course-live-empty"><i class="far fa-calendar-times" aria-hidden="true"></i><strong>Aucun replay disponible pour le moment</strong></div>';
         return;
     }
 
     const escapeHtml = (value) => String(value ?? '').replace(/[&<>"']/g, char => ({
         '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
     }[char]));
-    const now = Date.now();
     const monthGroups = new Map();
     sessions.forEach(session => {
         const start = new Date(session.scheduled_at);
@@ -389,21 +425,10 @@ function renderCourseLiveSessions(sessions, hasAccess, loaded) {
         const monthLabel = new Intl.DateTimeFormat('fr-FR', { month: 'long', year: 'numeric' }).format(new Date(year, month - 1, 1));
         const monthContent = monthSessions.map(session => {
         const start = new Date(session.scheduled_at);
-        const end = start.getTime() + (Number(session.duration_minutes) || 60) * 60000;
-        const isUpcoming = start.getTime() > now;
-        const isLive = now >= start.getTime() && now <= end;
         const dateLabel = start.toLocaleString('fr-FR', { dateStyle: 'full', timeStyle: 'short' });
-        let action = '<span style="color:#64748b">Replay bientôt disponible</span>';
-        if (session.replay_url) {
-            action = `<button type="button" class="course-replay-button" data-session-id="${escapeHtml(session.id)}" data-replay-url="${escapeHtml(session.replay_url)}" data-replay-title="${escapeHtml(session.title)}" data-replay-resources="${escapeHtml(JSON.stringify(session.resources || []))}"><i class="fas fa-play-circle" aria-hidden="true"></i> Regarder le replay</button>`;
-        } else if ((isUpcoming || isLive) && session.zoom_join_url) {
-            action = `<a href="${escapeHtml(session.zoom_join_url)}" target="_blank" rel="noopener noreferrer" style="color:#e11d48;font-weight:700">${isLive ? 'Rejoindre le direct' : 'Ouvrir le lien du direct'}</a>`;
-        }
-
-        const status = isLive ? 'En direct' : isUpcoming ? 'À venir' : session.replay_url ? 'Replay disponible' : 'Terminée';
-        const statusClass = isLive ? 'is-live' : isUpcoming ? 'is-upcoming' : session.replay_url ? 'has-replay' : '';
+        const action = `<button type="button" class="course-replay-button" data-session-id="${escapeHtml(session.id)}" data-replay-url="${escapeHtml(session.replay_url)}" data-replay-title="${escapeHtml(session.title)}" data-replay-resources="${escapeHtml(JSON.stringify(session.resources || []))}"><i class="fas fa-play-circle" aria-hidden="true"></i> Regarder le replay</button>`;
         return `<article class="course-live-session">
-            <div class="course-live-session-main"><span class="course-live-status ${statusClass}">${isLive ? '<span></span>' : ''}${status}</span><strong>${escapeHtml(session.title)}</strong><div class="course-live-session-date"><i class="far fa-clock" aria-hidden="true"></i> ${escapeHtml(dateLabel)}</div>${session.description ? `<p>${escapeHtml(session.description)}</p>` : ''}</div>
+            <div class="course-live-session-main"><span class="course-live-status has-replay">Replay disponible</span><strong>${escapeHtml(session.title)}</strong><div class="course-live-session-date"><i class="far fa-clock" aria-hidden="true"></i> ${escapeHtml(dateLabel)}</div>${session.description ? `<p>${escapeHtml(session.description)}</p>` : ''}</div>
             <div class="course-live-session-action">${action}</div>
         </article>`;
         }).join('');
@@ -521,9 +546,10 @@ function openReplayPlayer(replayUrl, title, resources = [], sessionId = '') {
     const replayListButton = document.createElement('button');
     replayListButton.type = 'button';
     replayListButton.className = 'course-player-switch';
-    replayListButton.textContent = 'Directs et replays';
+    replayListButton.textContent = 'Replays';
     replayListButton.addEventListener('click', () => switchCoursePlayerTo('live'));
-    actions.append(switchButton, replayListButton);
+    if (currentCourse?.modules?.length) actions.append(switchButton);
+    actions.append(replayListButton);
     heading.append(mode, actions);
     const frame = document.createElement('div');
     frame.className = 'video-container course-player-frame';
@@ -823,7 +849,7 @@ async function showLessonInMainArea(lesson, videoUrl, pdfUrl, practiceFiles = []
     // Replace main content with the video (when present), lesson resources, and actions.
     courseMain.innerHTML = `
         <div class="video-section-wrapper">
-            <div class="course-player-heading"><span class="course-player-mode">Leçon</span><button class="course-player-switch" type="button" onclick="switchCoursePlayerTo('live')"><i class="fas fa-video" aria-hidden="true"></i> Directs et replays</button></div>
+            <div class="course-player-heading"><span class="course-player-mode">Leçon</span>${currentLiveSessions.length ? `<button class="course-player-switch" type="button" onclick="switchCoursePlayerTo('live')"><i class="fas fa-video" aria-hidden="true"></i> Replays</button>` : ''}</div>
             ${videoUrl ? `<div class="video-container course-player-frame">
                 <video 
                     id="current-lesson-video"
