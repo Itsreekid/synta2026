@@ -398,8 +398,8 @@ test("timed offers on disposable PostgreSQL", { skip: !process.env.BUGI_QA_POSTG
                       featured:cards.filter(card=>card.classList.contains('featured')).length,
                       badges:document.querySelectorAll('.discount-badge').length,
                       labels:action, disabled:cards.map(card=>card.querySelector('.acheter-btn').disabled),
-                      terms: cards[1].querySelector('.validity-box').textContent.includes('9 juin 2027') && cards[1].textContent.includes('2026/2027'),
-                      paymentOptions: cards.map(card=>[...card.querySelectorAll('.validity-box span')].find(span=>span.textContent.startsWith('Paiement en 1'))?.textContent ?? null),
+                      terms: cards[1].querySelector('.validity-box').textContent === 'Offre année scolaire 2026/2027',
+                      namesHidden: cards.every((card,index)=>!card.textContent.includes(cases[index].title)),
                       monthlyTerms: cards[4].textContent.includes('DT / mois') && cards[5].textContent.includes('Renouvellement manuel')
                     };
                   })()`);
@@ -409,7 +409,7 @@ test("timed offers on disposable PostgreSQL", { skip: !process.env.BUGI_QA_POSTG
                     featured: 1, badges: 1,
                     labels: ["Déjà possédé", "Passer à cette offre", "Solde insuffisant", "Indisponible", "Acheter", "Renouveler", "Choisir mon paiement", "Acheter"],
                     disabled: [true, false, true, true, false, false, false, false],
-                    terms: true, paymentOptions: [null, "Paiement en 1, 2 ou 3 tranches", null, null, null, null, "Paiement en 1 ou 2 tranches", null], monthlyTerms: true
+                    terms: true, namesHidden: true, monthlyTerms: true
                   }, "layout at " + width + "px");
                   if (process.env.TIMED_QA_SCREENSHOTS && [390, 1440].includes(width)) {
                     for (const [index, type] of [[4, 'monthly'], [1, 'annual'], [2, 'legacy']]) {

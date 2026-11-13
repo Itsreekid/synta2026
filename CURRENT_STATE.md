@@ -1,5 +1,7 @@
 # CURRENT_STATE.md — Synta Academy
 
+- Student offer cards use the access label in the title slot. Annual cards show the configured academic year, while exact expiry and installment options remain in checkout.
+
 - Chapters and Replays tabs are hidden when their respective content is empty. A replay loading error remains visible to enrolled students so they can retry.
 
 - The Replays tab lists and counts available recordings only. Upcoming live sessions remain in the calendar.

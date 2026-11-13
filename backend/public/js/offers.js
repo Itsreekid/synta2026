@@ -10,20 +10,6 @@ function escapeOfferHtml(value) {
     }[character]));
 }
 
-const offerTunisDay = new Intl.DateTimeFormat('fr-FR', { timeZone: 'Africa/Tunis', year: 'numeric', month: '2-digit', day: '2-digit' });
-const offerCivilDate = new Intl.DateTimeFormat('fr-FR', { timeZone: 'UTC', dateStyle: 'long' });
-
-function annualOfferDetails(offer) {
-    const year = Number(offer.academic_year_start);
-    const cutoff = String(offer.access_cutoff_date ?? '').slice(0, 10);
-    const cutoffTime = Date.parse(cutoff + 'T00:00:00Z');
-    if (!year || !Number.isFinite(cutoffTime)) return '';
-    const today = Object.fromEntries(offerTunisDay.formatToParts(new Date()).map(({type, value}) => [type, value]));
-    const days = Math.round((cutoffTime - Date.UTC(today.year, today.month - 1, today.day)) / 86400000);
-    const duration = days < 0 ? 'Période d’accès terminée' : days === 0 ? 'Dernier jour aujourd’hui' : `Encore ${days} j avant le dernier jour inclus`;
-    return `<strong>${year}/${year + 1}</strong><span>Dernier jour inclus : ${offerCivilDate.format(cutoffTime)} (Tunis)</span><span>${duration}</span>`;
-}
-
 async function initOffers() {
     const offersList = document.getElementById('offers-list');
     if (!offersList) return;
@@ -59,7 +45,6 @@ async function initOffers() {
             const scheduled = annual && offer.scheduled_checkout_enabled && !offer.is_purchased;
             const installments = scheduled && Number(offer.installment_max);
             const upgrade = scheduled && offer.upgrades_enabled;
-            const paymentLabel = installments === 3 ? 'Paiement en 1, 2 ou 3 tranches' : installments === 2 ? 'Paiement en 1 ou 2 tranches' : '';
             const isFeatured = offer.is_best_seller === true;
 
             const price = parseFloat(offer.fixed_price || offer.price || 0);
@@ -76,6 +61,9 @@ async function initOffers() {
             const dateRange = (offer.valid_from && offer.valid_until)
                 ? `De ${formatDate(offer.valid_from)} Jusqu'à ${formatDate(offer.valid_until)}`
                 : 'Offre à durée limitée';
+            const year = Number(offer.academic_year_start);
+            const annualLabel = year ? `Offre année scolaire ${year}/${year + 1}` : 'Offre année scolaire';
+            const accessLabel = monthly ? 'Abonnement mensuel' : annual ? annualLabel : dateRange;
 
             // Use the separate config file for features and images
             let featureItems = [];
@@ -104,10 +92,10 @@ async function initOffers() {
                 <article class="offer-card ${monthly ? 'offer-monthly' : annual ? 'offer-annual' : 'offer-legacy'} ${isFeatured ? 'featured' : ''}" aria-labelledby="offer-title-${index}">
                     ${isFeatured ? '<div class="best-seller-banner" lang="ar" dir="rtl">عرضنا الأكثر مبيعا</div>' : ''}
                     <div class="offer-image-section">
-                        <img src="${escapeOfferHtml(offerImage)}" alt="${escapeOfferHtml(offer.title)}" decoding="async" ${index > 2 ? 'loading="lazy"' : ''}>
+                        <img src="${escapeOfferHtml(offerImage)}" alt="" decoding="async" ${index > 2 ? 'loading="lazy"' : ''}>
                     </div>
                     <header class="offer-card-heading">
-                        <h2 id="offer-title-${index}" dir="auto">${escapeOfferHtml(offer.title)}</h2>
+                        <h2 class="validity-box" id="offer-title-${index}" dir="auto">${escapeOfferHtml(accessLabel)}</h2>
                     </header>
 
                     <div class="offer-price-section" dir="ltr">
@@ -121,12 +109,7 @@ async function initOffers() {
                         </div>
                     </div>
 
-                    <div class="validity-box">
-                        <strong>${monthly ? 'Abonnement mensuel' : annual ? 'Offre année scolaire' : dateRange}</strong>
-                        ${monthly ? '<span>Un mois d’accès. Renouvellement manuel.</span>' : annual ? annualOfferDetails(offer) : ''}
-                        ${monthly && offer.is_purchased && renewable ? '<span>Accès en cours. Le renouvellement prolonge ton accès à partir de la fin de la période actuelle.</span>' : ''}
-                        ${paymentLabel ? `<span>${paymentLabel}</span>` : ''}
-                    </div>
+                    ${monthly ? '<p class="validity-box">Un mois d’accès. Renouvellement manuel.</p>' : ''}
 
                     <ul class="features-section" role="list">
                         ${featureItems.map(item => `
