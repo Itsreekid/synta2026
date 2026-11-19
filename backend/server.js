@@ -1,11 +1,11 @@
-import pool from "./config/db.js";
-import timedOfferRoutes from "./routes/timed-offers.js";
-import { sendOfferExpiryReminders } from "./services/offer-reminders.js";
 // =====================================================
 // MAIN SERVER FILE
 // =====================================================
 // IMPORTANT: Load environment variables FIRST
 import "./loadEnv.js";
+import pool from "./config/db.js";
+import timedOfferRoutes from "./routes/timed-offers.js";
+import { sendOfferExpiryReminders } from "./services/offer-reminders.js";
 
 // Now import everything else
 import express from "express";
@@ -81,7 +81,7 @@ const corsOptions = {
       return callback(null, true);
     }
     // Reject any origin not explicitly in the allowlist
-    return callback(new Error(`CORS: Origin '${origin}' not allowed. Add it to ALLOWED_ORIGINS in .env`));
+    return callback(null, false);
   },
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH', 'HEAD'],
   allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept', 'Origin'],
@@ -181,14 +181,18 @@ app.use((req, res) => {
 });
 
 app.use((error, req, res, next) => {
-  console.error("Server error:", error);
+  const clientError = error.status >= 400 && error.status < 500;
+  if (!clientError) console.error("Server error:", error);
   if (req.path.startsWith("/api/")) {
+    if (clientError) {
+      return res.status(error.status).json({ error: error.expose ? error.message : "Invalid request" });
+    }
     return res.status(500).json({
       error: "Internal server error",
       message: process.env.NODE_ENV === "development" ? error.message : undefined,
     });
   }
-  res.status(500).send("<h1>500 – Erreur serveur</h1>");
+  res.status(clientError ? error.status : 500).send("<h1>Erreur</h1><a href='/'>Retour à l'accueil</a>");
 });
 
 // =====================================================

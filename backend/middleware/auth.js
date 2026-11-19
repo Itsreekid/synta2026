@@ -5,6 +5,7 @@ import { enrollmentAccess } from "../utils/offerAccess.js";
 // =====================================================
 import jwt from "jsonwebtoken";
 import pool from "../config/db.js";
+import { isAccessPayload } from "./requireAuth.js";
 
 const JWT_SECRET = process.env.JWT_SECRET;
 
@@ -25,7 +26,8 @@ export async function authMiddleware(req, res, next) {
     }
 
     try {
-      req.user = jwt.verify(token, JWT_SECRET);
+      const payload = jwt.verify(token, JWT_SECRET, { algorithms: ["HS256"] });
+      req.user = isAccessPayload(payload) ? payload : null;
     } catch {
       req.user = null;
     }

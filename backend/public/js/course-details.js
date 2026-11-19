@@ -26,7 +26,7 @@ async function initCourseDetailsPage() {
     if (!courseId) {
         showError('ID du cours manquant');
         setTimeout(() => {
-            window.location.href = 'courses.html';
+            window.location.href = '/app/courses';
         }, 2000);
         return;
     }
@@ -318,7 +318,7 @@ async function renderCourseInfo(course, totalLessons, hasAccess, courseProgress,
         // Other historical object keys use the existing signed URL endpoint.
         if (!thumbnailUrl && !/^[a-z][a-z0-9+.-]*:/i.test(course.thumbnail_url.trim())) {
             try {
-                const response = await fetch('/api/content/signed-url?key=' + encodeURIComponent(course.thumbnail_url));
+                const response = await fetch('/api/content/thumbnail/' + encodeURIComponent(course.thumbnail_url.trim()));
                 if (response.ok) thumbnailUrl = resolveCourseImage((await response.json()).url);
             } catch (err) {
                 console.warn('Failed to get thumbnail signed URL:', err);
@@ -868,15 +868,12 @@ async function showLessonInMainArea(lesson, videoUrl, pdfUrl, practiceFiles = []
                 <button class="btn-complete-next" onclick="completeLessonAndNext('${lesson.id}')" style="flex: 1; padding: 1rem; background: linear-gradient(135deg, #10b981 0%, #059669 100%); color: white; border: none; border-radius: 12px; font-weight: 600; font-size: 1rem; cursor: pointer; transition: all 0.3s ease; box-shadow: 0 4px 15px rgba(16, 185, 129, 0.3); display: flex; align-items: center; justify-content: center; gap: 0.5rem;">
                     <span class="icon">✅</span> Terminer & Suivante
                 </button>
-                <button class="btn-feedback" onclick="openFeedbackModal('${lesson.id}')" style="padding: 1rem; background: white; color: #64748b; border: 1px solid #e2e8f0; border-radius: 12px; font-weight: 600; cursor: pointer; transition: all 0.2s ease; display: flex; align-items: center; justify-content: center; gap: 0.5rem;">
-                    <span class="icon">🤔</span> Aide
-                </button>
             </div>
             
             <div class="lesson-details-content">
                 <h2 class="course-player-title">${escapeQuizHtml(lesson.title)}</h2>
                 <div style="color: #64748b; line-height: 1.6; font-size: 1.05rem;">
-                    ${lesson.description || 'Aucune description pour cette leçon.'}
+                    ${escapeQuizHtml(lesson.description || 'Aucune description pour cette leçon.')}
                 </div>
             </div>
         </div>
@@ -1892,11 +1889,12 @@ async function completeLessonAndNext(lessonId) {
     const request = ++lessonRequest;
     try {
         // Mark as complete in backend
-        await fetch('/api/tracking/progress', {
+        const progressResponse = await fetch('/api/tracking/progress', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ lessonId, progress: 100 })
         });
+        if (!progressResponse.ok) console.warn('Lesson progress was not saved:', progressResponse.status);
         
         // Find next lesson and check access
         if (!currentCourse || !currentCourse.modules) return;
@@ -1917,103 +1915,3 @@ async function completeLessonAndNext(lessonId) {
     }
 }
 
-/**
- * Open the feedback modal
- */
-function openFeedbackModal(lessonId) {
-    let overlay = document.getElementById('feedback-modal-overlay');
-    if (!overlay) {
-        // Create modal if it doesn't exist
-        overlay = document.createElement('div');
-        overlay.id = 'feedback-modal-overlay';
-        overlay.className = 'feedback-modal-overlay';
-        overlay.innerHTML = `
-            <div class="feedback-modal">
-                <h3>Qu'est-ce qui t'a bloqué ? 🤔</h3>
-                <p style="color: #64748b; font-size: 0.9rem; margin-bottom: 1.5rem;">Ton retour nous aide à améliorer le cours pour tout le monde.</p>
-                
-                <div class="feedback-options">
-                    <div class="feedback-option" onclick="selectFeedbackOption(this, 'explication')">Je n'ai pas compris l'explication</div>
-                    <div class="feedback-option" onclick="selectFeedbackOption(this, 'exercice')">J'ai compris mais l'exercice est difficile</div>
-                    <div class="feedback-option" onclick="selectFeedbackOption(this, 'code')">Je ne comprends pas le code</div>
-                    <div class="feedback-option" onclick="selectFeedbackOption(this, 'autre')">Autre</div>
-                </div>
-                
-                <textarea id="feedback-notes" class="feedback-textarea" placeholder="Peux-tu nous en dire plus ? (Optionnel)"></textarea>
-                
-                <div class="feedback-actions">
-                    <button class="btn-cancel" onclick="closeFeedbackModal()">Annuler</button>
-                    <button class="btn-submit" onclick="submitFeedback()">Envoyer</button>
-                </div>
-            </div>
-        `;
-        document.body.appendChild(overlay);
-    }
-    
-    // Reset state
-    window.currentFeedbackLessonId = lessonId;
-    window.selectedFeedbackReason = null;
-    document.querySelectorAll('.feedback-option').forEach(el => el.classList.remove('selected'));
-    const notes = document.getElementById('feedback-notes');
-    if (notes) {
-        notes.value = '';
-        notes.style.display = 'none';
-    }
-    
-    // Show modal
-    setTimeout(() => overlay.classList.add('active'), 10);
-}
-
-function closeFeedbackModal() {
-    const overlay = document.getElementById('feedback-modal-overlay');
-    if (overlay) {
-        overlay.classList.remove('active');
-    }
-}
-
-function selectFeedbackOption(element, reason) {
-    document.querySelectorAll('.feedback-option').forEach(el => el.classList.remove('selected'));
-    element.classList.add('selected');
-    window.selectedFeedbackReason = element.textContent;
-    
-    const notes = document.getElementById('feedback-notes');
-    if (reason === 'autre') {
-        notes.style.display = 'block';
-        notes.focus();
-    } else {
-        notes.style.display = 'block';
-    }
-}
-
-async function submitFeedback() {
-    if (!window.selectedFeedbackReason) {
-        alert("Choisis une option d'abord");
-        return;
-    }
-    
-    const notes = document.getElementById('feedback-notes').value;
-    
-    try {
-        await fetch('/api/tracking/lesson-feedback', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ 
-                lessonId: window.currentFeedbackLessonId,
-                reason: window.selectedFeedbackReason,
-                additionalNotes: notes
-            })
-        });
-        
-        closeFeedbackModal();
-        
-        // Show subtle success toast
-        const toast = document.createElement('div');
-        toast.textContent = "Merci pour ton retour ! On va améliorer ça.";
-        toast.style.cssText = "position: fixed; bottom: 20px; right: 20px; background: #10b981; color: white; padding: 1rem 1.5rem; border-radius: 8px; font-weight: 600; box-shadow: 0 4px 15px rgba(0,0,0,0.2); z-index: 10000; animation: slideUp 0.3s ease-out;";
-        document.body.appendChild(toast);
-        setTimeout(() => toast.remove(), 3000);
-        
-    } catch (err) {
-        console.error("Feedback error", err);
-    }
-}

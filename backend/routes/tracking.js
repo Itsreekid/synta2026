@@ -4,7 +4,7 @@ import { enrollmentAccess } from "../utils/offerAccess.js";
 // =====================================================
 import express from "express";
 import pool from "../config/db.js";
-import { authMiddleware } from "../middleware/auth.js";
+import { authMiddleware, checkLessonAccess } from "../middleware/auth.js";
 
 const router = express.Router();
 
@@ -17,6 +17,9 @@ router.post("/response", authMiddleware, async (req, res) => {
 
     const userId = req.user.id;
     const { lessonId, questionId, category, selectedOption, isCorrect, pointsEarned } = req.body;
+    if (typeof isCorrect !== "boolean") {
+      return res.status(400).json({ error: "isCorrect must be a boolean" });
+    }
 
     await pool.query(
       `INSERT INTO quiz_responses
@@ -67,6 +70,9 @@ router.post("/progress", authMiddleware, async (req, res) => {
 
     // Handle marking a specific lesson
     if (lessonId) {
+      if (!(await checkLessonAccess(userId, lessonId))) {
+        return res.status(403).json({ error: "Accès refusé à cette leçon." });
+      }
       await pool.query(
         `INSERT INTO lesson_progress (user_id, lesson_id, completed, progress_percentage, updated_at)
          VALUES ($1, $2, true, $3, NOW())
@@ -105,7 +111,7 @@ router.post("/progress", authMiddleware, async (req, res) => {
     res.json({ success: true });
   } catch (error) {
     console.error("Error marking lesson progress:", error);
-    res.status(500).json({ error: error.message || "Internal server error" });
+    res.status(500).json({ error: "Internal server error" });
   }
 });
 
@@ -189,29 +195,6 @@ router.get("/course-progress/:courseId", authMiddleware, async (req, res) => {
     res.json({ total, completed, percentage, completedIds });
   } catch (error) {
     console.error("Error fetching course progress:", error);
-    res.status(500).json({ error: "Internal server error" });
-  }
-});
-
-/**
- * POST /api/tracking/lesson-feedback
- */
-router.post("/lesson-feedback", authMiddleware, async (req, res) => {
-  try {
-    if (!req.user) return res.status(401).json({ error: "Unauthorized" });
-
-    const userId = req.user.id;
-    const { lessonId, reason, additionalNotes } = req.body;
-
-    await pool.query(
-      `INSERT INTO lesson_feedback (user_id, lesson_id, reason, additional_notes)
-       VALUES ($1, $2, $3, $4)`,
-      [userId, lessonId, reason, additionalNotes || null]
-    );
-
-    res.json({ success: true });
-  } catch (error) {
-    console.error("Error submitting lesson feedback:", error);
     res.status(500).json({ error: "Internal server error" });
   }
 });

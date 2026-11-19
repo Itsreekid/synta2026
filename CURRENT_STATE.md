@@ -1,5 +1,19 @@
 # CURRENT_STATE.md — Synta Academy
 
+### 2026-11-14 — Project-wide audit and bug fixes
+
+- Fixed: receipt XSS (deposit receipts must be PNG/JPEG/WebP/GIF/AVIF by magic bytes, max 20 MB; the admin proxy serves only raster types with nosniff and sandbox CSP), refresh/magic token reuse as sessions, unescaped profile values in `head.ejs`, server-crashing admin handlers, NaN debt payments, `.env` load order in `server.js` and `scripts/migrate.js`, startup crash without `RESEND_API_KEY`, CRLF-sensitive migration checksums, 500s for CORS rejections and malformed JSON, and negative or NaN admin page sizes.
+- Fixed: Turbo re-execution of page scripts. The courses, course details, dashboard, offers, profile, contact and wallet pages pass `turboReload: true` to `head.ejs` and fully reload. Remove that flag only after their scripts are made idempotent.
+- Fixed: missing course-thumbnail endpoint, course back link, calendar course title, missing `showToast` in admin students, admin login for non-admins, the Skulpt load-failure spinner, sidebar outside-click, session-form timezone, invalid AI calendar sources and the `push_notification.js` syntax error.
+- Verified: 35 regression tests pass (2 opt-in PostgreSQL tests skipped), plus syntax checks and scripted receipt, JWT and template checks. Browser, staging and production were not exercised.
+- Owner-approved: an expired permanent enrollment no longer blocks course re-purchase or free re-enrollment. The existing row is reactivated with the new payment. Not yet exercised against PostgreSQL.
+- Removed the unused lesson-feedback flow from the course player and API. The old table is left untouched.
+- Lesson progress is saved only when the student can access the lesson.
+- The wallet history no longer shows the broken Ouvrir button. The contact form opens the student's mail app instead of pretending the message was sent.
+- Code Pratique loads the Python editor only. The deferred Web editor source stays in the page and its extra language scripts are not downloaded.
+- Kept for the student journey: registration, Bugi, Code Pratique Python, courses with video and live sessions, and the révision, monthly and annual offers.
+- Open, needs owner decision: `PUT /api/user/me` accepts unvalidated class/branch; there is a global 50 MB JSON body limit; `TRUST_PROXY_HOPS` must be 1 behind Coolify for per-client rate limits.
+
 - Annual offer cards show « Abonnement annuel » followed by the academic year configured by the administrator.
 
 - Eligible monthly offers open a renewal dialog with a fixed-price receipt submission, a link to wallet payment details and an existing wallet checkout option. Receipt submission enters the existing pending deposit review flow.

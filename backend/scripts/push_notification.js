@@ -26,6 +26,6 @@ if (args.length >= 2) {
   pushToAll(args[0], args[1], args[2] || 'info', args[3] || null);
 } else {
   console.log("Utilisation : node push_notification.js <titre> <message> [type: success|warning|info] [lien]");
-  console.log('Exemple : node push_notification.js "Motivation 🚀" "N\\'oublie pas de réviser Python aujourd\\'hui !" "info" "/app/dashboard"');
+  console.log(`Exemple : node push_notification.js "Motivation 🚀" "N'oublie pas de réviser Python aujourd'hui !" "info" "/app/dashboard"`);
   pool.end();
 }

@@ -865,7 +865,7 @@
                                         reason, requestId: crypto.randomUUID()
                                     });
                                     await openStudentDetailsModal(studentId);
-                                } catch (error) { showToast(error.message, 'error'); }
+                                } catch (error) { alert('Erreur: ' + error.message); }
                                 finally { reverse.disabled = false; }
                             });
                             row.append(' ', reverse);

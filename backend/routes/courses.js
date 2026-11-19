@@ -194,7 +194,7 @@ router.get("/user/my-courses", authMiddleware, async (req, res) => {
     res.json(rows);
   } catch (error) {
     console.error("Error fetching user courses:", error);
-    res.status(500).json({ error: "Internal server error", message: error.message });
+    res.status(500).json({ error: "Internal server error" });
   }
 });
 

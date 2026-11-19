@@ -8,7 +8,15 @@
 import { Resend } from "resend";
 import crypto from "crypto";
 
-const resend = new Resend(process.env.RESEND_API_KEY);
+let resendClient;
+const resend = {
+  emails: {
+    send(payload) {
+      resendClient ??= new Resend(process.env.RESEND_API_KEY);
+      return resendClient.emails.send(payload);
+    },
+  },
+};
 
 const FROM_ADDRESS = "Synta Academy <contact@syntaacademy.tn>";
 const BASE_URL     = process.env.APP_URL || "https://syntaacademy.tn";

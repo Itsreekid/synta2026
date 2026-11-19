@@ -10,8 +10,9 @@ document.addEventListener('DOMContentLoaded', function() {
             showMessage('يرجى ملء جميع الحقول', 'error');
             return;
         }
-        showMessage('تم إرسال رسالتك بنجاح! سنرد عليك قريباً.', 'success');
-        form.reset();
+        const subject = encodeURIComponent('Synta Academy');
+        const body = encodeURIComponent(name + ' (' + email + ')\n\n' + message);
+        window.location.href = 'mailto:synta.academy@gmail.com?subject=' + subject + '&body=' + body;
     });
 });
 

@@ -73,6 +73,7 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
 
+        const identitySubmitLabel = identitySubmit.textContent;
         identitySubmit.textContent = 'Chargement...';
         identitySubmit.disabled = true;
 
@@ -93,7 +94,7 @@ document.addEventListener('DOMContentLoaded', () => {
         } catch (err) {
             showError(identityError, err.message);
         } finally {
-            identitySubmit.textContent = 'Réserver ma place gratuite →';
+            identitySubmit.textContent = identitySubmitLabel;
             identitySubmit.disabled = false;
         }
     });
@@ -150,7 +151,8 @@ document.addEventListener('DOMContentLoaded', () => {
         quizProgressBar.style.width = `${((currentQuestionIndex + 1) / questions.length) * 100}%`;
 
         // Render Content
-        let html = `<h3 class="font-bold text-xl mb-6 text-white leading-relaxed">${q.text}</h3>`;
+        const esc = value => String(value ?? '').replace(/[&<>"']/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch]));
+        let html = `<h3 class="font-bold text-xl mb-6 text-white leading-relaxed">${esc(q.text)}</h3>`;
         html += `<div class="space-y-4 options-container">`;
         
         if (q.options && Array.isArray(q.options)) {
@@ -167,11 +169,11 @@ document.addEventListener('DOMContentLoaded', () => {
                 html += `
                     <label class="track-btn flex items-center cursor-pointer hover:bg-white/10" style="padding: 1.25rem; border-radius: 12px; background: rgba(255,255,255,0.05); transition: background 0.2s;">
                         <input type="${inputType}" 
-                               name="q_${q.id}" 
-                               value="${val}" 
+                               name="q_${esc(q.id)}" 
+                               value="${esc(val)}" 
                                ${isSelected ? 'checked' : ''}
                                class="ml-4" style="transform: scale(1.5); accent-color: #f07e15; flex-shrink: 0;">
-                        <span class="text-white font-medium" style="font-size: 1.05rem;">${label}</span>
+                        <span class="text-white font-medium" style="font-size: 1.05rem;">${esc(label)}</span>
                     </label>
                 `;
             });

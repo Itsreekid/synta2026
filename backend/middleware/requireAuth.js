@@ -33,11 +33,19 @@ export function clearSessionCookies(res) {
 }
 
 /**
+ * Refresh and admin magic-link tokens share JWT_SECRET but must never act as a session.
+ */
+export function isAccessPayload(payload) {
+  return Boolean(payload?.id) && payload.type !== "refresh" && !payload.magic;
+}
+
+/**
  * Verify a JWT access token and return the decoded payload, or null.
  */
 function verifyToken(token) {
   try {
-    return jwt.verify(token, JWT_SECRET);
+    const payload = jwt.verify(token, JWT_SECRET, { algorithms: ["HS256"] });
+    return isAccessPayload(payload) ? payload : null;
   } catch {
     return null;
   }

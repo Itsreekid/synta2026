@@ -12,11 +12,11 @@ export function courseImagePath(key) {
     return "/api/content/course-image/" + encodeURIComponent(key);
 }
 
-export function decodeCourseImage(data) {
-    if (typeof data !== "string" || data.length > Math.ceil(MAX_COURSE_IMAGE_BYTES / 3) * 4 ||
+export function decodeCourseImage(data, maxBytes = MAX_COURSE_IMAGE_BYTES) {
+    if (typeof data !== "string" || data.length > Math.ceil(maxBytes / 3) * 4 ||
         !/^[A-Za-z0-9+/]+={0,2}$/.test(data)) return null;
     const bytes = Buffer.from(data, "base64");
-    if (bytes.length > MAX_COURSE_IMAGE_BYTES || bytes.toString("base64") !== data) return null;
+    if (bytes.length > maxBytes || bytes.toString("base64") !== data) return null;
 
     const png = bytes.subarray(0, 8).equals(Buffer.from("89504e470d0a1a0a", "hex"));
     const jpeg = bytes[0] === 0xff && bytes[1] === 0xd8 && bytes[2] === 0xff;
@@ -29,4 +29,12 @@ export function decodeCourseImage(data) {
     if (webp) return { bytes, extension: "webp", contentType: "image/webp" };
     if (avif) return { bytes, extension: "avif", contentType: "image/avif" };
     return null;
+}
+
+export const MAX_RECEIPT_IMAGE_BYTES = 20 * 1024 * 1024;
+
+/** Accepts only `data:image/...;base64,` raster receipts whose bytes match a known image format. */
+export function decodeReceiptDataUrl(dataUrl) {
+    const match = typeof dataUrl === "string" && dataUrl.match(/^data:image\/[a-z0-9.+-]+;base64,([A-Za-z0-9+/]+={0,2})$/i);
+    return match ? decodeCourseImage(match[1], MAX_RECEIPT_IMAGE_BYTES) : null;
 }

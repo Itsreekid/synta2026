@@ -520,7 +520,8 @@ test("deployment reconciles legacy payments status before the index and safely s
   assert.ok(files.indexOf(recovery) < files.indexOf(index));
   const applied = new Map();
   for (const filename of files.filter(name => ![recovery, index].includes(name))) {
-    applied.set(filename, crypto.createHash("sha256").update(await readFile(new URL(filename, migrations), "utf8")).digest("hex"));
+    const sql = (await readFile(new URL(filename, migrations), "utf8")).replace(/\r\n/g, "\n");
+    applied.set(filename, crypto.createHash("sha256").update(sql).digest("hex"));
   }
   let hasStatus = false;
   let indexCreated = false;

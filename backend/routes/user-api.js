@@ -7,6 +7,7 @@ import { normalizeTunisianPhone, validateLearnerProfile } from "../utils/learner
 import pool from "../config/db.js";
 import { authApiMiddleware } from "../middleware/requireAuth.js";
 import { createOfferQuote } from "../services/timed-offers.js";
+import { decodeReceiptDataUrl } from "../utils/courseImages.js";
 
 const router = express.Router();
 
@@ -303,35 +304,33 @@ router.post("/api/user/transactions", authApiMiddleware, async (req, res) => {
     }
 
     let finalReceiptUrl = null;
-    if (receipt_url && receipt_url.startsWith("data:image/")) {
+    let receiptImage = null;
+    if (receipt_url) {
+      receiptImage = decodeReceiptDataUrl(receipt_url);
+      if (!receiptImage) return res.status(400).json({ error: "Le reçu doit être une image PNG, JPEG, WebP ou GIF." });
+    }
+    if (receiptImage) {
       try {
         const { PutObjectCommand } = await import("@aws-sdk/client-s3");
         const { r2Client, R2_BUCKET } = await import("../config/r2.js");
-        
-        const matches = receipt_url.match(/^data:([a-zA-Z0-9]+\/[a-zA-Z0-9-.+]+);base64,(.+)$/);
-        if (matches && matches.length === 3) {
-          const contentType = matches[1];
-          const buffer = Buffer.from(matches[2], "base64");
-          const extension = contentType.split("/")[1] || "png";
-          const fileName = `receipts/${userId}-${Date.now()}.${extension}`;
-          
-          await r2Client.send(new PutObjectCommand({
-            Bucket: R2_BUCKET,
-            Key: fileName,
-            Body: buffer,
-            ContentType: contentType
-          }));
-          
-          const domain = process.env.R2_PUBLIC_DOMAIN || `pub-${process.env.CLOUDFLARE_ACCOUNT_ID}.r2.dev`;
-          finalReceiptUrl = `https://${domain}/${fileName}`;
-        }
+
+        const { contentType, bytes, extension } = receiptImage;
+        const fileName = `receipts/${userId}-${Date.now()}.${extension}`;
+
+        await r2Client.send(new PutObjectCommand({
+          Bucket: R2_BUCKET,
+          Key: fileName,
+          Body: bytes,
+          ContentType: contentType
+        }));
+
+        const domain = process.env.R2_PUBLIC_DOMAIN || `pub-${process.env.CLOUDFLARE_ACCOUNT_ID}.r2.dev`;
+        finalReceiptUrl = `https://${domain}/${fileName}`;
       } catch (err) {
         console.error("Failed to upload receipt to R2:", err);
         // Fallback to storing base64 if R2 fails
-        finalReceiptUrl = receipt_url;
+        finalReceiptUrl = `data:${receiptImage.contentType};base64,${receiptImage.bytes.toString("base64")}`;
       }
-    } else if (receipt_url) {
-      finalReceiptUrl = receipt_url;
     }
 
     await ensureTransactionsSchema();
@@ -353,6 +352,7 @@ router.post("/api/user/transactions", authApiMiddleware, async (req, res) => {
 
     return res.json({ success: true, transaction: result.rows[0] });
   } catch (err) {
+    if (err.status >= 400 && err.status < 600) return res.status(err.status).json({ error: err.message });
     console.error("[user/transactions POST] Error:", err.code, err.message, err.detail || "");
     return res.status(500).json({ error: "Failed to create transaction" });
   }
@@ -364,8 +364,9 @@ router.post("/api/user/transactions", authApiMiddleware, async (req, res) => {
 router.get("/api/events", authApiMiddleware, async (req, res) => {
   try {
     const userId = req.user?.id;
-    const userClass = req.user?.user_class;
-    const userBranch = req.user?.user_branch;
+    const profileResult = await pool.query(`SELECT class, branch FROM users WHERE id = $1`, [userId]);
+    const userClass = profileResult.rows[0]?.class;
+    const userBranch = profileResult.rows[0]?.branch;
 
     const { default: staticEvents } = await import("../public/data/events.js").catch(() => ({ default: [] }));
 

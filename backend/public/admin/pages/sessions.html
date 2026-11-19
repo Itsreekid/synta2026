@@ -390,7 +390,9 @@ document.addEventListener('DOMContentLoaded', async () => {
     // Pre-set datetime to next round hour
     const now = new Date();
     now.setHours(now.getHours() + 1, 0, 0, 0);
-    document.getElementById('f-datetime').value = now.toISOString().slice(0, 16);
+    const pad = n => String(n).padStart(2, '0');
+    document.getElementById('f-datetime').value =
+        `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}T${pad(now.getHours())}:00`;
 
     await Promise.all([loadSessions(), loadOffers(), loadCourses()]);
 });

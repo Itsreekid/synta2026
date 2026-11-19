@@ -227,7 +227,7 @@ router.get("/lesson/:lessonId", authApiMiddleware, async (req, res) => {
     res.json(response);
   } catch (error) {
     console.error("Error in lesson content route:", error);
-    res.status(500).json({ error: "Internal server error", details: error.message });
+    res.status(500).json({ error: "Internal server error" });
   }
 });
 
@@ -239,6 +239,9 @@ router.post("/lesson/:lessonId/progress", authApiMiddleware, async (req, res) =>
     const { lessonId } = req.params;
     const { completed, progressPercentage, lastPosition } = req.body;
     const userId = req.user.id;
+    if (!(await checkLessonAccess(userId, lessonId))) {
+      return res.status(403).json({ error: "Accès refusé à cette leçon." });
+    }
 
     await pool.query(
       `INSERT INTO lesson_progress

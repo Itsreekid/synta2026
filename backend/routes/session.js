@@ -290,7 +290,8 @@ router.get("/admin/config", requireAdmin, async (req, res) => {
     );
     return res.json({ config: result.rows[0] || {} });
   } catch (err) {
-    return res.status(500).json({ error: err.message });
+    console.error("Session admin error:", err.code ?? err.name);
+    return res.status(500).json({ error: "Erreur serveur." });
   }
 });
 
@@ -306,7 +307,8 @@ router.post("/admin/config", requireAdmin, async (req, res) => {
     );
     return res.json({ success: true, config: result.rows[0] });
   } catch (err) {
-    return res.status(500).json({ error: err.message });
+    console.error("Session admin error:", err.code ?? err.name);
+    return res.status(500).json({ error: "Erreur serveur." });
   }
 });
 
@@ -317,18 +319,28 @@ router.get("/admin/students", requireAdmin, async (req, res) => {
     );
     return res.json({ students: result.rows });
   } catch (err) {
-    return res.status(500).json({ error: err.message });
+    console.error("Session admin error:", err.code ?? err.name);
+    return res.status(500).json({ error: "Erreur serveur." });
   }
 });
 
-router.get("/admin/questions", requireAdmin, async (req, res) => {
+const adminQuestionHandler = handler => async (req, res) => {
+  try {
+    await handler(req, res);
+  } catch (err) {
+    console.error("Session question admin error:", err.code ?? err.name);
+    if (!res.headersSent) res.status(500).json({ error: "Erreur serveur." });
+  }
+};
+
+router.get("/admin/questions", requireAdmin, adminQuestionHandler(async (req, res) => {
   const result = await pool.query(
     `SELECT * FROM session_questions ORDER BY order_index ASC`
   );
   return res.json({ questions: result.rows });
-});
+}));
 
-router.post("/admin/questions", requireAdmin, async (req, res) => {
+router.post("/admin/questions", requireAdmin, adminQuestionHandler(async (req, res) => {
   const { text, type, options, correct_answer, explanation, order_index } = req.body;
   if (!text || !type || !options || correct_answer === undefined) {
     return res.status(400).json({ error: "Champs requis manquants." });
@@ -339,9 +351,9 @@ router.post("/admin/questions", requireAdmin, async (req, res) => {
     [text, type, JSON.stringify(options), JSON.stringify(correct_answer), explanation, order_index ?? 0]
   );
   return res.json({ question: result.rows[0] });
-});
+}));
 
-router.patch("/admin/questions", requireAdmin, async (req, res) => {
+router.patch("/admin/questions", requireAdmin, adminQuestionHandler(async (req, res) => {
   const { id, text, type, options, correct_answer, explanation, order_index, is_active } = req.body;
   if (!id) return res.status(400).json({ error: "ID manquant." });
 
@@ -364,13 +376,13 @@ router.patch("/admin/questions", requireAdmin, async (req, res) => {
     values
   );
   return res.json({ question: result.rows[0] });
-});
+}));
 
-router.delete("/admin/questions", requireAdmin, async (req, res) => {
+router.delete("/admin/questions", requireAdmin, adminQuestionHandler(async (req, res) => {
   const { id } = req.body;
   if (!id) return res.status(400).json({ error: "ID manquant." });
   await pool.query(`DELETE FROM session_questions WHERE id = $1`, [id]);
   return res.json({ success: true });
-});
+}));
 
 export default router;

@@ -144,6 +144,7 @@ Two roles exist: `user` (student) and `admin`.
 | Access to lesson content requires active enrollment | ✅ | `content.js` + `checkLessonAccess()` |
 | Access check traverses lesson → module → course → enrollment | ✅ | SQL JOIN in `checkLessonAccess()` |
 | Expired enrollments are denied access | ✅ | `expires_at > NOW()` check |
+| An expired permanent enrollment does not block re-purchase or free re-enrollment; checkout reactivates the existing row (owner-approved 2026-11-14) | ✅ | `purchase.js` `/course`, `enrollment.js` `/enroll` and `/free-enroll` |
 
 ---
 

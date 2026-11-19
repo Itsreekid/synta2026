@@ -49,7 +49,7 @@ async function initializeCalendar() {
                         ...ev,
                         date: localDate.toISOString().split('T')[0],
                         time: d.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }),
-                        description: ev.course_title || ev.description || '',
+                        description: ev.course?.title || ev.course_title || ev.description || '',
                         zoomLink: ev.zoom_join_url || ''
                     };
                 });

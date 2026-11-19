@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="fr" dir="ltr">
 <head>
-    <%- include('../../partials/head', { title: 'Mon Portefeuille', css: 'paiement',
+    <%- include('../../partials/head', { turboReload: true, title: 'Mon Portefeuille', css: 'paiement',
         extraHead: '<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">' }) %>
 </head>
 <body>
@@ -118,7 +118,6 @@
                                             <th scope="col">Montant</th>
                                             <th scope="col">Date</th>
                                             <th scope="col">Statut</th>
-                                            <th scope="col">Action</th>
                                         </tr>
                                     </thead>
                                     <tbody id="transaction-history">

@@ -1,6 +1,7 @@
 -- =====================================================
 -- TABLE: lesson_feedback
--- Tracks student feedback on specific lessons
+-- Unused since 2026-11-14. The application no longer reads or writes this table.
+-- Kept so an existing database is not changed. Do not apply for new setups.
 -- =====================================================
 
 CREATE TABLE IF NOT EXISTS lesson_feedback (

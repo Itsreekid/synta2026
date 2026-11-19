@@ -8,7 +8,7 @@ import jwt from "jsonwebtoken";
 import { createR2UploadUrl, deleteFromR2, listRecentR2Objects, readR2ObjectMetadata, uploadToR2 } from "../utils/r2Utils.js";
 import { offerEntitlement, legacyOfferEntitlement, matchesOfferTarget } from "../utils/offerAccess.js";
 
-import { COURSE_IMAGE_PREFIX, courseImagePath, decodeCourseImage, isCourseImageKey } from "../utils/courseImages.js";
+import { COURSE_IMAGE_PREFIX, courseImagePath, decodeCourseImage, decodeReceiptDataUrl, isCourseImageKey } from "../utils/courseImages.js";
 
 const router = express.Router();
 const SALT_ROUNDS = 12;
@@ -189,8 +189,8 @@ router.get("/api/admin/students", requireAdmin, async (req, res) => {
     const totalCount = parseInt(countResult.rows[0].count, 10);
     
     // Pagination
-    const limit = parseInt(pageSize, 10);
-    const offset = (parseInt(page, 10) - 1) * limit;
+    const limit = Math.min(Math.max(parseInt(pageSize, 10) || 20, 1), 100);
+    const offset = (Math.max(parseInt(page, 10) || 1, 1) - 1) * limit;
     
     queryStr += ` ORDER BY created_at DESC LIMIT $${paramIndex} OFFSET $${paramIndex + 1}`;
     params.push(limit, offset);
@@ -316,8 +316,9 @@ router.get("/api/admin/active-offers", requireAdmin, async (req, res) => {
  * POST /api/admin/student/:id/enroll-partial
  */
 router.post("/api/admin/student/:id/enroll-partial", requireAdmin, async (req, res) => {
-  const client = await pool.connect();
+  let client;
   try {
+    client = await pool.connect();
     await ensureUsersSchema();
     const { offerId, amountPaid, isExternal } = req.body;
     const userId = req.params.id;
@@ -403,11 +404,11 @@ router.post("/api/admin/student/:id/enroll-partial", requireAdmin, async (req, r
     await client.query("COMMIT");
     return res.json({ success: true, newDebt: debtAmount });
   } catch (err) {
-    await client.query("ROLLBACK");
+    await client?.query("ROLLBACK").catch(() => {});
     console.error("Enroll partial error:", err);
     return res.status(500).json({ success: false, error: "Internal server error" });
   } finally {
-    client.release();
+    client?.release();
   }
 });
 
@@ -415,13 +416,14 @@ router.post("/api/admin/student/:id/enroll-partial", requireAdmin, async (req, r
  * POST /api/admin/student/:id/pay-debt
  */
 router.post("/api/admin/student/:id/pay-debt", requireAdmin, async (req, res) => {
-  const client = await pool.connect();
+  let client;
   try {
+    client = await pool.connect();
     await ensureUsersSchema();
     const { amount, isExternal } = req.body;
     const userId = req.params.id;
 
-    if (!amount || amount <= 0) {
+    if (!Number.isFinite(parseFloat(amount)) || parseFloat(amount) <= 0) {
       return res.status(400).json({ success: false, error: "Invalid amount" });
     }
 
@@ -460,11 +462,11 @@ router.post("/api/admin/student/:id/pay-debt", requireAdmin, async (req, res) =>
     await client.query("COMMIT");
     return res.json({ success: true });
   } catch (err) {
-    await client.query("ROLLBACK");
+    await client?.query("ROLLBACK").catch(() => {});
     console.error("Pay debt error:", err);
     return res.status(500).json({ success: false, error: "Internal server error" });
   } finally {
-    client.release();
+    client?.release();
   }
 });
 
@@ -623,8 +625,9 @@ router.get("/api/admin/modules/library", requireAdmin, async (_req, res) => {
 router.post("/api/admin/courses/:courseId/modules", requireAdmin, async (req, res) => {
   const { courseId } = req.params;
   const { moduleId, title, description = "", orderIndex } = req.body || {};
-  const client = await pool.connect();
+  let client;
   try {
+    client = await pool.connect();
     await client.query("BEGIN");
     const course = await client.query("SELECT id FROM courses WHERE id = $1", [courseId]);
     if (!course.rowCount) {
@@ -659,11 +662,11 @@ router.post("/api/admin/courses/:courseId/modules", requireAdmin, async (req, re
     await client.query("COMMIT");
     res.status(201).json({ success: true, moduleId: selectedModuleId });
   } catch (error) {
-    await client.query("ROLLBACK");
+    await client?.query("ROLLBACK").catch(() => {});
     console.error("Error assigning chapter:", error.message);
     res.status(500).json({ success: false, error: "Could not assign chapter" });
   } finally {
-    client.release();
+    client?.release();
   }
 });
 
@@ -1006,7 +1009,7 @@ router.get("/api/admin/payments", requireAdmin, async (req, res) => {
     }
 
     const whereSql = where.length ? `WHERE ${where.join(" AND ")}` : "";
-    const limit = Math.min(parseInt(pageSize, 10) || 15, 100);
+    const limit = Math.min(Math.max(parseInt(pageSize, 10) || 15, 1), 100);
     const offset = (Math.max(parseInt(page, 10) || 1, 1) - 1) * limit;
 
     const [rows, count, summary] = await Promise.all([
@@ -1061,21 +1064,26 @@ router.get("/api/admin/payments/:id/receipt", requireAdmin, async (req, res) => 
       return res.status(404).send("Receipt not found");
     }
 
-    // If it's a data URI (base64 fallback), just return the base64 string directly
-    if (receipt_url.startsWith("data:image/")) {
-      const matches = receipt_url.match(/^data:(.+);base64,(.+)$/);
-      if (matches) {
-        const img = Buffer.from(matches[2], "base64");
-        res.writeHead(200, { "Content-Type": matches[1], "Content-Length": img.length });
-        return res.end(img);
-      }
+    // Receipts are student-supplied: never let the browser execute them on the admin origin.
+    res.set({
+      "X-Content-Type-Options": "nosniff",
+      "Content-Security-Policy": "default-src 'none'; img-src 'self' data:; style-src 'unsafe-inline'; sandbox",
+      "Content-Disposition": "inline; filename=receipt",
+      "Cache-Control": "private, no-store",
+    });
+
+    if (receipt_url.startsWith("data:")) {
+      const image = decodeReceiptDataUrl(receipt_url);
+      if (!image) return res.status(415).send("Unsupported receipt format");
+      res.writeHead(200, { "Content-Type": image.contentType, "Content-Length": image.bytes.length });
+      return res.end(image.bytes);
     }
 
-    // Otherwise, extract the key from the stored URL
     // Stored as: https://pub-db0...r2.dev/receipts/user-timestamp.png
-    let key = receipt_url;
-    if (receipt_url.includes("/receipts/")) {
-      key = "receipts/" + receipt_url.split("/receipts/")[1];
+    const keyPart = receipt_url.split("/receipts/")[1];
+    const key = keyPart ? "receipts/" + keyPart.split(/[?#]/)[0] : null;
+    if (!key || key.split("/").some(part => !part || part === "..")) {
+      return res.status(404).send("Receipt not found");
     }
 
     const { GetObjectCommand } = await import("@aws-sdk/client-s3");
@@ -1084,8 +1092,14 @@ router.get("/api/admin/payments/:id/receipt", requireAdmin, async (req, res) => 
     const command = new GetObjectCommand({ Bucket: R2_BUCKET, Key: key });
     const s3Item = await r2Client.send(command);
 
-    res.set("Content-Type", s3Item.ContentType);
-    res.set("Content-Length", s3Item.ContentLength);
+    const rasterTypes = ["image/png", "image/jpeg", "image/gif", "image/webp", "image/avif"];
+    const contentType = String(s3Item.ContentType || "").split(";")[0].trim().toLowerCase();
+    if (!rasterTypes.includes(contentType)) {
+      s3Item.Body?.destroy?.();
+      return res.status(415).send("Unsupported receipt format");
+    }
+    res.set("Content-Type", contentType);
+    if (s3Item.ContentLength) res.set("Content-Length", s3Item.ContentLength);
     s3Item.Body.pipe(res);
   } catch (err) {
     console.error("Error fetching receipt:", err);
@@ -1102,8 +1116,9 @@ router.get("/api/admin/payments/:id/receipt", requireAdmin, async (req, res) => 
  * credited the balance and only credits manually if it didn't).
  */
 router.post("/api/admin/payments/:id/confirm", requireAdmin, async (req, res) => {
-  const client = await pool.connect();
+  let client;
   try {
+    client = await pool.connect();
     await client.query("BEGIN");
 
     const txRes = await client.query(
@@ -1160,11 +1175,11 @@ router.post("/api/admin/payments/:id/confirm", requireAdmin, async (req, res) =>
     console.log(`[admin/payments] Confirmed ${tx.id} (${amount} DT) for user ${tx.user_id} by ${req.user?.id}`);
     return res.json({ success: true, newBalance: finalBal.rows[0]?.balance });
   } catch (err) {
-    await client.query("ROLLBACK").catch(() => {});
+    await client?.query("ROLLBACK").catch(() => {});
     console.error("Error confirming payment:", err.code, err.message, err.detail || "");
     return res.status(500).json({ success: false, error: "Internal server error" });
   } finally {
-    client.release();
+    client?.release();
   }
 });
 

@@ -255,8 +255,8 @@
                             window.location.href = '/admin/dashboard.html';
                         }, 1000);
                     } else {
-                        // Not an admin, sign out immediately
-                        await window.auth.signOut();
+                        // Not an admin: clear the session without redirecting away from this message.
+                        await fetch('/api/auth/logout', { method: 'POST', credentials: 'same-origin' }).catch(() => {});
                         throw new Error('Accès refusé. Vous n\'avez pas les permissions d\'administrateur.');
                     }
                 } else {

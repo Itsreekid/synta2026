@@ -2,6 +2,7 @@ import { createHash } from "node:crypto";
 import { access, readdir, readFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import "../loadEnv.js";
 import pool from "../config/db.js";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
@@ -27,7 +28,8 @@ async function migrate() {
     if (!migrationsDir) throw new Error("Migration directory was not found in the deployment image or repository.");
     const files = (await readdir(migrationsDir)).filter((file) => /^\d+_[a-z0-9_-]+\.sql$/i.test(file)).sort();
     for (const filename of files) {
-      const sql = await readFile(path.join(migrationsDir, filename), "utf8");
+      // Checksums must match across Windows (CRLF) and Linux (LF) checkouts.
+      const sql = (await readFile(path.join(migrationsDir, filename), "utf8")).replace(/\r\n/g, "\n");
       const checksum = createHash("sha256").update(sql).digest("hex");
       const previous = await client.query("SELECT checksum FROM schema_migrations WHERE filename = $1", [filename]);
       if (previous.rowCount) {

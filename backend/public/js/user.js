@@ -12,7 +12,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
     // Close mobile menu when clicking outside
     document.addEventListener('click', function (event) {
-        const sidebar = document.getElementById('sidebar');
+        const sidebar = document.getElementById('app-sidebar');
         const menuToggle = document.querySelector('.mobile-menu-toggle');
         const profileDropdown = document.getElementById('profileDropdown');
         const profilePicture = document.querySelector('.profile-picture');

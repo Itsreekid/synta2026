@@ -434,7 +434,7 @@ Migration `202611100001_add_live_session_audience.sql` adds the nullable audienc
 
 ### 2.16 `lesson_feedback`
 
-**Purpose:** Student difficulty feedback on specific lessons.
+**Purpose:** Unused. The student lesson-feedback feature was removed from the app on 2026-11-14. The table is not created by a numbered migration and the application no longer reads or writes it.
 
 | Column | Type | Constraints |
 |--------|------|-------------|

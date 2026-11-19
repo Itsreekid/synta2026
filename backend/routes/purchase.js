@@ -43,7 +43,8 @@ router.post("/course", authApiMiddleware, async (req, res) => {
     }
 
     const existing = await client.query(
-      `SELECT id FROM enrollments WHERE user_id = $1 AND course_id = $2 AND NOT timed_access_only`,
+      `SELECT id FROM enrollments WHERE user_id = $1 AND course_id = $2 AND NOT timed_access_only
+         AND (expires_at IS NULL OR expires_at > NOW())`,
       [userId, courseId]
     );
     if (existing.rowCount > 0) {
@@ -54,7 +55,7 @@ router.post("/course", authApiMiddleware, async (req, res) => {
     if (course.is_free) {
       await client.query(
         `INSERT INTO enrollments (user_id, course_id, amount_paid, enrolled_at)
-         VALUES ($1, $2, 0, NOW()) ON CONFLICT(user_id,course_id) DO UPDATE SET timed_access_only=false,expires_at=NULL,offer_id=NULL WHERE enrollments.timed_access_only`,
+         VALUES ($1, $2, 0, NOW()) ON CONFLICT(user_id,course_id) DO UPDATE SET timed_access_only=false,expires_at=NULL,offer_id=NULL WHERE enrollments.timed_access_only OR enrollments.expires_at <= NOW()`,
         [userId, courseId]
       );
       await client.query("COMMIT");
@@ -84,7 +85,7 @@ router.post("/course", authApiMiddleware, async (req, res) => {
 
     await client.query(
       `INSERT INTO enrollments (user_id, course_id, amount_paid, payment_id, enrolled_at)
-       VALUES ($1, $2, $3, $4, NOW()) ON CONFLICT(user_id,course_id) DO UPDATE SET timed_access_only=false,expires_at=NULL,offer_id=NULL,amount_paid=EXCLUDED.amount_paid,payment_id=EXCLUDED.payment_id WHERE enrollments.timed_access_only`,
+       VALUES ($1, $2, $3, $4, NOW()) ON CONFLICT(user_id,course_id) DO UPDATE SET timed_access_only=false,expires_at=NULL,offer_id=NULL,amount_paid=EXCLUDED.amount_paid,payment_id=EXCLUDED.payment_id WHERE enrollments.timed_access_only OR enrollments.expires_at <= NOW()`,
       [userId, courseId, course.price, ledger.rows[0].id]
     );
 

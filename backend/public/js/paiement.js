@@ -127,26 +127,24 @@ async function loadTransactions() {
         // Always show transactions (if any) plus the "Add" button
         const transactionsHtml = allTransactions.map(tx => {
             const date = new Date(tx.date).toLocaleDateString('fr-FR');
+            const esc = value => String(value ?? '').replace(/[&<>"']/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch]));
             const code = tx.id.toString().substring(0, 12) + (tx.id.length > 12 ? '...' : '');
             const statusInfo = getTransactionStatus(tx.status);
 
             return `
                 <tr class="${tx.status === 'pending' ? 'pending-transaction' : ''}">
-                    <td>${code}</td>
-                    <td>${tx.payment_method}</td>
+                    <td>${esc(code)}</td>
+                    <td>${esc(tx.payment_method)}</td>
                     <td>${parseFloat(tx.amount).toFixed(2)} <img src="../../source/dt.png" alt="DT" class="dt-currency-icon-table"></td>
                     <td>${date}</td>
                     <td><span class="status-badge status-${statusInfo.class}">${statusInfo.text}</span></td>
-                    <td><button class="action-btn" ${tx.status === 'pending' ? 'disabled style="opacity: 0.5;"' : ''} onclick="openTransaction('${tx.id}')">
-                        ${tx.status === 'pending' ? 'En cours' : 'Ouvrir'}
-                    </button></td>
                 </tr>
             `;
         }).join('');
 
         const addButtonHtml = `
             <tr class="add-transaction-row">
-                <td colspan="6" style="text-align: center;">
+                <td colspan="5" style="text-align: center;">
                     ${allTransactions.length === 0 ? '<div class="no-transactions-msg">Aucune transaction pour le moment</div>' : ''}
                     <button onclick="showAddTransactionPopup()" class="premium-add-btn">
                         <i class="fas fa-plus"></i> Ajouter une nouvelle transaction
@@ -200,15 +198,6 @@ function getTransactionStatus(status) {
     };
     return statusMap[status] || { text: status, class: 'pending' };
 }
-
-/**
- * Open transaction details
- */
-window.openTransaction = function (enrollmentId) {
-    console.log('Opening transaction:', enrollmentId);
-    // You can implement a modal or redirect to a details page
-    alert('Détails de la transaction: ' + enrollmentId);
-};
 
 /**
  * Show add transaction popup
@@ -366,7 +355,12 @@ window.showAddTransactionPopup = function () {
                 popup.remove();
                 await createPendingTransaction(amount, receiptBase64);
             };
-            
+            reader.onerror = () => {
+                btn.disabled = false;
+                btn.textContent = 'Confirmer';
+                alert('Impossible de lire le reçu. Choisissez une autre image.');
+            };
+
             reader.readAsDataURL(file);
         } else {
             popup.remove();

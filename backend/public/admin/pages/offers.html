@@ -952,7 +952,8 @@
                     button.addEventListener('click', () => { cutoffDate.value = date; });
                     row.append(button);
                     for (const source of (data.sources || []).filter(item => item.label === type)) {
-                        const url = new URL(source.url);
+                        let url;
+                        try { url = new URL(source.url); } catch { continue; }
                         if (url.protocol !== 'https:') continue;
                         const link = document.createElement('a');
                         link.href = url.href;

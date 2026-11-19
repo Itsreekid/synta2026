@@ -4,6 +4,7 @@
 // No Supabase dependency.
 // =====================================================
 import jwt from "jsonwebtoken";
+import { isAccessPayload } from "./requireAuth.js";
 
 const JWT_SECRET = process.env.JWT_SECRET;
 const adminEmails = (process.env.ADMIN_EMAILS || "")
@@ -24,8 +25,11 @@ export async function requireAdmin(req, res, next) {
 
   let payload;
   try {
-    payload = jwt.verify(accessToken, JWT_SECRET);
+    payload = jwt.verify(accessToken, JWT_SECRET, { algorithms: ["HS256"] });
   } catch {
+    return res.status(401).json({ error: "Unauthorized: invalid or expired session." });
+  }
+  if (!isAccessPayload(payload)) {
     return res.status(401).json({ error: "Unauthorized: invalid or expired session." });
   }
 
@@ -37,7 +41,6 @@ export async function requireAdmin(req, res, next) {
     console.warn(`[requireAdmin] Access denied for: ${payload.email}`);
     return res.status(403).json({
       error: "Forbidden: admin access required.",
-      hint: "Add your email to ADMIN_EMAILS in .env or set role=admin in your user record.",
     });
   }
 

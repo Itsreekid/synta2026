@@ -1,5 +1,23 @@
 # CHANGELOG.md — Synta Academy
 
+## 2026-11-14 — Student path cleanup
+
+- Removed the lesson-feedback button and API. Progress is now saved only for lessons the student can access.
+- Removed the broken wallet action button, the fake contact-form success, the offers confetti download, and the unused Code Pratique Web editor scripts.
+
+## 2026-11-14 — Project-wide bug fixes
+
+- Security: deposit receipts accept only verified raster images and the admin receipt viewer refuses scriptable content; refresh and magic-link tokens can no longer act as a session; the profile bootstrap script and placement quiz, wallet history and lesson descriptions are escaped.
+- Stability: environment variables load before the database pool, Resend is created lazily, migration checksums ignore CRLF/LF differences, async admin handlers no longer crash the process, invalid debt amounts are rejected and client errors return 4xx.
+- Enrollment: students whose permanent course enrollment expired can buy or enroll in the course again.
+- Frontend: pages with top-level script state fully reload under Turbo, and broken links, missing helpers, the calendar course title, admin login denial and Skulpt load failures are fixed.
+
+## 2026-11-14 — Project-wide bug audit fixes
+
+- Security: deposit receipts accept only verified raster images, and the admin receipt viewer serves them with nosniff/sandbox headers. Refresh and magic-link JWTs are no longer accepted as sessions. The injected profile script is JSON-encoded. The placement quiz and wallet history escape text.
+- Stability: environment variables load before the database config, email and migrate start without import-time crashes, admin question routes and transaction routes no longer crash the process on database errors, and malformed or oversized JSON returns 400 or 413.
+- Correctness: debt payments reject non-numeric amounts, Turbo navigation no longer breaks page scripts, event targeting reads class and branch from the database, migration checksums ignore line endings, and several broken links, missing helpers and stuck buttons are fixed.
+
 ## 2026-11-12 — Restore original student offer styling
 
 - Restored the original card appearance while retaining responsive widths and full feature lists.
