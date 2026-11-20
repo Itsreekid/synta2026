@@ -1,5 +1,29 @@
 # CURRENT_STATE.md — Synta Academy
 
+- Homepage orange elements use white text across registration, free trial, enrollment, CTA buttons and course badges.
+
+- Removed the standalone Contact page and student sidebar entry. Existing contact URLs redirect to the landing footer’s contact section, and public contact links point to that section.
+
+- Removed the student sidebar’s Mon profil link on desktop and mobile. Profile access is available through the top header dropdown.
+
+### 2026-11-20 — Mon Portefeuille UX pass (uncommitted; payment logic untouched)
+
+- **What was wrong:** the transaction table was 584px wide on phones and was cut off at the Statut column on desktop. The add button sat at the bottom of the table, past the rows. Achats d’offres was a bullet list of run-on text, and its "Réessayer" button was about 19px tall. Several popup and toast styles were inline.
+- **Now:**
+  - Layout: one column below 1200px, with the accounts in a two-column grid from 600px. From 1200px the accounts sit beside the content. The D17 card puts the QR code beside its details.
+  - Transactions: a table when the history panel is at least 520px wide (1440px and 1920px desktops). Cards below that (phones, 1024px screens, and narrow side-by-side layouts). This uses a container query, so it adapts to the real panel width.
+  - The add button is in the history header, with the same label and action.
+  - Achats d’offres: one card per purchase, with a status badge (green, amber or red), the same details, the same tranche list, and the same pay button, which is now 44px tall.
+  - The deposit popup and toasts use CSS classes. Escape closes the popup and focus returns to the button. An invalid amount now shows an inline error instead of an alert. On phones the popup is a bottom sheet.
+  - Colours match the Cours pages (orange and navy). The payment method tiles no longer look clickable, because they are not.
+- **Unchanged, on purpose:** the deposit request (`POST /api/user/transactions`: amount, `type: deposit`, `status: pending`, the payment method, the description, the optional receipt), the installment payment request, the confirm dialog, the reload after payment, and every displayed number, label and bank detail.
+- **Verified** on the local mock with synthetic data. The mock records the deposit POST and stores nothing:
+  - Sizes from 320×568 to 1920×1080, active and new-student scenarios: no page-level sideways scroll, and every button and link is at least 40px.
+  - Interaction checks pass: card vs table switching, the popup open/close paths, the inline error, the exact deposit payload, the toast, the empty states and the phone bottom sheet.
+  - Unit tests: 51 passed, 3 skipped.
+- **Not run:** the database-backed browser test in `tests/timed-offers.test.js` (it covers the installment payment from this page). It needs a disposable PostgreSQL, which isn't installed on this machine. Run it before merging.
+- **Next:** a real-phone check of the wallet. Then the next nav item (Offres), if the owner asks. Deployment is still paused.
+
 ### 2026-11-20 — Cours pages UX pass: course list, course details, lesson and replay players, quiz popup (uncommitted)
 
 - **Course list** (`views/pages/courses/index.ejs`, `public/js/courses.js`, `public/css/courses.css`, all rewritten):

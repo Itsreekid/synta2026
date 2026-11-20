@@ -49,7 +49,7 @@ router.get("/course-details.html",  (req, res) => res.redirect(301, "/app/course
 router.get("/profile.html",         (req, res) => res.redirect(301, "/app/profile"));
 router.get("/paiement.html",        (req, res) => res.redirect(301, "/app/paiement"));
 router.get("/offers.html",          (req, res) => res.redirect(301, "/app/offers"));
-router.get("/contact.html",         (req, res) => res.redirect(301, "/app/contact"));
+router.get(["/contact.html", "/contact/contact.html", "/app/contact", "/app/contact.html"], (req, res) => res.redirect(301, "/#contact"));
 router.get("/password-reset.html",  (req, res) => res.redirect(301, "/password-reset"));
 
 // Old nested paths (pages/auth/...)
@@ -255,9 +255,6 @@ router.get("/app/offers", ...protect, (req, res) => {
   renderPage(res, "pages/offers/index", { user: req.user, profile: req.userProfile });
 });
 
-router.get("/app/contact", ...protect, (req, res) => {
-  renderPage(res, "pages/contact/index", { user: req.user, profile: req.userProfile });
-});
 
 router.get("/app/code-pratique", ...protect, (req, res) => {
   renderPage(res, "pages/code/index", { user: req.user, profile: req.userProfile, bugiMessages: BUGI_MESSAGES });

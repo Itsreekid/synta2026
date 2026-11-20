@@ -13,19 +13,15 @@ document.addEventListener('DOMContentLoaded', async function () {
     console.log('Is in iframe:', isInIframe);
     console.log('SyntaAPI available:', !!SyntaAPI);
 
+    document.getElementById('add-transaction-button')?.addEventListener('click', event => showAddTransactionPopup(event.currentTarget));
+
     // Check if API client is loaded
     if (!SyntaAPI) {
         console.error('Client API non chargé');
         // Show error in the table
         const tbody = document.getElementById('transaction-history');
         if (tbody) {
-            tbody.innerHTML = `
-                <tr>
-                    <td colspan="6" style="text-align: center; padding: 2rem; color: #ef4444;">
-                        Erreur: API client non chargé
-                    </td>
-                </tr>
-            `;
+            tbody.innerHTML = walletStateRow('Erreur: API client non chargé', true);
         }
         return;
     }
@@ -65,25 +61,13 @@ async function loadTransactions() {
     }
 
     // Set a loading state first
-    tbody.innerHTML = `
-        <tr>
-            <td colspan="6" style="text-align: center; padding: 2rem; color: #94a3b8;">
-                Chargement...
-            </td>
-        </tr>
-    `;
+    tbody.innerHTML = walletStateRow('Chargement...');
 
     try {
         const user = await window.SyntaAPI.getCurrentUser();
         if (!user) {
             console.log('No user found');
-            tbody.innerHTML = `
-                <tr>
-                    <td colspan="6" style="text-align: center; padding: 2rem; color: #ef4444;">
-                        Utilisateur non connecté
-                    </td>
-                </tr>
-            `;
+            tbody.innerHTML = walletStateRow('Utilisateur non connecté', true);
             return;
         }
 
@@ -104,36 +88,27 @@ async function loadTransactions() {
             payment_method: tx.payment_method || (tx.type === 'purchase' ? 'Achat' : 'N/A')
         })).sort((a, b) => new Date(b.date) - new Date(a.date));
 
-        // Always show transactions (if any) plus the "Add" button
-        const transactionsHtml = allTransactions.map(tx => {
-            const date = new Date(tx.date).toLocaleDateString('fr-FR');
-            const esc = value => String(value ?? '').replace(/[&<>"']/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch]));
-            const code = tx.id.toString().substring(0, 12) + (tx.id.length > 12 ? '...' : '');
-            const statusInfo = getTransactionStatus(tx.status);
+        // The "add" action lives in the history header, so the rows are only transactions.
+        if (allTransactions.length === 0) {
+            tbody.innerHTML = walletStateRow('Aucune transaction pour le moment');
+        } else {
+            tbody.innerHTML = allTransactions.map(tx => {
+                const date = new Date(tx.date).toLocaleDateString('fr-FR');
+                const esc = value => String(value ?? '').replace(/[&<>"']/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch]));
+                const code = tx.id.toString().substring(0, 12) + (tx.id.length > 12 ? '...' : '');
+                const statusInfo = getTransactionStatus(tx.status);
 
-            return `
+                return `
                 <tr class="${tx.status === 'pending' ? 'pending-transaction' : ''}">
-                    <td>${esc(code)}</td>
-                    <td>${esc(tx.payment_method)}</td>
-                    <td>${parseFloat(tx.amount).toFixed(2)} <img src="../../source/dt.png" alt="DT" class="dt-currency-icon-table"></td>
-                    <td>${date}</td>
-                    <td><span class="status-badge status-${statusInfo.class}">${statusInfo.text}</span></td>
+                    <td data-label="Code">${esc(code)}</td>
+                    <td data-label="Méthode de paiement">${esc(tx.payment_method)}</td>
+                    <td data-label="Montant">${parseFloat(tx.amount).toFixed(2)} <img src="../../source/dt.png" alt="DT" class="dt-currency-icon-table"></td>
+                    <td data-label="Date">${date}</td>
+                    <td data-label="Statut"><span class="status-badge status-${esc(statusInfo.class)}">${esc(statusInfo.text)}</span></td>
                 </tr>
             `;
-        }).join('');
-
-        const addButtonHtml = `
-            <tr class="add-transaction-row">
-                <td colspan="5" style="text-align: center;">
-                    ${allTransactions.length === 0 ? '<div class="no-transactions-msg">Aucune transaction pour le moment</div>' : ''}
-                    <button onclick="showAddTransactionPopup()" class="premium-add-btn">
-                        <i class="fas fa-plus"></i> Ajouter une nouvelle transaction
-                    </button>
-                </td>
-            </tr>
-        `;
-
-        tbody.innerHTML = transactionsHtml + addButtonHtml;
+            }).join('');
+        }
 
 
         // Update pagination
@@ -142,15 +117,18 @@ async function loadTransactions() {
     } catch (error) {
         console.error('Error loading transactions:', error);
         if (tbody) {
-            tbody.innerHTML = `
-                <tr>
-                    <td colspan="6" style="text-align: center; padding: 2rem; color: #ef4444;">
-                        Erreur lors du chargement de l'historique: ${error.message || 'Erreur inconnue'}
-                    </td>
-                </tr>
-            `;
+            tbody.innerHTML = walletStateRow(`Erreur lors du chargement de l'historique: ${error.message || 'Erreur inconnue'}`, true);
         }
     }
+}
+
+/**
+ * One full-width row for loading, empty and error states.
+ * The text is escaped, so error messages can never inject markup.
+ */
+function walletStateRow(message, isError = false) {
+    const text = String(message ?? '').replace(/[&<>"']/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch]));
+    return `<tr class="wallet-table-state-row"><td colspan="5" class="wallet-table-state${isError ? ' is-error' : ''}">${text}</td></tr>`;
 }
 
 /**
@@ -182,144 +160,76 @@ function getTransactionStatus(status) {
 /**
  * Show add transaction popup
  */
-window.showAddTransactionPopup = function () {
+window.showAddTransactionPopup = function (trigger = null) {
+    const previousFocus = trigger || document.activeElement;
     const popup = document.createElement('div');
-    popup.style.cssText = `
-        position: fixed;
-        top: 0;
-        left: 0;
-        width: 100%;
-        height: 100%;
-        background: rgba(0, 0, 0, 0.6);
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        z-index: 10000;
-        animation: fadeIn 0.3s ease;
-        padding: 1rem;
-        overflow-y: auto;
-    `;
-
+    popup.className = 'wallet-modal-backdrop';
     popup.innerHTML = `
-        <div style="
-            background: white;
-            border-radius: 16px;
-            padding: 2rem;
-            max-width: 450px;
-            width: 100%;
-            margin: auto;
-            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
-            animation: slideUp 0.3s ease;
-        ">
-            <h2 style="
-                color: #1e293b;
-                font-size: 1.5rem;
-                margin-bottom: 1rem;
-                font-weight: 700;
-            ">Nouvelle Transaction</h2>
-            
-            <p style="
-                color: #64748b;
-                margin-bottom: 1.5rem;
-                line-height: 1.6;
-            ">Entrez le montant que vous souhaitez ajouter à votre solde</p>
-            
-            <div style="margin-bottom: 1.5rem;">
-                <label for="transaction-amount" style="
-                    display: block;
-                    color: #475569;
-                    font-weight: 600;
-                    margin-bottom: 0.5rem;
-                    font-size: 0.9rem;
-                ">Montant (DT)</label>
-                <div style="position: relative; display: flex; align-items: center;">
-                    <img src="../../source/dt.png" alt="DT" style="
-                        position: absolute;
-                        left: 1rem;
-                        width: 16px;
-                        height: 16px;
-                        pointer-events: none;
-                    ">
-                    <input type="number" id="transaction-amount" min="1" step="0.01" placeholder="0.00" style="
-                        width: 100%;
-                        padding: 0.875rem 1rem 0.875rem 2.5rem;
-                        border: 2px solid #e2e8f0;
-                        border-radius: 10px;
-                        font-size: 1rem;
-                        font-family: 'Inter', sans-serif;
-                        transition: border-color 0.2s;
-                    " onfocus="this.style.borderColor='#667eea'" onblur="this.style.borderColor='#e2e8f0'">
+        <div class="wallet-modal" role="dialog" aria-modal="true" aria-labelledby="transaction-modal-title">
+            <h2 id="transaction-modal-title">Nouvelle transaction</h2>
+            <p class="wallet-modal-lead">Entrez le montant que vous souhaitez ajouter à votre solde.</p>
+
+            <p class="wallet-modal-error" id="transaction-error" role="alert" hidden></p>
+
+            <div class="wallet-field">
+                <label for="transaction-amount">Montant (DT)</label>
+                <div class="wallet-amount-input">
+                    <img src="../../source/dt.png" alt="" width="16" height="16">
+                    <input type="number" id="transaction-amount" min="1" step="0.01" placeholder="0.00" inputmode="decimal">
                 </div>
             </div>
 
-            <div style="margin-bottom: 1.5rem;">
-                <label for="transaction-receipt" style="
-                    display: block;
-                    color: #475569;
-                    font-weight: 600;
-                    margin-bottom: 0.5rem;
-                    font-size: 0.9rem;
-                ">Photo du reçu (Optionnel)</label>
-                <input type="file" id="transaction-receipt" accept="image/*" style="
-                    width: 100%;
-                    padding: 0.5rem;
-                    border: 2px dashed #e2e8f0;
-                    border-radius: 10px;
-                    font-family: 'Inter', sans-serif;
-                    background: #f8fafc;
-                ">
+            <div class="wallet-field">
+                <label for="transaction-receipt">Photo du reçu (optionnel)</label>
+                <input type="file" id="transaction-receipt" accept="image/*" class="wallet-receipt-input">
+                <p class="wallet-field-hint">Ajoutez une capture ou une photo de votre paiement pour accélérer la vérification.</p>
             </div>
-            
-            <div style="display: flex; gap: 1rem; flex-wrap: wrap;">
-                <button id="confirmTransactionBtn" style="
-                    flex: 1;
-                    min-width: 120px;
-                    background: linear-gradient(135deg, #10b981 0%, #059669 100%);
-                    color: white;
-                    border: none;
-                    border-radius: 10px;
-                    padding: 0.875rem;
-                    font-family: 'Inter', sans-serif;
-                    font-weight: 600;
-                    font-size: 1rem;
-                    cursor: pointer;
-                    transition: transform 0.2s;
-                " onmouseover="this.style.transform='translateY(-2px)'" onmouseout="this.style.transform='translateY(0)'">Confirmer</button>
-                
-                <button id="cancelTransactionBtn" style="
-                    flex: 1;
-                    min-width: 120px;
-                    background: #e5e7eb;
-                    color: #1e293b;
-                    border: none;
-                    border-radius: 10px;
-                    padding: 0.875rem;
-                    font-family: 'Inter', sans-serif;
-                    font-weight: 600;
-                    font-size: 1rem;
-                    cursor: pointer;
-                    transition: transform 0.2s;
-                " onmouseover="this.style.transform='translateY(-2px)'" onmouseout="this.style.transform='translateY(0)'">Annuler</button>
+
+            <div class="wallet-modal-actions">
+                <button id="confirmTransactionBtn" type="button">Confirmer</button>
+                <button id="cancelTransactionBtn" type="button">Annuler</button>
             </div>
         </div>
     `;
 
     document.body.appendChild(popup);
+    document.querySelector('.content-wrapper')?.setAttribute('inert', '');
+
+    const amountInput = document.getElementById('transaction-amount');
+    const errorBox = document.getElementById('transaction-error');
+    const confirmBtn = document.getElementById('confirmTransactionBtn');
+
+    const showError = message => {
+        errorBox.textContent = message;
+        errorBox.hidden = false;
+    };
+
+    const close = () => {
+        document.removeEventListener('keydown', onKey);
+        popup.remove();
+        document.querySelector('.content-wrapper')?.removeAttribute('inert');
+        previousFocus?.focus?.();
+    };
+
+    const onKey = event => {
+        if (event.key === 'Escape') close();
+    };
+    document.addEventListener('keydown', onKey);
 
     // Focus on input
-    setTimeout(() => {
-        document.getElementById('transaction-amount').focus();
-    }, 100);
+    setTimeout(() => amountInput.focus(), 100);
 
     // Add event listeners
-    document.getElementById('confirmTransactionBtn').onclick = async () => {
-        const amount = parseFloat(document.getElementById('transaction-amount').value);
+    confirmBtn.onclick = async () => {
+        const amount = parseFloat(amountInput.value);
         if (!amount || amount <= 0) {
-            alert('Veuillez entrer un montant valide');
+            showError('Veuillez entrer un montant valide.');
+            amountInput.focus();
             return;
         }
+        errorBox.hidden = true;
 
-        const btn = document.getElementById('confirmTransactionBtn');
+        const btn = confirmBtn;
         btn.disabled = true;
         btn.textContent = 'En cours...';
 
@@ -329,34 +239,30 @@ window.showAddTransactionPopup = function () {
         if (fileInput.files && fileInput.files[0]) {
             const file = fileInput.files[0];
             const reader = new FileReader();
-            
+
             reader.onload = async (e) => {
                 receiptBase64 = e.target.result;
-                popup.remove();
+                close();
                 await createPendingTransaction(amount, receiptBase64);
             };
             reader.onerror = () => {
                 btn.disabled = false;
                 btn.textContent = 'Confirmer';
-                alert('Impossible de lire le reçu. Choisissez une autre image.');
+                showError('Impossible de lire le reçu. Choisissez une autre image.');
             };
 
             reader.readAsDataURL(file);
         } else {
-            popup.remove();
+            close();
             await createPendingTransaction(amount, null);
         }
     };
 
-    document.getElementById('cancelTransactionBtn').onclick = () => {
-        popup.remove();
-    };
+    document.getElementById('cancelTransactionBtn').onclick = close;
 
     // Close on background click
     popup.onclick = (e) => {
-        if (e.target === popup) {
-            popup.remove();
-        }
+        if (e.target === popup) close();
     };
 };
 
@@ -414,28 +320,8 @@ async function createPendingTransaction(amount, receiptBase64 = null) {
  */
 function showMessage(message, type = 'info') {
     const messageDiv = document.createElement('div');
-    messageDiv.style.cssText = `
-        position: fixed;
-        top: 20px;
-        right: 20px;
-        padding: 1rem 2rem;
-        border-radius: 10px;
-        color: white;
-        font-family: 'Inter', sans-serif;
-        font-weight: 600;
-        z-index: 10001;
-        animation: slideIn 0.3s ease;
-        max-width: 400px;
-    `;
-
-    if (type === 'error') {
-        messageDiv.style.background = '#dc3545';
-    } else if (type === 'success') {
-        messageDiv.style.background = '#10b981';
-    } else {
-        messageDiv.style.background = '#667eea';
-    }
-
+    messageDiv.className = `wallet-toast is-${type === 'error' || type === 'success' ? type : 'info'}`;
+    messageDiv.setAttribute('role', type === 'error' ? 'alert' : 'status');
     messageDiv.textContent = message;
     document.body.appendChild(messageDiv);
 

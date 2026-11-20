@@ -1,5 +1,16 @@
 # CHANGELOG.md — Synta Academy
 
+## 2026-11-20 — Contact navigation
+
+- Removed the empty standalone Contact page and its student navigation entry. Contact links now target the public footer’s social links, and previous URLs redirect there.
+
+## 2026-11-20 — Mon Portefeuille redesign (uncommitted)
+
+- Transactions show as a table on wide panels and as cards on phones and narrow layouts, with no sideways scrolling. The add button moved into the history header.
+- Achats d’offres: one card per purchase with a status badge. The installment button is 44px tall.
+- Accounts sit beside the content from 1200px, with the D17 QR code beside its details.
+- The deposit popup is styled with classes, closes with Escape, shows validation errors inline and is a bottom sheet on phones. Its request and the installment payment are unchanged.
+
 ## 2026-11-20 — Cours pages redesign (uncommitted)
 
 - Course list: compact cards on phones and a grid on larger screens, "Mes cours" and "Découvrir" groups, progress on each card, and the course initial when there is no thumbnail. The banner no longer overlaps the mascot.

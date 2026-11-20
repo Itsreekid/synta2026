@@ -2,7 +2,7 @@
 <html lang="fr" dir="ltr">
 <head>
     <%- include('../../partials/head', { turboReload: true, title: 'Mon Portefeuille', css: 'paiement',
-        extraHead: '<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">' }) %>
+        extraHead: '<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">' }) %>
 </head>
 <body>
     <div id="global-hydration-overlay"><div class="spinner"></div></div>
@@ -15,21 +15,22 @@
             <main class="wallet-container">
                 <header class="wallet-header">
                     <h1>Mon portefeuille</h1>
+                    <p class="wallet-subtitle">Dépôts, achats et historique de vos transactions.</p>
                 </header>
 
                 <div class="wallet-content">
-                    <!-- Left Column -->
+                    <!-- Left Column: where to send money -->
                     <aside class="left-column" aria-label="Comptes de dépôt et virement">
                         <!-- E-dinar Account -->
                         <article class="account-card">
                             <h3>E-dinar Compte</h3>
                             <div class="account-details">
                                 <div class="detail-row">
-                                    <span class="label">Compte :</span>
+                                    <span class="label">Compte</span>
                                     <span class="value" id="edinar-account">Ahmed Abidi</span>
                                 </div>
                                 <div class="detail-row">
-                                    <span class="label">Nombre :</span>
+                                    <span class="label">Nombre</span>
                                     <span class="value" id="edinar-number">5359 4014 2650 9168</span>
                                 </div>
                             </div>
@@ -40,56 +41,56 @@
                             <h3>Compte bancaire</h3>
                             <div class="account-details">
                                 <div class="detail-row">
-                                    <span class="label">Nom:</span>
+                                    <span class="label">Nom</span>
                                     <span class="value" id="bank-name">Ahmed Abidi</span>
                                 </div>
                                 <div class="detail-row">
-                                    <span class="label">Banque:</span>
+                                    <span class="label">Banque</span>
                                     <span class="value" id="bank-institution">UIB</span>
                                 </div>
                                 <div class="detail-row">
-                                    <span class="label">RIB:</span>
+                                    <span class="label">RIB</span>
                                     <span class="value" id="bank-rib">12121000013314243557</span>
                                 </div>
                             </div>
                         </article>
 
                         <!-- D17 Account -->
-                        <article class="account-card">
+                        <article class="account-card account-card--d17">
                             <h3>D17</h3>
                             <div class="account-details">
                                 <div class="detail-row">
-                                    <span class="label">Nombre :</span>
+                                    <span class="label">Nombre</span>
                                     <span class="value" id="d17-number">27 131 431</span>
                                 </div>
                             </div>
                             <p class="qr-text">Vous pouvez utiliser ce code QR pour transférer directement de l'argent</p>
                             <div class="qr-code-container">
-                                <img src="/source/portoflio/QR code.jpg" alt="Code QR D17" class="qr-code-image">
+                                <img src="/source/portoflio/QR code.jpg" alt="Code QR D17" class="qr-code-image" width="180" height="180" loading="lazy">
                             </div>
                         </article>
                     </aside>
 
-                    <!-- Right Column -->
+                    <!-- Right Column: how to add money, offers and history -->
                     <section class="right-column" aria-label="Méthodes de dépôt et historique des transactions">
                         <!-- Payment Methods -->
-                        <section class="payment-methods-section">
-                            <h2>Méthodes de paiement</h2>
+                        <section class="payment-methods-section" aria-labelledby="payment-methods-title">
+                            <h2 id="payment-methods-title">Méthodes de paiement</h2>
                             <div class="payment-methods-grid">
                                 <article class="payment-method">
-                                    <img src="/source/portoflio/poste.jpg" alt="E-Dinar">
+                                    <img src="/source/portoflio/poste.jpg" alt="" width="48" height="48">
                                     <span>E-dinar</span>
                                 </article>
                                 <article class="payment-method">
-                                    <img src="/source/portoflio/d17.png" alt="D17">
+                                    <img src="/source/portoflio/d17.png" alt="" width="48" height="48">
                                     <span>D17</span>
                                 </article>
                                 <article class="payment-method">
-                                    <img src="/source/portoflio/enligne.jpg" alt="Paiement en ligne">
+                                    <img src="/source/portoflio/enligne.jpg" alt="" width="48" height="48">
                                     <span>Paiement en ligne</span>
                                 </article>
                                 <article class="payment-method">
-                                    <img src="/source/portoflio/bank.jpg" alt="Virement bancaire">
+                                    <img src="/source/portoflio/bank.jpg" alt="" width="48" height="48">
                                     <span>Virement bancaire</span>
                                 </article>
                             </div>
@@ -103,10 +104,15 @@
                         </section>
 
                         <!-- Transaction History -->
-                        <section class="history-section">
+                        <section class="history-section history-ledger" aria-labelledby="transactions-title">
                             <header class="history-header">
-                                <h2>Historique</h2>
-                                <span class="pagination" id="pagination-info">1 / 1 de 1</span>
+                                <div class="history-title-group">
+                                    <h2 id="transactions-title">Historique</h2>
+                                    <span class="pagination" id="pagination-info">1 / 1 de 1</span>
+                                </div>
+                                <button type="button" class="wallet-add-button" id="add-transaction-button">
+                                    <i class="fas fa-plus" aria-hidden="true"></i> Ajouter une nouvelle transaction
+                                </button>
                             </header>
                             <div class="history-table">
                                 <table>
@@ -136,7 +142,7 @@
     <script src="/js/authentication.js"></script>
     <script src="/js/user.js"></script>
     <script src="/js/api-client.js"></script>
-    <script src="/js/paiement.js?v=3"></script>
-    <script src="/js/offer-purchase-history.js"></script>
+    <script src="/js/paiement.js?v=4"></script>
+    <script src="/js/offer-purchase-history.js?v=2"></script>
 </body>
 </html>

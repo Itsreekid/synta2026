@@ -387,11 +387,7 @@ function navigateToCalendar(eventDate) {
 }
 
 function showContact() {
-    if (window.parent && window.parent.loadPage) {
-        window.parent.loadPage('contact');
-    } else {
-        window.location.href = '../contact/contact.html';
-    }
+    window.location.href = '/#contact';
 }
 
 // Utility function for showing messages

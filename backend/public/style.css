@@ -1127,7 +1127,7 @@ footer {
 .home-page .register-btn,
 .home-page .enroll-btn,
 .home-page .cta-btn,
-.home-page .course-badge { color: var(--primary-color); }
+.home-page .course-badge { color: #fff; }
 .home-page .auth-buttons .btn { margin-inline: 0; padding-inline: 20px; }
 .home-page .hero-content h1 { line-height: 1.25; text-wrap: balance; }
 .home-page .hero-content p { line-height: 1.85; max-width: 44ch; }
