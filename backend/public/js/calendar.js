@@ -98,12 +98,20 @@ function renderCalendar() {
 
     // Update week range display
     const monthNames = ['janvier', 'février', 'mars', 'avril', 'mai', 'juin', 'juillet', 'août', 'septembre', 'octobre', 'novembre', 'décembre'];
-    const weekRangeText = `${currentWeekStart.getDate()} ${monthNames[currentWeekStart.getMonth()]} - ${weekEnd.getDate()} ${monthNames[weekEnd.getMonth()]} ${weekEnd.getFullYear()}`;
-    weekRangeElement.textContent = weekRangeText;
+    weekRangeElement.textContent = formatWeekRange(currentWeekStart, weekEnd, monthNames);
 
     // Day names in French (full and abbreviated)
     const dayNames = ['Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi', 'Dimanche'];
-    const dayAbbreviations = ['l', 'm', 'm', 'j', 'v', 's', 'd']; // First letter for each day starting Monday
+    // Two letters: a single letter makes Mardi and Mercredi identical.
+    const dayAbbreviations = ['Lu', 'Ma', 'Me', 'Je', 'Ve', 'Sa', 'Di'];
+
+    // Keep the highlighted day inside the week on screen. A date opened from a
+    // link wins; otherwise today; otherwise Monday.
+    if (!isDateInWeek(selectedDate, currentWeekStart)) {
+        const todayInWeek = new Date();
+        todayInWeek.setHours(0, 0, 0, 0);
+        selectedDate = isDateInWeek(todayInWeek, currentWeekStart) ? todayInWeek : new Date(currentWeekStart);
+    }
 
     // Today's date for comparison
     const today = new Date();
@@ -125,8 +133,8 @@ function renderCalendar() {
         // Check if this is today
         const isToday = currentDay.getTime() === today.getTime();
 
-        // Check if this is the selected date
-        const isSelected = selectedDate && currentDay.getTime() === selectedDate.getTime();
+        // Check if this is the selected date (compare the calendar day, not the clock time)
+        const isSelected = sameDay(currentDay, selectedDate);
 
         // Store day data
         const dayData = {
@@ -140,15 +148,7 @@ function renderCalendar() {
         };
         allDaysData.push(dayData);
 
-        // Set initially selected day (today if in this week, otherwise first day)
-        if (isToday) {
-            selectedDayData = dayData;
-        } else if (!selectedDayData) {
-            // If we haven't found today yet and this is the first day, use it
-            if (i === 0) {
-                selectedDayData = dayData;
-            }
-        }
+        if (isSelected) selectedDayData = dayData;
 
         // Create day column
         const dayColumn = document.createElement('div');
@@ -260,6 +260,9 @@ function updateExpandedCard(dayIndex) {
     const selectedDay = window.calendarDaysData[dayIndex];
     if (!selectedDay) return;
 
+    selectedDate = new Date(selectedDay.dateObj);
+    selectedDate.setHours(0, 0, 0, 0);
+
     // Update compact row - remove 'selected' class from all, add to selected
     const allDayColumns = document.querySelectorAll('.calendar-grid > .day-column:not(.expanded-card)');
     allDayColumns.forEach((col, index) => {
@@ -362,13 +365,26 @@ function createEventElement(event, date) {
         descEl.textContent = event.description || '';
     }
 
-    eventElement.appendChild(iconEl);
-    eventElement.appendChild(timeEl);
+    const metaEl = document.createElement('div');
+    metaEl.className = 'event-meta';
+    metaEl.appendChild(iconEl);
+    metaEl.appendChild(timeEl);
+
+    eventElement.appendChild(metaEl);
     eventElement.appendChild(titleEl);
     eventElement.appendChild(descEl);
+    eventElement.tabIndex = 0;
+    eventElement.setAttribute('role', 'button');
 
     // FIX #7: Use addEventListener instead of onclick attribute (prevents attribute injection)
-    eventElement.addEventListener('click', () => showEventDetails(event, date));
+    const openDetails = () => showEventDetails(event, date);
+    eventElement.addEventListener('click', openDetails);
+    eventElement.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault();
+            openDetails();
+        }
+    });
 
     return eventElement;
 }
@@ -499,7 +515,7 @@ function showEventDetails(event, date) {
     if (modalDateEl) modalDateEl.textContent = dateString;
     if (modalTimeEl) modalTimeEl.textContent = event.time;
 
-    modal.style.display = 'block';
+    modal.classList.add('is-open');
 
     // Start countdown if event is not live yet
     if (!isEventLive) {
@@ -522,7 +538,8 @@ function getSessionEndTime(event, eventDateTime) {
 window.closeModal = function() {
     const modal = document.getElementById('event-modal');
     if (modal) {
-        modal.style.setProperty('display', 'none', 'important');
+        modal.classList.remove('is-open');
+        modal.style.removeProperty('display');
     }
 
     // Clear countdown interval when closing modal
@@ -669,12 +686,16 @@ END:VCALENDAR`;
 }
 
 function previousWeek() {
-    currentWeekStart.setDate(currentWeekStart.getDate() - 7);
-    renderCalendar();
+    shiftWeek(-7);
 }
 
 function nextWeek() {
-    currentWeekStart.setDate(currentWeekStart.getDate() + 7);
+    shiftWeek(7);
+}
+
+function shiftWeek(days) {
+    currentWeekStart.setDate(currentWeekStart.getDate() + days);
+    if (selectedDate) selectedDate.setDate(selectedDate.getDate() + days);
     renderCalendar();
 }
 
@@ -701,10 +722,41 @@ function joinZoomSession(zoomLink) {
     if (window.closeModal) window.closeModal();
 }
 
-// Close modal when clicking outside of it
+// Close modal when clicking outside of it, or with Escape
 window.addEventListener('click', function (event) {
     const modal = document.getElementById('event-modal');
     if (modal && event.target === modal) {
         if (window.closeModal) window.closeModal();
     }
 });
+
+window.addEventListener('keydown', function (event) {
+    if (event.key === 'Escape' && window.closeModal) window.closeModal();
+});
+
+function sameDay(a, b) {
+    return a instanceof Date && b instanceof Date && !isNaN(a) && !isNaN(b)
+        && a.getFullYear() === b.getFullYear()
+        && a.getMonth() === b.getMonth()
+        && a.getDate() === b.getDate();
+}
+
+function isDateInWeek(date, weekStart) {
+    if (!sameDay(date, date) || !(weekStart instanceof Date)) return false;
+    const start = new Date(weekStart);
+    start.setHours(0, 0, 0, 0);
+    const end = new Date(start);
+    end.setDate(end.getDate() + 7);
+    const day = new Date(date);
+    day.setHours(12, 0, 0, 0);
+    return day >= start && day < end;
+}
+
+function formatWeekRange(start, end, monthNames) {
+    const sameMonth = start.getMonth() === end.getMonth() && start.getFullYear() === end.getFullYear();
+    if (sameMonth) {
+        return `${start.getDate()} – ${end.getDate()} ${monthNames[start.getMonth()]} ${start.getFullYear()}`;
+    }
+    const startYear = start.getFullYear() === end.getFullYear() ? '' : ` ${start.getFullYear()}`;
+    return `${start.getDate()} ${monthNames[start.getMonth()]}${startYear} – ${end.getDate()} ${monthNames[end.getMonth()]} ${end.getFullYear()}`;
+}

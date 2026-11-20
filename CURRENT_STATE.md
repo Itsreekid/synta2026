@@ -1,5 +1,16 @@
 # CURRENT_STATE.md — Synta Academy
 
+### 2026-11-20 — Calendar responsive UX pass (uncommitted)
+
+- **What was wrong:** on phones the week controls stacked into three full-width buttons, so the days started below the fold, and Mardi and Mercredi were both labelled "M". From 900 to 1200px the week wrapped into a 4 + 3 grid of tall empty columns. On a normal desktop the seven columns were too narrow, so session titles broke into one word per line.
+- **Now:**
+  - Phones: one header, chevron week controls, a seven-day strip labelled Lu Ma Me Je Ve Sa Di, then the selected day's sessions.
+  - 700px and wider, including 1024px and old 4:3 or 1:1 screens: the whole week as rows, with the full session title on one line.
+- **Bugs fixed in `public/js/calendar.js`:** a date opened from a link now wins over "today" (the details used to show today anyway), and changing weeks keeps the same weekday selected. Escape now closes the session details. Past sessions still show "Séance terminée" with Rejoindre disabled.
+- **Kept:** every session, the countdown, Rejoindre, "Ajouter à calendrier", and the empty-week message.
+- **Verified** on a local mock with synthetic data, no real accounts: week changes, day selection, past and upcoming session details, and empty week. No horizontal overflow and no tiny tap targets from 320×568 to 1920×1080.
+- **Next:** the same UX pass on Cours, the next item in the nav, if the owner asks. Deployment is still paused.
+
 ### 2026-11-20 — Dashboard responsive UX pass (uncommitted)
 
 - **Root cause of the messy mobile dashboard:** the dashboard container was a flex item with `margin: 0 auto`, so it sized itself to the chapter stepper's content width (~815px). Every phone and tablet rendered an 815px page cut off at the right. Fixed with `width: 100%` and `minmax(0, 1fr)` grid tracks.

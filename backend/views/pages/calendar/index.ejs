@@ -14,18 +14,16 @@
             <div class="calendar-container">
                 <!-- Header -->
                 <div class="calendar-header">
-                    <h1>📅 Calendrier des Sessions</h1>
-                    <div class="header-controls">
-                        <button class="nav-btn" onclick="previousWeek()">◀ Semaine précédente</button>
-                        <button class="today-btn" onclick="goToToday()">Aujourd'hui</button>
-                        <button class="nav-btn" onclick="nextWeek()">Semaine suivante ▶</button>
+                    <div class="calendar-heading">
+                        <h1><i class="fas fa-calendar" aria-hidden="true"></i> Calendrier des Sessions</h1>
+                        <p id="event-count-text">Aucun événement cette semaine</p>
                     </div>
-                </div>
-
-                <!-- Calendar Info -->
-                <div class="calendar-info">
-                    <h2 id="current-week-range">Chargement...</h2>
-                    <p id="event-count-text">Aucun événement cette semaine</p>
+                    <div class="header-controls">
+                        <button type="button" class="nav-btn" onclick="previousWeek()" aria-label="Semaine précédente"><i class="fas fa-chevron-left" aria-hidden="true"></i><span class="nav-label">Précédente</span></button>
+                        <h2 id="current-week-range">Chargement...</h2>
+                        <button type="button" class="nav-btn" onclick="nextWeek()" aria-label="Semaine suivante"><span class="nav-label">Suivante</span><i class="fas fa-chevron-right" aria-hidden="true"></i></button>
+                        <button type="button" class="today-btn" onclick="goToToday()">Aujourd'hui</button>
+                    </div>
                 </div>
 
                 <!-- Week Calendar -->
@@ -38,7 +36,7 @@
                 <!-- Event Details Modal -->
                 <div id="event-modal" class="modal">
                     <div class="modal-content">
-                        <span class="close" onclick="closeModal()">&times;</span>
+                        <button type="button" class="close" onclick="closeModal()" aria-label="Fermer">&times;</button>
                         <div id="modal-body">
                             <!-- Event details inserted here -->
                         </div>

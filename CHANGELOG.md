@@ -1,5 +1,11 @@
 # CHANGELOG.md — Synta Academy
 
+## 2026-11-20 — Calendar responsive layout (uncommitted)
+
+- Phones show a week strip with distinct day labels and the selected day's sessions, instead of three stacked week buttons and a clipped week.
+- Tablets, older square screens and desktops show the whole week as rows, so session titles stay on one line.
+- Opening a date from a link highlights that day, and changing weeks keeps the same weekday selected.
+
 ## 2026-11-20 — Dashboard responsive redesign (uncommitted)
 
 - Fixed the mobile dashboard rendering 815px wide and cut off. It is now one clean column on phones, a balanced two-column grid on tablets and older 4:3 or 1:1 screens, and two independent columns on wide desktops.
