@@ -7,55 +7,15 @@ import express from "express";
 import { timingSafeEqual } from "node:crypto";
 import { OAuth2Client } from "google-auth-library";
 import pool from "../config/db.js";
-import { setSessionCookies } from "../middleware/requireAuth.js";
-import jwt from "jsonwebtoken";
+import { startSession } from "../services/sessions.js";
+import { safeReturnPath } from "../utils/returnPath.js";
 
 const router = express.Router();
+const GOOGLE_CALLBACK_PATH = "/api/auth/google/callback";
 
 const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID?.trim();
-const JWT_SECRET = process.env.JWT_SECRET;
-const isProd = process.env.NODE_ENV === "production";
 
 const googleClient = new OAuth2Client(GOOGLE_CLIENT_ID);
-
-function signAccessToken(user) {
-  return jwt.sign(
-    {
-      id: user.id,
-      email: user.email,
-      name: user.name,
-      role: user.role || "user",
-    },
-    JWT_SECRET,
-    { expiresIn: "1h" }
-  );
-}
-
-function signRefreshToken(userId) {
-  return jwt.sign({ id: userId, type: "refresh" }, JWT_SECRET, {
-    expiresIn: "7d",
-  });
-}
-
-/** OAuth redirect responses need Lax so the session cookie sticks after Google's POST. */
-function setGoogleSessionCookies(res, tokens) {
-  const cookieBase = {
-    httpOnly: true,
-    secure: isProd,
-    sameSite: "lax",
-    path: "/",
-  };
-  res.cookie("synta_access", tokens.access_token, {
-    ...cookieBase,
-    maxAge: 60 * 60 * 1000,
-  });
-  if (tokens.refresh_token) {
-    res.cookie("synta_refresh", tokens.refresh_token, {
-      ...cookieBase,
-      maxAge: 7 * 24 * 60 * 60 * 1000,
-    });
-  }
-}
 
 async function authenticateWithGoogleCredential(credential) {
   if (typeof credential !== "string" || !credential) {
@@ -122,16 +82,9 @@ async function authenticateWithGoogleCredential(credential) {
     }
   }
 
-  const access_token = signAccessToken(user);
-  const refresh_token = signRefreshToken(user.id);
   const needsOnboarding = !user.phone || !user.class || !user.branch;
 
-  return {
-    user,
-    access_token,
-    refresh_token,
-    needsOnboarding,
-  };
+  return { user, needsOnboarding };
 }
 
 /**
@@ -144,10 +97,7 @@ router.post("/api/auth/google", async (req, res) => {
   }
   try {
     const result = await authenticateWithGoogleCredential(req.body?.credential);
-    setSessionCookies(res, {
-      access_token: result.access_token,
-      refresh_token: result.refresh_token,
-    });
+    await startSession(pool, res, result.user, { previousRefreshToken: req.cookies?.synta_refresh });
     return res.json({
       success: true,
       needsOnboarding: result.needsOnboarding,
@@ -173,7 +123,7 @@ router.post("/api/auth/google", async (req, res) => {
  * Must be listed in Google Cloud "Authorized redirect URIs":
  *   https://syntaacademy.tn/api/auth/google/callback
  */
-router.post("/api/auth/google/callback", async (req, res) => {
+router.post(GOOGLE_CALLBACK_PATH, async (req, res) => {
   try {
     const fromCookie = req.cookies?.g_csrf_token;
     const fromBody = req.body?.g_csrf_token;
@@ -186,12 +136,12 @@ router.post("/api/auth/google/callback", async (req, res) => {
       return res.redirect(303, "/login?google_error=" + encodeURIComponent("انتهت محاولة تسجيل الدخول. حاول مجدداً."));
     }
     const credential = req.body?.credential;
+    // Session cookies are SameSite=Lax so they are sent on the redirect that follows Google's cross-site POST.
     const result = await authenticateWithGoogleCredential(credential);
-    setGoogleSessionCookies(res, {
-      access_token: result.access_token,
-      refresh_token: result.refresh_token,
-    });
-    const next = result.needsOnboarding ? "/auth/complete-profile" : "/dashboard";
+    await startSession(pool, res, result.user, { previousRefreshToken: req.cookies?.synta_refresh });
+    const returnTo = safeReturnPath(req.cookies?.synta_next);
+    res.clearCookie("synta_next", { path: GOOGLE_CALLBACK_PATH });
+    const next = result.needsOnboarding ? "/auth/complete-profile" : returnTo || "/dashboard";
     return res.redirect(303, next);
   } catch (err) {
     if (!err.status || err.status >= 500) console.error("[google-auth] Callback failure:", err.code || 500);

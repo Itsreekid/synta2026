@@ -23,6 +23,7 @@ erDiagram
     users ||--o{ session_registrations : "linked to"
     users ||--o{ notifications : "receives"
     users ||--o{ lesson_feedback : "submits"
+    users ||--o{ refresh_tokens : "signs in with"
 
     courses ||--o{ course_modules : "organizes"
     modules ||--o{ course_modules : "reused by"
@@ -35,6 +36,7 @@ erDiagram
     lessons ||--o{ lesson_progress : "tracked by"
     lessons ||--o{ learning_resources : "has practice files"
     live_sessions ||--o{ learning_resources : "has practice files"
+    live_sessions ||--o{ zoom_recording_imports : "replay segments"
     lessons ||--o{ quiz_responses : "answered in"
     lessons ||--o{ lesson_feedback : "rated by"
 
@@ -344,6 +346,8 @@ Migration `202611100003_unique_active_offer_payments.sql` adds a partial unique 
 | `course_id` | UUID | NOT NULL REFERENCES courses(id) ON DELETE CASCADE | |
 | `offer_id` | UUID | NULLABLE REFERENCES offers(id) | If set, only offer enrollees see this session |
 | `audience_student_ids` | UUID[] | NULLABLE, nonempty when set | Further restricts access to the selected students with eligible enrollments |
+| `additional_offer_ids` | UUID[] | NULLABLE; when set: nonempty and `offer_id` NOT NULL | ⏸️ Held migration `202611200002`. An active purchase of ANY of these offers also grants access |
+| `granted_student_ids` | UUID[] | NULLABLE, nonempty when set | ⏸️ Held migration `202611200002`. Individual access without any purchase; bypasses the offer and audience checks for this session |
 | `title` | TEXT | NOT NULL | |
 | `description` | TEXT | NULLABLE | |
 | `scheduled_at` | TIMESTAMPTZ | NOT NULL | |
@@ -522,6 +526,53 @@ Placement email proofs bind this registration ID, purpose and the exact `updated
 
 ---
 
+### 2.21 `refresh_tokens`
+
+**Purpose:** Rotating refresh tokens for automatic session renewal (Batch 2B). Only the SHA-256 hash of each opaque token is stored; the raw value lives only in the student's HttpOnly `synta_refresh` cookie. All tokens issued from one sign-in share a `family_id`.
+
+| Column | Type | Constraints | Notes |
+|--------|------|-------------|-------|
+| `id` | UUID | PK DEFAULT gen_random_uuid() | |
+| `user_id` | UUID | NOT NULL FK → users(id) ON DELETE CASCADE | |
+| `family_id` | UUID | NOT NULL, indexed | One family per sign-in; revoked as a whole on logout or token reuse |
+| `token_hash` | TEXT | NOT NULL UNIQUE, CHECK 64 lowercase hex chars | SHA-256 of the token |
+| `created_at` | TIMESTAMPTZ | NOT NULL DEFAULT NOW() | |
+| `expires_at` | TIMESTAMPTZ | NOT NULL | Idle limit: 7 days after issue, never beyond `family_expires_at` |
+| `family_expires_at` | TIMESTAMPTZ | NOT NULL, CHECK `expires_at <= family_expires_at` | Absolute cap: 30 days after sign-in |
+| `used_at` | TIMESTAMPTZ | NULLABLE | Set when exchanged; a reuse more than 20 s later revokes the family |
+| `revoked_at` | TIMESTAMPTZ | NULLABLE | Set on logout, reuse detection, or a new sign-in from the same browser |
+
+**Not yet in production.** Created by `database/pending-migrations/202611200001_create_refresh_tokens.sql` (additive; no existing data touched). It is held outside `database/migrations/` so the Docker runner cannot apply it before owner approval. Expired rows for a user are deleted when that user next signs in. If the table is missing, sign-in still works as a plain one-hour session.
+
+---
+
+### 2.22 `zoom_recording_imports`
+
+**Purpose:** One row per Zoom cloud-recording MP4 segment, driving the durable Zoom → R2 import queue and the admin review of replays.
+
+| Column | Type | Constraints | Notes |
+|--------|------|-------------|-------|
+| `id` | UUID | PK DEFAULT gen_random_uuid() | |
+| `zoom_meeting_id` | TEXT | NOT NULL | Matches `live_sessions.zoom_meeting_id` |
+| `zoom_meeting_uuid` | TEXT | NOT NULL, indexed | One Zoom meeting instance |
+| `zoom_file_id` | TEXT | NOT NULL UNIQUE | Deduplicates repeated webhook deliveries |
+| `recording_type` | TEXT | NULLABLE | Preferred view chosen per segment |
+| `recording_start` / `recording_end` | TIMESTAMPTZ | start NOT NULL | Used to match the occurrence of a recurring meeting |
+| `file_size` | BIGINT | NULLABLE, CHECK > 0 when set | Verified against the stored R2 object |
+| `download_url` | TEXT | NOT NULL | 🔒 Zoom download link — never sent to students or the admin UI |
+| `live_session_id` | UUID | NULLABLE FK → live_sessions(id) ON DELETE SET NULL, indexed | NULL = unassigned, waiting for the admin |
+| `status` | TEXT | NOT NULL DEFAULT 'pending', CHECK in `pending`, `importing`, `needs_review`, `published`, `failed`, `discarded` | |
+| `review_reason` | TEXT | NULLABLE | `multiple_segments`, `replay_exists`, `no_matching_session`, `ambiguous_session`, `not_selected` |
+| `attempts` / `next_attempt_at` / `locked_until` | INTEGER NOT NULL DEFAULT 0 / TIMESTAMPTZ NOT NULL DEFAULT NOW() / TIMESTAMPTZ | | Retry schedule and worker lease; index on (`status`, `next_attempt_at`) |
+| `object_key` | TEXT | NULLABLE | Private R2 key under `live-replays/` |
+| `multipart_upload_id` / `bytes_transferred` | TEXT / BIGINT NOT NULL DEFAULT 0 | | Open R2 multipart upload (aborted on failure or restart) and progress |
+| `last_error` | TEXT | NULLABLE | Sanitized; never contains URLs or tokens |
+| `created_at` / `updated_at` | TIMESTAMPTZ | NOT NULL DEFAULT NOW() | |
+
+**Not yet in production.** Created by `database/pending-migrations/202611200003_create_zoom_recording_imports.sql` (additive). Without it the webhook answers 503 and no import runs. Published segments set `live_sessions.replay_url` to the earliest chosen key; with several published segments, students see « Partie 1 », « Partie 2 »…
+
+---
+
 ## 3. Migration Files Reference
 
 | File | Purpose | Status |
@@ -543,6 +594,9 @@ Placement email proofs bind this registration ID, purpose and the exact `updated
 | `202611050002_create_course_modules.sql` | Adds reusable course/module mapping and backfills placements | ✅ Applied by deployment runner |
 | `202611050003_add_lesson_quiz_content.sql` | Adds JSONB `lessons.content` for interactive quiz payloads | ⏳ Runs automatically on the next deployment; not applied yet |
 | `202611050004_create_learning_resources.sql` | Adds multiple file attachments for lessons and live sessions | ⏳ Runs automatically on the next deployment; not applied yet |
+| `pending-migrations/202611200001_create_refresh_tokens.sql` | Creates `refresh_tokens` for rotating session renewal (Batch 2B) | ⏸️ Held for owner approval; not in `migrations/`, so deployments do not apply it |
+| `pending-migrations/202611200002_extend_live_session_access.sql` | Adds `live_sessions.additional_offer_ids` and `granted_student_ids` | ⏸️ Held for owner approval; verified on disposable PostgreSQL 17.6 only |
+| `pending-migrations/202611200003_create_zoom_recording_imports.sql` | Creates `zoom_recording_imports` for automatic Zoom → R2 replays | ⏸️ Held for owner approval; verified on disposable PostgreSQL 17.6 only |
 | `add_offers_targeting.sql` | Adds `target_classes`, `target_branches` arrays to offers | ✅ Required |
 | `add_transaction_automation.sql` | UNKNOWN trigger/automation | NEEDS CLARIFICATION |
 | `create_live_sessions.sql` | Earlier version of live_sessions table | ⚠️ Superseded by schema_postgres.sql |

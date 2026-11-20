@@ -381,10 +381,6 @@ async function renderCourseInfo(course, totalLessons, hasAccess, courseProgress,
     const livesCount = document.getElementById('lives-count');
     if (livesCount) livesCount.textContent = liveCount === null ? '—' : liveCount;
 
-    // Update language (default to Arabe)
-    const courseLang = document.getElementById('course-language');
-    if (courseLang) courseLang.textContent = 'Arabe';
-
     const offersLink = document.getElementById('buy-button');
     if (offersLink) offersLink.hidden = Boolean(hasAccess);
 }
@@ -488,9 +484,23 @@ function driveReplayPreview(url) {
     return preview.href;
 }
 
-function openReplayPlayer(replayUrl, title, resources = [], sessionId = '') {
+async function reloadReplay(sessionId, partIndex = 0, resumeAt = 0) {
+    const request = ++lessonRequest;
+    const response = await fetch(`/api/live/course/${encodeURIComponent(currentCourse.id)}`, { credentials: 'include' });
+    if (!response.ok) throw new Error('Replay indisponible');
+    const sessions = await response.json();
+    const session = sessions.find(item => item.id === sessionId);
+    if (request !== lessonRequest) return;
+    if (!session?.replay_url) throw new Error('Replay indisponible');
+    currentLiveSessions = currentLiveSessions.map(item => item.id === sessionId ? { ...item, ...session } : item);
+    openReplayPlayer(session.replay_url, session.title, session.resources || [], sessionId, { partIndex, resumeAt });
+}
+
+function openReplayPlayer(replayUrl, title, resources = [], sessionId = '', { partIndex = 0, resumeAt = 0 } = {}) {
     lessonRequest++;
     document.querySelector('video.course-replay-player')?.pause();
+    const replayParts = currentLiveSessions.find(item => item.id === sessionId)?.replay_parts || [];
+    if (replayParts[partIndex]?.url) replayUrl = replayParts[partIndex].url;
     let parsed;
     try { parsed = new URL(replayUrl, window.location.href); } catch { return showError('Lien du replay invalide'); }
     if (!['http:', 'https:'].includes(parsed.protocol)) return showError('Lien du replay invalide');
@@ -570,22 +580,47 @@ function openReplayPlayer(replayUrl, title, resources = [], sessionId = '') {
         recordedAt.textContent = date.toLocaleDateString('fr-FR', { dateStyle: 'long', timeZone: 'Africa/Tunis' });
         details.appendChild(recordedAt);
     }
+    if (replayParts.length > 1) {
+        const partsNav = document.createElement('div');
+        partsNav.className = 'course-player-actions course-replay-parts';
+        replayParts.forEach((part, index) => {
+            const partButton = document.createElement('button');
+            partButton.type = 'button';
+            partButton.className = 'course-player-switch';
+            partButton.textContent = part.label || `Partie ${index + 1}`;
+            if (index === partIndex) partButton.setAttribute('aria-current', 'true');
+            partButton.addEventListener('click', () => {
+                if (index !== partIndex) openReplayPlayer(replayUrl, title, resources, sessionId, { partIndex: index });
+            });
+            partsNav.appendChild(partButton);
+        });
+        details.appendChild(partsNav);
+    }
     wrapper.append(heading, frame, details);
     courseMain.replaceChildren(wrapper);
     if (player instanceof HTMLVideoElement) {
-        prepareCourseVideo(player, parsed.href, async () => {
-            const request = ++lessonRequest;
+        if (resumeAt > 0) {
+            player.addEventListener('loadedmetadata', () => {
+                if (resumeAt < player.duration) player.currentTime = resumeAt;
+            }, { once: true });
+        }
+        const retry = async () => {
             try {
-                const response = await fetch(`/api/live/course/${encodeURIComponent(currentCourse.id)}`, { credentials: 'include' });
-                if (!response.ok) throw new Error('Replay indisponible');
-                const session = (await response.json()).find(item => item.id === sessionId);
-                if (request !== lessonRequest || !player.isConnected) return;
-                if (!session?.replay_url) throw new Error('Replay indisponible');
-                openReplayPlayer(session.replay_url, session.title, session.resources || [], sessionId);
+                await reloadReplay(sessionId, partIndex, Number.isFinite(player.currentTime) ? player.currentTime : 0);
             } catch {
-                if (request === lessonRequest) showError('Impossible de recharger le replay. Réessayez dans un instant.');
+                showError('Impossible de recharger le replay. Réessayez dans un instant.');
             }
-        });
+        };
+        // Signed links last one hour; a long class can outlive them, so renew once and resume.
+        const recover = () => {
+            const isPrivateLink = parsed.searchParams.has('X-Amz-Signature');
+            const last = Number(sessionStorage.getItem('replay-recover:' + sessionId) || 0);
+            if (!isPrivateLink || Date.now() - last < 60000) return false;
+            sessionStorage.setItem('replay-recover:' + sessionId, String(Date.now()));
+            retry();
+            return true;
+        };
+        prepareCourseVideo(player, parsed.href, retry, recover);
     }
 
     if (resources.length) details.appendChild(createResourceSection(resources, 'Fichiers utilisés pendant la séance'));
@@ -799,7 +834,7 @@ async function updateCourseProgress(userId, courseId) {
 /**
  * Show lesson video and attached resources in the course main area
  */
-function prepareCourseVideo(video, source, retry) {
+function prepareCourseVideo(video, source, retry, recover = () => false) {
     const status = document.createElement('div');
     status.className = 'course-video-status';
     const message = document.createElement('span');
@@ -830,6 +865,7 @@ function prepareCourseVideo(video, source, retry) {
     });
     video.addEventListener('error', () => {
         clearTimeout(timeout);
+        if (recover()) return;
         video.parentElement.hidden = true;
         showFailure();
     });
@@ -1638,11 +1674,13 @@ async function openQuizLesson(lessonId, loadedContent = null) {
         modal.setAttribute('aria-label', lesson.title || 'Mini-défi');
         modal.innerHTML = `
             <div class="video-modal-content quiz-modal-content">
+                <button type="button" class="quiz-close-button" aria-label="Quitter le quiz"><i class="fas fa-times" aria-hidden="true"></i></button>
                 <div class="quiz-time-track" aria-hidden="true"><div class="quiz-time-fill"></div></div>
                 <div id="quiz-content"></div>
             </div>
         `;
         const closeQuizModal = () => {
+            finished = true;
             clearInterval(timer);
             modal.remove();
             modal.removeEventListener('keydown', keepQuizFocus);
@@ -1650,6 +1688,11 @@ async function openQuizLesson(lessonId, loadedContent = null) {
             trigger?.focus();
         };
         const keepQuizFocus = event => {
+            if (event.key === 'Escape') {
+                event.preventDefault();
+                closeQuizModal();
+                return;
+            }
             if (event.key !== 'Tab') return;
             const controls = [...modal.querySelectorAll('button:not(:disabled), select:not(:disabled), a[href]')];
             const edge = event.shiftKey ? controls[0] : controls.at(-1);
@@ -1664,6 +1707,7 @@ async function openQuizLesson(lessonId, loadedContent = null) {
             document.querySelector('.mobile-menu-toggle')?.classList.remove('active');
         }
         modal.addEventListener('keydown', keepQuizFocus);
+        modal.querySelector('.quiz-close-button').addEventListener('click', closeQuizModal);
         document.body.appendChild(modal);
         document.querySelector('.content-wrapper')?.setAttribute('inert', '');
         renderQuestion();

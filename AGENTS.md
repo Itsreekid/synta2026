@@ -160,7 +160,8 @@ synta academy new/
 │   │   ├── enrollment.js       ← /api/enrollment/*
 │   │   ├── purchase.js         ← /api/purchase/* (JWT protected)
 │   │   ├── offers.js           ← /api/offers/*
-│   │   ├── live.js             ← /api/live/* (Zoom sessions)
+│   │   ├── live.js             ← /api/live/* (Zoom sessions, join check, recording review)
+│   │   ├── zoom-webhook.js     ← /api/zoom/webhook (signed Zoom events → recording import queue)
 │   │   ├── tracking.js         ← /api/tracking/* (quiz, progress)
 │   │   ├── admin-api.js        ← /api/admin/* (all admin operations)
 │   │   ├── session.js          ← /api/session/* (placement quiz)
@@ -172,10 +173,13 @@ synta academy new/
 │   │   ├── auth.js             ← Optional Bearer+Cookie auth middleware
 │   │   └── attachUserProfile.js ← Fetches DB profile for EJS templates
 │   ├── services/
-│   │   └── email.js            ← Resend email service (verification emails)
+│   │   ├── email.js            ← Resend email service (verification emails)
+│   │   ├── live-features.js    ← Startup detection of held live-session migrations
+│   │   ├── zoom-recordings.js  ← Zoom → R2 import queue, worker logic, segment review rules
+│   │   └── recording-worker.js ← In-process recording worker wired to Zoom and R2
 │   ├── utils/
 │   │   ├── r2Utils.js          ← R2 signed URL generation, upload, delete
-│   │   └── zoomClient.js       ← Zoom S2S OAuth, meeting create/delete
+│   │   └── zoomClient.js       ← Zoom S2S OAuth, meeting create/delete, recording download
 │   ├── views/                  ← EJS templates
 │   │   ├── pages/              ← App pages (dashboard, courses, auth, etc.)
 │   │   └── partials/           ← Shared EJS components (head, header, sidebar)
@@ -191,6 +195,7 @@ synta academy new/
 │   └── Dockerfile              ← Multi-stage Docker build (Node 20 Alpine)
 ├── database/                   ← SQL migration files
 │   ├── migrations/              ← Numbered incremental SQL files; applied by Docker before app start
+│   ├── pending-migrations/      ← Written but held for owner approval; never copied into the image or run
 │   ├── schema_postgres.sql     ← Base schema (self-hosted Postgres) — PRIMARY
 │   ├── add_google_auth.sql     ← Adds google_id to users
 │   ├── add_email_verification.sql ← Adds email_verified, token fields
@@ -214,7 +219,7 @@ synta academy new/
 |----|----------|-------------|
 | BUG-001 | FIXED 2026-11-05 | Purchase endpoints require JWT auth and derive user ID from `req.user.id` |
 | BUG-002 | FIXED 2026-11-05 | `/api/ai/debug` requires JWT auth |
-| BUG-003 | CRITICAL | Refresh token is issued but never consumed — 1-hour login window |
+| BUG-003 | FIXED 2026-11-20 | Rotating refresh tokens renew sessions (`services/sessions.js`); active only after the owner approves `database/pending-migrations/202611200001_create_refresh_tokens.sql` |
 | BUG-004 | HIGH | `users.debt`, `offers.*`, `transactions.*` columns added at runtime (schema drift risk) |
 | BUG-005 | HIGH | `session_registrations.auth_user_id` never set after account creation |
 | BUG-006 | HIGH | No password reset flow implemented despite page existing |

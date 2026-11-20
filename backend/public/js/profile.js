@@ -193,11 +193,6 @@ async function saveProfile() {
         // Get form values
         const fullName = document.getElementById('full-name')?.value.trim() || '';
         const phone = document.getElementById('phone')?.value.trim() || '';
-        const userClass = document.getElementById('user-class')?.value || '';
-        const userBranch = document.getElementById('user-branch')?.value || '';
-        const birthDate = document.getElementById('birth-date')?.value || null;
-        const country = document.getElementById('country')?.value || null;
-        const bio = document.getElementById('bio')?.value.trim() || null;
         
         // Validate required fields
         if (!fullName) {
@@ -208,12 +203,7 @@ async function saveProfile() {
         // Prepare update data
         const updates = {
             full_name: fullName,
-            phone: phone,
-            user_class: userClass,
-            user_branch: userBranch,
-            birth_date: birthDate,
-            country: country,
-            bio: bio
+            phone: phone
         };
         
         // Show loading state
@@ -232,7 +222,7 @@ async function saveProfile() {
                 showMessage('Modifications enregistrées avec succès!', 'success');
                 updateProfileInitial({ user_metadata: updates });
             } else {
-                showMessage('Erreur lors de l\'enregistrement des modifications', 'error');
+                showMessage(result.error && result.error !== 'Update failed' ? result.error : 'Erreur lors de l\'enregistrement des modifications', 'error');
             }
         } else {
             showMessage('Système d\'authentification non disponible', 'error');

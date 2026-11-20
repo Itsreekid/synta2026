@@ -66,8 +66,8 @@
 }
 
 .course-card {
-    width: 340px;
-    flex-shrink: 0;
+    width: auto;
+    min-width: 0;
     background: white;
     border-radius: 16px;
     overflow: hidden;
@@ -291,10 +291,23 @@
 .loading,
 .no-courses,
 .error-message {
+    grid-column: 1 / -1;
     text-align: center;
     padding: 3rem;
     color: #64748b;
     font-size: 1.1rem;
+}
+
+.clear-filters-btn {
+    min-height: 44px;
+    padding: 0 0.5rem;
+    border: none;
+    background: none;
+    color: #c2410c;
+    font: inherit;
+    font-weight: 700;
+    text-decoration: underline;
+    cursor: pointer;
 }
 
 .error-message button {
@@ -311,11 +324,8 @@
 
 @media (max-width: 768px) {
     .courses-container {
-        margin: 0.75rem;
-    }
-    
-    .courses-container {
-        padding: 1rem;
+        margin: 0;
+        padding: 0;
         overflow-y: visible;
     }
     
@@ -338,10 +348,6 @@
     .courses-list {
         grid-template-columns: 1fr;
         gap: 1rem;
-    }
-    
-    .course-card {
-        padding: 1rem;
     }
     
     .course-title {

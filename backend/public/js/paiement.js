@@ -41,10 +41,8 @@ document.addEventListener('DOMContentLoaded', async function () {
 async function loadUserData() {
     try {
         const user = await window.SyntaAPI.getCurrentUser();
-        if (!user) {
-            window.location.href = '../../pages/auth/login.html';
-            return;
-        }
+        // An expired session is handled by the session-expired dialog without leaving the wallet.
+        if (!user) return;
 
         // In a real app, you would fetch this from the database
         // For now, we'll use placeholder data
@@ -91,38 +89,20 @@ async function loadTransactions() {
 
         console.log('Loading transactions for user:', user.id);
 
-        // Fetch all wallet history from REST API (transactions + enrollments + payments)
-        const [txRes, enrollRes] = await Promise.allSettled([
-            fetch('/api/user/transactions', { credentials: 'same-origin' }).then(r => r.ok ? r.json() : []),
-            fetch('/api/enrollment/my-enrollments', { credentials: 'same-origin' }).then(r => r.ok ? r.json() : [])
-        ]);
+        // The wallet ledger is the transactions table: every purchase already writes one row there,
+        // so enrollments must not be added again.
+        const txRes = await fetch('/api/user/transactions', { credentials: 'same-origin' });
+        if (!txRes.ok) throw new Error('Historique indisponible');
+        const transactions = (await txRes.json()) || [];
 
-        const transactions = txRes.status === 'fulfilled' ? (txRes.value || []) : [];
-        const enrollments  = enrollRes.status === 'fulfilled' ? (enrollRes.value || []) : [];
-
-        // Combine and sort
-        const allTransactions = [
-            ...transactions.map(tx => ({
-                id: tx.transaction_code || tx.id,
-                type: tx.type,
-                amount: tx.amount,
-                date: tx.created_at,
-                status: tx.status,
-                payment_method: tx.payment_method || 'N/A',
-                isTransaction: true
-            })),
-            ...enrollments.map(enrollment => ({
-                id: enrollment.id,
-                type: 'Accès Cours',
-                amount: enrollment.amount_paid || 0,
-                date: enrollment.enrolled_at,
-                status: 'approved',
-                payment_method: 'Cours',
-                isTransaction: false,
-                isEnrollment: true,
-                enrollment: enrollment
-            }))
-        ].sort((a, b) => new Date(b.date) - new Date(a.date));
+        const allTransactions = transactions.map(tx => ({
+            id: tx.transaction_code || tx.id,
+            type: tx.type,
+            amount: tx.amount,
+            date: tx.created_at,
+            status: tx.status,
+            payment_method: tx.payment_method || (tx.type === 'purchase' ? 'Achat' : 'N/A')
+        })).sort((a, b) => new Date(b.date) - new Date(a.date));
 
         // Always show transactions (if any) plus the "Add" button
         const transactionsHtml = allTransactions.map(tx => {

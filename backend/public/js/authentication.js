@@ -169,7 +169,8 @@
             if (response.ok) {
                 return { success: true };
             }
-            return { success: false, error: 'Update failed' };
+            const data = await response.json().catch(() => ({}));
+            return { success: false, error: data.error || 'Update failed' };
         } catch (error) {
             return { success: false, error: 'Network error' };
         }

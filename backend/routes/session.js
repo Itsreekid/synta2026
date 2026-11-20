@@ -8,7 +8,7 @@ import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
 import crypto from "crypto";
 import { requireAdmin } from "../middleware/requireAdmin.js";
-import { setSessionCookies } from "../middleware/requireAuth.js";
+import { startSession } from "../services/sessions.js";
 import { authRateLimit } from "../middleware/authRateLimit.js";
 import { sendPlacementVerificationEmail } from "../services/email.js";
 
@@ -265,11 +265,9 @@ router.post("/set-password", authRateLimit(10), requirePlacement, async (req, re
        SET account_activated = true, auth_user_id = $2, updated_at = NOW() WHERE id = $1`,
       [req.placementId, user.id]
     );
-    const access_token = jwt.sign(user, JWT_SECRET, { expiresIn: "1h" });
-    const refresh_token = jwt.sign({ id: user.id, type: "refresh" }, JWT_SECRET, { expiresIn: "7d" });
     await client.query("COMMIT");
     res.clearCookie("synta_placement", placementCookie);
-    setSessionCookies(res, { access_token, refresh_token });
+    await startSession(pool, res, user);
     return res.json({ success: true, redirectUrl: "/dashboard" });
   } catch (err) {
     if (client) await client.query("ROLLBACK").catch(() => {});

@@ -51,7 +51,7 @@
                                 </div>
                                 <div class="form-group">
                                     <label for="user-class">Niveau scolaire</label>
-                                    <select id="user-class">
+                                    <select id="user-class" disabled aria-describedby="school-locked-hint">
                                         <option value="">Choisissez le niveau</option>
                                         <option value="1ere"  <%= (typeof profile !== 'undefined' && profile && profile.user_class === '1ere')  ? 'selected' : '' %>>1ère année</option>
                                         <option value="2eme"  <%= (typeof profile !== 'undefined' && profile && profile.user_class === '2eme')  ? 'selected' : '' %>>2ème année</option>
@@ -62,7 +62,7 @@
                                 </div>
                                 <div class="form-group">
                                     <label for="user-branch">Branche</label>
-                                    <select id="user-branch">
+                                    <select id="user-branch" disabled aria-describedby="school-locked-hint">
                                         <option value="">Choisissez la branche</option>
                                         <option value="lettres"       <%= (typeof profile !== 'undefined' && profile && profile.user_branch === 'lettres')       ? 'selected' : '' %>>Lettres</option>
                                         <option value="mathematiques" <%= (typeof profile !== 'undefined' && profile && profile.user_branch === 'mathematiques') ? 'selected' : '' %>>Mathématiques</option>
@@ -73,6 +73,7 @@
                                         <option value="other"         <%= (typeof profile !== 'undefined' && profile && profile.user_branch === 'other')         ? 'selected' : '' %>>Autre</option>
                                     </select>
                                 </div>
+                                <p class="form-hint" id="school-locked-hint">Pour changer de niveau ou de branche, contacte l'équipe Synta.</p>
                                 <button class="save-btn" onclick="saveProfile()">💾 Enregistrer les modifications</button>
                             </div>
                         </div>
@@ -86,49 +87,6 @@
                                 <span id="profile-initial">
                                     <%= (typeof profile !== 'undefined' && profile) ? profile.initial : 'U' %>
                                 </span>
-                            </div>
-                        </div>
-
-                        <!-- Quick Stats -->
-                        <div class="quick-stats">
-                            <h3>📊 Statistiques rapides</h3>
-                            <div class="stat-item">
-                                <span class="stat-label">Niveau actuel</span>
-                                <span class="stat-value" id="current-level">Débutant</span>
-                            </div>
-                            <div class="stat-item">
-                                <span class="stat-label">Points gagnés</span>
-                                <span class="stat-value" id="earned-points">0</span>
-                            </div>
-                            <div class="stat-item">
-                                <span class="stat-label">Jours actifs</span>
-                                <span class="stat-value" id="active-days">0</span>
-                            </div>
-                        </div>
-
-                        <!-- Achievements -->
-                        <div class="achievements-section">
-                            <h3>🏆 Dernières réalisations</h3>
-                            <div class="achievement-item unlocked">
-                                <span class="achievement-icon">🎯</span>
-                                <div class="achievement-info">
-                                    <h4>Débutant</h4>
-                                    <p>Complétez le premier cours</p>
-                                </div>
-                            </div>
-                            <div class="achievement-item locked">
-                                <span class="achievement-icon">🚀</span>
-                                <div class="achievement-info">
-                                    <h4>Persévérant</h4>
-                                    <p>Apprenez pendant 7 jours consécutifs</p>
-                                </div>
-                            </div>
-                            <div class="achievement-item locked">
-                                <span class="achievement-icon">👑</span>
-                                <div class="achievement-info">
-                                    <h4>Expert</h4>
-                                    <p>Complétez 5 cours</p>
-                                </div>
                             </div>
                         </div>
                     </div>

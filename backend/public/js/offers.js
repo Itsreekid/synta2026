@@ -67,7 +67,7 @@ async function initOffers() {
 
             // Use the separate config file for features and images
             let featureItems = [];
-            let offerImage = offer.image_url || '/source/algo2.gif';
+            let offerImage = offer.image_url || '/source/algo2.webp';
 
             if (window.OFFERS_FEATURES_CONFIG) {
                 featureItems = window.OFFERS_FEATURES_CONFIG.getFeatures(offer);
@@ -128,6 +128,8 @@ async function initOffers() {
                             data-offer-index="${index}">
                             ${timedUnavailable ? 'Indisponible' : renewable ? 'Renouvellement' : offer.is_purchased ? 'Déjà possédé' : (offer.can_purchase ? 'Acheter' : 'Solde insuffisant')}
                         </button>`}
+                        ${!scheduled && !timedUnavailable && !renewable && !offer.is_purchased && !offer.can_purchase
+                            ? '<a class="offer-topup-link" href="/app/paiement">Recharger mon portefeuille</a>' : ''}
                     </div>
                 </article>
             `;
@@ -244,14 +246,14 @@ async function subscribeToOffer(offerId, title, accessMode) {
         // Get current user from the REST API
         const userResp = await fetch('/api/user/me', { credentials: 'include' });
         if (!userResp.ok) {
-            showMessage('Veuillez vous connecter pour acheter un plan', 'error');
-            setTimeout(() => { window.location.href = '/login'; }, 2000);
+            // A 401 already opened the session-expired dialog; do not navigate away from the student's page.
+            if (userResp.status !== 401) showMessage('Impossible de vérifier ton compte. Réessaie dans un instant.', 'error');
             return;
         }
         const { user } = await userResp.json();
         if (!user) {
             showMessage('Veuillez vous connecter pour acheter un plan', 'error');
-            setTimeout(() => { window.location.href = '/login'; }, 2000);
+            setTimeout(() => { window.SyntaSession ? window.SyntaSession.redirectToLogin() : (window.location.href = '/login'); }, 2000);
             return;
         }
 

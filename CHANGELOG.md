@@ -1,5 +1,51 @@
 # CHANGELOG.md — Synta Academy
 
+## 2026-11-20 — Live sessions: multiple offers, individual access, automatic Zoom replays (uncommitted; migrations held)
+
+- A live session can accept several offers, and the admin can invite individual students without a purchase. Until held migration `202611200002` is applied, access stays exactly as before.
+- Students no longer receive the Zoom link in page data. « Rejoindre » opens `/api/live/:id/join`, which checks access and the join window (10 minutes before the start until the scheduled end) on the server.
+- Zoom cloud recordings are imported automatically into private R2 after `recording.completed`:
+  - A single segment is published straight away.
+  - Several segments wait for the admin, who chooses what to publish (shown as « Partie 1 », « Partie 2 ») and can delete unwanted segments from R2.
+  - Failures retry automatically or with « Réessayer », and imports resume after a restart.
+  - Zoom recordings are never deleted.
+  - This needs held migration `202611200003` and `ZOOM_RECORDING_IMPORT_ENABLED=true`.
+- The replay player fetches a fresh private link automatically when one expires.
+- Verified with fake Zoom and fake R2 on disposable PostgreSQL 17.6: 71/71 unit and database tests, 20/20 API end-to-end checks, 19/19 browser checks at 360, 390 and 1440 px, plus restart recovery.
+
+## 2026-11-20 — Launch fixes (feature freeze)
+
+- Wallet history lists each money movement once; course and offer purchases are no longer repeated from enrollments.
+- Removed three publicly downloadable scratch files, including an old events file containing past Zoom links.
+- The admin payments page shows older « approved » deposits as « Confirmé » instead of « Rejeté ».
+- Hid the synthetic XP, levels and badges on the dashboard and profile. The course page now labels its counter « Replays » and no longer shows a hard-coded language.
+- Verified the launch flow end to end on a disposable PostgreSQL 17 database (36/36): registration, offers with several courses, chapters, video replays and quizzes, wallet purchase, targeted Zoom sessions on the Dashboard and Calendar, and admin–student sync.
+
+## 2026-11-20 — Automatic session renewal (Batch 2B)
+
+- Students stay signed in while they keep using Synta. The session ends after 7 days without a visit, and always 30 days after signing in. An expired access token is renewed on the next page or API request, with no dialog or reload.
+- Refresh tokens are now random values stored only as SHA-256 hashes in the new `refresh_tokens` table, and each one works once. Reusing an old token ends every session from that sign-in; logout revokes the session on the server.
+- Session cookies use `SameSite=Lax`, so links from WhatsApp or email keep students signed in.
+- Refresh tokens from before this release are accepted once and converted, so the release logs nobody out. Admin "log in as student" sessions do not renew.
+- New migration held in `database/pending-migrations/202611200001_create_refresh_tokens.sql` (additive) so deployments cannot apply it. Renewal activates only after the owner moves it into `database/migrations/`; until then, sign-in works as before with one-hour sessions.
+
+## 2026-11-20 — Session expiry and recovery (Batch 2A)
+
+- Students whose session has ended are sent to `/login?next=<page>` with a French notice and return to that page after logging in with email, Google popup, or Google on iPhone/iPad. Destinations are limited to `/dashboard` and `/app/...`.
+- While studying, an expired session opens one « Session expirée » dialog instead of silently failing or redirecting. A banner warns 5 minutes before the end. Lesson-progress and quiz-answer saves that failed are replayed once after re-login.
+- `/login` and `requireAuth` now share one token check, so they can never redirect a student back and forth. Old login redirects in the catalog, offers and wallet no longer pull the student off the page.
+- Unchanged: token lifetimes, cookie flags and signing. Session renewal is still pending approval (roadmap P0-4).
+
+## 2026-11-20 — Student experience audit and quick wins
+
+- Audit: added `docs/SYNTA_PLATFORM_AUDIT.md` and `docs/STUDENT_UX_ROADMAP.md`.
+- Live sessions stay listed on the dashboard and calendar until their scheduled duration ends. Students can join 10 minutes before the start. The calendar fully reloads under Turbo, uses `duration_minutes`, and shows French countdown and status text.
+- Students can no longer change their class or section. Profile saves validate the Tunisian phone, keep it when the field is empty, and show the server's error message.
+- Catalog chips use the stored categories. A search or filter with no results offers to clear the filters, and finished courses show « Terminé ». Cards fit 360 px phones.
+- Quizzes can be closed with a button or Escape. Offers with insufficient balance link to the wallet, and the stray CSS brace hiding the price layout is fixed.
+- Lighter images: a 6 KB favicon, a 6 KB sidebar logo, the WebP offer fallback (was a 22 MB GIF) and the WebP slogan.
+- The sidebar has Profile and Contact entries, marks the active page with `aria-current`, and scrolls on short screens.
+
 ## 2026-11-14 — Student path cleanup
 
 - Removed the lesson-feedback button and API. Progress is now saved only for lessons the student can access.

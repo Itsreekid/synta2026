@@ -33,7 +33,7 @@
                 button.inert = false;
                 return;
             }
-            window.location.assign(result.needsOnboarding ? '/auth/complete-profile' : '/dashboard');
+            window.location.assign(result.needsOnboarding ? '/auth/complete-profile' : window.syntaReturnPath?.() || '/dashboard');
         } catch {
             status.textContent = 'Connexion interrompue. Réessaie dans un instant.';
             button.inert = false;
@@ -51,6 +51,13 @@
 
         const appleTouch = /iPad|iPhone|iPod/.test(navigator.userAgent) ||
             (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+        const returnPath = window.syntaReturnPath?.();
+        if (appleTouch && returnPath) {
+            // Google posts back cross-site, so the hint needs SameSite=None (Secure) on HTTPS; the server re-validates it.
+            const https = window.location.protocol === 'https:';
+            document.cookie = 'synta_next=' + encodeURIComponent(returnPath) + '; Max-Age=600; Path=/api/auth/google/callback; '
+                + (https ? 'SameSite=None; Secure' : 'SameSite=Lax');
+        }
         accounts.initialize({
             client_id: clientId,
             ...(appleTouch

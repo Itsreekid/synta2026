@@ -228,6 +228,10 @@
 
 <!-- Sessions List -->
 <div class="content">
+    <div id="recordings-review-section" hidden>
+        <div class="section-title"><i class="fas fa-film"></i> Enregistrements Zoom à attribuer</div>
+        <div id="recordings-review"></div>
+    </div>
     <div id="sessions-live-section" style="display:none">
         <div class="section-title"><i class="fas fa-circle" style="color:#38a169;font-size:0.7rem"></i> En direct maintenant</div>
         <div id="sessions-live"></div>
@@ -286,6 +290,10 @@
                 <option value="">— Accès libre pour les inscrits du cours —</option>
             </select>
         </div>
+        <div class="form-group" id="extra-offers-group" hidden>
+            <label>Offres supplémentaires <span style="color:#718096;font-weight:400">(facultatif — tout acheteur actif d’une offre cochée peut rejoindre)</span></label>
+            <div id="extra-offer-options" style="max-height:9rem;overflow:auto"></div>
+        </div>
         <div class="form-group">
             <label>Cours associé *</label>
             <select id="f-course">
@@ -303,6 +311,12 @@
                 <p id="student-picker-status" role="status"></p>
                 <div id="student-options" style="max-height:12rem;overflow:auto"></div>
             </div>
+        </div>
+        <div class="form-group" id="granted-group" hidden>
+            <label for="granted-search">Accès individuel <span style="color:#718096;font-weight:400">(facultatif — même sans achat d’offre)</span></label>
+            <input type="search" id="granted-search" placeholder="Rechercher un étudiant par nom ou e-mail">
+            <div id="granted-options" style="max-height:10rem;overflow:auto;margin-top:0.4rem"></div>
+            <p id="granted-selected" style="font-size:0.82rem;color:#4a5568"></p>
         </div>
         <div class="form-group">
             <label>Description (optionnel)</label>
@@ -394,8 +408,197 @@ document.addEventListener('DOMContentLoaded', async () => {
     document.getElementById('f-datetime').value =
         `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}T${pad(now.getHours())}:00`;
 
+    await loadFeatures();
     await Promise.all([loadSessions(), loadOffers(), loadCourses()]);
 });
+
+// ── Optional features (enabled once their database update is applied) ──
+let liveFeatures = { extendedAccess: false, recordings: false };
+let allRecordings = [];
+const grantedSelection = new Map();
+let grantedRequest = 0;
+
+async function loadFeatures() {
+    try {
+        const res = await fetch(`${API}/api/live/admin/features`, { credentials: 'include' });
+        if (res.ok) liveFeatures = await res.json();
+    } catch { /* keep defaults */ }
+    document.getElementById('granted-group').hidden = !liveFeatures.extendedAccess;
+    updateExtraOffers();
+    if (liveFeatures.extendedAccess) searchGrantedStudents();
+}
+
+function updateExtraOffers() {
+    const primary = document.getElementById('f-offer').value;
+    const group = document.getElementById('extra-offers-group');
+    const box = document.getElementById('extra-offer-options');
+    group.hidden = !liveFeatures.extendedAccess || !primary;
+    const checked = new Set(Array.from(box.querySelectorAll('input:checked'), input => input.value));
+    box.replaceChildren(...allOffers.filter(offer => offer.id !== primary).map(offer => {
+        const label = document.createElement('label');
+        label.style.display = 'block';
+        const input = document.createElement('input');
+        input.type = 'checkbox';
+        input.value = offer.id;
+        input.style.width = 'auto';
+        input.checked = checked.has(offer.id);
+        label.append(input, ` ${offer.title}`);
+        return label;
+    }));
+}
+document.getElementById('f-offer').addEventListener('change', updateExtraOffers);
+
+function renderGrantedSummary() {
+    const names = [...grantedSelection.values()];
+    document.getElementById('granted-selected').textContent = names.length
+        ? `${names.length} étudiant(s) invité(s) : ${names.join(', ')}` : '';
+}
+
+let grantedTimer;
+document.getElementById('granted-search').addEventListener('input', () => {
+    clearTimeout(grantedTimer);
+    grantedTimer = setTimeout(searchGrantedStudents, 250);
+});
+
+async function searchGrantedStudents() {
+    const request = ++grantedRequest;
+    const box = document.getElementById('granted-options');
+    const q = document.getElementById('granted-search').value.trim();
+    try {
+        const res = await fetch(`${API}/api/live/admin/students?${new URLSearchParams({ q })}`, { credentials: 'include' });
+        if (!res.ok) throw new Error();
+        const students = await res.json();
+        if (request !== grantedRequest) return;
+        box.replaceChildren(...students.map(student => {
+            const label = document.createElement('label');
+            label.style.display = 'block';
+            const input = document.createElement('input');
+            input.type = 'checkbox';
+            input.style.width = 'auto';
+            input.checked = grantedSelection.has(student.id);
+            const name = student.name || student.email;
+            input.addEventListener('change', () => {
+                if (input.checked) grantedSelection.set(student.id, name); else grantedSelection.delete(student.id);
+                renderGrantedSummary();
+            });
+            label.append(input, ` ${name} (${student.email})`);
+            return label;
+        }));
+    } catch {
+        if (request === grantedRequest) box.textContent = 'Impossible de charger les étudiants.';
+    }
+}
+
+async function loadRecordings() {
+    if (!liveFeatures.recordings) { allRecordings = []; return; }
+    try {
+        const res = await fetch(`${API}/api/live/admin/recordings`, { credentials: 'include' });
+        allRecordings = res.ok ? await res.json() : [];
+    } catch { allRecordings = []; }
+}
+
+const RECORDING_REASONS = {
+    multiple_segments: 'Plusieurs segments : choisissez ceux à publier.',
+    replay_exists: 'Un replay existe déjà : publiez pour le remplacer.',
+    no_matching_session: 'Séance non identifiée automatiquement.',
+    ambiguous_session: 'Plusieurs séances possibles : choisissez la bonne.',
+    not_selected: 'Non publié.',
+};
+
+function formatSize(bytes) {
+    const n = Number(bytes) || 0;
+    return n >= 1024 ** 3 ? `${(n / 1024 ** 3).toFixed(2)} Go` : `${Math.max(1, Math.round(n / 1024 ** 2))} Mo`;
+}
+
+function segmentLine(rec, { selectable }) {
+    const start = new Date(rec.recording_start);
+    const end = rec.recording_end ? new Date(rec.recording_end) : null;
+    const time = start.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }) +
+        (end ? ' – ' + end.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }) : '');
+    let state;
+    if (rec.status === 'pending') state = rec.attempts ? `Nouvel essai prévu (${rec.attempts}/6)` : 'En attente de transfert';
+    else if (rec.status === 'importing') state = `Import Zoom → R2 ${rec.file_size ? Math.min(99, Math.floor(100 * rec.bytes_transferred / rec.file_size)) + ' %' : ''}`;
+    else if (rec.status === 'published') state = '✅ Replay prêt';
+    else if (rec.status === 'failed') state = `❌ Échec : ${escT(rec.last_error || 'erreur inconnue')}`;
+    else state = `⚠️ ${escT(RECORDING_REASONS[rec.review_reason] || 'À vérifier')}`;
+    const stored = rec.status === 'needs_review' || rec.status === 'published';
+    return `<div class="session-resource-item" data-recording="${rec.id}">
+        <span>${selectable && stored ? `<input type="checkbox" class="recording-pick" value="${rec.id}" ${rec.status === 'published' ? 'checked' : ''} style="width:auto">` : ''}
+        <i class="fas fa-film"></i> ${time}${rec.file_size ? ' · ' + formatSize(rec.file_size) : ''} · ${state}</span>
+        <span style="display:flex;gap:0.4rem">
+            ${rec.preview_url ? `<a class="btn-secondary" href="${escT(rec.preview_url)}" target="_blank" rel="noopener noreferrer">Aperçu</a>` : ''}
+            ${rec.status === 'failed' ? `<button class="btn-secondary" onclick="retryRecording('${rec.id}')">Réessayer</button>` : ''}
+            ${rec.status === 'needs_review' || rec.status === 'failed' ? `<button class="btn-danger" title="Supprimer ce segment de R2 (l’original reste sur Zoom)" onclick="deleteRecording('${rec.id}')"><i class="fas fa-trash"></i></button>` : ''}
+        </span>
+    </div>`;
+}
+
+function recordingBlock(session, status) {
+    if (!liveFeatures.recordings) return '';
+    const recs = allRecordings.filter(rec => rec.live_session_id === session.id)
+        .sort((a, b) => new Date(a.recording_start) - new Date(b.recording_start));
+    if (!recs.length) {
+        const ended = new Date(session.scheduled_at).getTime() + session.duration_minutes * 60000;
+        return status === 'completed' && !session.replay_url && Date.now() - ended < 3 * 86400000
+            ? '<div class="session-resource-list"><strong>Enregistrement Zoom</strong><div class="session-resource-item"><span>⏳ En attente de l’enregistrement Zoom</span></div></div>'
+            : '';
+    }
+    const reviewable = recs.some(rec => rec.status === 'needs_review');
+    return `<div class="session-resource-list" id="recordings-${session.id}"><strong>Enregistrement Zoom</strong>
+        ${recs.map(rec => segmentLine(rec, { selectable: reviewable })).join('')}
+        ${reviewable ? `<button class="btn-primary" style="margin-top:0.5rem" onclick="publishRecordings('${session.id}')">Publier la sélection</button>` : ''}
+    </div>`;
+}
+
+function renderUnassignedRecordings() {
+    const section = document.getElementById('recordings-review-section');
+    const unassigned = allRecordings.filter(rec => !rec.live_session_id);
+    section.hidden = !unassigned.length;
+    document.getElementById('recordings-review').innerHTML = unassigned.map(rec => {
+        const options = allSessions.filter(s => s.zoom_meeting_id === rec.zoom_meeting_id)
+            .map(s => `<option value="${s.id}">${escT(s.title)} — ${new Date(s.scheduled_at).toLocaleString('fr-FR', { dateStyle: 'medium', timeStyle: 'short' })}</option>`).join('');
+        return `<div class="session-card"><div>${segmentLine(rec, { selectable: false })}
+            ${rec.status === 'needs_review' ? `<div style="display:flex;gap:0.5rem;margin-top:0.5rem;flex-wrap:wrap">
+                <select id="assign-${rec.id}" style="max-width:100%">${options || '<option value="">Aucune séance Zoom correspondante</option>'}</select>
+                <button class="btn-primary" onclick="assignRecording('${rec.id}')">Publier dans cette séance</button></div>` : ''}
+        </div></div>`;
+    }).join('');
+}
+
+async function recordingAction(url, options, success) {
+    try {
+        const res = await fetch(url, { credentials: 'include', ...options });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(data.error || 'Action impossible');
+        showToast(success, 'success');
+        await loadSessions();
+    } catch (error) { showToast(error.message, 'error'); }
+}
+
+function publishRecordings(sessionId) {
+    const importIds = Array.from(document.querySelectorAll(`#recordings-${sessionId} .recording-pick:checked`), input => input.value);
+    if (!importIds.length) return showToast('Cochez au moins un segment à publier.', 'error');
+    recordingAction(`${API}/api/live/admin/recordings/publish`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ sessionId, importIds })
+    }, 'Replay publié pour les étudiants autorisés.');
+}
+
+function assignRecording(importId) {
+    const sessionId = document.getElementById(`assign-${importId}`)?.value;
+    if (!sessionId) return showToast('Aucune séance à associer.', 'error');
+    recordingAction(`${API}/api/live/admin/recordings/publish`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ sessionId, importIds: [importId] })
+    }, 'Replay publié dans la séance choisie.');
+}
+
+function retryRecording(importId) {
+    recordingAction(`${API}/api/live/admin/recordings/${encodeURIComponent(importId)}/retry`, { method: 'POST' }, 'Import relancé.');
+}
+
+function deleteRecording(importId) {
+    if (!confirm('Supprimer ce segment de R2 ? L’enregistrement original reste disponible sur Zoom.')) return;
+    recordingAction(`${API}/api/live/admin/recordings/${encodeURIComponent(importId)}`, { method: 'DELETE' }, 'Segment supprimé de R2.');
+}
 
 // ── Load Sessions ─────────────────────────────────────────────────────
 async function loadSessions() {
@@ -405,7 +608,9 @@ async function loadSessions() {
         });
         if (res.status === 401) { document.getElementById('sessions-list').innerHTML = '<div class="empty-state"><i class="fas fa-lock"></i><p>Accès réservé aux administrateurs.</p></div>'; return; }
         allSessions = await res.json();
+        await loadRecordings();
         renderSessions();
+        renderUnassignedRecordings();
     } catch (e) {
         document.getElementById('sessions-list').innerHTML = '<div class="empty-state"><i class="fas fa-exclamation-triangle"></i><p>Erreur de chargement.</p></div>';
     }
@@ -474,9 +679,12 @@ function renderCard(s, status) {
     const audienceBadge = audienceCount
         ? `<span class="meta-chip badge-offer">${audienceCount === 1 ? 'Individuel' : `Groupe · ${audienceCount} étudiants`}</span>`
         : '';
-    const offerBadge = s.offer_id
-        ? `<span class="meta-chip badge-offer"><i class="fas fa-ticket-alt"></i> Offre requise</span>`
-        : audienceCount ? '' : '<span class="meta-chip"><i class="fas fa-users"></i> Inscrits au cours</span>';
+    const extraOffers = s.additional_offer_ids?.length || 0;
+    const grantedCount = s.granted_student_ids?.length || 0;
+    const offerBadge = (s.offer_id
+        ? `<span class="meta-chip badge-offer"><i class="fas fa-ticket-alt"></i> Offre requise${extraOffers ? ` + ${extraOffers} autre(s)` : ''}</span>`
+        : audienceCount || grantedCount ? '' : '<span class="meta-chip"><i class="fas fa-users"></i> Inscrits au cours</span>')
+        + (grantedCount ? `<span class="meta-chip badge-offer"><i class="fas fa-user-check"></i> ${grantedCount} accès individuel(s)</span>` : '');
 
     const hostBtn = s.has_host_link
         ? `<a href="/admin/sessions/${encodeURIComponent(s.id)}/host" target="_blank" rel="noopener noreferrer" class="btn-host"><i class="fas fa-video"></i> Lancer (Hôte)</a>`
@@ -507,6 +715,7 @@ function renderCard(s, status) {
             ${status !== 'completed' ? `<button class="btn-danger" onclick="deleteSession('${s.id}')"><i class="fas fa-trash"></i></button>` : ''}
             ${status !== 'completed' && hasUpcomingSibling ? `<button class="btn-secondary" onclick="deleteSession('${s.id}', true)">Annuler la série</button>` : ''}
         </div>
+        ${recordingBlock(s, status)}
         ${(s.resources || []).length ? `<div class="session-resource-list"><strong>Fichiers de la séance</strong>${s.resources.map(resource => `<div class="session-resource-item"><span><i class="fas fa-file-code"></i> ${escT(resource.title || resource.file_name)}</span><button class="btn-danger" title="Supprimer le fichier" onclick="deleteSessionResource('${resource.id}')"><i class="fas fa-trash"></i></button></div>`).join('')}</div>` : ''}
     </div>`;
 }
@@ -637,6 +846,7 @@ async function loadOffers() {
             opt.textContent = `${o.title} (${o.fixed_price || o.price || 0} DT)`;
             sel.appendChild(opt);
         });
+        updateExtraOffers();
     } catch (e) { console.warn('Could not load offers:', e.message); }
 }
 
@@ -727,6 +937,10 @@ async function createSession() {
                 courseId,
                 offerId: offerId || null,
                 audienceStudentIds,
+                ...(liveFeatures.extendedAccess ? {
+                    additionalOfferIds: offerId ? Array.from(document.querySelectorAll('#extra-offer-options input:checked'), input => input.value) : [],
+                    grantedStudentIds: [...grantedSelection.keys()],
+                } : {}),
                 title,
                 description,
                 startTimes,
@@ -740,6 +954,9 @@ async function createSession() {
 
         closeCreateModal();
         studentOptions.querySelectorAll('input:checked').forEach(input => { input.checked = false; });
+        document.querySelectorAll('#extra-offer-options input:checked, #granted-options input:checked').forEach(input => { input.checked = false; });
+        grantedSelection.clear();
+        renderGrantedSummary();
         showToast('✅ Séance créée et planifiée sur Zoom !', 'success');
         await loadSessions();
     } catch (e) {

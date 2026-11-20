@@ -4,6 +4,11 @@
 
     const form = document.querySelector('#loginForm, #registerForm, #completeProfileForm');
     if (!form) return;
+    // The server only renders validated /dashboard or /app/ paths into data-next.
+    window.syntaReturnPath = () => {
+        const next = form.dataset.next || '';
+        return /^\/(dashboard|app\/)/.test(next) && !next.startsWith('//') ? next : '';
+    };
     const register = form.id === 'registerForm';
     const profileOnly = form.id === 'completeProfileForm';
     let step = 1;
@@ -231,7 +236,7 @@
 
             if (result.success) {
                 if (register) showVerification(email, true);
-                else { navigating = true; window.location.assign('/dashboard'); }
+                else { navigating = true; window.location.assign(window.syntaReturnPath?.() || '/dashboard'); }
             } else if (result.unverified) showVerification(email, false);
             else message(result.message || 'Impossible de continuer pour le moment. Réessaie dans un instant.');
         } catch {

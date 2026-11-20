@@ -50,7 +50,7 @@ async function initializeCalendar() {
                         date: localDate.toISOString().split('T')[0],
                         time: d.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }),
                         description: ev.course?.title || ev.course_title || ev.description || '',
-                        zoomLink: ev.zoom_join_url || ''
+                        zoomLink: ev.join_url || ''
                     };
                 });
             } else {
@@ -382,15 +382,12 @@ function showEventDetails(event, date) {
 
     const dateString = `${dayNames[date.getDay()]}, ${date.getDate()} ${monthNames[date.getMonth()]} ${date.getFullYear()}`;
 
-    // Parse event date and time
-    const eventDateTime = new Date(`${event.date}T${event.time}:00`);
+    const eventDateTime = event.scheduled_at ? new Date(event.scheduled_at) : new Date(`${event.date}T${event.time}:00`);
     const now = new Date();
     const isEventLive = now >= eventDateTime;
-
-    // Check if session has ended (1.5 hours = 90 minutes after start)
-    const sessionDuration = 90 * 60 * 1000; // 90 minutes in milliseconds
-    const sessionEndTime = new Date(eventDateTime.getTime() + sessionDuration);
+    const sessionEndTime = getSessionEndTime(event, eventDateTime);
     const isSessionEnded = now >= sessionEndTime;
+    const canJoin = now >= new Date(eventDateTime.getTime() - JOIN_EARLY_MS) && !isSessionEnded;
 
     // Handle both object and string description formats
     let descriptionHTML = '';
@@ -410,7 +407,7 @@ function showEventDetails(event, date) {
         btn.className = 'modal-btn modal-btn-primary';
         btn.id = 'join-btn';
         btn.textContent = '🎥 Rejoindre';
-        btn.disabled = !isEventLive || isSessionEnded;
+        btn.disabled = !canJoin;
         btn.addEventListener('click', () => joinZoomSession(event.zoomLink));
         // We'll inject this real element after setting innerHTML on modalBody below
         zoomButton = btn; // Pass the real DOM node
@@ -419,9 +416,9 @@ function showEventDetails(event, date) {
     // Generate countdown or live badge
     let countdownOrBadge = '';
     if (isSessionEnded) {
-        countdownOrBadge = '<div class="event-live-badge ended">انتهت الحصة</div>';
+        countdownOrBadge = '<div class="event-live-badge ended">Séance terminée</div>';
     } else if (isEventLive) {
-        countdownOrBadge = '<div class="event-live-badge">🔴 البث مباشر الآن</div>';
+        countdownOrBadge = '<div class="event-live-badge">🔴 En direct maintenant</div>';
     } else {
         countdownOrBadge = '<div class="countdown-timer" id="countdown-timer"></div>';
     }
@@ -439,9 +436,9 @@ function showEventDetails(event, date) {
 
     const badgeWrapper = document.createElement('div');
     if (isSessionEnded) {
-        badgeWrapper.innerHTML = '<div class="event-live-badge ended">انتهت الحصة</div>';
+        badgeWrapper.innerHTML = '<div class="event-live-badge ended">Séance terminée</div>';
     } else if (isEventLive) {
-        badgeWrapper.innerHTML = '<div class="event-live-badge">🔴 البث مباشر الآن</div>';
+        badgeWrapper.innerHTML = '<div class="event-live-badge">🔴 En direct maintenant</div>';
     } else {
         const countdown = document.createElement('div');
         countdown.className = 'countdown-timer';
@@ -479,7 +476,7 @@ function showEventDetails(event, date) {
     const calBtn = document.createElement('button');
     calBtn.className = 'modal-btn modal-btn-secondary';
     calBtn.textContent = 'Ajouter à calendrier';
-    calBtn.addEventListener('click', () => addToCalendar(event.title, event.date, event.time));
+    calBtn.addEventListener('click', () => addToCalendar(event.title, eventDateTime, sessionEndTime));
 
     const closeBtn = document.createElement('button');
     closeBtn.className = 'modal-btn modal-btn-secondary';
@@ -506,7 +503,7 @@ function showEventDetails(event, date) {
 
     // Start countdown if event is not live yet
     if (!isEventLive) {
-        startCountdown(eventDateTime, event.zoomLink);
+        startCountdown(eventDateTime, sessionEndTime);
     } else if (!isSessionEnded) {
         // If event is live but not ended, start monitoring for session end
         startSessionEndMonitor(sessionEndTime);
@@ -515,6 +512,12 @@ function showEventDetails(event, date) {
 
 var countdownInterval = null;
 var sessionEndInterval = null;
+var JOIN_EARLY_MS = 10 * 60 * 1000;
+
+function getSessionEndTime(event, eventDateTime) {
+    const minutes = Number(event.duration_minutes) > 0 ? Number(event.duration_minutes) : 60;
+    return new Date(eventDateTime.getTime() + minutes * 60 * 1000);
+}
 
 window.closeModal = function() {
     const modal = document.getElementById('event-modal');
@@ -535,7 +538,7 @@ window.closeModal = function() {
     }
 }
 
-function startCountdown(eventDateTime, zoomLink) {
+function startCountdown(eventDateTime, sessionEndTime) {
     const countdownTimer = document.getElementById('countdown-timer');
     const joinBtn = document.getElementById('join-btn');
 
@@ -550,17 +553,13 @@ function startCountdown(eventDateTime, zoomLink) {
         const now = new Date();
         const distance = eventDateTime - now;
 
+        if (joinBtn && distance <= JOIN_EARLY_MS) joinBtn.disabled = false;
+
         // If countdown is finished
         if (distance < 0) {
             clearInterval(countdownInterval);
-            countdownTimer.innerHTML = '<div class="event-live-badge">🔴 البث مباشر الآن</div>';
-
-            // Start monitoring for session end (90 minutes after event start)
-            const sessionEndTime = new Date(eventDateTime.getTime() + (90 * 60 * 1000));
+            countdownTimer.innerHTML = '<div class="event-live-badge">🔴 En direct maintenant</div>';
             startSessionEndMonitor(sessionEndTime);
-            if (joinBtn) {
-                joinBtn.disabled = false;
-            }
             return;
         }
 
@@ -570,27 +569,26 @@ function startCountdown(eventDateTime, zoomLink) {
         const minutes = Math.floor((distance % (1000 * 60 * 60)) / (1000 * 60));
         const seconds = Math.floor((distance % (1000 * 60)) / 1000);
 
-        // Display countdown in Arabic
         countdownTimer.innerHTML = `
-            <div class="countdown-title">⏰ الوقت المتبقي للبث المباشر</div>
+            <div class="countdown-title">⏰ Début de la séance dans</div>
             <div class="countdown-display">
                 ${days > 0 ? `
                 <div class="countdown-unit">
                     <span class="countdown-value">${days}</span>
-                    <span class="countdown-label">يوم</span>
+                    <span class="countdown-label">j</span>
                 </div>
                 ` : ''}
                 <div class="countdown-unit">
                     <span class="countdown-value">${String(hours).padStart(2, '0')}</span>
-                    <span class="countdown-label">ساعة</span>
+                    <span class="countdown-label">h</span>
                 </div>
                 <div class="countdown-unit">
                     <span class="countdown-value">${String(minutes).padStart(2, '0')}</span>
-                    <span class="countdown-label">دقيقة</span>
+                    <span class="countdown-label">min</span>
                 </div>
                 <div class="countdown-unit">
                     <span class="countdown-value">${String(seconds).padStart(2, '0')}</span>
-                    <span class="countdown-label">ثانية</span>
+                    <span class="countdown-label">s</span>
                 </div>
             </div>
         `;
@@ -618,7 +616,7 @@ function startSessionEndMonitor(sessionEndTime) {
             // Update the live badge
             const liveBadge = document.querySelector('.event-live-badge');
             if (liveBadge) {
-                liveBadge.innerHTML = 'انتهت الحصة';
+                liveBadge.textContent = 'Séance terminée';
                 liveBadge.classList.remove('live');
                 liveBadge.classList.add('ended');
             }
@@ -638,10 +636,7 @@ function startSessionEndMonitor(sessionEndTime) {
     sessionEndInterval = setInterval(checkSessionEnd, 60000); // Check every minute
 }
 
-function addToCalendar(title, date, time) {
-    // Create an ICS file for calendar download
-    const eventDate = new Date(`${date}T${time}`);
-    const endDate = new Date(eventDate.getTime() + 60 * 60 * 1000); // 1 hour duration
+function addToCalendar(title, eventDate, endDate) {
 
     const formatICSDate = (date) => {
         return date.toISOString().replace(/[-:]/g, '').split('.')[0] + 'Z';

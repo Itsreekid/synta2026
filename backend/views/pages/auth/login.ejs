@@ -12,12 +12,12 @@
             <header class="auth-topbar"><a class="mobile-brand brand" href="/"><img class="brand-logo" src="/source/logo.webp" alt="Synta Academy" width="94" height="87"></a><a class="back-home" href="/">↖ Retour à l’accueil</a><span class="topbar-note">Ton espace d’apprentissage</span></header>
             <div class="auth-card">
                 <nav class="auth-tabs" aria-label="Accès à ton compte"><a href="/login" aria-current="page">Connexion</a><a href="/register" data-auth-link>Inscription</a></nav>
-                <div id="authMessageMount" aria-live="polite" aria-atomic="true"></div>
+                <div id="authMessageMount" aria-live="polite" aria-atomic="true"><% if (typeof sessionNotice !== 'undefined' && sessionNotice) { %><p class="message"><%= sessionNotice === 'expired' ? 'Ta session a expiré. Reconnecte-toi pour reprendre là où tu t’étais arrêté.' : 'Connecte-toi pour accéder à cette page.' %></p><% } %></div>
                 <section id="loginFormPanel">
                     <div class="form-intro"><span class="eyebrow">Heureux de te retrouver</span><h1>On reprend ?</h1><p>Connecte-toi et continue à faire des progrès.</p></div>
                     <div class="google-signin-container"><div id="googleSignInBtn" data-client-id="<%= googleClientId || '' %>" data-button-text="continue_with"></div></div>
                     <div class="divider"><span>ou avec ton e-mail</span></div>
-                    <form id="loginForm" method="post" novalidate>
+                    <form id="loginForm" method="post" novalidate data-next="<%= typeof nextPath !== 'undefined' && nextPath ? nextPath : '' %>">
                         <div class="form-group"><label for="email">Adresse e-mail</label><input type="email" id="email" name="email" autocomplete="username" inputmode="email" autocapitalize="none" spellcheck="false" placeholder="toi@exemple.com" required aria-describedby="email-error"><span class="field-error" id="email-error"></span></div>
                         <div class="form-group"><div class="label-row"><label for="password">Mot de passe</label><a href="/password-reset">Mot de passe oublié ?</a></div><div class="password-input"><input type="password" id="password" name="password" autocomplete="current-password" placeholder="Ton mot de passe" required aria-describedby="password-error"><button class="password-toggle" type="button" aria-label="Afficher le mot de passe" aria-pressed="false">Afficher</button></div><span class="field-error" id="password-error"></span></div>
                         <button type="submit" class="button button-primary" id="loginSubmitBtn" data-idle="Me connecter">Me connecter <span aria-hidden="true">↗</span></button>
@@ -34,7 +34,7 @@
         </main>
     </div>
     <script src="/js/authentication.js?v=3" defer></script>
-    <script src="/js/auth-entry.js?v=1" defer></script>
-    <script src="/js/google-auth.js?v=6" defer></script>
+    <script src="/js/auth-entry.js?v=2" defer></script>
+    <script src="/js/google-auth.js?v=7" defer></script>
 </body>
 </html>

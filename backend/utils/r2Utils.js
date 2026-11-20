@@ -7,7 +7,11 @@ import {
   PutObjectCommand, 
   DeleteObjectCommand, 
   HeadObjectCommand,
-  ListObjectsV2Command 
+  ListObjectsV2Command,
+  CreateMultipartUploadCommand,
+  UploadPartCommand,
+  CompleteMultipartUploadCommand,
+  AbortMultipartUploadCommand
 } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import { r2Client, R2_BUCKET, SIGNED_URL_EXPIRY } from "../config/r2.js";
@@ -102,6 +106,29 @@ export async function createR2UploadUrl(key, contentType, expiresIn = 900) {
 
 export function readR2ObjectMetadata(key) {
   return r2Client.send(new HeadObjectCommand({ Bucket: R2_BUCKET, Key: key }));
+}
+
+// R2 requires every multipart part except the last to have the same size.
+export async function createR2MultipartUpload(key, contentType) {
+  const result = await r2Client.send(new CreateMultipartUploadCommand({ Bucket: R2_BUCKET, Key: key, ContentType: contentType }));
+  return result.UploadId;
+}
+
+export async function uploadR2Part(key, uploadId, partNumber, body) {
+  const result = await r2Client.send(new UploadPartCommand({
+    Bucket: R2_BUCKET, Key: key, UploadId: uploadId, PartNumber: partNumber, Body: body, ContentLength: body.length,
+  }));
+  return result.ETag;
+}
+
+export function completeR2MultipartUpload(key, uploadId, parts) {
+  return r2Client.send(new CompleteMultipartUploadCommand({
+    Bucket: R2_BUCKET, Key: key, UploadId: uploadId, MultipartUpload: { Parts: parts },
+  }));
+}
+
+export function abortR2MultipartUpload(key, uploadId) {
+  return r2Client.send(new AbortMultipartUploadCommand({ Bucket: R2_BUCKET, Key: key, UploadId: uploadId }));
 }
 
 /**

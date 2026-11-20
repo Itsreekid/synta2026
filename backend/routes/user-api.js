@@ -110,11 +110,17 @@ router.get("/api/user/me", authApiMiddleware, async (req, res) => {
 router.put("/api/user/me", authApiMiddleware, async (req, res) => {
   try {
     const userId = req.user.id;
-    const { full_name, phone, user_class, user_branch } = req.body;
-    
+    const { full_name, phone } = req.body || {};
+    // Class and section drive offer targeting; only admins may change them.
+    const name = typeof full_name === "string" ? full_name.trim() : "";
+    if (name.length > 120) return res.status(400).json({ error: "Le nom est trop long." });
+    const phoneInput = typeof phone === "string" ? phone.trim() : "";
+    const phoneError = validateLearnerProfile({ phone: phoneInput }, false);
+    if (phoneError) return res.status(400).json({ error: phoneError });
+
     await pool.query(
-      `UPDATE users SET name = COALESCE($1, name), phone = COALESCE($2, phone), class = COALESCE($3, class), branch = COALESCE($4, branch) WHERE id = $5`,
-      [full_name, phone, user_class, user_branch, userId]
+      `UPDATE users SET name = COALESCE($1, name), phone = COALESCE($2, phone), updated_at = NOW() WHERE id = $3`,
+      [name || null, phoneInput ? normalizeTunisianPhone(phoneInput) : null, userId]
     );
     
     return res.json({ success: true });
@@ -384,7 +390,7 @@ router.get("/api/events", authApiMiddleware, async (req, res) => {
     let liveEvents = [];
     if (userId) {
       const sessionResult = await pool.query(
-        `SELECT ls.id, ls.title, ls.description, ls.scheduled_at, ls.zoom_join_url
+        `SELECT ls.id, ls.title, ls.description, ls.scheduled_at, ls.zoom_join_url IS NOT NULL AS has_join_link
          FROM live_sessions ls
          WHERE ls.scheduled_at >= NOW() AND ${liveSessionAccess("$1")}`,
         [userId]
@@ -398,7 +404,7 @@ router.get("/api/events", authApiMiddleware, async (req, res) => {
           title: s.title,
           description: s.description || "Séance en direct sur Zoom",
           icon: "🎥",
-          zoomLink: s.zoom_join_url,
+          zoomLink: s.has_join_link ? `/api/live/${encodeURIComponent(s.id)}/join` : null,
         };
       });
     }

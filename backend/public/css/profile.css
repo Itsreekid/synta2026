@@ -87,6 +87,20 @@
     background: white;
 }
 
+.page-profile-wrapper .profile-form input[readonly],
+.page-profile-wrapper .profile-form select:disabled {
+    background: #eef2f7;
+    color: #475569;
+    cursor: not-allowed;
+    opacity: 1;
+}
+
+.page-profile-wrapper .form-hint {
+    margin: -0.25rem 0 1rem;
+    color: #64748b;
+    font-size: 0.9rem;
+}
+
 .page-profile-wrapper .save-btn {
     background: linear-gradient(135deg, #ff9a00 0%, #e68a00 100%);
     color: white;

@@ -40,7 +40,7 @@
 
 ### TASK-003: Implement Refresh Token Flow
 - **Priority:** CRITICAL
-- **Status:** NOT STARTED
+- **Status:** COMPLETED 2026-11-20 (Batch 2B, uncommitted; dormant until the owner approves `database/pending-migrations/202611200001_create_refresh_tokens.sql`). Implemented as server-side renewal middleware with rotating, hashed refresh tokens instead of a client-called `/api/auth/refresh` endpoint, so no client change was needed. See `ARCHITECTURE.md` Section 7.
 - **Objective:** Prevent users from being logged out every hour
 - **Current situation:** 7-day refresh tokens are issued but never consumed. The only way to get a new access token is to log in again.
 - **Required changes:**
@@ -136,6 +136,7 @@
 ---
 
 ### TASK-009: Implement Zoom Webhook for Auto-Replay
+- **Status:** COMPLETED IN CODE 2026-11-20 (uncommitted). It delivers more than the original steps: the MP4 is copied to private R2, multi-segment recordings are reviewed by the admin, and failed imports retry. The actual endpoint is `POST /api/zoom/webhook` and the variable is `ZOOM_WEBHOOK_SECRET_TOKEN`. Not live until held migrations `202611200002` and `202611200003` are approved and `ZOOM_RECORDING_IMPORT_ENABLED=true`. See `ARCHITECTURE.md` §10 and BR-19.
 - **Priority:** MEDIUM
 - **Status:** NOT STARTED
 - **Objective:** Automatically set `replay_url` after Zoom cloud recordings complete

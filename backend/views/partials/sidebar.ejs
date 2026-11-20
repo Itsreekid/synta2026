@@ -2,7 +2,7 @@
 <aside id="app-sidebar" data-turbo-permanent class="sidebar">
     <div class="logo">
         <div class="logo-icon">
-            <img src="/source/logosynta.png" alt="Synta Academy" width="55">
+            <img src="/source/logosynta.webp" alt="Synta Academy" width="55" height="55">
         </div>
         <span class="logo-text"> Synta Academy</span>
     </div>
@@ -43,6 +43,18 @@
                 <span class="nav-text">Code Pratique</span>
             </a>
         </li>
+        <li>
+            <a href="/app/profile">
+                <div class="nav-icon"><i class="fas fa-user" aria-hidden="true"></i></div>
+                <span class="nav-text">Mon profil</span>
+            </a>
+        </li>
+        <li>
+            <a href="/app/contact">
+                <div class="nav-icon"><i class="fas fa-envelope" aria-hidden="true"></i></div>
+                <span class="nav-text">Contact</span>
+            </a>
+        </li>
     </ul>
 </aside>
 
@@ -77,8 +89,10 @@
         navLinks.forEach(link => {
             if (link.getAttribute('href') === activeHref) {
                 link.classList.add('active');
+                link.setAttribute('aria-current', 'page');
             } else {
                 link.classList.remove('active');
+                link.removeAttribute('aria-current');
             }
         });
     }

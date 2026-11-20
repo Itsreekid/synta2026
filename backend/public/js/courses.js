@@ -64,7 +64,9 @@ async function loadCourses(filters = {}, { keepCards = false } = {}) {
         }
 
         if (!courses || courses.length === 0) {
-            coursesList.innerHTML = '<div class="no-courses">Aucun cours disponible pour le moment</div>';
+            coursesList.innerHTML = filters.search || filters.category
+                ? '<div class="no-courses">Aucun cours ne correspond à ta recherche. <button type="button" class="clear-filters-btn" onclick="clearCourseFilters()">Effacer les filtres</button></div>'
+                : '<div class="no-courses">Aucun cours disponible pour le moment</div>';
             return;
         }
 
@@ -98,7 +100,7 @@ async function loadCourses(filters = {}, { keepCards = false } = {}) {
             const livesCount = Number(course.lives_count) || 0;
 
             const ctaText = isEnrolled ? 'Continuer le cours &rarr;' : 'Découvrir le cours &rarr;';
-            const statusLabel = isEnrolled ? 'En cours' : 'Disponible';
+            const statusLabel = isEnrolled ? (progress >= 100 ? 'Terminé' : 'En cours') : 'Disponible';
             const statusColor = isEnrolled ? '#f97316' : '#10b981';
 
             const cardHtml = `
@@ -218,10 +220,9 @@ window.applyCategoryFilter = function(category) {
     
     // Update active class on chips
     document.querySelectorAll('.filter-chips .chip').forEach(chip => {
-        if (
-            (category === '' && chip.textContent.trim() === 'Tous les cours') ||
-            (chip.textContent.trim().toLowerCase().includes(category.toLowerCase()) && category !== '')
-        ) {
+        const isActive = (chip.dataset.category || '') === category;
+        chip.setAttribute('aria-pressed', String(isActive));
+        if (isActive) {
             chip.classList.add('active');
             chip.style.background = '#f97316';
             chip.style.color = 'white';
@@ -235,6 +236,12 @@ window.applyCategoryFilter = function(category) {
     });
     
     applyFilters();
+};
+
+window.clearCourseFilters = function() {
+    const searchInput = document.getElementById('search-courses');
+    if (searchInput) searchInput.value = '';
+    window.applyCategoryFilter('');
 };
 
 /**
@@ -268,14 +275,14 @@ async function enrollCourse(courseId, isFree) {
     // Check if logged in
     const userResp = await fetch('/api/user/me', { credentials: 'include' });
     if (!userResp.ok) {
-        showMessage('Vous devez vous connecter d\'abord', 'error');
-        setTimeout(() => { window.location.href = '/login'; }, 1500);
+        // A 401 already opened the session-expired dialog; do not navigate away from the student's page.
+        if (userResp.status !== 401) showMessage('Impossible de vérifier ton compte. Réessaie dans un instant.', 'error');
         return;
     }
     const { user } = await userResp.json();
     if (!user) {
         showMessage('Vous devez vous connecter d\'abord', 'error');
-        setTimeout(() => { window.location.href = '/login'; }, 1500);
+        setTimeout(() => { window.SyntaSession ? window.SyntaSession.redirectToLogin() : (window.location.href = '/login'); }, 1500);
         return;
     }
 

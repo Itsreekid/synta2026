@@ -9,6 +9,21 @@
 
 ---
 
+## Launch Scope (owner decision, 2026-11-20)
+
+| In scope for the first teaching launch | Deferred (documented, not developed now) |
+|---|---|
+| Tunisian lycée students with the existing registration | University students and other audience types |
+| Admin creates and manages offers containing several courses | WhatsApp integration |
+| Courses as chapters, lessons, video replays and quizzes | XP, badges and ranks (hidden) |
+| Admin schedules Zoom sessions for eligible students; they appear automatically on the student Dashboard and Calendar | Major architectural redesigns |
+| Students access their purchased courses and learning materials | Code Pratique Web mode |
+| Clean, fast mobile and desktop student experience; Admin and Student data stay in sync | Batch 3 learning-progress work (90% completion, resume next lesson) — paused |
+
+Rules below that belong to deferred areas stay as documented but must not receive development time until the owner lifts the launch freeze.
+
+---
+
 ## 1. User Roles
 
 ### BR-00: Course Content Reuse
@@ -92,10 +107,18 @@ Two roles exist: `user` (student) and `admin`.
 ### BR-05: Session Management
 | Behavior | Status | Evidence |
 |----------|--------|----------|
-| Access token lasts 1 hour | ✅ | `auth-api.js`: expiresIn: "1h" |
-| Refresh token lasts 7 days | ✅ | `auth-api.js`: expiresIn: "7d" |
-| Refresh token auto-renews access token when it expires | ❌ | No refresh token redemption endpoint or logic found |
-| Logout clears both cookies | ✅ | `POST /api/auth/logout` |
+| Access token lasts 1 hour | ✅ | `services/sessions.js`: `ACCESS_TTL_MS` |
+| A signed-in student stays signed in while active: the session ends after 7 days without any visit, and always 30 days after sign-in (owner decision 2026-11-20) | ✅ | `services/sessions.js`: `REFRESH_IDLE_MS`, `SESSION_MAX_MS` (2026-11-20, Batch 2B) |
+| Refresh token auto-renews access token when it expires, on any page or API request, with no client-side code | ✅ | `sessionRenewal` in `middleware/requireAuth.js`, mounted in `server.js` (2026-11-20). Active only after `database/pending-migrations/202611200001_create_refresh_tokens.sql` is approved and applied; until then sessions last one hour and the 2A expiry handling applies |
+| Each refresh token works once. Reusing an old token more than 20 seconds after it was exchanged ends every session from that sign-in | ✅ | `rotateRefreshToken` in `services/sessions.js` |
+| Session cookies are HttpOnly, Secure in production and `SameSite=Lax`, so links opened from WhatsApp or email keep the student signed in (owner decision 2026-11-20) | ✅ | `services/sessions.js` `cookieBase()` |
+| Refresh tokens issued before Batch 2B are accepted once and converted, so nobody is logged out by the release | ✅ | `rotateRefreshToken` legacy branch |
+| Logout clears both cookies and revokes the refresh token on the server | ✅ | `POST /api/auth/logout` → `revokeRefreshToken` |
+| Admin "log in as student" sessions never renew; they end after one hour and keep the 5-minute warning | ✅ | `GET /api/auth/magic-login` → `startSession(..., { renewable: false })` |
+| An expired or missing session on a student page sends the student to `/login?next=<page>`; after login they return to that page. Only `/dashboard` and `/app/...` destinations are accepted | ✅ | `utils/returnPath.js`, `requireAuth`, `/login`, `auth-entry.js`, `google-auth.js` (2026-11-20) |
+| The login page says « Ta session a expiré » when the access token is invalid, or missing while the refresh cookie is still present; otherwise it says « Connecte-toi pour accéder à cette page. ». With Batch 2B this happens only when renewal is refused (expired, revoked or reused refresh token) or unavailable | ✅ | `requireAuth`, `views/pages/auth/login.ejs` |
+| While studying, an API 401 opens one « Session expirée » dialog with no automatic navigation. The banner 5 minutes before expiry appears only for sessions that cannot renew | ✅ | `public/js/session-guard.js`, `head.ejs` (`sessionRenewable`) |
+| Lesson-progress and quiz-answer saves that fail with 401 are kept in the tab and replayed once after re-login, only for the same student and only within 6 hours | ✅ | `public/js/session-guard.js` |
 | Admin can log in as any student (magic login) | ✅ | `GET /api/auth/magic-login?token=` |
 | Magic login tokens expire in 5 minutes | ✅ | `admin-api.js`: expiresIn: '5m' |
 | Magic login is logged/audited | ❌ | No audit trail |
@@ -203,6 +226,7 @@ Two roles exist: `user` (student) and `admin`.
 | Empty target arrays = visible to all | ✅ | Filter logic in `offers.js` |
 | Targeting is enforced client-side (filter in API response) | ✅ | `offers.js` filter loop |
 | Targeting is NOT enforced at enrollment time | ⚠️ | No check in purchase/enroll endpoints |
+| Students cannot change their own class or section; only admins can (owner decision 2026-11-20) | ✅ | `PUT /api/user/me` updates only name and phone; profile selects are read-only |
 
 ### BR-16: Offer Validity
 | Behavior | Status | Evidence |
@@ -224,6 +248,9 @@ Two roles exist: `user` (student) and `admin`.
 | Live sessions are linked to a course | ✅ | `live_sessions.course_id` |
 | Students must be enrolled in the course to see its sessions | ✅ | `GET /api/live/upcoming` filters by enrollment |
 | Sessions can be restricted to a specific offer | ✅ | `live_sessions.offer_id` filter logic |
+| A session can accept several offers: students with an active purchase of the primary offer (with course enrollment) OR of ANY additional offer can join (owner decision 2026-11-20) | ✅ code, ⏳ held migration | `live_sessions.additional_offer_ids`; `liveSessionAccess` in `utils/offerAccess.js`. Additional offers require a primary offer. Expired timed access and refunded purchases lose access. |
+| Admin can grant individual students access to one session without any purchase (owner decision 2026-11-20) | ✅ code, ⏳ held migration | `live_sessions.granted_student_ids`; a grant bypasses the offer and audience checks for that session only, including its replay and files |
+| Before migration `202611200002` is applied, the access rule is exactly the previous one and the new admin fields are refused (409) | ✅ | Startup column detection (`services/live-features.js`) |
 | Admins can select one or more eligible students for a session | ✅ | A per-session audience further restricts the session, calendar entry, replay, and resources. Active course and optional offer enrollment are required. |
 | Students see only sessions they have access to | ✅ | `accessible` filter in `live.js` |
 | Students can see past sessions with replays | ✅ | `GET /api/live/replays` |
@@ -243,8 +270,21 @@ Two roles exist: `user` (student) and `admin`.
 |----------|--------|----------|
 | Attendance is tracked per student per session | ❌ | No `live_session_attendance` table |
 | Session status updates (live → completed) | ❌ | `status` column exists but no mechanism to update it |
+| A session stays listed for students until `scheduled_at + duration_minutes` | ✅ | `GET /api/live/upcoming` |
+| Students can join from 10 minutes before the start until the scheduled end (owner decision 2026-11-20) | ✅ | `calendar.js` join window uses `duration_minutes` (default 60), and the server enforces the same window |
+| Students never receive the Zoom join link in API data; they get `/api/live/:id/join`, which checks access and the window before redirecting (owner decision 2026-11-20) | ✅ | `GET /api/live/:sessionId/join`: 302 to Zoom, otherwise a French notice (404 no access, 403 too early, 410 ended, 401 logged out) |
 
-> ❓ **NEEDS CLARIFICATION:** Should Zoom recordings be attached automatically through a webhook, in addition to the new admin replay-link control?
+### BR-19: Automatic Zoom Replays (owner decisions 2026-11-20)
+| Behavior | Status | Evidence |
+|----------|--------|----------|
+| Zoom cloud recordings are imported automatically after `recording.completed`: the MP4 itself is copied into private R2, never a Zoom link | ✅ code, ⏳ held migration + env flag | `routes/zoom-webhook.js`, `services/zoom-recordings.js` |
+| Every MP4 segment of a meeting is imported; nothing is merged and Zoom recordings are never deleted | ✅ | One `zoom_recording_imports` row per segment |
+| One segment for a matched session: published automatically | ✅ | Fills `replay_url` only when it is empty |
+| Several segments (intro stopped/restarted): « À vérifier »; the admin chooses which segment(s) to publish | ✅ | Several published segments appear to students as « Partie 1 », « Partie 2 »… |
+| An existing replay is never overwritten automatically; recordings that match no session, or two sessions, wait for the admin | ✅ | Review reasons `replay_exists`, `no_matching_session`, `ambiguous_session` |
+| After review, the admin can delete unpublished segments from R2 (the Zoom original stays) | ✅ | `DELETE /api/live/admin/recordings/:importId`; published segments are refused (409) |
+| Replay access follows exactly the live session's access rule | ✅ | Same `liveSessionAccess` SQL; short-lived signed R2 links; the player fetches a fresh link once if one expires |
+| Failed transfers retry (1 min, 5 min, 30 min, 2 h, 6 h; 6 tries max) and the admin can press « Réessayer » | ✅ | Interrupted imports resume after a server restart |
 
 ---
 
@@ -258,6 +298,8 @@ Two roles exist: `user` (student) and `admin`.
 | Video resume position is restored and saved during playback, on pause, and when switching players | ✅ | Lesson-content response returns `last_position`; `POST /api/tracking/position` checks preview or active enrollment and updates the position without changing completion |
 | Course-level progress % is recalculated on each completion | ✅ | `content.js` and `tracking.js` |
 | `enrollments.progress` is kept in sync with `lesson_progress` | ✅ | UPDATE enrollments in tracking route |
+| A video lesson is complete when about 90% has been watched (owner decision 2026-11-20) | ❌ | Not yet implemented: the player still marks a lesson complete when playback starts (`course-details.js`). Roadmap P1-2 |
+| XP, levels and badges are hidden until a real rule is defined (owner decision 2026-11-20) | ❌ | Dashboard still shows client-computed XP, level and badges. Roadmap P2-3 |
 
 ### BR-20: Quiz Progress
 | Behavior | Status | Evidence |
@@ -317,14 +359,14 @@ Two roles exist: `user` (student) and `admin`.
 | BQ-02 | Should the `beginner`/`advanced` classification from the placement quiz affect live session access? | HIGH |
 | BQ-03 | What is the lifecycle of an offer? Can it be deactivated without revoking enrollments? | HIGH |
 | BQ-04 | What happens to enrolled students when a course is deleted? (Currently CASCADE deletes enrollments) | HIGH |
-| BQ-05 | Should session replay URLs be automatically set via Zoom webhooks? | MEDIUM |
+| BQ-05 | Should session replay URLs be automatically set via Zoom webhooks? | ANSWERED 2026-11-20 — yes, see BR-19 |
 | BQ-06 | Should students see their `debt` amount in their wallet? | MEDIUM |
 | BQ-07 | Should there be an instructor role separate from admin? | MEDIUM |
 | BQ-08 | Is the `payments` table (offer-level) still needed, or is `transactions` the canonical ledger? | MEDIUM |
 | BQ-09 | Should `user_weak_topics` be auto-populated via a trigger or background job? | MEDIUM |
 | BQ-10 | What happens when a student's enrollment expires? Do they lose access immediately? | HIGH |
 | BQ-11 | Can a student belong to multiple groups simultaneously? | MEDIUM |
-| BQ-12 | Should live sessions be shareable across multiple offers/groups? | MEDIUM |
+| BQ-12 | Should live sessions be shareable across multiple offers/groups? | ANSWERED 2026-11-20 — multiple offers and individual grants, see BR-17 (groups remain TASK-013) |
 
 
 ## Timed offer access

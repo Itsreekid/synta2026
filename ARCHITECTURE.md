@@ -273,12 +273,19 @@ Request → CORS → Helmet → cookieParser → express.json → Logger
 ### Middleware Stack
 | Middleware | Purpose |
 |-----------|---------|
-| `requireAuth` | Redirects unauthenticated page requests to `/login` |
+| `requireAuth` | Redirects unauthenticated page requests to `/login?next=<page>` (`utils/returnPath.js` validates destinations; `&reason=expired` when a session existed) |
 | `authApiMiddleware` | Returns 401 JSON for unauthenticated API requests |
 | `authMiddleware` | Optional auth — sets `req.user` or null |
 | `requireAdmin` | Checks JWT role=admin or ADMIN_EMAILS list |
 | `attachUserProfile` | Fetches DB user profile, attaches to `req.userProfile` |
 | `checkLessonAccess` | Checks enrollment for lesson content access |
+
+Client side, `head.ejs` loads `public/js/session-guard.js` on signed-in app pages, together with a `synta-session-expires-in` meta tag (seconds left on the access token). The guard wraps `fetch`:
+- A same-origin `/api/*` 401 (excluding `/api/auth/*`) opens the session-expired dialog.
+- Failed `/api/tracking/progress` and `/api/tracking/response` saves are kept in `sessionStorage` and replayed after re-login.
+- A banner warns the student 5 minutes before expiry.
+
+It does not renew sessions; renewal is roadmap P0-4.
 
 ---
 
@@ -314,7 +321,13 @@ sequenceDiagram
     S->>DB: UPDATE users SET email_verified=true
     B->>S: POST /api/auth/login (email, password)
     S->>DB: SELECT user WHERE email_verified=true
-    S->>B: Set-Cookie: synta_access (1h JWT) + synta_refresh (7d JWT)
+    S->>DB: INSERT refresh_tokens (sha256 hash, new family)
+    S->>B: Set-Cookie: synta_access (1h JWT) + synta_refresh (opaque, rotating)
+
+    Note over B,S: Automatic renewal (any request)
+    B->>S: Request with expired synta_access + synta_refresh
+    S->>DB: SELECT refresh_tokens FOR UPDATE, mark used, INSERT next token
+    S->>B: Request served normally + new synta_access + new synta_refresh
 
     Note over B,S: Google OAuth Flow
     B->>S: POST /api/auth/google (credential=<Google ID token>)
@@ -330,10 +343,13 @@ sequenceDiagram
 
 **Token mechanics:**
 - Access token: 1-hour JWT (payload: id, email, name, role)
-- Refresh token: 7-day JWT (payload: id, type="refresh")
-- Stored in HttpOnly cookies (`synta_access`, `synta_refresh`)
-- **⚠️ Refresh token is stored but refresh logic is NOT implemented** — expired access tokens result in re-login
-- Magic login: Admin can generate a 5-minute JWT to log in as any user (no audit log)
+- Refresh token: opaque 32-byte random value; only its SHA-256 hash is stored in `refresh_tokens`. All sign-in paths (password, Google popup and iPhone callback, placement `/set-password`) call `startSession()` in `services/sessions.js`.
+- Both cookies are HttpOnly, `Secure` in production and `SameSite=Lax` (links from WhatsApp or email keep the student signed in; cross-site POSTs carry no cookie).
+- Renewal: `sessionRenewal(pool)` from `middleware/requireAuth.js` is mounted in `server.js` before all routes. When the access token is missing or expired and a refresh cookie is present (outside `/api/auth/*`), it rotates the token in a transaction and continues the request with the new access token, so `requireAuth`, `authApiMiddleware`, `requireAdmin` and `auth.js` need no changes.
+- Rotation rules: each refresh token works once; a token reused within 20 seconds (parallel tabs) gets an access token only; a reuse after that revokes the whole family. Idle limit 7 days, absolute cap 30 days after sign-in. Logout revokes the family. Failed renewals are throttled per IP (30 per 15 minutes).
+- Pre-2B refresh JWTs (`type="refresh"`) are accepted once, recorded as used, and converted into a new family.
+- Fail-safe: if the database or table is unavailable, renewal is skipped without clearing the refresh cookie (the student sees the normal login redirect or 401), and sign-in falls back to a plain one-hour session.
+- Magic login: Admin can generate a 5-minute JWT to log in as any user (no audit log). These sessions are not renewable: no refresh token is issued and the admin's own refresh family in that browser is revoked. Only non-renewable sessions get the `synta-session-expires-in` warning meta.
 
 ---
 
@@ -374,7 +390,8 @@ Both mechanisms work in `requireAdmin.js`. This can lead to situations where a u
 /api/enrollment/*    Enroll in course/offer, list enrollments
 /api/purchase/*      Balance-based course/offer purchase
 /api/offers/*        Offer catalog with per-user targeting
-/api/live/*          Course sessions/replays, upcoming sessions, admin scheduling and replay-link management
+/api/live/*          Course sessions/replays, upcoming sessions, join check (/:id/join), admin scheduling, replay links and Zoom recording review
+/api/zoom/webhook    Zoom event receiver (signature-verified; raw body, mounted before express.json)
 /api/tracking/*      Quiz responses, weak topics, lesson progress, feedback
 /api/admin/*         Student management, payment confirmation, course/offer admin, notifications
 /api/session/*       Placement quiz flow (register, questions, submit, set-password)
@@ -409,8 +426,17 @@ The admin course editor can select an associated offer image, list recent raster
 - Authentication: Server-to-Server OAuth (account-level, no user auth)
 - Token caching: In-memory, refreshed 60 seconds before 1-hour expiry
 - Operations: Create meeting, delete meeting
-- Security: `zoom_start_url` (host link) stored in DB but **never sent to students**
-- Replay: `replay_url` field in DB, manually set (auto-recording configured but no webhook)
+- Security: `zoom_start_url` (host link) stored in DB but **never sent to students**. Students don't receive `zoom_join_url` either: they get `/api/live/:id/join`, which re-checks access and the join window (10 minutes before the start until the scheduled end) and then redirects.
+- Access rule: one SQL fragment, `liveSessionAccess` in `utils/offerAccess.js`, is shared by every student endpoint (upcoming, course sessions, replays, calendar events, join, resources). `services/live-features.js` detects at startup whether held migration `202611200002` is applied; until it is, the SQL is identical to the previous rule.
+- Replay: `replay_url` can be set manually, or automatically by the Zoom → R2 import:
+  - `POST /api/zoom/webhook` (`routes/zoom-webhook.js`) verifies the `x-zm-signature` HMAC with `ZOOM_WEBHOOK_SECRET_TOKEN` and a 5-minute timestamp window. It answers `endpoint.url_validation` and queues one `zoom_recording_imports` row per MP4 segment, deduplicated by Zoom file ID. Meetings unknown to Synta are ignored.
+  - `services/zoom-recordings.js` holds the logic. `services/recording-worker.js` runs it in-process on a 30-second timer, plus an immediate kick after each webhook.
+  - The worker claims a job with `FOR UPDATE SKIP LOCKED` and a 15-minute lease, renewed on every part. It streams the MP4 from Zoom (bearer token, which is never forwarded to the storage redirect) into an R2 multipart upload in 16 MiB parts, so memory stays flat. It then verifies the size with a HEAD request.
+  - Retries come after 1 m, 5 m, 30 m, 2 h and 6 h, with 6 tries maximum. Unfinished multipart uploads are aborted on failure and when a stale job is reclaimed after a restart.
+  - A single segment for a matched occurrence (closest `scheduled_at`) is published only into an empty `replay_url`. Every other case waits for the admin in `sessions.html`. Zoom recordings are never deleted.
+  - Enabled only when the table exists and `ZOOM_RECORDING_IMPORT_ENABLED=true`; otherwise the webhook answers 503 so Zoom retries later.
+  - R2 helpers: `createR2MultipartUpload`, `uploadR2Part`, `completeR2MultipartUpload`, `abortR2MultipartUpload` in `utils/r2Utils.js`. Zoom download: `openZoomRecordingDownload` in `utils/zoomClient.js` (https `zoom.us` hosts only).
+  - Playback reuses the one-hour signed R2 GET URLs, with native Range support. The course player fetches a fresh link once per minute per session when a signed link expires.
 
 ### Google Gemini API (AI)
 - Used for: "Bugi" code debugger (Python code analysis)
@@ -456,7 +482,7 @@ Cloudflare R2 Bucket
 
 ### 🔴 Critical
 1. **Schema migrations via runtime ALTER TABLE** — Several routes run `ALTER TABLE ... ADD COLUMN IF NOT EXISTS` on each startup. This is fragile, unversioned, and masks schema drift.
-2. **No refresh token redemption** — Refresh tokens are issued but never consumed. After 1 hour, users must re-login.
+2. ~~**No refresh token redemption**~~ — Resolved 2026-11-20 (Batch 2B): rotating refresh tokens renew sessions automatically. Renewal needs `database/pending-migrations/202611200001_create_refresh_tokens.sql`. The file is held outside `database/migrations/` so the Docker runner cannot apply it; until the owner approves and moves it, sessions last one hour as before.
 3. **Magic login has no audit log** — Admin can impersonate any user with no trace.
 
 ### 🟡 High
@@ -478,7 +504,7 @@ Cloudflare R2 Bucket
 
 | Priority | Improvement |
 |----------|------------|
-| CRITICAL | Implement refresh token redemption flow |
+| ~~CRITICAL~~ | ~~Implement refresh token redemption flow~~ — done 2026-11-20 (Batch 2B) |
 | HIGH | Migrate to versioned migrations (Knex migrations or plain numbered SQL files) |
 | HIGH | Add `groups` and `group_memberships` tables for cohort management |
 | HIGH | Add rate limiting (express-rate-limit) |

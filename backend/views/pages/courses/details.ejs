@@ -349,7 +349,7 @@
         
         .course-stats-grid {
             display: grid;
-            grid-template-columns: repeat(4, 1fr);
+            grid-template-columns: repeat(3, 1fr);
             gap: 0.5rem;
             margin-bottom: 1.5rem;
         }
@@ -517,6 +517,9 @@
         .course-live-empty span { font-size:.9rem; }
         .quiz-game-header { display:flex; justify-content:space-between; align-items:center; gap:1rem; padding-right:2rem; color:#64748b; font-weight:700; font-size:.88rem; }
         .quiz-game-header span:first-child { color:#f97316; }
+        .quiz-close-button { position:absolute; top:.5rem; right:.5rem; z-index:2; display:inline-flex; align-items:center; justify-content:center; width:44px; height:44px; border:none; border-radius:50%; background:transparent; color:#475569; font-size:1.1rem; cursor:pointer; }
+        .quiz-close-button:hover { background:#e2e8f0; color:#0f172a; }
+        .quiz-close-button:focus-visible { outline:3px solid #087b98; outline-offset:2px; }
         .quiz-modal.quiz-modal {
             position: fixed;
             inset: auto;
@@ -756,12 +759,7 @@
                                 <div class="stat-box" style="background: #fff1f2; border-color: #ffe4e6; color: #f43f5e;">
                                     <div class="stat-icon"><i class="fas fa-video"></i></div>
                                     <strong id="lives-count" style="color: #e11d48;">0</strong>
-                                    <span style="color: #fb7185;">Séances</span>
-                                </div>
-                                <div class="stat-box" style="background: #fefce8; border-color: #fef08a; color: #eab308;">
-                                    <div class="stat-icon"><i class="fas fa-language"></i></div>
-                                    <strong id="course-language" style="color: #ca8a04;">Français</strong>
-                                    <span style="color: #facc15;">Langue</span>
+                                    <span style="color: #fb7185;">Replays</span>
                                 </div>
                             </div>
 

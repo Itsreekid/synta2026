@@ -10,29 +10,12 @@ import { normalizeTunisianPhone, validateLearnerProfile } from "../utils/learner
 import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
 import pool from "../config/db.js";
-import { setSessionCookies, clearSessionCookies } from "../middleware/requireAuth.js";
+import { clearSessionCookies, revokeRefreshToken, startSession } from "../services/sessions.js";
 import { generateVerificationToken, sendVerificationEmail } from "../services/email.js";
 
 const router = express.Router();
 const JWT_SECRET  = process.env.JWT_SECRET;
 const SALT_ROUNDS = 12;
-
-function signAccessToken(user) {
-  return jwt.sign(
-    {
-      id:    user.id,
-      email: user.email,
-      name:  user.name,
-      role:  user.role || "user",
-    },
-    JWT_SECRET,
-    { expiresIn: "1h" }
-  );
-}
-
-function signRefreshToken(userId) {
-  return jwt.sign({ id: userId, type: "refresh" }, JWT_SECRET, { expiresIn: "7d" });
-}
 
 /**
  * POST /api/auth/register
@@ -143,9 +126,7 @@ router.post("/api/auth/login", authRateLimit(30), async (req, res) => {
       return res.status(403).json({ error: "يرجى التحقق من بريدك الإلكتروني لتفعيل حسابك قبل تسجيل الدخول.", unverified: true });
     }
 
-    const access_token  = signAccessToken(user);
-    const refresh_token = signRefreshToken(user.id);
-    setSessionCookies(res, { access_token, refresh_token });
+    await startSession(pool, res, user, { previousRefreshToken: req.cookies?.synta_refresh });
 
     return res.json({
       success:       true,
@@ -161,7 +142,12 @@ router.post("/api/auth/login", authRateLimit(30), async (req, res) => {
 /**
  * POST /api/auth/logout
  */
-router.post("/api/auth/logout", (req, res) => {
+router.post("/api/auth/logout", async (req, res) => {
+  try {
+    await revokeRefreshToken(pool, req.cookies?.synta_refresh);
+  } catch (err) {
+    console.error("[auth/logout] Could not revoke the refresh token:", err.code || err.message);
+  }
   clearSessionCookies(res);
   return res.json({ success: true });
 });
@@ -244,9 +230,8 @@ router.get("/api/auth/magic-login", async (req, res) => {
     }
 
     const user = result.rows[0];
-    const access_token = signAccessToken(user);
-    const refresh_token = signRefreshToken(user.id);
-    setSessionCookies(res, { access_token, refresh_token });
+    // "Log in as student" sessions end with their access token and never renew.
+    await startSession(pool, res, user, { renewable: false, previousRefreshToken: req.cookies?.synta_refresh });
 
     res.redirect("/dashboard");
   } catch (err) {

@@ -42,14 +42,52 @@ export function enrollmentAccess(alias) {
     OR ${timedCourseGrant(alias + ".user_id", alias + ".course_id")})`;
 }
 
-export function liveSessionAccess(user) {
-  return `ls.status <> 'cancelled'
-    AND (ls.audience_student_ids IS NULL OR ${user} = ANY(ls.audience_student_ids))
+let extendedLiveAccess = false;
+
+/** Enabled at startup only when live_sessions has additional_offer_ids and granted_student_ids. */
+export function setExtendedLiveAccess(enabled) {
+  extendedLiveAccess = Boolean(enabled);
+}
+
+export function hasExtendedLiveAccess() {
+  return extendedLiveAccess;
+}
+
+// Paid access to any course of the offer, without requiring the session's course.
+export function activeOfferAccess(user, offer) {
+  return `(${timedCourseGrant(user, null, offer)} OR (
+    ${legacyOfferEntitlement(user, offer, null)}
     AND EXISTS (
+      SELECT 1 FROM offer_courses oc
+      JOIN enrollments oe ON oe.course_id = oc.course_id AND oe.user_id = ${user}
+      WHERE oc.offer_id = ${offer} AND NOT oe.timed_access_only
+        AND (oe.expires_at IS NULL OR oe.expires_at > NOW())
+    )
+  ))`;
+}
+
+export function liveSessionAccess(user) {
+  const audience = `(ls.audience_student_ids IS NULL OR ${user} = ANY(ls.audience_student_ids))`;
+  const courseAndPrimaryOffer = `EXISTS (
       SELECT 1 FROM enrollments e WHERE e.user_id = ${user} AND e.course_id = ls.course_id
         AND ${enrollmentAccess("e")}
     )
     AND (ls.offer_id IS NULL OR ${offerEntitlement(user, "ls.offer_id", "ls.course_id")})`;
+  if (!extendedLiveAccess) {
+    return `ls.status <> 'cancelled'
+    AND ${audience}
+    AND ${courseAndPrimaryOffer}`;
+  }
+  return `ls.status <> 'cancelled' AND (
+    ${user} = ANY(COALESCE(ls.granted_student_ids, '{}'::uuid[]))
+    OR (${audience} AND (
+      (${courseAndPrimaryOffer})
+      OR EXISTS (
+        SELECT 1 FROM unnest(COALESCE(ls.additional_offer_ids, '{}'::uuid[])) AS extra(offer_id)
+        WHERE ${activeOfferAccess(user, "extra.offer_id")}
+      )
+    ))
+  )`;
 }
 
 export function matchesOfferTarget(offer, profile) {

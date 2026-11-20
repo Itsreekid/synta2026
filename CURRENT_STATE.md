@@ -1,5 +1,165 @@
 # CURRENT_STATE.md — Synta Academy
 
+### 2026-11-20 — Live sessions verified + automatic Zoom → R2 replays (uncommitted; owner-approved plan)
+
+- **Verification of the existing feature:** admin scheduling, cancellation and host launch were unchanged and working. Every student endpoint shares one access rule (`liveSessionAccess`), and no host link reached students.
+  - Gaps found: no multi-offer support (now added); the join window was enforced only in the browser (now enforced on the server); there is no "edit session" endpoint (still true).
+  - BUG-010 (status never becomes `live`/`completed`) remains.
+- **Implemented (owner decisions 2026-11-20, see BR-17 and BR-19):**
+  - Additional offers and individual grants per session.
+  - Server join check `GET /api/live/:id/join`. Student APIs return `join_url`, never `zoom_join_url`. `/api/events` `zoomLink` is now this internal path.
+  - Zoom webhook → durable queue → streamed R2 multipart import → automatic publish for a single segment; review for several segments, an existing replay, or an unmatched or ambiguous session.
+  - Admin recording status, publish selection, assignment of unassigned recordings, « Réessayer », and deleting unwanted segments from R2, all in `admin/pages/sessions.html`.
+  - « Partie N » replay parts and automatic recovery from expired links in `course-details.js`.
+- **New files:**
+  - `routes/zoom-webhook.js`
+  - `services/live-features.js`, `services/zoom-recordings.js`, `services/recording-worker.js`
+  - `tests/zoom-recordings.test.js`
+  - `database/pending-migrations/202611200002_extend_live_session_access.sql` and `202611200003_create_zoom_recording_imports.sql`
+- **Changed files:**
+  - `server.js`, `routes/live.js`, `routes/user-api.js`
+  - `utils/offerAccess.js`, `utils/r2Utils.js`, `utils/zoomClient.js`
+  - `public/js/calendar.js`, `public/js/course-details.js`, `public/admin/pages/sessions.html`
+  - `tests/security.test.js`, `package.json` (test script), `.env.example` (names only)
+- **HELD — not in production:** both migrations sit in `database/pending-migrations/`, which the Docker runner does not read.
+  - Without them, behavior is exactly as before: the new admin fields return 409, the admin features report off, and the webhook returns 503.
+  - Also required: `ZOOM_WEBHOOK_SECRET_TOKEN`, `ZOOM_RECORDING_IMPORT_ENABLED=true`, the Zoom app scope `cloud_recording:read:list_recording_files:admin` (or `recording:read:admin`), and an event subscription for `recording.completed` → `https://<domain>/api/zoom/webhook`.
+  - Recommended: an R2 lifecycle rule that aborts incomplete multipart uploads after 1 day.
+- **Verified (fake Zoom and fake R2 only; disposable PostgreSQL 17.6, deleted afterwards; no real credentials or student data):**
+  - 71/71 unit and database tests.
+  - 20/20 API end-to-end checks: access matrix, join check, webhook signature and deduplication, import and publish, Range requests, review/publish/delete, R2 outage retry, missing-file retry, admin-only actions, leak scan.
+  - 19/19 browser checks at 360, 390 and 1440 px: calendar join, dashboard, replay playback and seek, parts, a student without a purchase, the admin page, expired-link recovery.
+  - Restart recovery: a stale import is reclaimed and its orphaned multipart upload aborted.
+  - The pre-migration fallback: webhook 503, site normal.
+  - Real fullscreen could not be exercised: headless Chrome refuses fullscreen even on a bare page. The test only confirms that native controls allow it.
+- **Caveats:**
+  - The worker runs inside the web process. One server instance is assumed, but leases make several instances safe.
+  - Matching picks the occurrence whose `scheduled_at` is closest, within ±60 minutes of the session window.
+  - Cancelled sessions are excluded from matching.
+- **Next:** owner approval for the held migrations and the env/Zoom configuration, then one controlled real test (see the final report of this session). After that, BUG-010 or an "edit session" endpoint if requested.
+
+### 2026-11-20 — LAUNCH PRIORITY: feature freeze (owner instruction)
+
+- **Goal:** start teaching real Tunisian lycée students as soon as possible. No new feature batches. Batch 3 (resume lesson, 90% completion) is paused, not cancelled.
+- **Launch scope only:**
+  - Existing registration for lycée students.
+  - Admin offers containing several courses.
+  - Courses organized as chapters, lessons, video replays and quizzes.
+  - Admin-scheduled Zoom sessions for eligible students, shown automatically on the student Dashboard and Calendar.
+  - Students reach their purchased courses and materials.
+  - A clean mobile and desktop experience, with Admin and Student data in sync.
+- **Out of scope now (documented, not developed):**
+  - University students and new audience types.
+  - WhatsApp integration.
+  - XP, badges and ranks.
+  - Major redesigns.
+  - Code Pratique Web mode.
+- **Launch-blocker checklist and smallest fix set:** see the final report of this session, summarized here.
+  - **Verification blockers (no code):**
+    - Read `schema_migrations` on production (read-only) and back up the database before any deploy.
+    - Confirm that active offers have `fixed_price` and linked courses.
+    - Run one end-to-end smoke test on a disposable PostgreSQL or staging database with synthetic accounts: admin offer with 2 courses → deposit → purchase → course, video and quiz → targeted Zoom session on the dashboard and calendar, hidden for an ineligible student.
+    - Do a quick pass on a real iPhone and Android phone, including Google sign-in.
+    - Confirm the receipts R2 bucket is not public.
+    - Confirm the Zoom and Resend variable names are set in production.
+  - **Smallest code fixes — owner-approved and DONE 2026-11-20 (uncommitted):**
+    - WAL-01: `public/js/paiement.js` shows only the `transactions` ledger, so purchases no longer appear twice. Purchases with no `payment_method` read « Achat ». Script version `?v=3`.
+    - SEC-02: deleted `public/data/events.js` (3 past February 2026 events with Zoom links; it had no `export`, so `/api/events` never used it and still returns 200), `public/js/update_offers.cjs` and `public/js/paiement.js.backup`. Git history keeps them. `public/data/README.md` still mentions `events.js` and is stale.
+    - A06 (display only): `public/admin/pages/payments.html` shows legacy `approved` deposits as « Confirmé », `cancelled` as « Annulé », and escapes unknown statuses instead of calling them « Rejeté ».
+    - Verified: 4/4 browser checks (wallet at 390 and 1440 px, removed files return 404, `/api/events` 200), 7/7 status-label checks, and a 94/94 regression.
+  - **End-to-end test on real PostgreSQL — DONE 2026-11-20 (owner-approved, local only):**
+    - Setup: portable PostgreSQL 17.6 on `127.0.0.1:55432`, deleted afterwards. The repository's `schema_postgres.sql` loaded with no errors, and all 14 committed migrations applied cleanly through the real `scripts/migrate.js`.
+    - The real `server.js` ran with `dotenv` stubbed, so `.env` was never read. Zoom, R2 and email were stubbed, outbound connections blocked, and the server bound to localhost.
+    - **Launch flow: 36/36 PASS.**
+      - Registration requires email verification.
+      - The admin creates a targeted offer, two courses, chapters, a video with replay and a 3-question quiz.
+      - A deposit is confirmed by the admin, and the offer purchase is idempotent.
+      - The wallet ledger shows each movement once, and access works for both courses: signed video URL, quiz, progress saved.
+      - A student who didn't buy gets 403. A student in another section doesn't see the offer.
+      - A Zoom session for the offer, and one targeted at one student, are shown only to eligible students on the API, Dashboard and Calendar. An ineligible audience is refused.
+      - Sync: a lesson rename shows on the student side, a session cancel disappears, the admin sees the purchase, and a deactivated offer is hidden while existing access is kept.
+      - Security: no host link or password hash in any student response.
+      - Browser at 390 and 1440 px: dashboard, calendar, course, catalog and wallet are clean.
+    - **Batch 2B migration on the disposable database only: 6/6 PASS** (the hash-only storage, the 7 and 30 days, rotation, page renewal, 5 parallel renewals with one row lock, reuse revocation, logout revocation). Running it twice is a safe no-op.
+  - **Launch polish — DONE 2026-11-20 (owner-approved):**
+    - DSH-02: removed the synthetic XP, level and badges from the dashboard. The stats card now shows only lessons completed and overall progress (`dashboard/index.ejs`, `dashboard.js?v=7`, `dashboard.css`).
+    - PRF-03: removed the placeholder level, points, active days and achievements from the profile (`profile/index.ejs`).
+    - Course page counters: « Séances » is renamed to « Replays », which is what the counter counts, and the hard-coded « Arabe » language box is removed (`courses/details.ejs`, `course-details.js`).
+    - Gamification stays a documented future feature.
+    - Browser check at 390 and 1440 px: 6/6 PASS with no console errors. Unit tests: 46 pass, 0 fail.
+- **Accepted launch risks:**
+  - No self-service password reset; admins can set a new password via `/api/admin/change-student-password`.
+  - Lessons are marked complete when the video starts (LRN-01).
+  - Quiz scoring is client-side.
+  - Admin magic links are not single-use.
+  - The overview revenue KPI misses wallet offer purchases.
+  - The live status never shows "en direct".
+  - A harmless view-transition console exception after login.
+  - The SQL has never been run against real PostgreSQL in these sessions.
+
+### 2026-11-20 — Batch 2B: automatic session renewal (uncommitted)
+
+- **Completed:** roadmap P0-4 / TASK-003 / BUG-003 (audit AUTH-01, AUTH-04).
+  - New `backend/services/sessions.js`: opaque refresh tokens stored as SHA-256 hashes, rotation, reuse detection, logout revocation and one-time legacy JWT conversion.
+  - `sessionRenewal(pool)` in `middleware/requireAuth.js`, mounted in `server.js` before all routes.
+  - All sign-in paths use `startSession()`: password login, Google popup, iPhone Google callback and placement `/set-password`. Magic login is non-renewable. Duplicate token signers were removed from the routes.
+  - Cookies are now `SameSite=Lax` everywhere. Expired access tokens clear only `synta_access`.
+  - `head.ejs` renders the expiry meta only for sessions that cannot renew.
+- **Owner decisions:** 7-day idle limit and 30-day absolute cap; `SameSite=Lax`; old refresh JWTs accepted once; migration file created for the owner to apply.
+- **Migration (held, owner approval required):** `database/pending-migrations/202611200001_create_refresh_tokens.sql` (additive). It has NOT been run. The Docker image copies only `database/migrations/`, and `npm run migrate` reads only that folder, so a deploy cannot apply it. Without the table, login, pages and logout work exactly as before with one-hour sessions; this was browser-verified with the table missing (6/6 behavior checks).
+- **Deployment sequence:**
+  1. Deploy the code as is: renewal stays dormant, and sessions last one hour with the Batch 2A expiry handling.
+  2. After owner approval, move the file into `database/migrations/` and redeploy; `npm run migrate` creates the table before the app starts. The owner can also apply it with `psql` first; the runner then applies it again (`IF NOT EXISTS`, a safe no-op) and records it.
+  3. Renewal starts on the next sign-in, and existing refresh cookies convert on first use. No restart or code change is needed.
+  4. Rollback: the table can stay unused; dropping it returns to one-hour sessions.
+- **Verified:**
+  - Unit tests: 46 pass, 0 fail, 2 PostgreSQL tests skipped. The 6 new tests cover rotation, reuse, expiry, the cap, legacy tokens, logout, magic login, a storage failure and the middleware fail-safe.
+  - Browser, isolated harness with a stand-in DB that serializes transactions like row locks: 12/12 renewal checks, 24/24 Batch 2A checks and 94/94 Batch 1 regression.
+- **Known limits:**
+  - Not tested against real PostgreSQL; the SQL ran only against the stand-in.
+  - Real Google sign-in and real phones were not tested.
+  - The renewal failure throttle is per process and in memory, like `authRateLimit`.
+  - A logout CSRF can still clear cookies; the refresh token is not revoked in that case. This existed before 2B.
+- **Next:** launch-readiness only (see the launch-priority entry above). Batch 3 is paused by the owner.
+
+### 2026-11-20 — Batch 2A: session expiry and recovery (uncommitted)
+
+- **Completed:** roadmap P0-3 (audit AUTH-02, AUTH-03).
+  - New `backend/utils/returnPath.js`.
+  - `requireAuth` redirects to `/login?next=`, adding `&reason=expired` when a session existed.
+  - `/login` shows the French notice and honors `next`; `redirectIfLoggedIn` uses the exported `verifyToken`.
+  - `auth-entry.js` and `google-auth.js` return to `next`. On iPhone/iPad Google, a `synta_next` hint cookie scoped to the callback path is validated again server-side.
+  - New `public/js/session-guard.js`, loaded from `head.ejs` together with a `synta-session-expires-in` meta tag: an expiry dialog, a 5-minute warning banner, and replay of failed progress and quiz saves.
+  - The catalog, offers and wallet no longer auto-redirect on 401.
+- **Unchanged:** token lifetimes, cookie flags, signing, and the unused refresh cookie (read only as a presence hint).
+- **Verified:**
+  - Unit tests: 40 pass, 0 fail, 2 PostgreSQL tests skipped.
+  - Browser, isolated harness with the real `auth-api`, `pages` and `user-api` routes and a stand-in DB: 24/24 Batch 2A checks at 390 and 1440 px, plus a 94/94 Batch 1 regression run.
+- **Known limits:**
+  - An in-progress quiz restarts after re-login; its answers already sent are kept.
+  - Unsaved profile and wallet form fields are not stashed.
+  - The real Google sign-in (popup and iPhone redirect) was not exercised.
+  - Login is rate-limited to 30 attempts per 15 minutes per IP.
+- **Next:** propose roadmap P0-4 (refresh-token renewal) for owner approval, then Batch 3 (P1-1 resume next lesson, P1-2 90% completion).
+
+### 2026-11-20 — Student experience audit and first quick-win batch
+
+- Full read-only audit and roadmap: `docs/SYNTA_PLATFORM_AUDIT.md` (issue IDs) and `docs/STUDENT_UX_ROADMAP.md` (P0–P3). The audit's "Known Bugs" notes supersede the older table below where they differ.
+- Owner decisions: a video lesson is complete at about 90% watched; XP, levels and badges are hidden; refresh-token renewal is approved; students cannot change class or section; students can join live sessions 10 minutes early.
+- Implemented and covered by the regression suite (37 pass, 2 opt-in PostgreSQL skipped), syntax checks and EJS compilation:
+  - Live sessions stay listed until their scheduled end.
+  - The calendar uses `turboReload`, the 10-minute join window and `duration_minutes`.
+  - Profile saves cannot change class or section and validate the phone number.
+  - Catalog category chips use the stored values, and the empty results state and phone card widths are fixed.
+  - The quiz has a close button and closes on Escape.
+  - Offers link to the wallet when the balance is insufficient, and the stray CSS brace is fixed.
+  - The favicon, sidebar logo, offer fallback and slogan use the lighter images.
+  - The sidebar has Profile and Contact entries and sets `aria-current`.
+- Browser-verified on 2026-11-20 with headless Chrome against an isolated local harness (synthetic data, stand-in DB, no `.env`): 94/94 checks pass, covering 8 pages × 5 widths plus calendar, profile, catalog, quiz, offers, wallet and sidebar actions. Details are in `docs/SYNTA_PLATFORM_AUDIT.md` Section 11.
+- Not yet verified: the live-session duration SQL on real PostgreSQL, and real phones. Uncommitted; nothing has been deployed.
+- New pre-existing findings: OFF-08 (offer cards show no offer name) and PRF-06 (mobile profile form sits below the stats).
+- Next: roadmap P0-3 (session-expired handling) and P0-4 (refresh tokens), then P1-1 and P1-2 (resume the next lesson; complete at 90% watched).
+
 ### 2026-11-14 — Project-wide audit and bug fixes
 
 - Fixed: receipt XSS (deposit receipts must be PNG/JPEG/WebP/GIF/AVIF by magic bytes, max 20 MB; the admin proxy serves only raster types with nosniff and sandbox CSP), refresh/magic token reuse as sessions, unescaped profile values in `head.ejs`, server-crashing admin handlers, NaN debt payments, `.env` load order in `server.js` and `scripts/migrate.js`, startup crash without `RESEND_API_KEY`, CRLF-sensitive migration checksums, 500s for CORS rejections and malformed JSON, and negative or NaN admin page sizes.
@@ -395,7 +555,7 @@ The backend is running in production on Coolify. Core features (login, course ac
 
 | Feature | Status | Issue |
 |---------|--------|-------|
-| Refresh token renewal | ⚠️ PARTIAL | Refresh tokens are issued and stored in cookie but never redeemed. Users must re-login every hour. |
+| Refresh token renewal | ✅ 2026-11-20 | Rotating hashed refresh tokens renew sessions automatically (Batch 2B, in code). Dormant until the owner approves `database/pending-migrations/202611200001_create_refresh_tokens.sql`; sessions last one hour until then. |
 | Weak topics tracking | ⚠️ PARTIAL | Table exists, read endpoint works, but nothing writes to it. Always returns empty. |
 | Session → User link | ⚠️ PARTIAL | `session_registrations.auth_user_id` is never updated after account creation in `set-password` route. |
 | Live session status | ⚠️ PARTIAL | `status` field exists but always stays `'scheduled'` — never updated to `'live'` or `'completed'`. |
@@ -409,7 +569,7 @@ The backend is running in production on Coolify. Core features (login, course ac
 |----|----------|------|-------------|
 | BUG-001 | ✅ FIXED 2026-11-05 | `routes/purchase.js` | Both purchase endpoints use `authApiMiddleware` and take the purchaser ID from `req.user.id`; browser callers no longer send `userId`. |
 | BUG-002 | ✅ FIXED 2026-11-05 | `routes/ai-api.js` | `POST /api/ai/debug` uses `authApiMiddleware`. |
-| BUG-003 | 🔴 CRITICAL | `routes/auth-api.js` | No `POST /api/auth/refresh` endpoint. Refresh tokens are issued but never consumed. 1-hour session window. |
+| BUG-003 | ✅ FIXED 2026-11-20 | `services/sessions.js`, `middleware/requireAuth.js` | Refresh tokens now rotate and renew sessions automatically (Batch 2B, uncommitted). |
 | BUG-004 | 🟡 HIGH | `routes/admin-api.js`, `routes/user-api.js` | Schema columns added at runtime via `ALTER TABLE ... ADD COLUMN IF NOT EXISTS`. Fragile and unversioned. |
 | BUG-005 | 🟡 HIGH | `routes/session.js` | `POST /api/session/set-password` creates user account but does NOT update `session_registrations.auth_user_id`. |
 | BUG-006 | 🟡 HIGH | No backend files | Password reset flow is not implemented. The `/password-reset` EJS page has no backend support. |

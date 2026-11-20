@@ -11,6 +11,8 @@ import * as offerAccess from "../utils/offerAccess.js";
 import * as learnerProfile from "../utils/learnerProfile.js";
 import * as courseImages from "../utils/courseImages.js";
 import * as timedOffers from "../services/timed-offers.js";
+import * as returnPath from "../utils/returnPath.js";
+import * as sessions from "../services/sessions.js";
 
 const SECRET = "local-test-secret";
 const USER = "10000000-0000-0000-0000-000000000001";
@@ -25,14 +27,14 @@ const DATES = [
 const guard = (req, res, next) => req.user ? next() : res.status(401).json({});
 const admin = (req, res, next) => req.user?.role === "admin" ? next() : res.status(403).json({});
 
-async function loadRoute(name, doubles) {
+async function loadRoute(name, doubles, env = {}) {
   const routes = new Map();
   const router = {};
   for (const method of ["get", "post", "delete", "patch", "put"]) {
     router[method] = (path, ...handlers) => routes.set(`${method} ${path}`, handlers);
   }
   const context = vm.createContext({
-    process: { env: { JWT_SECRET: SECRET, NODE_ENV: "production" } }, Buffer, console,
+    process: { env: { JWT_SECRET: SECRET, NODE_ENV: "production", ...env } }, Buffer, console,
   });
   const dependencies = {
     express: { default: { Router: () => router } },
@@ -43,11 +45,15 @@ async function loadRoute(name, doubles) {
     "../utils/courseImages.js": courseImages,
     "../services/timed-offers.js": timedOffers,
     "../middleware/requireAdmin.js": { requireAdmin: admin },
-    "../middleware/requireAuth.js": {
-      authApiMiddleware: guard,
-      setSessionCookies: (res, tokens) => res.cookie("synta_access", tokens.access_token),
+    "../middleware/requireAuth.js": { authApiMiddleware: guard },
+    "../services/sessions.js": {
+      startSession: async (pool, res, user) => res.cookie("synta_access", jwt.sign({ id: user.id }, SECRET)),
+      revokeRefreshToken: async () => {},
+      clearSessionCookies: res => { res.clearCookie("synta_access"); res.clearCookie("synta_refresh"); },
     },
     "../middleware/authRateLimit.js": { authRateLimit },
+    "../services/live-features.js": { liveFeatures: { extendedAccess: false, recordingsTable: false } },
+    "../services/recording-worker.js": { recordingStorage: {}, recordingWorker: { kick() {} } },
     "../utils/offerAccess.js": offerAccess,
     "../utils/learnerProfile.js": learnerProfile,
     ...doubles,
@@ -826,4 +832,363 @@ test("course image delivery requires a session and refuses keys outside the imag
   assert.equal(image.statusCode, 302);
   assert.equal(image.headers.Location, "https://storage.example.invalid/synthetic-signed-image");
   assert.equal(image.headers["Cache-Control"], "private, max-age=300");
+});
+
+test("student profile updates keep class and section locked and validate the phone", async () => {
+  const queries = [];
+  const call = await loadRoute("user-api", {
+    "../config/db.js": { default: { query: async (sql, args) => {
+      queries.push({ sql, args });
+      return { rows: [], rowCount: 1 };
+    } } },
+  });
+  const route = "put /api/user/me";
+  const saved = await call(route, {
+    user: { id: USER },
+    body: { full_name: "  Amira  ", phone: "+216 22 123 456", user_class: "", user_branch: "lettres" },
+  });
+  assert.equal(saved.statusCode, 200);
+  const update = queries.at(-1);
+  assert.doesNotMatch(update.sql, /\bclass\b|\bbranch\b/);
+  assert.deepEqual([...update.args], ["Amira", "22123456", USER]);
+
+  const keptPhone = await call(route, { user: { id: USER }, body: { full_name: "Amira", phone: "" } });
+  assert.equal(keptPhone.statusCode, 200);
+  assert.deepEqual([...queries.at(-1).args], ["Amira", null, USER]);
+
+  const before = queries.length;
+  const invalid = await call(route, { user: { id: USER }, body: { full_name: "Amira", phone: "123" } });
+  assert.equal(invalid.statusCode, 400);
+  assert.equal(queries.length, before);
+});
+
+test("upcoming live sessions stay listed until their scheduled duration ends", async () => {
+  let listed;
+  const call = await loadRoute("live", {
+    "../config/db.js": { default: { query: async sql => {
+      listed = sql;
+      return { rows: [] };
+    } } },
+    "@aws-sdk/client-s3": { GetObjectCommand: class {} },
+    "../config/r2.js": { r2Client: {}, R2_BUCKET: "test" },
+    "../utils/r2Utils.js": { createR2UploadUrl() {}, generateSignedUrl() {} },
+    "../utils/zoomClient.js": { createZoomMeeting() {}, deleteZoomMeeting() {} },
+  });
+  const result = await call("get /upcoming", { user: { id: USER } });
+  assert.equal(result.statusCode, 200);
+  assert.match(listed, /ls\.scheduled_at \+ make_interval\(mins => COALESCE\(ls\.duration_minutes, 60\)\) > NOW\(\)/);
+  assert.doesNotMatch(listed, /ls\.scheduled_at >= NOW\(\)/);
+});
+
+test("post-login return paths only allow student pages", () => {
+  for (const safe of ["/dashboard", "/app/courses", "/app/course-details?id=abc&replay=1", "/app/code-pratique?source=lesson-file"]) {
+    assert.equal(returnPath.safeReturnPath(safe), safe);
+  }
+  for (const unsafe of [
+    "", "https://evil.example/app/x", "//evil.example", "/\\evil.example", "/app//evil", "/login", "/register",
+    "/api/user/me", "/admin/dashboard.html", "/app/../admin", "/dashboardx", "javascript:alert(1)", "/app/x\n",
+    "/app/" + "a".repeat(600), ["/app/courses"], null,
+  ]) {
+    assert.equal(returnPath.safeReturnPath(unsafe), null, String(unsafe));
+  }
+  assert.equal(returnPath.loginUrlFor("/app/course-details?id=1", true), "/login?next=%2Fapp%2Fcourse-details%3Fid%3D1&reason=expired");
+  assert.equal(returnPath.loginUrlFor("//evil.example", false), "/login");
+});
+
+test("protected pages send students to login with their destination and an expiry hint", async () => {
+  process.env.JWT_SECRET = SECRET;
+  const { requireAuth } = await import("../middleware/requireAuth.js");
+  const run = async req => {
+    const res = { cleared: [], locals: {}, redirect(url) { this.location = url; }, clearCookie(name) { this.cleared.push(name); } };
+    let passed = false;
+    await requireAuth({ method: "GET", originalUrl: "/app/course-details?id=1", cookies: {}, ...req }, res, () => { passed = true; });
+    return { res, passed };
+  };
+  const destination = "/login?next=%2Fapp%2Fcourse-details%3Fid%3D1";
+  assert.equal((await run({})).res.location, destination);
+  assert.equal((await run({ cookies: { synta_refresh: "anything" } })).res.location, destination + "&reason=expired");
+  const expiredToken = jwt.sign({ id: USER, exp: Math.floor(Date.now() / 1000) - 60 }, SECRET);
+  const expired = await run({ cookies: { synta_access: expiredToken } });
+  assert.equal(expired.res.location, destination + "&reason=expired");
+  assert.deepEqual(expired.res.cleared, ["synta_access"]);
+  const refreshAsAccess = await run({ cookies: { synta_access: jwt.sign({ id: USER, type: "refresh" }, SECRET) } });
+  assert.equal(refreshAsAccess.passed, false);
+  assert.equal((await run({ method: "POST" })).res.location, "/login");
+  assert.equal((await run({ originalUrl: "/admin/dashboard.html" })).res.location, "/login");
+  assert.equal((await run({ cookies: { synta_access: jwt.sign({ id: USER }, SECRET, { expiresIn: "1h" }) } })).passed, true);
+});
+
+test("iPhone Google sign-in returns to the validated page the student came from", async () => {
+  const user = { id: USER, email: "student@example.test", name: "Student", role: "user", phone: "22123456", class: "bac", branch: "info" };
+  const call = await loadRoute("google-auth", {
+    "node:crypto": { timingSafeEqual: crypto.timingSafeEqual },
+    "google-auth-library": { OAuth2Client: class {
+      async verifyIdToken() { return { getPayload: () => ({ sub: "google-1", email: user.email, name: user.name, email_verified: true }) }; }
+    } },
+    "../config/db.js": { default: { query: async () => ({ rows: [user], rowCount: 1 }) } },
+    "../utils/returnPath.js": returnPath,
+  }, { GOOGLE_CLIENT_ID: "test-client" });
+  const callback = cookies => call("post /api/auth/google/callback", {
+    cookies: { g_csrf_token: "csrf", ...cookies }, body: { g_csrf_token: "csrf", credential: "synthetic" },
+  });
+  const returned = await callback({ synta_next: "/app/course-details?id=1" });
+  assert.equal(returned.statusCode, 303);
+  assert.equal(returned.headers.Location, "/app/course-details?id=1");
+  assert.ok(returned.cookies.synta_access);
+  assert.equal((await callback({ synta_next: "//evil.example" })).headers.Location, "/dashboard");
+  assert.equal((await callback({})).headers.Location, "/dashboard");
+});
+
+const SESSION_USER = { id: USER, email: "student@example.test", name: "Student", role: "user" };
+
+function refreshTokenDb(users = [SESSION_USER]) {
+  const rows = [];
+  let nextId = 1;
+  const query = async (sql, params = []) => {
+    const statement = sql.replace(/\s+/g, " ").trim();
+    if (/^(BEGIN|COMMIT|ROLLBACK)$/.test(statement)) return { rows: [] };
+    if (statement.startsWith("SELECT id, email, name, role FROM users")) return { rows: users.filter(user => user.id === params[0]) };
+    if (statement.startsWith("DELETE FROM refresh_tokens")) return { rows: [] };
+    if (statement.startsWith("INSERT INTO refresh_tokens")) {
+      const [userId, familyId, tokenHash, expiresAt, familyExpiresAt] = params;
+      if (rows.some(row => row.token_hash === tokenHash)) {
+        if (statement.includes("ON CONFLICT (token_hash) DO NOTHING")) return { rows: [] };
+        throw Object.assign(new Error("duplicate token_hash"), { code: "23505" });
+      }
+      const row = {
+        id: nextId++, user_id: userId, family_id: familyId, token_hash: tokenHash,
+        expires_at: new Date(expiresAt), family_expires_at: new Date(familyExpiresAt),
+        used_at: statement.includes("used_at) VALUES") ? new Date() : null, revoked_at: null,
+      };
+      rows.push(row);
+      return { rows: [{ id: row.id }] };
+    }
+    if (statement.includes("WHERE token_hash = $1 FOR UPDATE")) return { rows: rows.filter(row => row.token_hash === params[0]).map(row => ({ ...row })) };
+    if (statement === "UPDATE refresh_tokens SET used_at = NOW() WHERE id = $1") {
+      rows.find(row => row.id === params[0]).used_at = new Date();
+      return { rows: [] };
+    }
+    if (statement.startsWith("UPDATE refresh_tokens SET revoked_at = NOW() WHERE family_id = $1")) {
+      for (const row of rows) if (row.family_id === params[0] && !row.revoked_at) row.revoked_at = new Date();
+      return { rows: [] };
+    }
+    if (statement.includes("family_id = (SELECT family_id FROM refresh_tokens WHERE token_hash = $1)")) {
+      const family = rows.find(row => row.token_hash === params[0])?.family_id;
+      for (const row of rows) if (family && row.family_id === family && !row.revoked_at) row.revoked_at = new Date();
+      return { rows: [] };
+    }
+    throw new Error(`Unexpected SQL: ${statement}`);
+  };
+  return { rows, query, connect: async () => ({ query, release() {} }) };
+}
+
+function cookieJar() {
+  return {
+    cookies: {},
+    cookie(name, value, options) { this.cookies[name] = { value, options }; },
+    clearCookie(name) { this.cookies[name] = { cleared: true }; },
+  };
+}
+
+test("refresh tokens rotate once and a replayed old token ends the whole session family", async () => {
+  process.env.JWT_SECRET = SECRET;
+  const db = refreshTokenDb();
+  const login = cookieJar();
+  await sessions.startSession(db, login, SESSION_USER);
+  const first = login.cookies.synta_refresh;
+  assert.equal(jwt.verify(login.cookies.synta_access.value, SECRET).id, USER);
+  assert.equal(first.options.httpOnly, true);
+  assert.equal(first.options.sameSite, "lax");
+  assert.equal(db.rows.length, 1);
+  assert.equal(db.rows[0].token_hash, sessions.hashToken(first.value));
+  assert.ok(!JSON.stringify(db.rows).includes(first.value), "raw refresh token must not be stored");
+
+  const rotated = await sessions.rotateRefreshToken(db, first.value);
+  assert.equal(jwt.verify(rotated.accessToken, SECRET).id, USER);
+  assert.notEqual(rotated.refresh.token, first.value);
+  assert.ok(db.rows[0].used_at);
+  assert.equal(db.rows[1].family_id, db.rows[0].family_id);
+
+  const parallel = await sessions.rotateRefreshToken(db, first.value);
+  assert.ok(parallel.accessToken, "a parallel request right after rotation still succeeds");
+  assert.equal(parallel.refresh, undefined);
+  assert.equal(db.rows.length, 2);
+
+  db.rows[0].used_at = new Date(Date.now() - sessions.ROTATION_GRACE_MS - 1000);
+  assert.equal(await sessions.rotateRefreshToken(db, first.value), null);
+  assert.ok(db.rows.every(row => row.revoked_at), "reuse revokes every token in the family");
+  assert.equal(await sessions.rotateRefreshToken(db, rotated.refresh.token), null);
+});
+
+test("refresh tokens expire after seven idle days and never outlive the 30-day session cap", async () => {
+  process.env.JWT_SECRET = SECRET;
+  const db = refreshTokenDb();
+  const login = cookieJar();
+  await sessions.startSession(db, login, SESSION_USER);
+  const [row] = db.rows;
+  const now = Date.now();
+  assert.ok(Math.abs(row.expires_at - (now + sessions.REFRESH_IDLE_MS)) < 5000);
+  assert.ok(Math.abs(row.family_expires_at - (now + sessions.SESSION_MAX_MS)) < 5000);
+
+  row.expires_at = new Date(now - 1000);
+  assert.equal(await sessions.rotateRefreshToken(db, login.cookies.synta_refresh.value), null);
+
+  const capped = cookieJar();
+  await sessions.startSession(db, capped, SESSION_USER);
+  db.rows[1].family_expires_at = new Date(now + 60 * 60 * 1000);
+  const renewed = await sessions.rotateRefreshToken(db, capped.cookies.synta_refresh.value);
+  assert.ok(renewed.refresh.expiresAt <= db.rows[1].family_expires_at, "renewal never extends past the family cap");
+  const renewedJar = cookieJar();
+  sessions.applyRotation(renewedJar, renewed);
+  assert.ok(renewedJar.cookies.synta_refresh.options.maxAge <= 60 * 60 * 1000);
+
+  db.rows[2].revoked_at = new Date();
+  assert.equal(await sessions.rotateRefreshToken(db, renewed.refresh.token), null);
+  db.rows[2].revoked_at = null;
+  db.rows[2].family_expires_at = new Date(now - 1000);
+  assert.equal(await sessions.rotateRefreshToken(db, renewed.refresh.token), null);
+
+  assert.equal(await sessions.rotateRefreshToken(db, crypto.randomBytes(32).toString("base64url")), null);
+  assert.equal(await sessions.rotateRefreshToken(db, ["not-a-token"]), null);
+  assert.equal(await sessions.rotateRefreshToken(db, "x".repeat(3000)), null);
+});
+
+test("pre-rotation refresh JWTs are accepted once and only when genuine", async () => {
+  process.env.JWT_SECRET = SECRET;
+  const db = refreshTokenDb();
+  const legacy = jwt.sign({ id: USER, type: "refresh" }, SECRET, { expiresIn: "7d" });
+  const converted = await sessions.rotateRefreshToken(db, legacy);
+  assert.equal(jwt.verify(converted.accessToken, SECRET).id, USER);
+  assert.ok(converted.refresh.token);
+  assert.equal(db.rows[0].token_hash, sessions.hashToken(legacy));
+  assert.ok(db.rows[0].used_at);
+
+  db.rows[0].used_at = new Date(Date.now() - sessions.ROTATION_GRACE_MS - 1000);
+  assert.equal(await sessions.rotateRefreshToken(db, legacy), null);
+  assert.equal(await sessions.rotateRefreshToken(db, converted.refresh.token), null, "legacy replay revokes the converted session");
+
+  for (const forged of [
+    jwt.sign({ id: USER }, SECRET, { expiresIn: "1h" }),
+    jwt.sign({ id: USER, magic: true }, SECRET, { expiresIn: "5m" }),
+    jwt.sign({ id: USER, type: "refresh" }, "wrong-secret", { expiresIn: "7d" }),
+    jwt.sign({ id: USER, type: "refresh", exp: Math.floor(Date.now() / 1000) - 60 }, SECRET),
+    jwt.sign({ id: "10000000-0000-0000-0000-000000000099", type: "refresh" }, SECRET, { expiresIn: "7d" }),
+  ]) {
+    assert.equal(await sessions.rotateRefreshToken(db, forged), null);
+  }
+});
+
+test("logout revokes renewal, admin log-in-as sessions never renew, and a storage failure still signs in", async () => {
+  process.env.JWT_SECRET = SECRET;
+  const db = refreshTokenDb();
+  const login = cookieJar();
+  await sessions.startSession(db, login, SESSION_USER);
+  const token = login.cookies.synta_refresh.value;
+  await sessions.revokeRefreshToken(db, token);
+  assert.equal(await sessions.rotateRefreshToken(db, token), null);
+
+  const adminBrowser = cookieJar();
+  await sessions.startSession(db, adminBrowser, SESSION_USER);
+  const adminToken = adminBrowser.cookies.synta_refresh.value;
+  const magic = cookieJar();
+  await sessions.startSession(db, magic, SESSION_USER, { renewable: false, previousRefreshToken: adminToken });
+  assert.ok(magic.cookies.synta_access.value);
+  assert.deepEqual(magic.cookies.synta_refresh, { cleared: true });
+  assert.equal(db.rows.length, 2, "no refresh token is created for a log-in-as session");
+  assert.equal(await sessions.rotateRefreshToken(db, adminToken), null);
+
+  const broken = { query: async sql => { if (sql.includes("INSERT")) throw new Error("relation does not exist"); return { rows: [] }; } };
+  const fallback = cookieJar();
+  const originalError = console.error;
+  console.error = () => {};
+  try {
+    await sessions.startSession(broken, fallback, SESSION_USER);
+  } finally {
+    console.error = originalError;
+  }
+  assert.ok(fallback.cookies.synta_access.value);
+  assert.deepEqual(fallback.cookies.synta_refresh, { cleared: true });
+});
+
+test("session renewal middleware renews before guards and fails safe", async () => {
+  process.env.JWT_SECRET = SECRET;
+  const { sessionRenewal } = await import("../middleware/requireAuth.js");
+  const db = refreshTokenDb();
+  const login = cookieJar();
+  await sessions.startSession(db, login, SESSION_USER);
+  const run = async (middleware, req) => {
+    const res = cookieJar();
+    let passed = false;
+    req = { path: "/app/courses", ip: "198.51.100.7", ...req };
+    await middleware(req, res, () => { passed = true; });
+    return { req, res, passed };
+  };
+
+  const renewal = sessionRenewal(db);
+  const renewed = await run(renewal, { cookies: { synta_refresh: login.cookies.synta_refresh.value } });
+  assert.equal(renewed.passed, true);
+  assert.equal(jwt.verify(renewed.req.cookies.synta_access, SECRET).id, USER);
+  assert.equal(renewed.res.cookies.synta_access.value, renewed.req.cookies.synta_access);
+  assert.equal(renewed.res.cookies.synta_refresh.value, renewed.req.cookies.synta_refresh);
+
+  let connects = 0;
+  const counting = { connect: async () => { connects++; return db.connect(); } };
+  const valid = jwt.sign({ id: USER }, SECRET, { expiresIn: "1h" });
+  await run(sessionRenewal(counting), { cookies: { synta_access: valid, synta_refresh: "unused" } });
+  await run(sessionRenewal(counting), { path: "/api/auth/logout", cookies: { synta_refresh: "unused" } });
+  await run(sessionRenewal(counting), { cookies: {} });
+  assert.equal(connects, 0, "no renewal when access is valid, on auth routes, or without a refresh cookie");
+
+  const refused = await run(renewal, { cookies: { synta_refresh: "stolen-or-unknown" } });
+  assert.equal(refused.passed, true);
+  assert.deepEqual(refused.res.cookies.synta_refresh, { cleared: true });
+  assert.equal(refused.req.cookies.synta_refresh, "stolen-or-unknown", "login can still explain that the session expired");
+  assert.equal(refused.req.cookies.synta_access, undefined);
+
+  const limited = sessionRenewal(counting);
+  for (let attempt = 0; attempt < 31; attempt++) await run(limited, { cookies: { synta_refresh: `guess-${attempt}` } });
+  assert.equal(connects, 30, "renewal attempts are throttled per IP after repeated failures");
+
+  const down = sessionRenewal({ connect: async () => { throw Object.assign(new Error("connect ECONNREFUSED"), { code: "ECONNREFUSED" }); } });
+  const originalError = console.error;
+  console.error = () => {};
+  let outage;
+  try {
+    outage = await run(down, { cookies: { synta_refresh: login.cookies.synta_refresh.value } });
+  } finally {
+    console.error = originalError;
+  }
+  assert.equal(outage.passed, true);
+  assert.equal(outage.res.cookies.synta_refresh, undefined, "a database outage must not log the student out");
+});
+
+test("login starts a rotating session, logout revokes it, and magic login is not renewable", async () => {
+  const calls = [];
+  const sessionDouble = {
+    startSession: async (pool, res, user, options = {}) => { calls.push(["start", user.id, { ...options }]); res.cookie("synta_access", "access"); },
+    revokeRefreshToken: async (pool, token) => calls.push(["revoke", token]),
+    clearSessionCookies: res => { res.clearCookie("synta_access"); res.clearCookie("synta_refresh"); },
+  };
+  const user = { ...SESSION_USER, password_hash: "stored", email_verified: true };
+  const call = await loadRoute("auth-api", {
+    bcrypt: { default: { hash: async password => `hash:${password}`, compare: async () => true } },
+    "../config/db.js": { default: { query: async () => ({ rows: [user], rowCount: 1 }) } },
+    "../services/sessions.js": sessionDouble,
+    "../services/email.js": { generateVerificationToken() {}, async sendVerificationEmail() {} },
+  });
+
+  const login = await call("post /api/auth/login", {
+    body: { email: user.email, password: "local-only" }, cookies: { synta_refresh: "previous" },
+  });
+  assert.equal(login.body.success, true);
+  assert.equal(JSON.stringify(login.body).includes("stored"), false);
+  assert.deepEqual(calls.shift(), ["start", USER, { previousRefreshToken: "previous" }]);
+
+  const logout = await call("post /api/auth/logout", { cookies: { synta_refresh: "current" } });
+  assert.deepEqual(calls.shift(), ["revoke", "current"]);
+  assert.equal(logout.cookies.synta_access, undefined);
+
+  const magicToken = jwt.sign({ id: USER, magic: true }, SECRET, { expiresIn: "5m" });
+  await call("get /api/auth/magic-login", { query: { token: magicToken }, cookies: { synta_refresh: "admin" } });
+  assert.deepEqual(calls.shift(), ["start", USER, { renewable: false, previousRefreshToken: "admin" }]);
 });

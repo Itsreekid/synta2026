@@ -222,9 +222,8 @@
                     <td>${adminText(p.payment_method || 'N/A')}</td>
                     <td>${adminText(p.transaction_code || '-')}</td>
                     <td>
-                        <span class="status-badge status-${/^[a-z_-]+$/.test(p.status) ? p.status : "unknown"}">
-                            ${p.status === 'pending' ? 'En attente' : 
-                              p.status === 'completed' ? 'Confirmé' : 'Rejeté'}
+                        <span class="status-badge status-${paymentStatus(p.status).cls}">
+                            ${paymentStatus(p.status).text}
                         </span>
                         ${p.receipt_url ? `
                             <br><a href="/api/admin/payments/${adminText(encodeURIComponent(p.id))}/receipt" target="_blank" onclick="event.stopPropagation()" style="font-size: 0.8rem; color: #3b82f6; text-decoration: none; margin-top: 5px; display: inline-block;">
@@ -253,6 +252,15 @@
                     rejectPayment(id);
                 });
             });
+        }
+
+        // 'approved' is the legacy spelling of a confirmed deposit; the API already counts it as confirmed.
+        function paymentStatus(status) {
+            if (status === 'pending') return { cls: 'pending', text: 'En attente' };
+            if (status === 'completed' || status === 'approved') return { cls: 'completed', text: 'Confirmé' };
+            if (status === 'rejected') return { cls: 'rejected', text: 'Rejeté' };
+            if (status === 'cancelled') return { cls: 'rejected', text: 'Annulé' };
+            return { cls: 'unknown', text: adminText(status || 'Inconnu') };
         }
 
         function openPaymentRowWithKeyboard(event) {
@@ -289,8 +297,8 @@
                         
                         <div><strong style="color: #64748b; font-size: 0.85rem; text-transform: uppercase;">Statut</strong>
                             <div>
-                                <span class="status-badge status-${/^[a-z_-]+$/.test(p.status) ? p.status : "unknown"}">
-                                    ${p.status === 'pending' ? 'En attente' : p.status === 'completed' ? 'Confirmé' : 'Rejeté'}
+                                <span class="status-badge status-${paymentStatus(p.status).cls}">
+                                    ${paymentStatus(p.status).text}
                                 </span>
                             </div>
                         </div>

@@ -65,23 +65,6 @@ function loadStats() {
 
         const progressEl = document.getElementById('overall-progress');
         if (progressEl) progressEl.textContent = stats.overallProgress + '%';
-
-        const achievementsEl = document.getElementById('achievements');
-        if (achievementsEl) achievementsEl.textContent = stats.achievements;
-
-        const xp = (stats.totalCompletedLessons || 0) * 10;
-        const level = Math.floor(xp / 100) + 1;
-        const currentLevelXp = xp % 100;
-        
-        const levelIcon = document.querySelector('.level-icon');
-        const levelStrong = document.querySelector('.level-info strong');
-        const levelXpLabel = document.querySelector('.level-xp');
-        const levelProgressBar = document.querySelector('.level-progress-wrapper .progress-bar-fill');
-        
-        if (levelIcon) levelIcon.textContent = level;
-        if (levelStrong) levelStrong.textContent = `Niveau ${level}`;
-        if (levelXpLabel) levelXpLabel.textContent = `${currentLevelXp} / 100 XP`;
-        if (levelProgressBar) levelProgressBar.style.width = `${(currentLevelXp / 100) * 100}%`;
     });
 }
 
@@ -363,7 +346,7 @@ function loadEvents() {
             const d = new Date(event.scheduled_at);
             const dateString = d.toLocaleDateString('fr-FR', { ...dateOptions, day: 'numeric', month: 'long' });
             const timeString = d.toLocaleTimeString('fr-FR', { ...dateOptions, hour: '2-digit', minute: '2-digit' });
-            const isLive = event.status === 'live';
+            const isLive = event.status === 'live' || d <= new Date();
 
             return `
                 <a class="event-item dashboard-event-link" href="/app/calendar">

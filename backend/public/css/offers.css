@@ -102,10 +102,6 @@
     box-shadow: 0 3px 8px rgba(239,68,68,0.25);
 }
 
-
-    50%      { transform: scale(1.07); }
-}
-
 .price-comparison {
     display: flex;
     align-items: baseline;
@@ -218,6 +214,24 @@
     padding: 0.7rem 1.1rem 1.1rem;
     margin-top: auto;
     flex-shrink: 0;
+}
+
+.offer-topup-link {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 44px;
+    margin-top: 0.4rem;
+    color: var(--oc-blue);
+    font-weight: 700;
+    text-decoration: underline;
+    text-underline-offset: 3px;
+}
+
+.offer-topup-link:focus-visible {
+    outline: 3px solid var(--oc-orange);
+    outline-offset: 2px;
+    border-radius: 8px;
 }
 
 .acheter-btn {

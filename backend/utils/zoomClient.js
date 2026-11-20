@@ -107,6 +107,26 @@ export async function createZoomMeeting({ topic, startTime, durationMinutes, isR
 }
 
 /**
+ * Open an authenticated stream of a cloud recording file. Zoom answers with a
+ * redirect to short-lived storage, which is followed without the bearer token.
+ * The caller owns the response body and must consume or cancel it.
+ */
+export async function openZoomRecordingDownload(downloadUrl, signal) {
+  const url = new URL(downloadUrl);
+  if (url.protocol !== 'https:' || !(url.hostname === 'zoom.us' || url.hostname.endsWith('.zoom.us'))) {
+    throw new Error('Unexpected recording download host');
+  }
+  const token = await getZoomAccessToken();
+  const first = await fetch(url, { headers: { Authorization: `Bearer ${token}` }, redirect: 'manual', signal });
+  const location = first.status >= 300 && first.status < 400 ? first.headers.get('location') : null;
+  if (!location) return first;
+  await first.body?.cancel();
+  const storageUrl = new URL(location, url);
+  if (storageUrl.protocol !== 'https:') throw new Error('Unexpected recording storage protocol');
+  return fetch(storageUrl, { redirect: 'follow', signal });
+}
+
+/**
  * Delete a Zoom meeting by ID (e.g. when a session is cancelled).
  * @param {string} meetingId
  */

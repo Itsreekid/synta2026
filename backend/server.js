@@ -15,6 +15,7 @@ import cookieParser from "cookie-parser";
 import path from "path";
 import { fileURLToPath } from "url";
 import { createHomepageDelivery, setPublicAssetCache } from "./utils/homepageDelivery.js";
+import { sessionRenewal } from "./middleware/requireAuth.js";
 
 // Import routes
 import contentRoutes from "./routes/content.js";
@@ -31,6 +32,9 @@ import pageRoutes from "./routes/pages.js";
 import sessionRoutes from "./routes/session.js";
 import adminApiRoutes from "./routes/admin-api.js";
 import aiApiRoutes from "./routes/ai-api.js";
+import zoomWebhookRoutes from "./routes/zoom-webhook.js";
+import { detectLiveFeatures, liveFeatures, recordingImportsEnabled } from "./services/live-features.js";
+import { recordingWorker } from "./services/recording-worker.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -111,6 +115,9 @@ app.use(helmet({
 // Cookie parser — must be before routes that read cookies
 app.use(cookieParser());
 
+// Zoom signs the raw request body, so this route reads it before JSON parsing.
+app.use(zoomWebhookRoutes);
+
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ limit: '50mb', extended: true }));
 
@@ -132,6 +139,9 @@ app.use((req, res, next) => {
   console.log(`${new Date().toISOString()} - ${req.method} ${req.path}`);
   next();
 });
+
+// Renew expired access tokens from the rotating refresh token before any route checks auth.
+app.use(sessionRenewal(pool));
 
 // =====================================================
 // ROUTES
@@ -217,6 +227,16 @@ process.on("SIGTERM", () => {
   console.log("SIGTERM received, shutting down gracefully...");
   process.exit(0);
 });
+
+detectLiveFeatures(pool).then(features => {
+  console.log(`[Live] Extended session access: ${features.extendedAccess ? "on" : "off (migration pending)"}`);
+  if (recordingImportsEnabled()) {
+    recordingWorker.start();
+    console.log("[Recordings] Zoom recording import worker started");
+  } else if (process.env.ZOOM_RECORDING_IMPORT_ENABLED === "true" && !liveFeatures.recordingsTable) {
+    console.log("[Recordings] Import disabled: zoom_recording_imports migration pending");
+  }
+}).catch(error => console.error("[Live] Feature detection failed:", error.code ?? error.name));
 
 if (process.env.TIMED_OFFER_REMINDERS_ENABLED === "true") {
   const remind = () => sendOfferExpiryReminders(pool).catch(error =>

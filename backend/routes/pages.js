@@ -12,17 +12,16 @@
 import express from "express";
 import path from "path";
 import { fileURLToPath } from "url";
-import jwt from "jsonwebtoken";
 import pool from "../config/db.js";
 import { BUGI_MESSAGES } from "../services/bugi-character.js";
-import { requireAuth } from "../middleware/requireAuth.js";
+import { requireAuth, verifyToken } from "../middleware/requireAuth.js";
+import { safeReturnPath } from "../utils/returnPath.js";
 import { requireAdmin } from "../middleware/requireAdmin.js";
 import { attachUserProfile } from "../middleware/attachUserProfile.js";
 
 const router = express.Router();
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
-const JWT_SECRET = process.env.JWT_SECRET;
 const googleClientId = process.env.GOOGLE_CLIENT_ID?.trim();
 
 function renderPage(res, view, locals = {}) {
@@ -123,21 +122,18 @@ router.get("/session/admin", (req, res) => {
 // AUTH ROUTES — Redirect to /dashboard if already logged in
 // --------------------------------------------------
 
+// Uses the same verifier as requireAuth so the two can never bounce a student between them.
 function redirectIfLoggedIn(req, res, next) {
-  const accessToken = req.cookies?.synta_access;
-  if (accessToken) {
-    try {
-      jwt.verify(accessToken, JWT_SECRET);
-      return res.redirect("/dashboard");
-    } catch (_) {
-      // Token invalid — show the login page
-    }
+  if (verifyToken(req.cookies?.synta_access)) {
+    return res.redirect(safeReturnPath(req.query.next) || "/dashboard");
   }
   return next();
 }
 
 router.get("/login", redirectIfLoggedIn, (req, res) => {
-  renderPage(res, "pages/auth/login", { googleClientId });
+  const nextPath = safeReturnPath(req.query.next);
+  const sessionNotice = req.query.reason === "expired" ? "expired" : nextPath ? "required" : null;
+  renderPage(res, "pages/auth/login", { googleClientId, nextPath, sessionNotice });
 });
 
 router.get("/register", redirectIfLoggedIn, (req, res) => {

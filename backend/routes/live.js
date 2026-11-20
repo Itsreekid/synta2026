@@ -9,10 +9,42 @@ import { requireAdmin } from "../middleware/requireAdmin.js";
 import { createZoomMeeting, deleteZoomMeeting } from "../utils/zoomClient.js";
 import { createR2UploadUrl, generateSignedUrl } from "../utils/r2Utils.js";
 import { r2Client, R2_BUCKET } from "../config/r2.js";
-import { liveSessionAccess, offerEntitlement, enrollmentAccess } from "../utils/offerAccess.js";
+import { liveSessionAccess, offerEntitlement, enrollmentAccess, hasExtendedLiveAccess } from "../utils/offerAccess.js";
+import { liveFeatures } from "../services/live-features.js";
+import { recordingStorage, recordingWorker } from "../services/recording-worker.js";
 
 const router = express.Router();
 const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+const JOIN_EARLY_MS = 10 * 60_000;
+
+const joinPath = id => `/api/live/${encodeURIComponent(id)}/join`;
+const signReplay = async url => url && !/^https?:\/\//i.test(url) ? generateSignedUrl(url, 3600) : url;
+
+/** Published Zoom segments beyond the first are exposed as extra replay parts. */
+async function attachReplayParts(sessions) {
+  if (!liveFeatures.recordingsTable || !sessions.length) return sessions;
+  const { rows } = await pool.query(
+    `SELECT id, live_session_id, object_key FROM zoom_recording_imports
+     WHERE live_session_id = ANY($1) AND status = 'published' AND object_key IS NOT NULL
+     ORDER BY recording_start`,
+    [sessions.map(session => session.id)]
+  );
+  const bySession = new Map();
+  for (const row of rows) {
+    if (!bySession.has(row.live_session_id)) bySession.set(row.live_session_id, []);
+    bySession.get(row.live_session_id).push(row);
+  }
+  return Promise.all(sessions.map(async session => {
+    const parts = bySession.get(session.id) || [];
+    if (parts.length < 2) return session;
+    return {
+      ...session,
+      replay_parts: await Promise.all(parts.map(async (part, index) => ({
+        id: part.id, label: `Partie ${index + 1}`, url: await generateSignedUrl(part.object_key, 3600),
+      }))),
+    };
+  }));
+}
 
 async function getEligibleStudents(courseId, offerId, studentIds = null) {
   const result = await pool.query(
@@ -83,7 +115,7 @@ router.get("/course/:courseId", authApiMiddleware, async (req, res) => {
 
     const result = await pool.query(
       `SELECT ls.id, ls.title, ls.description, ls.scheduled_at,
-              ls.duration_minutes, ls.status, ls.zoom_join_url, ls.replay_url,
+              ls.duration_minutes, ls.status, ls.zoom_join_url IS NOT NULL AS has_join_link, ls.replay_url,
               md5(jsonb_build_array(ls.title,ls.description,ls.scheduled_at,ls.duration_minutes,ls.replay_url)::text) AS revision
        FROM live_sessions ls
        WHERE ls.course_id = $1
@@ -92,13 +124,12 @@ router.get("/course/:courseId", authApiMiddleware, async (req, res) => {
       [courseId, userId]
     );
 
-    const sessions = await Promise.all(result.rows.map(async (session) => ({
+    const sessions = await Promise.all(result.rows.map(async ({ has_join_link, ...session }) => ({
       ...session,
-      replay_url: session.replay_url && !/^https?:\/\//i.test(session.replay_url)
-        ? await generateSignedUrl(session.replay_url, 3600)
-        : session.replay_url,
+      join_url: has_join_link ? joinPath(session.id) : null,
+      replay_url: await signReplay(session.replay_url),
     })));
-    res.json(await attachSessionResources(sessions, true));
+    res.json(await attachSessionResources(await attachReplayParts(sessions), true));
   } catch (error) {
     console.error("Error fetching course live sessions:", error);
     res.status(500).json({ error: "Internal server error" });
@@ -145,20 +176,20 @@ router.get("/upcoming", authApiMiddleware, async (req, res) => {
 
     const sessionResult = await pool.query(
       `SELECT ls.id, ls.title, ls.description, ls.scheduled_at, ls.duration_minutes,
-              ls.status, ls.offer_id, ls.zoom_join_url, ls.replay_url,
-              ls.course_id,
+              ls.status, ls.zoom_join_url IS NOT NULL AS has_join_link, ls.replay_url,
               c.title AS course_title, c.thumbnail_url AS course_thumbnail
        FROM live_sessions ls
        JOIN courses c ON c.id = ls.course_id
        WHERE ${liveSessionAccess("$1")}
-         AND ls.scheduled_at >= NOW()
+         AND ls.scheduled_at + make_interval(mins => COALESCE(ls.duration_minutes, 60)) > NOW()
        ORDER BY ls.scheduled_at ASC`,
       [userId]
     );
 
-    const response = await Promise.all(sessionResult.rows.map(async ({ offer_id, course_id, course_title, course_thumbnail, ...s }) => ({
+    const response = await Promise.all(sessionResult.rows.map(async ({ has_join_link, course_title, course_thumbnail, ...s }) => ({
       ...s,
-      replay_url: s.replay_url && !/^https?:\/\//i.test(s.replay_url) ? await generateSignedUrl(s.replay_url, 3600) : s.replay_url,
+      join_url: has_join_link ? joinPath(s.id) : null,
+      replay_url: await signReplay(s.replay_url),
       course: { title: course_title, thumbnail_url: course_thumbnail },
     })));
 
@@ -190,7 +221,7 @@ router.get("/replays", authApiMiddleware, async (req, res) => {
 
     const replays = await Promise.all(result.rows.map(async ({ course_title, ...s }) => ({
       ...s,
-      replay_url: !/^https?:\/\//i.test(s.replay_url) ? await generateSignedUrl(s.replay_url, 3600) : s.replay_url,
+      replay_url: await signReplay(s.replay_url),
       course: { title: course_title },
     })));
 
@@ -201,12 +232,69 @@ router.get("/replays", authApiMiddleware, async (req, res) => {
   }
 });
 
+function joinNotice(res, status, message) {
+  res.set("Cache-Control", "private, no-store");
+  return res.status(status).type("html").send(
+    `<!doctype html><html lang="fr"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">` +
+    `<title>Séance live</title><body style="font-family:system-ui,sans-serif;max-width:32rem;margin:3rem auto;padding:0 1rem;color:#1e293b">` +
+    `<p>${message}</p><p><a href="/app/calendar">Retour au calendrier</a></p></body></html>`
+  );
+}
+
+/**
+ * GET /api/live/:sessionId/join — PROTECTED
+ * Redirects to Zoom only for authorized students inside the join window.
+ */
+router.get("/:sessionId/join", authApiMiddleware, async (req, res) => {
+  if (!uuidPattern.test(req.params.sessionId)) return joinNotice(res, 404, "Séance introuvable.");
+  try {
+    const { rows: [session] } = await pool.query(
+      `SELECT ls.scheduled_at, ls.duration_minutes, ls.zoom_join_url
+       FROM live_sessions ls
+       WHERE ls.id = $1 AND ${liveSessionAccess("$2")}`,
+      [req.params.sessionId, req.user.id]
+    );
+    if (!session?.zoom_join_url) return joinNotice(res, 404, "Séance introuvable ou accès non autorisé.");
+    const start = new Date(session.scheduled_at).getTime();
+    const end = start + Number(session.duration_minutes || 60) * 60_000;
+    const now = Date.now();
+    if (now < start - JOIN_EARLY_MS) {
+      return joinNotice(res, 403, "La séance n’a pas encore commencé. Le lien s’ouvre 10 minutes avant le début.");
+    }
+    if (now > end) return joinNotice(res, 410, "Cette séance est terminée.");
+    res.set("Cache-Control", "private, no-store");
+    res.redirect(302, session.zoom_join_url);
+  } catch (error) {
+    console.error("Error opening live session:", error.code ?? error.name);
+    joinNotice(res, 500, "Impossible d’ouvrir la séance. Réessayez.");
+  }
+});
+
+function uuidList(value) {
+  if (value == null) return [];
+  if (!Array.isArray(value) || !value.every(id => typeof id === "string" && uuidPattern.test(id))) return null;
+  return [...new Set(value.map(id => id.toLowerCase()))];
+}
+
 /**
  * POST /api/live/schedule — ADMIN ONLY
  */
 router.post("/schedule", requireAdmin, async (req, res) => {
-  const { courseId, offerId, title, description, startTime, startTimes, durationMinutes = 60, audienceStudentIds = null } = req.body || {};
+  const { courseId, offerId, title, description, startTime, startTimes, durationMinutes = 60, audienceStudentIds = null,
+    additionalOfferIds = null, grantedStudentIds = null } = req.body || {};
   const dates = startTimes ?? (startTime ? [startTime] : []);
+  const extraOffers = uuidList(additionalOfferIds);
+  const grantedStudents = uuidList(grantedStudentIds);
+  if (!extraOffers || !grantedStudents) {
+    return res.status(400).json({ error: "Offres supplémentaires ou étudiants invités invalides." });
+  }
+  if ((extraOffers.length || grantedStudents.length) && !hasExtendedLiveAccess()) {
+    return res.status(409).json({ error: "Les offres multiples et les accès individuels seront disponibles après la mise à jour de la base de données." });
+  }
+  if (extraOffers.length && !offerId) {
+    return res.status(400).json({ error: "Choisissez d’abord l’offre principale." });
+  }
+  const additional = extraOffers.filter(id => id !== String(offerId).toLowerCase());
 
   if (!uuidPattern.test(courseId) || (offerId && !uuidPattern.test(offerId)) ||
       typeof title !== "string" || !title.trim() || !Array.isArray(dates) ||
@@ -230,24 +318,37 @@ router.post("/schedule", requireAdmin, async (req, res) => {
         return res.status(400).json({ error: "Tous les étudiants sélectionnés doivent être inscrits au cours et à l’offre choisie, le cas échéant." });
       }
     }
+    if (additional.length) {
+      const found = await pool.query("SELECT COUNT(*)::int AS count FROM offers WHERE id = ANY($1::uuid[])", [additional]);
+      if (found.rows[0].count !== additional.length) return res.status(400).json({ error: "Une offre supplémentaire est introuvable." });
+    }
+    if (grantedStudents.length) {
+      const found = await pool.query(
+        "SELECT COUNT(*)::int AS count FROM users WHERE id = ANY($1::uuid[]) AND role = 'user'", [grantedStudents]);
+      if (found.rows[0].count !== grantedStudents.length) return res.status(400).json({ error: "Un étudiant invité est introuvable." });
+    }
 
     const isRecurring = times.length > 1;
     const { zoom_meeting_id, zoom_join_url, zoom_start_url, zoom_password } =
       await createZoomMeeting({ topic: title, startTime: times[0], durationMinutes, isRecurring });
 
+    const extended = hasExtendedLiveAccess();
     let result;
     try {
       result = await pool.query(
         `INSERT INTO live_sessions
            (course_id, offer_id, title, description, scheduled_at, duration_minutes,
-            zoom_meeting_id, zoom_join_url, zoom_start_url, zoom_password, status, audience_student_ids)
+            zoom_meeting_id, zoom_join_url, zoom_start_url, zoom_password, status, audience_student_ids
+            ${extended ? ", additional_offer_ids, granted_student_ids" : ""})
          SELECT $1, $2, $3, $4, occurrence, $6, $7, $8, $9, $10, 'scheduled', $11
+            ${extended ? ", $12::uuid[], $13::uuid[]" : ""}
          FROM unnest($5::timestamptz[]) AS dates(occurrence)
          RETURNING id, title, scheduled_at, zoom_meeting_id, zoom_join_url, offer_id`,
         [
           courseId, offerId || null, title, description || null,
           times, durationMinutes, zoom_meeting_id, zoom_join_url,
           zoom_start_url, zoom_password, audience,
+          ...(extended ? [additional.length ? additional : null, grantedStudents.length ? grantedStudents : null] : []),
         ]
       );
     } catch (error) {
@@ -401,6 +502,7 @@ router.get("/admin/sessions", requireAdmin, async (req, res) => {
     const result = await pool.query(
       `SELECT ls.id, ls.course_id, ls.offer_id, ls.title, ls.description, ls.scheduled_at,
               ls.duration_minutes, ls.status, ls.zoom_meeting_id, ls.replay_url, ls.audience_student_ids,
+              ${hasExtendedLiveAccess() ? "ls.additional_offer_ids, ls.granted_student_ids," : ""}
               ls.zoom_start_url IS NOT NULL AS has_host_link, c.title AS course_title
        FROM live_sessions ls
        JOIN courses c ON c.id = ls.course_id
@@ -417,6 +519,168 @@ router.get("/admin/sessions", requireAdmin, async (req, res) => {
   } catch (error) {
     console.error("Error fetching admin sessions:", error);
     res.status(500).json({ error: "Internal server error" });
+  }
+});
+
+/**
+ * GET /api/live/admin/features — ADMIN ONLY
+ */
+router.get("/admin/features", requireAdmin, (req, res) => {
+  res.json({ extendedAccess: hasExtendedLiveAccess(), recordings: liveFeatures.recordingsTable });
+});
+
+/**
+ * GET /api/live/admin/students?q= — ADMIN ONLY
+ * Any student account can be granted individual access to a session.
+ */
+router.get("/admin/students", requireAdmin, async (req, res) => {
+  const search = typeof req.query.q === "string" ? req.query.q.trim().slice(0, 100) : "";
+  try {
+    const { rows } = await pool.query(
+      `SELECT id, name, email FROM users
+       WHERE role = 'user' AND ($1 = '' OR name ILIKE '%' || $1 || '%' OR email ILIKE '%' || $1 || '%')
+       ORDER BY name NULLS LAST, email LIMIT 50`,
+      [search]
+    );
+    res.json(rows);
+  } catch (error) {
+    console.error("Error searching students:", error.code ?? error.name);
+    res.status(500).json({ error: "Impossible de charger les étudiants." });
+  }
+});
+
+function requireRecordingsTable(req, res, next) {
+  if (!liveFeatures.recordingsTable) {
+    return res.status(409).json({ error: "L’import automatique des enregistrements n’est pas encore activé." });
+  }
+  next();
+}
+
+/**
+ * GET /api/live/admin/recordings — ADMIN ONLY
+ * Import status per Zoom segment, with a short preview link once stored in R2.
+ */
+router.get("/admin/recordings", requireAdmin, requireRecordingsTable, async (req, res) => {
+  try {
+    const { rows } = await pool.query(
+      `SELECT id, live_session_id, zoom_meeting_id, zoom_meeting_uuid, recording_type, recording_start, recording_end,
+              file_size, bytes_transferred, status, review_reason, attempts, last_error, object_key, created_at
+       FROM zoom_recording_imports
+       WHERE status <> 'discarded' AND created_at > NOW() - INTERVAL '120 days'
+       ORDER BY recording_start DESC`
+    );
+    const stored = new Set(["needs_review", "published"]);
+    res.json(await Promise.all(rows.map(async ({ object_key, ...row }) => ({
+      ...row,
+      preview_url: stored.has(row.status) && object_key ? await generateSignedUrl(object_key, 3600) : null,
+    }))));
+  } catch (error) {
+    console.error("Error listing recording imports:", error.code ?? error.name);
+    res.status(500).json({ error: "Impossible de charger les enregistrements." });
+  }
+});
+
+/**
+ * POST /api/live/admin/recordings/:importId/retry — ADMIN ONLY
+ */
+router.post("/admin/recordings/:importId/retry", requireAdmin, requireRecordingsTable, async (req, res) => {
+  if (!uuidPattern.test(req.params.importId)) return res.status(400).json({ error: "Import invalide." });
+  try {
+    const result = await pool.query(
+      `UPDATE zoom_recording_imports
+       SET status = 'pending', attempts = 0, next_attempt_at = NOW(), last_error = NULL, updated_at = NOW()
+       WHERE id = $1 AND status = 'failed' RETURNING id`,
+      [req.params.importId]
+    );
+    if (!result.rowCount) return res.status(409).json({ error: "Seuls les imports en échec peuvent être relancés." });
+    recordingWorker.kick();
+    res.json({ success: true });
+  } catch (error) {
+    console.error("Error retrying recording import:", error.code ?? error.name);
+    res.status(500).json({ error: "Impossible de relancer l’import." });
+  }
+});
+
+/**
+ * POST /api/live/admin/recordings/publish — ADMIN ONLY
+ * Body: { sessionId, importIds } — the chosen stored segments become the
+ * session replay, in recording order. Other segments stay stored for review.
+ */
+router.post("/admin/recordings/publish", requireAdmin, requireRecordingsTable, async (req, res) => {
+  const sessionId = req.body?.sessionId;
+  const importIds = uuidList(req.body?.importIds);
+  if (!uuidPattern.test(sessionId || "") || !importIds?.length) {
+    return res.status(400).json({ error: "Choisissez une séance et au moins un segment." });
+  }
+  const client = await pool.connect();
+  try {
+    await client.query("BEGIN");
+    const { rows: [session] } = await client.query(
+      "SELECT id, zoom_meeting_id FROM live_sessions WHERE id = $1 AND status <> 'cancelled' FOR UPDATE", [sessionId]);
+    if (!session) {
+      await client.query("ROLLBACK");
+      return res.status(404).json({ error: "Séance introuvable." });
+    }
+    const { rows: chosen } = await client.query(
+      `SELECT id, object_key FROM zoom_recording_imports
+       WHERE id = ANY($1::uuid[]) AND status IN ('needs_review', 'published') AND object_key IS NOT NULL
+         AND zoom_meeting_id = $2 AND (live_session_id IS NULL OR live_session_id = $3)
+       ORDER BY recording_start
+       FOR UPDATE`,
+      [importIds, session.zoom_meeting_id, sessionId]
+    );
+    if (chosen.length !== importIds.length) {
+      await client.query("ROLLBACK");
+      return res.status(400).json({ error: "Un segment choisi n’est pas disponible pour cette séance." });
+    }
+    await client.query(
+      `UPDATE zoom_recording_imports SET status = 'needs_review', review_reason = 'not_selected', updated_at = NOW()
+       WHERE live_session_id = $1 AND status = 'published' AND NOT (id = ANY($2::uuid[]))`,
+      [sessionId, importIds]
+    );
+    await client.query(
+      `UPDATE zoom_recording_imports
+       SET status = 'published', live_session_id = $1, review_reason = NULL, updated_at = NOW()
+       WHERE id = ANY($2::uuid[])`,
+      [sessionId, importIds]
+    );
+    await client.query("UPDATE live_sessions SET replay_url = $2 WHERE id = $1", [sessionId, chosen[0].object_key]);
+    await client.query("COMMIT");
+    res.json({ success: true, published: chosen.map(row => row.id) });
+  } catch (error) {
+    await client.query("ROLLBACK").catch(() => {});
+    console.error("Error publishing recording:", error.code ?? error.name);
+    res.status(500).json({ error: "Impossible de publier le replay." });
+  } finally {
+    client.release();
+  }
+});
+
+/**
+ * DELETE /api/live/admin/recordings/:importId — ADMIN ONLY
+ * Deletes an unpublished segment from R2 only. The Zoom cloud recording is kept,
+ * and the row stays so the same Zoom file is never imported again.
+ */
+router.delete("/admin/recordings/:importId", requireAdmin, requireRecordingsTable, async (req, res) => {
+  if (!uuidPattern.test(req.params.importId)) return res.status(400).json({ error: "Import invalide." });
+  try {
+    const { rows: [row] } = await pool.query(
+      `UPDATE zoom_recording_imports SET status = 'discarded', updated_at = NOW()
+       WHERE id = $1 AND status IN ('needs_review', 'failed')
+       RETURNING object_key, multipart_upload_id`,
+      [req.params.importId]
+    );
+    if (!row) return res.status(409).json({ error: "Seuls les segments non publiés peuvent être supprimés." });
+    if (row.object_key && row.multipart_upload_id) {
+      await recordingStorage.abortMultipart(row.object_key, row.multipart_upload_id).catch(() => {});
+    }
+    if (row.object_key?.startsWith("live-replays/")) await recordingStorage.delete(row.object_key);
+    await pool.query(
+      "UPDATE zoom_recording_imports SET object_key = NULL, multipart_upload_id = NULL WHERE id = $1", [req.params.importId]);
+    res.json({ success: true });
+  } catch (error) {
+    console.error("Error deleting recording segment:", error.code ?? error.name);
+    res.status(500).json({ error: "Impossible de supprimer le segment." });
   }
 });
 

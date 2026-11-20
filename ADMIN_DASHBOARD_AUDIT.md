@@ -65,6 +65,8 @@ The reviewed admin API declarations in `backend/routes/admin-api.js`, placement 
 A01 was addressed in Students and Payments by serializing untrusted values from DOM text nodes and binding actions with event listeners. The touched Offers list and feature values use the same encoding. A04 now counts offers with is_active enabled. The Offers page lists both states and can toggle status through an admin-only endpoint.
 
 The follow-up review found additional raw interpolation in placement registrant cells and answer details (`backend/public/admin/pages/free-session.html:381`, `:423`, `:427`), and an unescaped course thumbnail attribute (`backend/public/admin/pages/courses.html:835`). These paths were reviewed only and remain pending approval. The original table above records the audit before these approved fixes.
+A06 (status display only) was addressed on 2026-11-20. Legacy `approved` deposits show as « Confirmé », `cancelled` as « Annulé », and unknown statuses are shown escaped instead of « Rejeté ». Pagination and search on the payments page remain open.
+
 ## Placement and thumbnail follow-up
 
 The approved placement question, registration and answer renderers now encode text and bind controls through DOM listeners. The course table assigns validated thumbnail URLs to image elements and retains the existing placeholder on rejection or load failure. A local Chrome fixture confirmed both paths; the existing backend placement answer-data gap (A08) is separate and remains open.
