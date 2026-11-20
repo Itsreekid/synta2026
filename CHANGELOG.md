@@ -1,5 +1,13 @@
 # CHANGELOG.md — Synta Academy
 
+## 2026-11-20 — Cours pages redesign (uncommitted)
+
+- Course list: compact cards on phones and a grid on larger screens, "Mes cours" and "Découvrir" groups, progress on each card, and the course initial when there is no thumbnail. The banner no longer overlaps the mascot.
+- Course page: numbered chapters with lesson counts and progress, a readable category name, and a sticky course card on wide screens. The inline styles moved to `course-details.css`.
+- Lesson and replay players: the title, a clear "Terminer & suivante" button and the files sit in one card under the video. The current lesson is highlighted in the chapter list. Fixed the stretched replay title.
+- Quiz popup: the timer line stays at the top, joined by a countdown that turns red in the last 15 seconds, step progress, A/B/C/D answers with right and wrong marking, a fixed check button, and a score ring. It opens as a bottom sheet on phones.
+- Phone pages no longer stretch inner sections to full screen height.
+
 ## 2026-11-20 — Calendar responsive layout (uncommitted)
 
 - Phones show a week strip with distinct day labels and the selected day's sessions, instead of three stacked week buttons and a clipped week.

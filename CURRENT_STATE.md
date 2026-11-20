@@ -1,5 +1,37 @@
 # CURRENT_STATE.md — Synta Academy
 
+### 2026-11-20 — Cours pages UX pass: course list, course details, lesson and replay players, quiz popup (uncommitted)
+
+- **Course list** (`views/pages/courses/index.ejs`, `public/js/courses.js`, `public/css/courses.css`, all rewritten):
+  - The banner text no longer overlaps the mascot on phones.
+  - Phones show compact horizontal cards; tablets and desktops show a grid.
+  - Cards are grouped into "Mes cours" and "Découvrir d’autres cours", with progress and a "Continuer", "Commencer" or "Découvrir le cours" call to action.
+  - When there is no thumbnail, cards show the course initial instead of an external placeholder image.
+  - Loading skeletons, and styled no-results and error states.
+  - Purchase and enrolment functions are unchanged.
+- **Course details** (`views/pages/courses/details.ejs`): the ~720-line inline `<style>` is gone. The page now loads the new `public/css/course-details.css`, and every element ID is kept.
+  - Phones and tablets show one column. At 1200px and wider, the course card and files sit in a sticky side column. The JS breakpoint `COURSE_WIDE_LAYOUT` must match the CSS.
+  - The category shows a readable label ("Bac Informatique") instead of the slug.
+  - Chapters are numbered, with lesson and mini-défi counts and per-chapter progress. Rows use a chevron and are keyboard accessible (`aria-expanded`; lesson rows respond to Enter and Space). The first unfinished chapter opens by default.
+- **Lesson player** (`public/js/course-details.js`):
+  - Layout: chapter label, video, then a details card with the title and a green "Terminer & suivante" button, the description, and the lesson files.
+  - The chapter list in the player highlights the current lesson (`.is-current`, matched by `data-lesson-id` instead of the onclick text) and opens only its chapter.
+- **Replay player:** same layout. Fixed a bug where the replay title box was stretched to 288px tall.
+- **Quiz popup:** the owner's timer line is kept, flush at the top edge.
+  - New top bar: "Mini-défi" label, quiz title, an m:ss countdown, and the close button (it no longer overlaps the header).
+  - The countdown and the timer line turn red in the last 15 seconds.
+  - Below the top bar: step segments with "Question x/3", then A/B/C/D answer badges.
+  - After checking, the right answer is marked green and a wrong pick red.
+  - The button sits in a fixed footer, and results show a score ring.
+  - On phones the popup is a bottom sheet.
+  - Scoring, tracking and timing logic are unchanged.
+- **Shared fix in `public/css/user.css`:** removed a phone-only rule that forced every `<section>` to `calc(100vh - 70px)` with its own scroll. It made lesson resources 954px tall and also affected inner sections of other pages such as Mon Portefeuille.
+- **Verified** on the local mock with synthetic data, no real accounts:
+  - Screenshots of the list, overview, replays tab, lesson, replay and quiz at 7 sizes from 360×740 to 1920×1080: no overflow and no JS errors.
+  - Interaction checks pass at 390 and 1440px: tabs, chapter toggle, Enter opens a lesson, next item, replay parts, the full quiz flow, countdown, Escape and the close button.
+  - Unit tests: 51 passed, 3 skipped.
+- **Next:** a real-phone check of the Cours pages. Then Mon Portefeuille, the next item in the nav, if the owner asks. Deployment is still paused.
+
 ### 2026-11-20 — Calendar responsive UX pass (uncommitted)
 
 - **What was wrong:** on phones the week controls stacked into three full-width buttons, so the days started below the fold, and Mardi and Mercredi were both labelled "M". From 900 to 1200px the week wrapped into a 4 + 3 grid of tall empty columns. On a normal desktop the seven columns were too narrow, so session titles broke into one word per line.

@@ -34,11 +34,11 @@ async function loadCourses(filters = {}, { keepCards = false } = {}) {
     const coursesList = document.getElementById('courses-list');
     if (!coursesList) return;
     const request = ++catalogRequest;
-    const hasCards = keepCards && Boolean(coursesList.querySelector('.course-card'));
+    const hasCards = keepCards && Boolean(coursesList.querySelector('.course-card-link'));
 
     try {
         // Show loading state
-        if (!hasCards) coursesList.innerHTML = '<div class="loading" role="status">Chargement des cours…</div>';
+        if (!hasCards) coursesList.innerHTML = courseSkeletons();
 
         // Build query string
         const params = new URLSearchParams();
@@ -65,8 +65,8 @@ async function loadCourses(filters = {}, { keepCards = false } = {}) {
 
         if (!courses || courses.length === 0) {
             coursesList.innerHTML = filters.search || filters.category
-                ? '<div class="no-courses">Aucun cours ne correspond à ta recherche. <button type="button" class="clear-filters-btn" onclick="clearCourseFilters()">Effacer les filtres</button></div>'
-                : '<div class="no-courses">Aucun cours disponible pour le moment</div>';
+                ? '<div class="no-courses"><i class="fas fa-search" aria-hidden="true"></i><strong>Aucun cours ne correspond à ta recherche.</strong><button type="button" class="clear-filters-btn" onclick="clearCourseFilters()">Effacer les filtres</button></div>'
+                : '<div class="no-courses"><i class="fas fa-book-open" aria-hidden="true"></i><strong>Aucun cours disponible pour le moment</strong></div>';
             return;
         }
 
@@ -99,56 +99,33 @@ async function loadCourses(filters = {}, { keepCards = false } = {}) {
             const quizzesCount = Number(course.quizzes_count) || 0;
             const livesCount = Number(course.lives_count) || 0;
 
-            const ctaText = isEnrolled ? 'Continuer le cours &rarr;' : 'Découvrir le cours &rarr;';
+            const ctaText = isEnrolled ? (progress > 0 ? 'Continuer' : 'Commencer') : 'Découvrir le cours';
             const statusLabel = isEnrolled ? (progress >= 100 ? 'Terminé' : 'En cours') : 'Disponible';
-            const statusColor = isEnrolled ? '#f97316' : '#10b981';
+            const statusClass = isEnrolled ? (progress >= 100 ? 'is-done' : 'is-active') : 'is-open';
+            const plural = (count, word) => `${count} ${word}${count > 1 ? 's' : ''}`;
+            const initial = courseCardText(String(course.title || '?').trim().charAt(0).toUpperCase());
 
             const cardHtml = `
-                <a class="course-card course-card-link" href="/app/course-details?id=${encodeURIComponent(course.id)}">
-                    
-                    <div class="course-thumbnail" style="position: relative; padding-top: 56.25%;">
-                        <img data-thumbnail-index="${index}" alt="" decoding="async" ${index > 2 ? 'loading="lazy"' : ''} style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; object-fit: cover;">
-                        <div style="position: absolute; top: 1rem; left: 1rem; display: flex; gap: 0.5rem;">
-                            <span style="background: ${statusColor}; color: white; padding: 0.3rem 0.8rem; border-radius: 20px; font-size: 0.75rem; font-weight: 600; box-shadow: 0 2px 5px rgba(0,0,0,0.2);">
-                                ${statusLabel}
-                            </span>
-                        </div>
+                <a class="course-card course-card-link${isEnrolled ? ' is-enrolled' : ''}" href="/app/course-details?id=${encodeURIComponent(course.id)}">
+                    <div class="course-thumbnail">
+                        <span class="course-thumbnail-fallback" aria-hidden="true">${initial}</span>
+                        <img data-thumbnail-index="${index}" alt="" decoding="async" ${index > 2 ? 'loading="lazy"' : ''}>
+                        <span class="course-status ${statusClass}">${statusLabel}</span>
                     </div>
-                    
-                    <div class="course-info" style="padding: 1.2rem; flex: 1; display: flex; flex-direction: column;">
-                        ${course.category ? `<span style="color: #64748b; font-size: 0.75rem; font-weight: 700; text-transform: uppercase; margin-bottom: 0.4rem; letter-spacing: 0.5px;">${courseCardText(formatCategory(course.category))}</span>` : ''}
-                        
+                    <div class="course-info">
+                        ${course.category ? `<span class="course-card-category">${courseCardText(formatCategory(course.category))}</span>` : ''}
                         <h3 class="course-card-title">${courseCardText(course.title)}</h3>
-                        
-                        <!-- Progress -->
-                        ${progress > 0 || isEnrolled ? `
-                        <div style="margin-bottom: 1rem;">
-                            <div style="display: flex; justify-content: flex-end; margin-bottom: 0.3rem;">
-                                <span style="font-size: 0.75rem; color: #64748b; font-weight: 600;">${progress}% terminé</span>
-                            </div>
-                            <div style="height: 4px; background: #e2e8f0; border-radius: 10px; overflow: hidden;">
-                                <div style="height: 100%; background: #f97316; width: ${progress}%; border-radius: 10px;"></div>
-                            </div>
-                        </div>
-                        ` : '<div style="flex: 1;"></div>'}
-                        
-                        <!-- Stats Row -->
-                        <div style="display: flex; justify-content: space-between; padding-top: 0.8rem; border-top: 1px solid #f1f5f9; margin-bottom: 1rem; margin-top: auto;">
-                            <div style="display: flex; align-items: center; gap: 0.3rem; color: #64748b; font-size: 0.8rem; font-weight: 500;">
-                                <i class="fas fa-book-open" style="color: #cbd5e1;"></i> ${lessonsCount} leçons
-                            </div>
-                            <div style="display: flex; align-items: center; gap: 0.3rem; color: #64748b; font-size: 0.8rem; font-weight: 500;">
-                                <i class="fas fa-question-circle" style="color: #cbd5e1;"></i> ${quizzesCount} quiz
-                            </div>
-                            <div style="display: flex; align-items: center; gap: 0.3rem; color: #64748b; font-size: 0.8rem; font-weight: 500;">
-                                <i class="fas fa-video" style="color: #cbd5e1;"></i> ${livesCount} live
-                            </div>
-                        </div>
-                        
-                        <!-- CTA Button -->
-                        <span class="course-card-action${isEnrolled ? ' is-enrolled' : ''}">
-                            ${ctaText}
-                        </span>
+                        ${isEnrolled ? `
+                        <div class="course-card-progress" aria-label="Progression : ${progress} %">
+                            <div class="course-card-progress-track"><span style="width: ${progress}%"></span></div>
+                            <span class="course-card-progress-value">${progress} %</span>
+                        </div>` : ''}
+                        <ul class="course-card-stats">
+                            <li><i class="fas fa-play-circle" aria-hidden="true"></i> ${plural(lessonsCount, 'leçon')}</li>
+                            <li><i class="fas fa-bolt" aria-hidden="true"></i> ${quizzesCount} quiz</li>
+                            <li><i class="fas fa-video" aria-hidden="true"></i> ${livesCount} live</li>
+                        </ul>
+                        <span class="course-card-action${isEnrolled ? ' is-enrolled' : ''}">${ctaText} <i class="fas fa-arrow-right" aria-hidden="true"></i></span>
                     </div>
                 </a>
             `;
@@ -162,18 +139,31 @@ async function loadCourses(filters = {}, { keepCards = false } = {}) {
 
         const resumeSection = document.getElementById('resume-learning-section');
         if (resumeSection) {
-            resumeSection.style.display = 'none';
+            resumeSection.hidden = true;
         }
 
         if (!regularCoursesHtml && !activeCourseHtml) {
-            coursesList.innerHTML = '<div class="no-courses" style="text-align: center; padding: 3rem; color: #64748b; font-size: 1.1rem;">Aucun cours trouvé. <button onclick="applyCategoryFilter(\'\')" style="background: none; border: none; color: #f97316; cursor: pointer; font-weight: 600; text-decoration: underline; font-size: 1rem; padding: 0;">Effacer les filtres</button></div>';
+            coursesList.innerHTML = '<div class="no-courses"><i class="fas fa-search" aria-hidden="true"></i><strong>Aucun cours trouvé.</strong><button type="button" class="clear-filters-btn" onclick="clearCourseFilters()">Effacer les filtres</button></div>';
         } else {
-            // Group them all into the same grid, enrolled courses first
-            coursesList.innerHTML = activeCourseHtml + regularCoursesHtml;
+            // Enrolled courses first, under their own heading, then the rest of the catalogue.
+            const group = (title, icon, count, html) => `
+                <section class="courses-group" aria-label="${title}">
+                    <h2 class="courses-group-title"><i class="fas fa-${icon}" aria-hidden="true"></i> ${title} <span>${count}</span></h2>
+                    <div class="courses-grid">${html}</div>
+                </section>`;
+            const count = html => (html.match(/class="course-card /g) || []).length;
+            coursesList.innerHTML =
+                (activeCourseHtml ? group('Mes cours', 'graduation-cap', count(activeCourseHtml), activeCourseHtml) : '') +
+                (regularCoursesHtml ? group(activeCourseHtml ? 'Découvrir d’autres cours' : 'Tous les cours', 'compass', count(regularCoursesHtml), regularCoursesHtml) : '');
             for (const image of coursesList.querySelectorAll('[data-thumbnail-index]')) {
                 const course = courses[Number(image.dataset.thumbnailIndex)];
-                image.src = resolveCourseImage(course.thumbnail_url) ||
-                    'https://via.placeholder.com/400x225/fff7ed/f97316?text=' + encodeURIComponent(course.title);
+                const source = resolveCourseImage(course.thumbnail_url);
+                if (!source) { image.remove(); continue; }
+                image.addEventListener('load', () => {
+                    image.closest('.course-thumbnail')?.classList.add('has-image');
+                }, { once: true });
+                image.addEventListener('error', () => image.remove(), { once: true });
+                image.src = source;
             }
         }
 
@@ -182,11 +172,18 @@ async function loadCourses(filters = {}, { keepCards = false } = {}) {
         console.error('Erreur lors du chargement des cours:', error);
         coursesList.innerHTML = `
             <div class="error-message">
-                Une erreur s'est produite lors du chargement des cours. Veuillez réessayer plus tard.
+                <i class="fas fa-wifi" aria-hidden="true"></i>
+                <strong>Impossible de charger les cours pour le moment.</strong>
+                <span>Vérifie ta connexion puis réessaie.</span>
                 <button type="button" onclick="applyFilters()">Réessayer</button>
             </div>
         `;
     }
+}
+
+function courseSkeletons() {
+    const card = '<div class="course-card course-card-skeleton" aria-hidden="true"><div class="course-thumbnail"></div><div class="course-info"><span></span><span></span><span></span></div></div>';
+    return `<div class="courses-grid" role="status" aria-label="Chargement des cours…">${card.repeat(3)}</div>`;
 }
 
 
@@ -222,17 +219,7 @@ window.applyCategoryFilter = function(category) {
     document.querySelectorAll('.filter-chips .chip').forEach(chip => {
         const isActive = (chip.dataset.category || '') === category;
         chip.setAttribute('aria-pressed', String(isActive));
-        if (isActive) {
-            chip.classList.add('active');
-            chip.style.background = '#f97316';
-            chip.style.color = 'white';
-            chip.style.border = 'none';
-        } else {
-            chip.classList.remove('active');
-            chip.style.background = 'white';
-            chip.style.color = '#64748b';
-            chip.style.border = '1px solid #e2e8f0';
-        }
+        chip.classList.toggle('active', isActive);
     });
     
     applyFilters();

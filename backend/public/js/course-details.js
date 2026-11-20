@@ -8,6 +8,14 @@ let currentLiveSessions = [];
 let courseOverview = null;
 let playerReturnTab = 'chapters';
 let lessonRequest = 0;
+// Must match the two-column breakpoint in course-details.css.
+const COURSE_WIDE_LAYOUT = '(min-width: 1200px)';
+const COURSE_CATEGORY_LABELS = {
+    'bac-info': 'Bac Informatique',
+    'bac-math': 'Bac Mathématiques',
+    'web-dev': 'Développement Web',
+    'general': 'Général'
+};
 
 window.addEventListener('popstate', event => {
     if (courseOverview && !event.state?.coursePlayer) {
@@ -31,7 +39,7 @@ async function initCourseDetailsPage() {
         return;
     }
 
-    window.matchMedia('(min-width: 1025px)').addEventListener('change', positionCourseHero);
+    window.matchMedia(COURSE_WIDE_LAYOUT).addEventListener('change', positionCourseHero);
     positionCourseHero();
     await loadCourseDetails(courseId);
     const replayId = urlParams.get('replay');
@@ -48,7 +56,7 @@ function positionCourseHero() {
     const layout = document.querySelector('.course-layout');
     const hero = layout?.querySelector('.course-hero');
     if (!hero) return;
-    const column = window.matchMedia('(min-width: 1025px)').matches ? '.course-sidebar' : '.course-main';
+    const column = window.matchMedia(COURSE_WIDE_LAYOUT).matches ? '.course-sidebar' : '.course-main';
     const destination = layout.querySelector(column);
     if (hero.parentElement !== destination) destination?.prepend(hero);
 }
@@ -351,7 +359,7 @@ async function renderCourseInfo(course, totalLessons, hasAccess, courseProgress,
     // Update category badge
     const catBadge = document.getElementById('course-category-badge');
     if (catBadge) {
-        catBadge.textContent = course.category || '';
+        catBadge.textContent = COURSE_CATEGORY_LABELS[course.category] || course.category || '';
         catBadge.hidden = !course.category;
     }
 
@@ -393,11 +401,11 @@ function renderCourseLiveSessions(sessions, hasAccess, loaded) {
 
     if (count) count.textContent = String(sessions.length);
     if (!hasAccess) {
-        container.innerHTML = '<p style="color:#64748b">Inscrivez-vous à ce cours pour voir ses replays.</p>';
+        container.innerHTML = '<p class="course-live-note">Inscrivez-vous à ce cours pour voir ses replays.</p>';
         return;
     }
     if (!loaded) {
-        container.innerHTML = '<p style="color:#b45309">Impossible de charger les replays pour le moment. Actualisez la page pour réessayer.</p>';
+        container.innerHTML = '<p class="course-live-note is-warning">Impossible de charger les replays pour le moment. Actualisez la page pour réessayer.</p>';
         return;
     }
     if (!sessions.length) {
@@ -643,11 +651,21 @@ function renderModulesAndLessons(modules, hasAccess, courseProgress) {
     const escapeHtml = value => String(value ?? '').replace(/[&<>"']/g, char => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[char]));
 
     if (!modules || modules.length === 0) {
-        container.innerHTML = '<p style="color: #64748b; text-align: center; padding: 2rem;">Aucun module disponible pour ce cours.</p>';
+        container.innerHTML = '<p class="modules-empty">Aucun module disponible pour ce cours.</p>';
         return;
     }
 
     container.innerHTML = modules.map((module, moduleIndex) => {
+        const videoLessons = (module.lessons || []).filter(lesson => lesson.type !== 'quiz');
+        const quizCount = (module.lessons || []).length - videoLessons.length;
+        const doneCount = videoLessons.filter(lesson => completedIds.includes(lesson.id)).length;
+        const isComplete = videoLessons.length > 0 && doneCount === videoLessons.length;
+        const meta = [
+            `${videoLessons.length} leçon${videoLessons.length > 1 ? 's' : ''}`,
+            quizCount ? `${quizCount} mini-défi${quizCount > 1 ? 's' : ''}` : '',
+        ].filter(Boolean).join(' · ');
+        const progressText = hasAccess && videoLessons.length
+            ? ` · <strong>${isComplete ? 'Terminé' : `${doneCount}/${videoLessons.length}`}</strong>` : '';
         const lessons = [];
         const leadingQuizzes = [];
         for (const lesson of module.lessons || []) {
@@ -664,57 +682,70 @@ function renderModulesAndLessons(modules, hasAccess, courseProgress) {
             return `<button type="button" class="lesson-icon quiz" data-quiz-id="${escapeHtml(quiz.id)}"
                 aria-label="${escapeHtml(label)}" title="${escapeHtml(label)}" ${locked ? 'disabled' : ''}
                 onclick="event.stopPropagation(); playLesson(this.dataset.quizId)">
-                <i class="fas fa-${locked ? 'lock' : 'bolt'}" aria-hidden="true"></i>
+                <i class="fas fa-${locked ? 'lock' : 'bolt'}" aria-hidden="true"></i><span class="quiz-label">Mini-défi</span>
             </button>`;
         }).join('');
 
         return `
-            <div class="module-card">
-                <div class="module-header" onclick="toggleModule(${moduleIndex})">
-                    <h3>${escapeHtml(module.title)}</h3>
-                    <span class="module-toggle" id="toggle-${moduleIndex}">▼</span>
-                </div>
+            <div class="module-card${isComplete ? ' is-complete' : ''}">
+                <button type="button" class="module-header" aria-expanded="false" aria-controls="lessons-${moduleIndex}" onclick="toggleModule(${moduleIndex})">
+                    <span class="module-number" aria-hidden="true">${isComplete ? '<i class="fas fa-check"></i>' : String(moduleIndex + 1).padStart(2, '0')}</span>
+                    <span class="module-heading">
+                        <h3>${escapeHtml(module.title)}</h3>
+                        <span class="module-meta">${meta}${progressText}</span>
+                    </span>
+                    <span class="module-toggle" id="toggle-${moduleIndex}" aria-hidden="true"><i class="fas fa-chevron-down"></i></span>
+                </button>
                 <div class="lessons-list" id="lessons-${moduleIndex}">
                     ${lessons.length > 0 ? lessons.map(({ lesson, quizzes }) => {
             const isLocked = !hasAccess && !lesson.is_preview;
             const isCompleted = completedIds.includes(lesson.id);
-            const duration = formatDuration(lesson.duration);
-            
+            const minutes = Math.max(1, Math.round((Number(lesson.duration) || 0) / 60));
+
             let iconClass = 'active';
-            let iconHtml = '<i class="fas fa-play" style="margin-left: 2px;"></i>';
-            
+            let iconHtml = '<i class="fas fa-play" aria-hidden="true"></i>';
+            let state = 'À regarder';
+
             if (isLocked) {
                 iconClass = 'locked';
-                iconHtml = '<i class="fas fa-lock"></i>';
+                iconHtml = '<i class="fas fa-lock" aria-hidden="true"></i>';
+                state = 'Verrouillée';
             } else if (isCompleted) {
                 iconClass = 'completed';
-                iconHtml = '<i class="fas fa-check"></i>';
+                iconHtml = '<i class="fas fa-check" aria-hidden="true"></i>';
+                state = 'Terminée';
             }
 
             return `
-                            <div class="lesson-item ${isLocked ? 'locked' : ''}" ${!isLocked ? `onclick="playLesson('${lesson.id}')"` : ''} style="${!isLocked ? 'cursor: pointer;' : ''}">
+                            <div class="lesson-item ${isLocked ? 'locked' : ''}" data-lesson-id="${escapeHtml(lesson.id)}"
+                                ${!isLocked ? `role="button" tabindex="0" onclick="playLesson('${escapeHtml(lesson.id)}')" onkeydown="if (event.target === this && (event.key === 'Enter' || event.key === ' ')) { event.preventDefault(); playLesson(this.dataset.lessonId); }"` : 'aria-disabled="true"'}>
                                 <div class="lesson-info">
-                                    <div class="lesson-icon ${iconClass}">
+                                    <div class="lesson-icon ${iconClass}" role="img" aria-label="${state}">
                                         ${iconHtml}
                                     </div>
                                     <div class="lesson-details">
                                         <div class="lesson-title">${escapeHtml(lesson.title)}</div>
-                                        ${lesson.duration && lesson.duration > 0 ? `<div class="lesson-duration"><i class="far fa-clock"></i> ${duration}</div>` : ''}
+                                        ${lesson.duration > 0 || (!hasAccess && lesson.is_preview) ? `<div class="lesson-duration">
+                                            ${lesson.duration > 0 ? `<span><i class="far fa-clock" aria-hidden="true"></i> ${minutes} min</span>` : ''}
+                                            ${!hasAccess && lesson.is_preview ? '<span class="lesson-preview-badge">Aperçu gratuit</span>' : ''}
+                                        </div>` : ''}
                                     </div>
                                 </div>
                                 ${quizzes.length ? `<div class="lesson-quiz-actions">${quizIcons(quizzes)}</div>` : ''}
                             </div>
                         `;
         }).join('') : leadingQuizzes.length ? `<div class="lesson-quiz-actions">${quizIcons(leadingQuizzes)}</div>` :
-            '<p style="padding: 1rem; color: #94a3b8; text-align: center;">Aucune leçon dans ce module</p>'}
+            '<p class="modules-empty">Aucune leçon dans ce module</p>'}
                 </div>
             </div>
         `;
     }).join('');
     
-    // Open first module by default
+    // Open the chapter the student is working on (the first one not finished), or the first chapter.
     if (modules.length > 0) {
-        setTimeout(() => toggleModule(0), 100);
+        const current = hasAccess ? modules.findIndex(module => (module.lessons || [])
+            .some(lesson => lesson.type !== 'quiz' && !completedIds.includes(lesson.id))) : 0;
+        setTimeout(() => toggleModule(Math.max(0, current)), 100);
     }
 }
 
@@ -723,12 +754,8 @@ function renderModulesAndLessons(modules, hasAccess, courseProgress) {
  */
 function toggleModule(index) {
     const card = document.getElementById(`lessons-${index}`).closest('.module-card');
-
-    if (card.classList.contains('open')) {
-        card.classList.remove('open');
-    } else {
-        card.classList.add('open');
-    }
+    const open = card.classList.toggle('open');
+    card.querySelector('.module-header')?.setAttribute('aria-expanded', String(open));
 }
 
 /**
@@ -882,10 +909,13 @@ async function showLessonInMainArea(lesson, videoUrl, pdfUrl, practiceFiles = []
 
     // Legacy PDFs and newly uploaded files are presented in one resource section.
 
+    const chapterIndex = (currentCourse?.modules || []).findIndex(module => (module.lessons || []).some(item => item.id === lesson.id));
+    const chapterLabel = chapterIndex >= 0 ? `Chapitre ${chapterIndex + 1} · ${currentCourse.modules[chapterIndex].title || ''}` : 'Leçon';
+
     // Replace main content with the video (when present), lesson resources, and actions.
     courseMain.innerHTML = `
         <div class="video-section-wrapper">
-            <div class="course-player-heading"><span class="course-player-mode">Leçon</span>${currentLiveSessions.length ? `<button class="course-player-switch" type="button" onclick="switchCoursePlayerTo('live')"><i class="fas fa-video" aria-hidden="true"></i> Replays</button>` : ''}</div>
+            <div class="course-player-heading"><span class="course-player-mode"><i class="fas fa-play-circle" aria-hidden="true"></i> <span dir="auto">${escapeQuizHtml(chapterLabel)}</span></span>${currentLiveSessions.length ? `<button class="course-player-switch" type="button" onclick="switchCoursePlayerTo('live')"><i class="fas fa-video" aria-hidden="true"></i> Replays</button>` : ''}</div>
             ${videoUrl ? `<div class="video-container course-player-frame">
                 <video 
                     id="current-lesson-video"
@@ -899,18 +929,17 @@ async function showLessonInMainArea(lesson, videoUrl, pdfUrl, practiceFiles = []
                     Votre navigateur ne supporte pas la lecture de vidéos.
                 </video>
             </div>` : '<div class="course-video-status" data-lesson-media-status role="status"></div>'}
-            
-            <div class="lesson-actions" style="display: flex; gap: 1rem; width: 100%;">
-                <button class="btn-complete-next" onclick="completeLessonAndNext('${lesson.id}')" style="flex: 1; padding: 1rem; background: linear-gradient(135deg, #10b981 0%, #059669 100%); color: white; border: none; border-radius: 12px; font-weight: 600; font-size: 1rem; cursor: pointer; transition: all 0.3s ease; box-shadow: 0 4px 15px rgba(16, 185, 129, 0.3); display: flex; align-items: center; justify-content: center; gap: 0.5rem;">
-                    <span class="icon">✅</span> Terminer & Suivante
-                </button>
-            </div>
-            
+
             <div class="lesson-details-content">
-                <h2 class="course-player-title">${escapeQuizHtml(lesson.title)}</h2>
-                <div style="color: #64748b; line-height: 1.6; font-size: 1.05rem;">
-                    ${escapeQuizHtml(lesson.description || 'Aucune description pour cette leçon.')}
+                <div class="lesson-title-row">
+                    <h2 class="course-player-title" dir="auto">${escapeQuizHtml(lesson.title)}</h2>
+                    <div class="lesson-actions">
+                        <button type="button" class="btn-complete-next" onclick="completeLessonAndNext('${escapeQuizHtml(lesson.id)}')">
+                            <i class="fas fa-check" aria-hidden="true"></i> Terminer &amp; suivante
+                        </button>
+                    </div>
                 </div>
+                <p class="lesson-description" dir="auto">${escapeQuizHtml(lesson.description || 'Aucune description pour cette leçon.')}</p>
             </div>
         </div>
     `;
@@ -941,25 +970,24 @@ async function showLessonInMainArea(lesson, videoUrl, pdfUrl, practiceFiles = []
         const modulesClone = modulesContainer.cloneNode(true);
         modulesClone.removeAttribute('id');
         modulesClone.style.cssText = '';
-        courseSidebar.innerHTML = '';
-        courseSidebar.appendChild(modulesClone);
+        const heading = document.createElement('h2');
+        heading.className = 'player-chapters-heading';
+        heading.innerHTML = '<i class="fas fa-list-ul" aria-hidden="true"></i> Chapitres du cours';
+        courseSidebar.replaceChildren(heading, modulesClone);
 
-        // Highlight the current lesson
-        setTimeout(() => {
-            const allLessons = courseSidebar.querySelectorAll('.lesson-item');
-            allLessons.forEach(lessonItem => {
-                // Remove previous active state
-                lessonItem.style.background = '';
-                lessonItem.style.borderLeft = '';
-
-                // Check if this is the current lesson by comparing onclick attribute
-                const onclickAttr = lessonItem.getAttribute('onclick');
-                if (onclickAttr && onclickAttr.includes(`'${lesson.id}'`)) {
-                    lessonItem.style.background = '#fff7ed';
-                    lessonItem.style.borderLeft = '4px solid #f97316';
-                }
+        // Highlight the current lesson and open its chapter
+        const current = [...modulesClone.querySelectorAll('.lesson-item')].find(item => item.dataset.lessonId === String(lesson.id));
+        if (current) {
+            modulesClone.querySelectorAll('.module-card.open').forEach(card => {
+                card.classList.remove('open');
+                card.querySelector('.module-header')?.setAttribute('aria-expanded', 'false');
             });
-        }, 100);
+            current.classList.add('is-current');
+            current.setAttribute('aria-current', 'true');
+            const card = current.closest('.module-card');
+            card?.classList.add('open');
+            card?.querySelector('.module-header')?.setAttribute('aria-expanded', 'true');
+        }
     }
 
     // Disable right-click on video
@@ -1674,8 +1702,15 @@ async function openQuizLesson(lessonId, loadedContent = null) {
         modal.setAttribute('aria-label', lesson.title || 'Mini-défi');
         modal.innerHTML = `
             <div class="video-modal-content quiz-modal-content">
-                <button type="button" class="quiz-close-button" aria-label="Quitter le quiz"><i class="fas fa-times" aria-hidden="true"></i></button>
                 <div class="quiz-time-track" aria-hidden="true"><div class="quiz-time-fill"></div></div>
+                <div class="quiz-topbar">
+                    <div class="quiz-topbar-title">
+                        <span class="quiz-eyebrow"><i class="fas fa-bolt" aria-hidden="true"></i> Mini-défi</span>
+                        <strong dir="auto">${escapeQuizHtml(lesson.title || 'Quiz')}</strong>
+                    </div>
+                    <span class="quiz-time-left" title="Temps restant"><i class="far fa-clock" aria-hidden="true"></i> <span class="quiz-time-value">${formatQuizTime(timeLimit * 1000)}</span></span>
+                    <button type="button" class="quiz-close-button" aria-label="Quitter le quiz"><i class="fas fa-times" aria-hidden="true"></i></button>
+                </div>
                 <div id="quiz-content"></div>
             </div>
         `;
@@ -1713,10 +1748,14 @@ async function openQuizLesson(lessonId, loadedContent = null) {
         renderQuestion();
         modal.querySelector('.quiz-prompt').focus();
         const timeBar = modal.querySelector('.quiz-time-fill');
+        const timeValue = modal.querySelector('.quiz-time-value');
+        const quizCard = modal.querySelector('.quiz-modal-content');
         timer = setInterval(() => {
             const remaining = Math.max(0, deadline - performance.now());
             const elapsed = 1 - remaining / (timeLimit * 1000);
             timeBar.style.transform = `scaleX(${0.04 + 0.96 * elapsed})`;
+            timeValue.textContent = formatQuizTime(remaining);
+            quizCard.classList.toggle('is-urgent', remaining <= 15000);
             if (!remaining) showResults(true);
         }, 100);
 
@@ -1741,14 +1780,19 @@ async function openQuizLesson(lessonId, loadedContent = null) {
                 const options = shuffleQuizItems((question.pairs || []).map(pair => pair.right));
                 interaction = (question.pairs || []).map((pair,index) => `<label class="quiz-match-row"><strong dir="auto">${escapeQuizHtml(pair.left)}</strong><select dir="auto" data-match-index="${index}"><option value="">Choisir…</option>${options.map(option => `<option dir="auto" value="${escapeQuizHtml(option)}">${escapeQuizHtml(option)}</option>`).join('')}</select></label>`).join('');
             }
+            const steps = questions.map((_, index) => `<span class="${index < currentQuestionIndex ? 'is-done' : index === currentQuestionIndex ? 'is-current' : ''}"></span>`).join('');
             quizContent.innerHTML = `
-                <div class="quiz-game-header"><span dir="auto">${escapeQuizHtml(lesson.title || 'Quiz')}</span><span>Question ${currentQuestionIndex + 1} sur ${questions.length}</span></div>
-                <div class="quiz-progress" role="progressbar" aria-label="Progression du quiz" aria-valuemin="0" aria-valuemax="${questions.length}" aria-valuenow="${currentQuestionIndex + 1}"><span style="width:${Math.round(((currentQuestionIndex + 1) / questions.length) * 100)}%"></span></div>
-                <p class="quiz-type-label">${typeLabels[question.type] || 'Question'}</p>
-                <h2 class="quiz-prompt" dir="auto" tabindex="-1">${question.type === 'code_drag_drop' ? 'Quel élément complète le code ?' : escapeQuizHtml(question.text)}</h2>
-                <div class="quiz-interaction">${interaction}</div>
-                <div class="quiz-feedback" id="quiz-feedback" aria-live="polite"></div>
-                <button class="quiz-check-button" id="quiz-check-button">Vérifier</button>`;
+                <div class="quiz-body">
+                    <div class="quiz-steps-row">
+                        <div class="quiz-progress" role="progressbar" aria-label="Progression du quiz" aria-valuemin="0" aria-valuemax="${questions.length}" aria-valuenow="${currentQuestionIndex + 1}">${steps}</div>
+                        <span class="quiz-step-label">Question ${currentQuestionIndex + 1}/${questions.length}</span>
+                    </div>
+                    <p class="quiz-type-label">${typeLabels[question.type] || 'Question'}</p>
+                    <h2 class="quiz-prompt" dir="auto" tabindex="-1">${question.type === 'code_drag_drop' ? 'Quel élément complète le code ?' : escapeQuizHtml(question.text)}</h2>
+                    <div class="quiz-interaction">${interaction}</div>
+                    <div class="quiz-feedback" id="quiz-feedback" aria-live="polite"></div>
+                </div>
+                <div class="quiz-footer"><button type="button" class="quiz-check-button" id="quiz-check-button">Vérifier</button></div>`;
             bindQuizInteraction(question, quizContent);
             quizContent.querySelector('#quiz-check-button').onclick = () => submitAnswer(question, quizContent);
         }
@@ -1826,6 +1870,10 @@ async function openQuizLesson(lessonId, loadedContent = null) {
                 feedback.appendChild(answer);
             }
             feedback.className = `quiz-feedback ${isCorrect ? 'is-correct' : 'is-incorrect'}`;
+            container.querySelectorAll('[data-choice]').forEach(choice => {
+                if (choice.dataset.choice === String(question.answer)) choice.classList.add('is-right');
+                else if (choice.classList.contains('is-selected')) choice.classList.add('is-wrong');
+            });
             const checkButton = container.querySelector('#quiz-check-button');
             checkButton.textContent = currentQuestionIndex === questions.length - 1 ? 'Voir mon résultat' : 'Question suivante';
             checkButton.onclick = () => {
@@ -1847,9 +1895,19 @@ async function openQuizLesson(lessonId, loadedContent = null) {
             finished = true;
             clearInterval(timer);
             modal.querySelector('.quiz-time-track').hidden = !timedOut;
+            modal.querySelector('.quiz-time-left').hidden = true;
             if (timedOut) timeBar.style.transform = 'scaleX(1)';
             const passed = score >= 2;
-            modal.querySelector('#quiz-content').innerHTML = `<div class="quiz-results"><span class="quiz-type-label">Quiz terminé</span><h2 tabindex="-1">${timedOut ? 'Temps écoulé' : passed ? 'Bien joué !' : 'Quiz terminé'}</h2><p>Tu as obtenu <strong>${score} / ${questions.length}</strong></p><p id="quiz-next-message" role="status"></p><button class="quiz-check-button" id="quiz-finish" disabled>Chargement…</button></div>`;
+            const percent = Math.round((score / questions.length) * 100);
+            modal.querySelector('#quiz-content').innerHTML = `
+                <div class="quiz-results">
+                    <div class="quiz-score-ring${passed ? '' : ' is-low'}" style="--score:${percent}" aria-hidden="true"><span>${score}/${questions.length}</span></div>
+                    <span class="quiz-type-label">Quiz terminé</span>
+                    <h2 tabindex="-1">${timedOut ? 'Temps écoulé' : passed ? 'Bien joué !' : 'Continue tes efforts'}</h2>
+                    <p>Tu as obtenu <strong>${score} / ${questions.length}</strong></p>
+                    <p id="quiz-next-message" role="status"></p>
+                </div>
+                <div class="quiz-footer"><button type="button" class="quiz-check-button" id="quiz-finish" disabled>Chargement…</button></div>`;
             modal.querySelector('.quiz-results h2').focus();
             if (answeredQuestions === questions.length) {
                 void Promise.resolve().then(() => window.SyntaAPI.markLessonComplete(lessonId, 100))
@@ -1882,6 +1940,11 @@ async function openQuizLesson(lessonId, loadedContent = null) {
 
 function escapeQuizHtml(value) {
     return String(value ?? '').replace(/[&<>"']/g, char => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[char]));
+}
+
+function formatQuizTime(milliseconds) {
+    const seconds = Math.ceil(milliseconds / 1000);
+    return `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, '0')}`;
 }
 
 function shuffleQuizItems(items) {

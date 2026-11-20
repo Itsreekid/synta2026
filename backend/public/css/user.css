@@ -724,16 +724,6 @@ iframe {
         padding: 0.5rem !important;
     }
 
-    section {
-        height: calc(100vh - 70px);
-        width: 100%;
-        margin-left: 0;
-        margin-bottom: 0;
-        overflow-y: auto;
-        overflow-x: hidden;
-        -webkit-overflow-scrolling: touch;
-    }
-
     iframe[name="Principal"] {
         border-radius: 0;
         min-height: calc(100vh - 70px);
