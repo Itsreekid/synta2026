@@ -481,17 +481,6 @@ function renderReplaySidebar(sidebar, sessions, selectedSessionId = '') {
     </section>`;
 }
 
-function driveReplayPreview(url) {
-    if (url.protocol !== 'https:' || url.hostname !== 'drive.google.com' || url.username || url.password) return null;
-    const fileId = url.pathname.match(/^\/file\/d\/([\w-]+)(?:\/|$)/)?.[1]
-        || (url.pathname === '/open' ? url.searchParams.get('id') : null);
-    if (!fileId || !/^[\w-]+$/.test(fileId)) return null;
-    const preview = new URL(`https://drive.google.com/file/d/${fileId}/preview`);
-    const resourceKey = url.searchParams.get('resourcekey');
-    if (resourceKey) preview.searchParams.set('resourcekey', resourceKey);
-    return preview.href;
-}
-
 async function reloadReplay(sessionId, partIndex = 0, resumeAt = 0) {
     const request = ++lessonRequest;
     const response = await fetch(`/api/live/course/${encodeURIComponent(currentCourse.id)}`, { credentials: 'include' });
@@ -512,33 +501,9 @@ function openReplayPlayer(replayUrl, title, resources = [], sessionId = '', { pa
     let parsed;
     try { parsed = new URL(replayUrl, window.location.href); } catch { return showError('Lien du replay invalide'); }
     if (!['http:', 'https:'].includes(parsed.protocol)) return showError('Lien du replay invalide');
-    const drivePreview = driveReplayPreview(parsed);
-    const youtubeId = parsed.hostname === 'youtu.be' ? parsed.pathname.slice(1) : parsed.searchParams.get('v');
-    const vimeoId = ['vimeo.com', 'www.vimeo.com', 'player.vimeo.com'].includes(parsed.hostname) ? parsed.pathname.split('/').filter(Boolean).pop() : null;
     let player;
-    if (drivePreview) {
-        player = document.createElement('iframe');
-        player.src = drivePreview;
-        player.title = title || 'Replay Google Drive';
-        player.allowFullscreen = true;
-    } else if (youtubeId && ['youtube.com', 'www.youtube.com', 'm.youtube.com', 'youtu.be'].includes(parsed.hostname)) {
-        player = document.createElement('iframe');
-        player.src = `https://www.youtube-nocookie.com/embed/${encodeURIComponent(youtubeId)}?autoplay=1`;
-        player.allow = 'autoplay; encrypted-media; picture-in-picture';
-        player.allowFullscreen = true;
-        player.title = title || 'Replay de la séance';
-    } else if (vimeoId && /^\d+$/.test(vimeoId)) {
-        player = document.createElement('iframe');
-        player.src = `https://player.vimeo.com/video/${encodeURIComponent(vimeoId)}?autoplay=1`;
-        player.allow = 'autoplay; fullscreen; picture-in-picture';
-        player.allowFullscreen = true;
-        player.title = title || 'Replay de la séance';
-    } else {
-        player = document.createElement('video');
-        player.controls = true;
-        player.autoplay = true;
-        player.playsInline = true;
-    }
+    try { player = window.createSessionReplayPlayer(parsed.href, title); }
+    catch (error) { return showError(error.message); }
     player.className = 'course-replay-player';
     if (player instanceof HTMLVideoElement) player.setAttribute('controlsList', 'nodownload');
 

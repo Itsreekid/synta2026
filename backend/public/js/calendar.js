@@ -3,6 +3,7 @@ var currentWeekStart = null;
 var selectedDate = null;
 var userClass = null;
 var userBranch = null;
+var sessionDetailsRequest = 0;
 
 document.addEventListener('DOMContentLoaded', function () {
     initializeCalendar();
@@ -63,9 +64,18 @@ async function initializeCalendar() {
 
         // Render the calendar
         renderCalendar();
+        const replayId = urlParams.get('replay');
+        if (replayId) {
+            const response = await fetch('/api/live/session/' + encodeURIComponent(replayId), { credentials: 'include' });
+            const session = await response.json();
+            if (!response.ok) throw new Error(session.error || 'Replay indisponible.');
+            const date = new Date(session.scheduled_at);
+            showEventDetails({ ...session, time: date.toLocaleTimeString('fr-FR', {hour:'2-digit',minute:'2-digit'}), zoomLink: session.join_url }, date);
+        }
 
     } catch (error) {
         console.error('Error initializing calendar:', error);
+        document.getElementById('event-count-text').textContent = error.message || 'Impossible de charger le calendrier.';
     }
 }
 
@@ -410,7 +420,7 @@ function createEventElement(event, date) {
 
     const descEl = document.createElement('div');
     descEl.className = 'event-description';
-    if (typeof event.description === 'object' && event.description.line1) {
+    if (typeof event.description === 'object' && event.description?.line1) {
         const line1 = document.createElement('div');
         line1.textContent = event.description.line1;
         const line2 = document.createElement('div');
@@ -435,7 +445,21 @@ function createEventElement(event, date) {
     eventElement.title = `${event.time} · ${event.title}`;
 
     // FIX #7: Use addEventListener instead of onclick attribute (prevents attribute injection)
-    const openDetails = () => showEventDetails(event, date);
+    const openDetails = async () => {
+        const request = ++sessionDetailsRequest;
+        if (!/^[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}$/i.test(event.id || '')) {
+            showEventDetails(event, date);
+            return;
+        }
+        try {
+            const response = await fetch('/api/live/session/' + encodeURIComponent(event.id), { credentials: 'include' });
+            const details = await response.json();
+            if (!response.ok) throw new Error(details.error || 'Séance indisponible.');
+            if (request === sessionDetailsRequest) showEventDetails({ ...event, ...details, zoomLink: details.join_url }, date);
+        } catch (error) {
+            if (request === sessionDetailsRequest) document.getElementById('event-count-text').textContent = error.message || 'Séance indisponible.';
+        }
+    };
     eventElement.addEventListener('click', openDetails);
     eventElement.addEventListener('keydown', (e) => {
         if (e.key === 'Enter' || e.key === ' ') {
@@ -465,7 +489,7 @@ function showEventDetails(event, date) {
 
     // Handle both object and string description formats
     let descriptionHTML = '';
-    if (typeof event.description === 'object' && event.description.line1) {
+    if (typeof event.description === 'object' && event.description?.line1) {
         descriptionHTML = `
             <div>${event.description.line1}</div>
             ${event.description.line2 ? `<div style="margin-top: 8px;">${event.description.line2}</div>` : ''}
@@ -529,7 +553,7 @@ function showEventDetails(event, date) {
 
     const descEl = document.createElement('div');
     descEl.className = 'modal-event-description';
-    if (typeof event.description === 'object' && event.description.line1) {
+    if (typeof event.description === 'object' && event.description?.line1) {
         const p1 = document.createElement('div');
         p1.textContent = event.description.line1;
         const p2 = document.createElement('div');
@@ -543,6 +567,36 @@ function showEventDetails(event, date) {
 
     const actionsEl = document.createElement('div');
     actionsEl.className = 'modal-actions';
+    if (event.replay_url) {
+        const play = document.createElement('button');
+        play.type = 'button';
+        play.className = 'modal-btn modal-btn-primary';
+        play.textContent = 'Regarder le replay';
+        play.onclick = () => {
+            let player;
+            try { player = window.createSessionReplayPlayer(event.replay_url, event.title); }
+            catch (error) { play.textContent = error.message; return; }
+            const frame = document.createElement('div');
+            frame.className = 'calendar-replay-frame';
+            frame.append(player);
+            modalBody.querySelector('.calendar-replay-frame')?.remove();
+            modalBody.prepend(frame);
+            modal.classList.add('has-replay');
+        };
+        actionsEl.append(play);
+    }
+    for (const resource of event.resources || []) {
+            if (!resource.url) continue;
+            const link = document.createElement('a');
+            const url = new URL(resource.url, window.location.href);
+            if (!['https:', 'http:'].includes(url.protocol)) continue;
+            link.href = url.href;
+            link.textContent = resource.file_name || resource.title;
+            link.className = 'modal-btn modal-btn-secondary';
+            link.target = '_blank';
+            link.rel = 'noopener';
+            actionsEl.append(link);
+    }
 
     // Append the real zoom button DOM node if it exists
     if (zoomButton) actionsEl.appendChild(zoomButton);
@@ -594,8 +648,12 @@ function getSessionEndTime(event, eventDateTime) {
 }
 
 window.closeModal = function() {
+    sessionDetailsRequest++;
     const modal = document.getElementById('event-modal');
     if (modal) {
+        modal.querySelector('video')?.pause();
+        modal.querySelector('.calendar-replay-frame')?.remove();
+        modal.classList.remove('has-replay');
         modal.classList.remove('is-open');
         modal.style.removeProperty('display');
     }

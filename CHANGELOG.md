@@ -1,5 +1,21 @@
 # CHANGELOG.md — Synta Academy
 
+## 2026-11-21 — Admin live-session management
+
+- Added a responsive session management dialog with Replays, Ressources and Détails tabs, retaining existing recording and upload APIs.
+- Added replay replacement confirmation, source visibility, private admin previews, file downloads and accessible dialog behavior.
+- Fixed old Zoom segments being attached after manual replay replacement. All 84 local regression tests passed.
+
+## 2026-11-21 — Multiple audiences for live sessions
+
+- Implemented searchable course/offer selections and individual session invitations with server-side OR authorization and legacy compatibility.
+- Added session replay/file access through the Calendar for invited students, without enrolling them in paid courses.
+- Validated pending migrations and 82 automated tests using disposable local PostgreSQL and synthetic external services. Production activation remains held.
+
+## 2026-11-20 — Drive replay frame
+
+- Fixed viewport-sized iframe minimum height cropping embedded replays and added Drive media permissions.
+
 ## 2026-11-20 — Student desktop calendar
 
 - Added a seven-day desktop timetable with hourly lines and overlap placement while preserving the mobile day view.
@@ -661,3 +677,7 @@
 - Added inclusive short-month timed access, audited historical payments and reversals, and separate dashboard totals for wallet funding, collected sales and installment debt.
 
 - Added optional annual offer upgrades with exact installment schedules, verified credit, protected wallet collection and audited corrections.
+# 2026-11-21 — Session manager integration safeguards
+
+- Protected recording deletion against active/shared replay references and concurrent manual attachment; failed storage deletion leaves the import available for retry.
+- Added PostgreSQL race/republication checks, actual browser file-picker verification and multi-audience manager integration checks. Full suite: 85 passing, no skips; hosted Zoom/R2 checks still required.

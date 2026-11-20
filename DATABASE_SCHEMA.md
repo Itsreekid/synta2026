@@ -338,6 +338,8 @@ Migration `202611100003_unique_active_offer_payments.sql` adds a partial unique 
 
 ### 2.12 `live_sessions`
 
+**Implemented and validated locally; production held** — `pending-migrations/202611200004_live_session_multi_audience.sql` adds `access_policy` (`legacy` by default, or `any_selected`) and allows `course_id` to be null for new OR sessions. Existing rows retain their course, offer, audience and access policy. New OR sessions use `live_session_courses(session_id, course_id)` and `live_session_offers(session_id, offer_id)`, each with a composite primary key, foreign keys and a reverse lookup index. `session_id` cascades on session deletion; course and offer deletion is restricted while selected. Invited students reuse `granted_student_ids` from held migration `202611200002`. Deferred constraints require at least one selected course or offer for OR sessions. Link mutations lock the parent session to serialize concurrent audience changes. Validated on disposable PostgreSQL 17.6 with 002 and 003 on 2026-11-21; no production execution.
+
 **Purpose:** Scheduled Zoom sessions linked to a course (and optionally an offer).
 
 | Column | Type | Constraints | Notes |
@@ -549,6 +551,8 @@ Placement email proofs bind this registration ID, purpose and the exact `updated
 ### 2.22 `zoom_recording_imports`
 
 **Purpose:** One row per Zoom cloud-recording MP4 segment, driving the durable Zoom → R2 import queue and the admin review of replays.
+
+Discarded imports retain their `object_key` as a deletion tombstone. They are excluded from recording lists and cannot be manually reattached as a session replay. This is an application safeguard using existing columns; no new migration is required.
 
 | Column | Type | Constraints | Notes |
 |--------|------|-------------|-------|

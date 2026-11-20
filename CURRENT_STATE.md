@@ -1,5 +1,37 @@
 # CURRENT_STATE.md — Synta Academy
 
+### 2026-11-21 — Final session manager integration verification
+
+- Full regression: 85 passed, 0 failed/skipped with disposable PostgreSQL and Chrome. Affected suite rerun after additional assertions: 12 passed. Manager Details tested against actual multi-offer/course/invitation API responses on desktop/mobile. Real browser file-chooser events uploaded synthetic Python and MP4 fixtures to localhost storage; actual R2/video decoding was not tested.
+- Fixed confirmed recording deletion/reference race and failed-storage discard behavior in live.js. Deletion locks/checks references; manual attachment locks and rejects discarded keys. Retained discarded object keys act as tombstones. Tests cover shared references, current/published replay protection, storage failure and concurrent attach/delete. No new schema migration.
+- Normal package test command now includes both new integration suites. New fixture is tests/fixtures/session-manager-fixture.js. Include all untracked assets/helpers/tests and pending migration 004 in the future reviewed commit.
+- Production verdict BLOCKED pending hosted Zoom/private R2/production-image smoke evidence and separate production approval. Exact steps, dependencies and distributed deletion limitation: SESSION_MANAGER_INTEGRATION_REPORT.md. No push/deploy/production changes performed.
+
+### 2026-11-21 — Admin session management dialog
+
+- Session cards now open Gérer la séance, with responsive Replays/Ressources/Détails tabs. Native dialog provides focus containment and Escape close, restores focus to the card and contains scrolling. Cards retain host/cancellation actions and no longer expand segment/file lists inline. Unassigned recording review remains available.
+- Reuses the existing recording list/publish/retry/delete, manual replay upload/link, and resource upload/delete handlers. Added current replay source, private signed previews/downloads on the existing admin sessions API, segment timestamps/durations, published part labels, search and explicit load failures. Manual and segment replacements require confirmation.
+- Confirmed and fixed a playback defect: old published Zoom segments could remain attached after replacing the base replay manually. Segment attachment now requires the published source to match the session replay. The Zoom import worker and its schema were preserved.
+- 84 tests passed, 0 failed/skipped, including disposable PostgreSQL, backend authorization and responsive browser cases at 360/390/1440px. Manual upload tests use browser File APIs with synthetic PUT storage; no real Zoom/R2 traffic or native file chooser was tested. Screenshots were visually inspected. Hosted playback/upload checks remain pending.
+- New files are public/admin/css/session-manager.css, public/admin/js/session-manager.js and tests/session-manager.test.js. No new migrations. No push, deployment or production changes. Continue with owner-approved hosted staging verification when requested.
+
+### 2026-11-21 — OR session audiences implemented and locally validated
+
+- Searchable Offers/Courses selectors and invited-student chips in the existing admin session dialog. At least one offer or course is mandatory. Backend OR authorization covers Dashboard, Calendar, join, replay and session files. One session appears once even when several selections match.
+- Existing sessions retain the legacy policy. New OR sessions support offer-only and independent-course audiences. Session invitations do not create enrollments; a real paid-lesson API request for an invited student returned 403 in regression testing.
+- Pending migrations 002, 003 and 004 were run only on disposable local PostgreSQL 17.6. 004 requires 002; 003 is independent recording import support. SQL remains under pending-migrations, outside the deployment image's migration directory. Creation defaults off through LIVE_MULTI_AUDIENCE_ENABLED.
+- All 82 automated tests passed with 0 skipped, including PostgreSQL, API and headless Chrome checks at 1440px and 390px. Zoom/R2 services were synthetic doubles; live external meeting/media delivery is not validated. Node 24 was used for the local run.
+- Fixed nullable session descriptions breaking calendar details, and updated stale browser test selectors that depended on removed offer image alt text. Shared media helper supports course and Calendar replay views.
+- Next step is hosted staging smoke testing with a test Zoom meeting and private test R2 files after owner approval. No push, deploy, production migration or production data change performed. Detailed rollout and rollback are in LIVE_SESSION_MULTI_AUDIENCE_PLAN.md.
+
+### 2026-11-20 — Multiple live-session audiences proposal
+
+- Owner confirmed OR access through any selected active offer, selected active course enrollment or individual invitation, requiring at least one course or offer. Prepared `LIVE_SESSION_MULTI_AUDIENCE_PLAN.md` and held migration `202611200004_live_session_multi_audience.sql` for approval. No migration executed. Application implementation and disposable PostgreSQL validation are pending migration review.
+
+### 2026-11-20 — Embedded replay sizing
+
+- Replay iframes explicitly fill their 16:9 frame and override the shared iframe min-height of 100vh, which cropped Drive video on desktop and phones. Drive embeds declare media/fullscreen permissions.
+
 ### 2026-11-20 — Desktop student timetable
 
 - Wide screens (1200px+) show a seven-day time grid, sticky day headings, and separate lanes for overlapping sessions. The grid opens near the week's earliest session. Tablets retain the readable week agenda and phones retain the selected-day view.

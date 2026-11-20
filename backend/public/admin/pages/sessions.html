@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Gestion des Séances — Admin</title>
+    <link rel="stylesheet" href="/admin/css/session-manager.css">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
@@ -312,8 +313,13 @@
                 <div id="student-options" style="max-height:12rem;overflow:auto"></div>
             </div>
         </div>
+        <section id="multi-audience" hidden aria-label="Accès à la séance">
+            <p>Sélectionnez au moins une offre ou un cours. Les étudiants ayant accès à l’un des éléments sélectionnés peuvent rejoindre cette séance.</p>
+            <div class="form-group" id="multi-offers"></div>
+            <div class="form-group" id="multi-courses"></div>
+        </section>
         <div class="form-group" id="granted-group" hidden>
-            <label for="granted-search">Accès individuel <span style="color:#718096;font-weight:400">(facultatif — même sans achat d’offre)</span></label>
+            <label for="granted-search">Étudiants invités <span style="color:#718096;font-weight:400">(facultatif — accès à cette séance uniquement)</span></label>
             <input type="search" id="granted-search" placeholder="Rechercher un étudiant par nom ou e-mail">
             <div id="granted-options" style="max-height:10rem;overflow:auto;margin-top:0.4rem"></div>
             <p id="granted-selected" style="font-size:0.82rem;color:#4a5568"></p>
@@ -339,6 +345,7 @@ const API = window.location.origin;
 
 // ── Data ──────────────────────────────────────────────────────────────
 let allSessions = [];
+let sessionsLoadError = '';
 let allOffers = [];
 let allCourses = [];
 let studentRequest = 0;
@@ -413,8 +420,56 @@ document.addEventListener('DOMContentLoaded', async () => {
 });
 
 // ── Optional features (enabled once their database update is applied) ──
-let liveFeatures = { extendedAccess: false, recordings: false };
+let liveFeatures = { extendedAccess: false, recordings: false, multiAudience: false };
+const selectedSessionOffers = new Set();
+const selectedSessionCourses = new Set();
+
+function renderAudiencePicker(rootId, labelText, items, selected) {
+    const root = document.getElementById(rootId);
+    root.replaceChildren();
+    const label = document.createElement('label');
+    label.textContent = labelText;
+    label.htmlFor = rootId + '-search';
+    const search = document.createElement('input');
+    search.type = 'search';
+    search.id = label.htmlFor;
+    search.placeholder = 'Rechercher…';
+    const summary = document.createElement('div');
+    summary.style.cssText = 'display:flex;flex-wrap:wrap;gap:.4rem;margin:.5rem 0';
+    const options = document.createElement('div');
+    options.style.cssText = 'max-height:12rem;overflow:auto;border:1px solid #dbe3ec;border-radius:10px;padding:.5rem';
+    const refresh = () => {
+        summary.replaceChildren();
+        for (const item of items.filter(item => selected.has(item.id))) {
+            const chip = document.createElement('button');
+            chip.type = 'button';
+            chip.textContent = item.title + ' ×';
+            chip.setAttribute('aria-label', 'Retirer ' + item.title);
+            chip.style.cssText = 'padding:.45rem .65rem;border:1px solid #fed7aa;border-radius:8px;background:#fff7ed;color:#7c2d12;cursor:pointer';
+            chip.onclick = () => { selected.delete(item.id); refresh(); };
+            summary.append(chip);
+        }
+        options.replaceChildren();
+        const query = search.value.trim().toLocaleLowerCase('fr');
+        for (const item of items.filter(item => item.title.toLocaleLowerCase('fr').includes(query))) {
+            const row = document.createElement('label');
+            row.style.cssText = 'display:flex;align-items:center;gap:.6rem;min-height:44px;margin:0;padding:.25rem;cursor:pointer';
+            const checkbox = document.createElement('input');
+            checkbox.type = 'checkbox';
+            checkbox.checked = selected.has(item.id);
+            checkbox.style.cssText = 'width:auto;flex:none;margin:0';
+            checkbox.onchange = () => { if (checkbox.checked) selected.add(item.id); else selected.delete(item.id); refresh(); };
+            row.append(checkbox, item.title);
+            options.append(row);
+        }
+        if (!options.children.length) options.textContent = 'Aucun résultat.';
+    };
+    search.oninput = refresh;
+    root.append(label, search, summary, options);
+    refresh();
+}
 let allRecordings = [];
+let recordingsLoadError = '';
 const grantedSelection = new Map();
 let grantedRequest = 0;
 
@@ -424,6 +479,10 @@ async function loadFeatures() {
         if (res.ok) liveFeatures = await res.json();
     } catch { /* keep defaults */ }
     document.getElementById('granted-group').hidden = !liveFeatures.extendedAccess;
+    document.getElementById('multi-audience').hidden = !liveFeatures.multiAudience;
+    for (const id of ['f-offer','f-course','f-audience']) {
+        document.getElementById(id).closest('.form-group').hidden = liveFeatures.multiAudience;
+    }
     updateExtraOffers();
     if (liveFeatures.extendedAccess) searchGrantedStudents();
 }
@@ -432,7 +491,7 @@ function updateExtraOffers() {
     const primary = document.getElementById('f-offer').value;
     const group = document.getElementById('extra-offers-group');
     const box = document.getElementById('extra-offer-options');
-    group.hidden = !liveFeatures.extendedAccess || !primary;
+    group.hidden = liveFeatures.multiAudience || !liveFeatures.extendedAccess || !primary;
     const checked = new Set(Array.from(box.querySelectorAll('input:checked'), input => input.value));
     box.replaceChildren(...allOffers.filter(offer => offer.id !== primary).map(offer => {
         const label = document.createElement('label');
@@ -449,9 +508,17 @@ function updateExtraOffers() {
 document.getElementById('f-offer').addEventListener('change', updateExtraOffers);
 
 function renderGrantedSummary() {
-    const names = [...grantedSelection.values()];
-    document.getElementById('granted-selected').textContent = names.length
-        ? `${names.length} étudiant(s) invité(s) : ${names.join(', ')}` : '';
+    const summary = document.getElementById('granted-selected');
+    summary.replaceChildren();
+    for (const [id, name] of grantedSelection) {
+        const chip = document.createElement('button');
+        chip.type = 'button';
+        chip.textContent = name + ' ×';
+        chip.setAttribute('aria-label', 'Retirer ' + name);
+        chip.style.cssText = 'padding:.5rem;border:1px solid #fed7aa;border-radius:8px;margin:.2rem;background:#fff7ed;cursor:pointer';
+        chip.onclick = () => { grantedSelection.delete(id); renderGrantedSummary(); searchGrantedStudents(); };
+        summary.append(chip);
+    }
 }
 
 let grantedTimer;
@@ -490,11 +557,13 @@ async function searchGrantedStudents() {
 }
 
 async function loadRecordings() {
+    recordingsLoadError = '';
     if (!liveFeatures.recordings) { allRecordings = []; return; }
     try {
         const res = await fetch(`${API}/api/live/admin/recordings`, { credentials: 'include' });
-        allRecordings = res.ok ? await res.json() : [];
-    } catch { allRecordings = []; }
+        if (!res.ok) throw new Error('Impossible de charger les enregistrements.');
+        allRecordings = await res.json();
+    } catch (error) { allRecordings = []; recordingsLoadError = error.message; }
 }
 
 const RECORDING_REASONS = {
@@ -507,13 +576,17 @@ const RECORDING_REASONS = {
 
 function formatSize(bytes) {
     const n = Number(bytes) || 0;
-    return n >= 1024 ** 3 ? `${(n / 1024 ** 3).toFixed(2)} Go` : `${Math.max(1, Math.round(n / 1024 ** 2))} Mo`;
+    if (n >= 1024 ** 3) return `${(n / 1024 ** 3).toFixed(2)} Go`;
+    if (n >= 1024 ** 2) return `${(n / 1024 ** 2).toFixed(1)} Mo`;
+    if (n >= 1024) return `${Math.round(n / 1024)} Ko`;
+    return `${n} o`;
 }
 
 function segmentLine(rec, { selectable }) {
     const start = new Date(rec.recording_start);
     const end = rec.recording_end ? new Date(rec.recording_end) : null;
-    const time = start.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }) +
+    const duration = end ? Math.max(0, Math.round((end - start) / 60000)) : null;
+    const time = start.toLocaleDateString('fr-FR') + ' · ' + start.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }) +
         (end ? ' – ' + end.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }) : '');
     let state;
     if (rec.status === 'pending') state = rec.attempts ? `Nouvel essai prévu (${rec.attempts}/6)` : 'En attente de transfert';
@@ -524,29 +597,12 @@ function segmentLine(rec, { selectable }) {
     const stored = rec.status === 'needs_review' || rec.status === 'published';
     return `<div class="session-resource-item" data-recording="${rec.id}">
         <span>${selectable && stored ? `<input type="checkbox" class="recording-pick" value="${rec.id}" ${rec.status === 'published' ? 'checked' : ''} style="width:auto">` : ''}
-        <i class="fas fa-film"></i> ${time}${rec.file_size ? ' · ' + formatSize(rec.file_size) : ''} · ${state}</span>
+        <i class="fas fa-film"></i> ${time}${duration !== null ? ' · ' + duration + ' min' : ''}${rec.file_size ? ' · ' + formatSize(rec.file_size) : ''} · ${state}</span>
         <span style="display:flex;gap:0.4rem">
             ${rec.preview_url ? `<a class="btn-secondary" href="${escT(rec.preview_url)}" target="_blank" rel="noopener noreferrer">Aperçu</a>` : ''}
             ${rec.status === 'failed' ? `<button class="btn-secondary" onclick="retryRecording('${rec.id}')">Réessayer</button>` : ''}
             ${rec.status === 'needs_review' || rec.status === 'failed' ? `<button class="btn-danger" title="Supprimer ce segment de R2 (l’original reste sur Zoom)" onclick="deleteRecording('${rec.id}')"><i class="fas fa-trash"></i></button>` : ''}
         </span>
-    </div>`;
-}
-
-function recordingBlock(session, status) {
-    if (!liveFeatures.recordings) return '';
-    const recs = allRecordings.filter(rec => rec.live_session_id === session.id)
-        .sort((a, b) => new Date(a.recording_start) - new Date(b.recording_start));
-    if (!recs.length) {
-        const ended = new Date(session.scheduled_at).getTime() + session.duration_minutes * 60000;
-        return status === 'completed' && !session.replay_url && Date.now() - ended < 3 * 86400000
-            ? '<div class="session-resource-list"><strong>Enregistrement Zoom</strong><div class="session-resource-item"><span>⏳ En attente de l’enregistrement Zoom</span></div></div>'
-            : '';
-    }
-    const reviewable = recs.some(rec => rec.status === 'needs_review');
-    return `<div class="session-resource-list" id="recordings-${session.id}"><strong>Enregistrement Zoom</strong>
-        ${recs.map(rec => segmentLine(rec, { selectable: reviewable })).join('')}
-        ${reviewable ? `<button class="btn-primary" style="margin-top:0.5rem" onclick="publishRecordings('${session.id}')">Publier la sélection</button>` : ''}
     </div>`;
 }
 
@@ -578,6 +634,7 @@ async function recordingAction(url, options, success) {
 function publishRecordings(sessionId) {
     const importIds = Array.from(document.querySelectorAll(`#recordings-${sessionId} .recording-pick:checked`), input => input.value);
     if (!importIds.length) return showToast('Cochez au moins un segment à publier.', 'error');
+    if (allSessions.find(session => session.id === sessionId)?.replay_url && !confirm('Remplacer le replay publié par les segments sélectionnés ?')) return;
     recordingAction(`${API}/api/live/admin/recordings/publish`, {
         method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ sessionId, importIds })
     }, 'Replay publié pour les étudiants autorisés.');
@@ -586,6 +643,7 @@ function publishRecordings(sessionId) {
 function assignRecording(importId) {
     const sessionId = document.getElementById(`assign-${importId}`)?.value;
     if (!sessionId) return showToast('Aucune séance à associer.', 'error');
+    if (allSessions.find(session => session.id === sessionId)?.replay_url && !confirm('Remplacer le replay publié par ce segment ?')) return;
     recordingAction(`${API}/api/live/admin/recordings/publish`, {
         method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ sessionId, importIds: [importId] })
     }, 'Replay publié dans la séance choisie.');
@@ -602,16 +660,19 @@ function deleteRecording(importId) {
 
 // ── Load Sessions ─────────────────────────────────────────────────────
 async function loadSessions() {
+    sessionsLoadError = '';
     try {
         const res = await fetch(`${API}/api/live/admin/sessions`, { 
             credentials: 'include' 
         });
-        if (res.status === 401) { document.getElementById('sessions-list').innerHTML = '<div class="empty-state"><i class="fas fa-lock"></i><p>Accès réservé aux administrateurs.</p></div>'; return; }
+        if (!res.ok) throw new Error(res.status === 401 || res.status === 403 ? 'Accès réservé aux administrateurs.' : 'Impossible de charger les séances.');
         allSessions = await res.json();
         await loadRecordings();
         renderSessions();
         renderUnassignedRecordings();
+        window.refreshSessionManager?.();
     } catch (e) {
+        sessionsLoadError = e.message;
         document.getElementById('sessions-list').innerHTML = '<div class="empty-state"><i class="fas fa-exclamation-triangle"></i><p>Erreur de chargement.</p></div>';
     }
 }
@@ -683,7 +744,7 @@ function renderCard(s, status) {
     const grantedCount = s.granted_student_ids?.length || 0;
     const offerBadge = (s.offer_id
         ? `<span class="meta-chip badge-offer"><i class="fas fa-ticket-alt"></i> Offre requise${extraOffers ? ` + ${extraOffers} autre(s)` : ''}</span>`
-        : audienceCount || grantedCount ? '' : '<span class="meta-chip"><i class="fas fa-users"></i> Inscrits au cours</span>')
+        : audienceCount || grantedCount || s.access_policy === 'any_selected' ? '' : '<span class="meta-chip"><i class="fas fa-users"></i> Inscrits au cours</span>')
         + (grantedCount ? `<span class="meta-chip badge-offer"><i class="fas fa-user-check"></i> ${grantedCount} accès individuel(s)</span>` : '');
 
     const hostBtn = s.has_host_link
@@ -702,7 +763,7 @@ function renderCard(s, status) {
                 ${statusBadge}
                 <span class="meta-chip"><i class="fas fa-calendar"></i> ${dateStr}</span>
                 <span class="meta-chip"><i class="fas fa-clock"></i> ${timeStr} · ${s.duration_minutes} min</span>
-                ${s.course ? `<span class="meta-chip"><i class="fas fa-book"></i> ${escT(s.course.title)}</span>` : ''}
+                ${s.access_policy === 'any_selected' ? `<span class="meta-chip">${s.course_ids.length} cours · ${s.offer_ids.length} offres</span>` : s.course?.title ? `<span class="meta-chip"><i class="fas fa-book"></i> ${escT(s.course.title)}</span>` : ''}
                 ${offerBadge}
                 ${audienceBadge}
                 ${s.zoom_meeting_id ? `<span class="meta-chip" style="color:#718096;font-size:0.72rem">Meeting ID: ${escT(s.zoom_meeting_id)}</span>` : ''}
@@ -710,13 +771,10 @@ function renderCard(s, status) {
         </div>
         <div class="session-actions">
             ${hostBtn}
-            <button class="btn-secondary" onclick="uploadSessionFiles('${s.id}')"><i class="fas fa-paperclip"></i> Ajouter des fichiers (${(s.resources || []).length})</button>
-            ${status === 'completed' ? `<button class="btn-secondary" onclick="uploadReplay('${s.id}')"><i class="fas fa-cloud-upload-alt"></i> ${s.replay_url ? 'Remplacer le replay' : 'Téléverser le replay'}</button><button class="btn-secondary" onclick="updateReplay('${s.id}')"><i class="fas fa-link"></i> Lien externe</button>` : ''}
+            <button class="btn-secondary" data-manage-session onclick="openSessionManager('${s.id}',this)">Gérer la séance</button>
             ${status !== 'completed' ? `<button class="btn-danger" onclick="deleteSession('${s.id}')"><i class="fas fa-trash"></i></button>` : ''}
             ${status !== 'completed' && hasUpcomingSibling ? `<button class="btn-secondary" onclick="deleteSession('${s.id}', true)">Annuler la série</button>` : ''}
         </div>
-        ${recordingBlock(s, status)}
-        ${(s.resources || []).length ? `<div class="session-resource-list"><strong>Fichiers de la séance</strong>${s.resources.map(resource => `<div class="session-resource-item"><span><i class="fas fa-file-code"></i> ${escT(resource.title || resource.file_name)}</span><button class="btn-danger" title="Supprimer le fichier" onclick="deleteSessionResource('${resource.id}')"><i class="fas fa-trash"></i></button></div>`).join('')}</div>` : ''}
     </div>`;
 }
 
@@ -775,10 +833,12 @@ async function deleteSessionResource(resourceId) {
     showToast('Fichier supprimé.', 'success');
 }
 
-async function updateReplay(sessionId) {
+async function updateReplay(sessionId, providedUrl) {
     const session = allSessions.find(item => item.id === sessionId);
-    const replayUrl = prompt('Collez le lien de partage Google Drive ou le lien du replay. Vérifiez que les élèves ont accès au fichier dans Drive. Laissez vide pour retirer le lien.', session?.replay_url || '');
+    const replayUrl = providedUrl === undefined ? prompt('Collez le lien de partage Google Drive ou le lien du replay. Vérifiez que les élèves ont accès au fichier dans Drive. Laissez vide pour retirer le lien.', session?.replay_url || '') : providedUrl;
     if (replayUrl === null) return;
+    if (replayUrl === session?.replay_url) return;
+    if (session?.replay_url && !confirm('Remplacer ou retirer le replay actuellement publié ?')) return;
 
     try {
         const response = await fetch(`${API}/api/live/${encodeURIComponent(sessionId)}/replay`, {
@@ -790,8 +850,7 @@ async function updateReplay(sessionId) {
         const data = await response.json();
         if (!response.ok) throw new Error(data.error || 'Impossible de mettre à jour le replay.');
 
-        if (session) session.replay_url = data.replay_url;
-        renderSessions();
+        await loadSessions();
         showToast('Lien du replay mis à jour.', 'success');
     } catch (error) {
         showToast(error.message || 'Erreur lors de la mise à jour du replay.', 'error');
@@ -808,6 +867,7 @@ async function uploadReplay(sessionId) {
         if (file.size > 1024 * 1024 * 1024) return showToast('La vidéo doit faire 1 Go ou moins.', 'error');
         const contentType = file.type || ({'.mp4':'video/mp4','.webm':'video/webm','.mov':'video/quicktime'}[file.name.toLowerCase().match(/\.[^.]+$/)?.[0]]);
         if (!contentType) return showToast('Format non pris en charge. Choisissez MP4, WebM ou MOV.', 'error');
+        if (allSessions.find(session => session.id === sessionId)?.replay_url && !confirm('Remplacer le replay publié par ce fichier vidéo ?')) return;
         showToast('Préparation du transfert…');
         try {
             const signedResponse = await fetch(`${API}/api/live/${encodeURIComponent(sessionId)}/replay-upload-url`, {
@@ -824,9 +884,7 @@ async function uploadReplay(sessionId) {
             });
             const saved = await saveResponse.json();
             if (!saveResponse.ok) throw new Error(saved.error || 'Vidéo transférée mais impossible de l’attacher');
-            const session = allSessions.find(item => item.id === sessionId);
-            if (session) session.replay_url = saved.replay_url;
-            renderSessions();
+            await loadSessions();
             showToast('Replay téléversé et visible pour les étudiants inscrits.', 'success');
         } catch (error) { showToast(error.message, 'error'); }
     };
@@ -847,6 +905,7 @@ async function loadOffers() {
             sel.appendChild(opt);
         });
         updateExtraOffers();
+        renderAudiencePicker('multi-offers', 'Offres', allOffers, selectedSessionOffers);
     } catch (e) { console.warn('Could not load offers:', e.message); }
 }
 
@@ -856,6 +915,7 @@ async function loadCourses() {
         const data = await res.json();
         const courses = Array.isArray(data.data) ? data.data : [];
         allCourses = courses;
+        renderAudiencePicker('multi-courses', 'Cours associés', courses, selectedSessionCourses);
         const sel = document.getElementById('f-course');
         sel.innerHTML = '<option value="">— Sélectionner un cours —</option>';
         courses.forEach(c => {
@@ -880,8 +940,9 @@ async function createSession() {
 
     if (!title) return showToast('Veuillez entrer un titre.', 'error');
     if (!datetimeVal) return showToast('Veuillez choisir une date/heure.', 'error');
-    if (!courseId) return showToast('Veuillez sélectionner un cours.', 'error');
-    const audienceStudentIds = audienceMode.value === 'selected'
+    if (!liveFeatures.multiAudience && !courseId) return showToast('Veuillez sélectionner un cours.', 'error');
+    if (liveFeatures.multiAudience && !selectedSessionOffers.size && !selectedSessionCourses.size) return showToast('Sélectionnez au moins une offre ou un cours.', 'error');
+    const audienceStudentIds = !liveFeatures.multiAudience && audienceMode.value === 'selected'
         ? Array.from(studentOptions.querySelectorAll('input:checked'), input => input.value)
         : null;
     if (audienceStudentIds?.length === 0) return showToast('Veuillez sélectionner au moins un étudiant.', 'error');
@@ -934,11 +995,10 @@ async function createSession() {
             },
             credentials: 'include',
             body: JSON.stringify({
-                courseId,
-                offerId: offerId || null,
-                audienceStudentIds,
+                ...(liveFeatures.multiAudience ? { courseIds: [...selectedSessionCourses], offerIds: [...selectedSessionOffers] } :
+                    { courseId, offerId: offerId || null, audienceStudentIds }),
                 ...(liveFeatures.extendedAccess ? {
-                    additionalOfferIds: offerId ? Array.from(document.querySelectorAll('#extra-offer-options input:checked'), input => input.value) : [],
+                    additionalOfferIds: !liveFeatures.multiAudience && offerId ? Array.from(document.querySelectorAll('#extra-offer-options input:checked'), input => input.value) : [],
                     grantedStudentIds: [...grantedSelection.keys()],
                 } : {}),
                 title,
@@ -956,6 +1016,10 @@ async function createSession() {
         studentOptions.querySelectorAll('input:checked').forEach(input => { input.checked = false; });
         document.querySelectorAll('#extra-offer-options input:checked, #granted-options input:checked').forEach(input => { input.checked = false; });
         grantedSelection.clear();
+        selectedSessionCourses.clear();
+        selectedSessionOffers.clear();
+        renderAudiencePicker('multi-offers', 'Offres', allOffers, selectedSessionOffers);
+        renderAudiencePicker('multi-courses', 'Cours associés', allCourses, selectedSessionCourses);
         renderGrantedSummary();
         showToast('✅ Séance créée et planifiée sur Zoom !', 'success');
         await loadSessions();
@@ -997,6 +1061,7 @@ document.getElementById('createModal').addEventListener('click', e => { if (e.ta
 
 // ── Toast ──────────────────────────────────────────────────────────────
 function showToast(msg, type = 'success') {
+    window.sessionManagerNotice?.(msg, type);
     const t = document.getElementById('toast');
     t.textContent = msg;
     t.className = `toast ${type} show`;
@@ -1010,5 +1075,6 @@ function escT(str) {
     return d.innerHTML;
 }
 </script>
+<script src="/admin/js/session-manager.js"></script>
 </body>
 </html>

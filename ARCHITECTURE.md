@@ -423,6 +423,10 @@ The admin course editor can select an associated offer image, list recent raster
 - Receipts upload: Students upload base64 → server uploads to R2
 
 ### Zoom (Live Sessions)
+
+The admin sessions page uses `admin/js/session-manager.js` and `admin/css/session-manager.css` for its native management dialog. It delegates publishing, retry, uploads and file operations to the existing handlers and APIs. The existing admin sessions response includes a current replay source, a short-lived replay preview and signed resource links under requireAdmin, with no-store caching. Imported replay parts are attached only when the session's current replay still matches a published Zoom segment, preserving manual replacements. The recording import queue, worker, publication storage and student authorization predicate are unchanged by the UI work.
+
+New OR sessions use `live_session_courses` and `live_session_offers` associations under an explicit `any_selected` access policy. Legacy rows retain the previous SQL authorization branch. Startup detects both the tables and the policy column. `LIVE_MULTI_AUDIENCE_ENABLED` gates creation only, so disabling it preserves reads of existing sessions. Course/session lists use `EXISTS` to avoid duplicates and nullable course metadata to retain offer-only sessions. The authenticated `/api/live/session/:sessionId` endpoint rechecks the shared access rule before signing replay and resource links. Dashboard replay links for sessions without a primary course open the existing Calendar session dialog. This lets individual invitees watch replays and open session files without altering course permissions. Shared browser media creation is in `public/js/replay-player.js`. Pending migration 004 remains excluded from production image migration discovery until separately approved.
 - Authentication: Server-to-Server OAuth (account-level, no user auth)
 - Token caching: In-memory, refreshed 60 seconds before 1-hour expiry
 - Operations: Create meeting, delete meeting

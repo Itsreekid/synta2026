@@ -3,7 +3,7 @@ import { enrollmentAccess } from "../utils/offerAccess.js";
 // COURSES API ROUTES
 // =====================================================
 import express from "express";
-import { liveSessionAccess } from "../utils/offerAccess.js";
+import { liveSessionAccess, sessionCourseMatch } from "../utils/offerAccess.js";
 import pool from "../config/db.js";
 import { authMiddleware, checkCourseEnrollment } from "../middleware/auth.js";
 import { authApiMiddleware } from "../middleware/requireAuth.js";
@@ -30,7 +30,7 @@ router.get("/:courseId/resource-types", authApiMiddleware, async (req, res) => {
          UNION
          SELECT substring(lower(trim(lr.file_name)) from '[.]([a-z0-9]{1,12})$')
          FROM learning_resources lr JOIN live_sessions ls ON ls.id = lr.live_session_id
-         WHERE ls.course_id = $1 AND ${liveSessionAccess("$2")}
+         WHERE ${sessionCourseMatch('$1')} AND ${liveSessionAccess("$2")}
        )
        SELECT extension FROM file_types ORDER BY extension`,
       [courseId, userId]
@@ -81,7 +81,7 @@ router.get("/", authMiddleware, async (req, res) => {
       SELECT c.*,
         (SELECT COUNT(l.id) FROM lessons l JOIN course_modules cm ON cm.module_id = l.module_id WHERE cm.course_id = c.id AND l.type IS DISTINCT FROM 'quiz')::int AS lessons_count,
         (SELECT COUNT(l.id) FROM lessons l JOIN course_modules cm ON cm.module_id = l.module_id WHERE cm.course_id = c.id AND l.type = 'quiz')::int AS quizzes_count,
-        (SELECT COUNT(ls.id) FROM live_sessions ls WHERE ls.course_id = c.id
+        (SELECT COUNT(ls.id) FROM live_sessions ls WHERE ${sessionCourseMatch('c.id')}
           AND ${liveSessionAccess("$1")})::int AS lives_count
       FROM courses c
       LEFT JOIN users viewer ON viewer.id = $1

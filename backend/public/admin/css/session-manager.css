@@ -1,0 +1,50 @@
+html.session-manager-open { overflow: hidden; }
+.session-manager { width:min(960px,calc(100vw - 24px)); max-width:960px; height:min(850px,calc(100dvh - 32px)); max-height:calc(100dvh - 32px); margin:auto; padding:0; border:1px solid #dce5ec; border-radius:20px; color:#163448; background:#fff; box-shadow:0 24px 80px #062c4040; }
+.session-manager[open] { display:flex; flex-direction:column; }
+.session-manager::backdrop { background:#062c4080; }
+.session-manager-header { display:flex; align-items:flex-start; justify-content:space-between; gap:1rem; padding:1.1rem 1.3rem; border-bottom:1px solid #e2e8f0; }
+.session-manager-header p { margin:0 0 .3rem; color:#687d8d; font-size:.8rem; }
+.session-manager-header h2 { margin:0; font-size:clamp(1.1rem,3vw,1.4rem); overflow-wrap:anywhere; }
+.session-manager button,.session-manager a { min-height:44px; }
+.session-manager-close { flex:none; width:44px; border:1px solid #dbe4ed; border-radius:10px; background:white; color:#15364b; font-size:1.5rem; cursor:pointer; }
+.session-manager-tabs { display:flex; gap:.4rem; padding:.65rem 1rem; background:#f6f8fb; border-bottom:1px solid #e2e8f0; }
+.session-manager-tabs button { flex:1; padding:.65rem; border:1px solid transparent; border-radius:10px; background:transparent; color:#5e7386; font:inherit; font-weight:700; cursor:pointer; }
+.session-manager-tabs button[aria-selected=true] { color:#9a3412; background:#fff2e6; border-color:#fed7aa; }
+.session-manager-body { min-height:0; flex:1; overflow:auto; overscroll-behavior:contain; padding:1.2rem; }
+.session-manager [hidden] { display:none !important; }
+.session-manager-panel { display:flex; flex-direction:column; gap:1rem; }
+.session-manager-panel h3 { margin:0; font-size:1rem; }
+.session-manager-panel p { margin:0; line-height:1.6; }
+.session-manager-actions { display:flex; flex-wrap:wrap; gap:.5rem; }
+.session-manager-actions > :is(button,a) { display:inline-flex; align-items:center; justify-content:center; gap:.4rem; text-decoration:none; }
+.session-manager-source,.session-manager-empty { padding:1rem; border:1px solid #dce5ec; border-radius:12px; background:#f7fafc; }
+.session-manager-source { border-left:4px solid #f97316; }
+.session-manager-source strong { display:block; margin-bottom:.5rem; }
+.session-manager-source > a { display:inline-flex; align-items:center; text-decoration:none; }
+.session-manager-search { width:100%; min-height:44px; padding:.7rem; border:1px solid #ccd9e3; border-radius:10px; font:inherit; }
+.session-manager-list { display:flex; flex-direction:column; gap:.6rem; max-height:360px; overflow:auto; overscroll-behavior:contain; }
+.session-manager-item { display:flex; flex-direction:column; gap:.4rem; padding:.8rem; border:1px solid #e0e8ef; border-radius:12px; }
+.session-manager .session-resource-item { display:flex; align-items:flex-start; justify-content:space-between; flex-wrap:wrap; gap:.7rem; padding:0; border:0; }
+.session-manager .session-resource-item > span { min-width:0; overflow-wrap:anywhere; }
+.session-manager .session-resource-item > span:last-child { flex-wrap:wrap; }
+.session-manager .recording-pick { width:18px!important; height:18px; vertical-align:middle; margin-right:.5rem; accent-color:#f97316; }
+.session-manager-state { display:inline-block; width:fit-content; padding:.2rem .5rem; border-radius:6px; font-size:.75rem; font-weight:700; background:#eaf0f7; color:#315575; }
+.session-manager-state[data-state=published] { background:#e5f7ef; color:#176343; }
+.session-manager-state[data-state=failed] { background:#fff0ee; color:#a43025; }
+.session-manager-state[data-state=needs_review] { background:#fff3dc; color:#855a12; }
+.session-manager dl { display:grid; grid-template-columns:minmax(100px,1fr) minmax(0,3fr); gap:.75rem 1rem; margin:0; }
+.session-manager dt { color:#667c8d; }
+.session-manager dd { margin:0; overflow-wrap:anywhere; line-height:1.5; }
+.session-manager-footer { display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:.6rem; padding:.8rem 1.2rem; border-top:1px solid #e2e8f0; }
+.session-manager-notice { margin:0; min-height:1.2em; color:#64748b; padding:.6rem 1.2rem 0; font-size:.85rem; }
+.session-manager-notice[data-type=error] { color:#a43025; }
+.session-manager :is(button,a,input):focus-visible { outline:2px solid #08758b; outline-offset:2px; }
+@media(max-width:600px) {
+    .session-manager { width:calc(100vw - 12px); height:calc(100dvh - 12px); max-height:calc(100dvh - 12px); border-radius:14px; }
+    .session-manager-header,.session-manager-body { padding:1rem; }
+    .session-manager-tabs { padding:.5rem; gap:.2rem; }
+    .session-manager-tabs button { font-size:.85rem; }
+    .session-manager dl { grid-template-columns:1fr; gap:.3rem; }
+    .session-manager dd { margin-bottom:.6rem; }
+    .session-manager-actions > :is(button,a) { flex:1 1 140px; }
+}

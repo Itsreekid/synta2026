@@ -750,6 +750,18 @@ button.lesson-icon.quiz:focus-visible { outline: 2px solid #6d28d9; outline-offs
 
 .course-replay-view .course-player-frame { display: grid; place-items: center; }
 
+/* Embedded players must fill the video frame, not inherit the app iframe viewport height. */
+.course-player-frame > iframe.course-replay-player {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    min-width: 0;
+    min-height: 0;
+    max-height: 100%;
+    margin: 0;
+}
+
 .course-video-status {
     display: flex;
     flex-wrap: wrap;

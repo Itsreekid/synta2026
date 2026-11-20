@@ -246,6 +246,7 @@ Two roles exist: `user` (student) and `admin`.
 | Behavior | Status | Evidence |
 |----------|--------|----------|
 | Live sessions are linked to a course | ✅ | `live_sessions.course_id` |
+| New OR sessions require at least one selected offer or course. Active access to any selected offer, active enrollment or timed grant to any selected course, or a session invitation permits joining, replay and session resources | ✅ locally, production held | Owner-approved rule; `access_policy='any_selected'`, association tables and shared `liveSessionAccess`. Invitations never create course enrollment. Existing legacy sessions preserve their policy. Creation requires `LIVE_MULTI_AUDIENCE_ENABLED=true` and migration 004 after 002. |
 | Students must be enrolled in the course to see its sessions | ✅ | `GET /api/live/upcoming` filters by enrollment |
 | Sessions can be restricted to a specific offer | ✅ | `live_sessions.offer_id` filter logic |
 | A session can accept several offers: students with an active purchase of the primary offer (with course enrollment) OR of ANY additional offer can join (owner decision 2026-11-20) | ✅ code, ⏳ held migration | `live_sessions.additional_offer_ids`; `liveSessionAccess` in `utils/offerAccess.js`. Additional offers require a primary offer. Expired timed access and refunded purchases lose access. |

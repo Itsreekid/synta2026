@@ -79,7 +79,11 @@ export async function withTimedOfferBrowser(executable, origin, run) {
       const { data } = await command("Page.captureScreenshot", { format: "png" });
       await writeFile(path, Buffer.from(data, "base64"));
     };
-    await run({ open, evaluate, until, errors, screenshot });
+    const pressKey = async (key, virtualKeyCode) => {
+      await command('Input.dispatchKeyEvent', { type:'keyDown', key, windowsVirtualKeyCode:virtualKeyCode });
+      await command('Input.dispatchKeyEvent', { type:'keyUp', key, windowsVirtualKeyCode:virtualKeyCode });
+    };
+    await run({ open, evaluate, until, errors, screenshot, pressKey });
   } finally {
     socket?.close();
     if (browser.exitCode === null) browser.kill();

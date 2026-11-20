@@ -9,7 +9,7 @@ import { requireAdmin } from "../middleware/requireAdmin.js";
 import { createZoomMeeting, deleteZoomMeeting } from "../utils/zoomClient.js";
 import { createR2UploadUrl, generateSignedUrl } from "../utils/r2Utils.js";
 import { r2Client, R2_BUCKET } from "../config/r2.js";
-import { liveSessionAccess, offerEntitlement, enrollmentAccess, hasExtendedLiveAccess } from "../utils/offerAccess.js";
+import { liveSessionAccess, offerEntitlement, enrollmentAccess, hasExtendedLiveAccess, sessionCourseMatch } from "../utils/offerAccess.js";
 import { liveFeatures } from "../services/live-features.js";
 import { recordingStorage, recordingWorker } from "../services/recording-worker.js";
 
@@ -20,13 +20,32 @@ const JOIN_EARLY_MS = 10 * 60_000;
 const joinPath = id => `/api/live/${encodeURIComponent(id)}/join`;
 const signReplay = async url => url && !/^https?:\/\//i.test(url) ? generateSignedUrl(url, 3600) : url;
 
+router.get('/session/:sessionId', authApiMiddleware, async (req, res) => {
+  if (!uuidPattern.test(req.params.sessionId)) return res.status(400).json({ error: 'Séance invalide.' });
+  try {
+    const { rows } = await pool.query(`SELECT ls.id,ls.title,ls.description,ls.scheduled_at,ls.duration_minutes,ls.replay_url,
+      ls.zoom_join_url IS NOT NULL AS has_join_link FROM live_sessions ls
+      WHERE ls.id=$1 AND ${liveSessionAccess('$2')}`, [req.params.sessionId, req.user.id]);
+    if (!rows.length) return res.status(404).json({ error: 'Séance introuvable.' });
+    const { has_join_link, ...session } = rows[0];
+    session.join_url = has_join_link ? joinPath(session.id) : null;
+    session.replay_url = await signReplay(session.replay_url);
+    res.set('Cache-Control', 'private, no-store');
+    res.json((await attachSessionResources(await attachReplayParts([session]), true))[0]);
+  } catch { res.status(500).json({ error: 'Impossible de charger la séance.' }); }
+});
+
 /** Published Zoom segments beyond the first are exposed as extra replay parts. */
 async function attachReplayParts(sessions) {
   if (!liveFeatures.recordingsTable || !sessions.length) return sessions;
   const { rows } = await pool.query(
-    `SELECT id, live_session_id, object_key FROM zoom_recording_imports
-     WHERE live_session_id = ANY($1) AND status = 'published' AND object_key IS NOT NULL
-     ORDER BY recording_start`,
+    `SELECT r.id, r.live_session_id, r.object_key FROM zoom_recording_imports r
+     JOIN live_sessions published_session ON published_session.id=r.live_session_id
+     WHERE r.live_session_id = ANY($1) AND r.status = 'published' AND r.object_key IS NOT NULL
+       AND EXISTS (SELECT 1 FROM zoom_recording_imports current_part
+         WHERE current_part.live_session_id=r.live_session_id AND current_part.status='published'
+           AND current_part.object_key=published_session.replay_url)
+     ORDER BY r.recording_start, r.id`,
     [sessions.map(session => session.id)]
   );
   const bySession = new Map();
@@ -118,7 +137,7 @@ router.get("/course/:courseId", authApiMiddleware, async (req, res) => {
               ls.duration_minutes, ls.status, ls.zoom_join_url IS NOT NULL AS has_join_link, ls.replay_url,
               md5(jsonb_build_array(ls.title,ls.description,ls.scheduled_at,ls.duration_minutes,ls.replay_url)::text) AS revision
        FROM live_sessions ls
-       WHERE ls.course_id = $1
+       WHERE ${sessionCourseMatch('$1')}
          AND ${liveSessionAccess("$2")}
        ORDER BY ls.scheduled_at DESC`,
       [courseId, userId]
@@ -179,7 +198,7 @@ router.get("/upcoming", authApiMiddleware, async (req, res) => {
               ls.status, ls.zoom_join_url IS NOT NULL AS has_join_link, ls.replay_url,
               c.title AS course_title, c.thumbnail_url AS course_thumbnail
        FROM live_sessions ls
-       JOIN courses c ON c.id = ls.course_id
+       LEFT JOIN courses c ON c.id = ls.course_id
        WHERE ${liveSessionAccess("$1")}
          AND ls.scheduled_at + make_interval(mins => COALESCE(ls.duration_minutes, 60)) > NOW()
        ORDER BY ls.scheduled_at ASC`,
@@ -211,7 +230,7 @@ router.get("/replays", authApiMiddleware, async (req, res) => {
       `SELECT DISTINCT ls.id, ls.title, ls.description, ls.scheduled_at,
               ls.duration_minutes, ls.replay_url, ls.course_id, c.title AS course_title
        FROM live_sessions ls
-       JOIN courses c ON c.id = ls.course_id
+       LEFT JOIN courses c ON c.id = ls.course_id
        WHERE ls.scheduled_at < NOW()
          AND ${liveSessionAccess("$1")}
          AND ls.replay_url IS NOT NULL
@@ -280,6 +299,9 @@ function uuidList(value) {
  * POST /api/live/schedule — ADMIN ONLY
  */
 router.post("/schedule", requireAdmin, async (req, res) => {
+  if (req.body?.courseIds !== undefined || req.body?.offerIds !== undefined) {
+    return scheduleMultipleAudiences(req, res);
+  }
   const { courseId, offerId, title, description, startTime, startTimes, durationMinutes = 60, audienceStudentIds = null,
     additionalOfferIds = null, grantedStudentIds = null } = req.body || {};
   const dates = startTimes ?? (startTime ? [startTime] : []);
@@ -367,6 +389,62 @@ router.post("/schedule", requireAdmin, async (req, res) => {
   }
 });
 
+async function scheduleMultipleAudiences(req, res) {
+  if (!liveFeatures.multiAudience || process.env.LIVE_MULTI_AUDIENCE_ENABLED !== 'true') {
+    return res.status(409).json({ error: 'La sélection multiple nécessite la migration et son activation.' });
+  }
+  const { title, description, durationMinutes = 60 } = req.body;
+  const courses = uuidList(req.body.courseIds);
+  const offers = uuidList(req.body.offerIds);
+  const invited = uuidList(req.body.grantedStudentIds);
+  const dates = req.body.startTimes ?? (req.body.startTime ? [req.body.startTime] : []);
+  if (!courses || !offers || !invited || courses.length + offers.length === 0 ||
+      [courses, offers, invited].some(ids => ids.length > 100) || typeof title !== 'string' || !title.trim() || title.length > 500 ||
+      (description != null && typeof description !== 'string') ||
+      !Array.isArray(dates) || !dates.length || dates.length > 84 ||
+      dates.some(date => typeof date !== 'string' || !Number.isFinite(Date.parse(date))) ||
+      !Number.isInteger(Number(durationMinutes)) || Number(durationMinutes) < 1 || Number(durationMinutes) > 1440 ||
+      req.body.audienceStudentIds != null || req.body.courseId || req.body.offerId || req.body.additionalOfferIds?.length) {
+    return res.status(400).json({ error: 'Sélectionnez au moins un cours ou une offre et vérifiez les champs de la séance.' });
+  }
+  const validate = async db => {
+    for (const [table, ids, restriction] of [['courses', courses, ''], ['offers', offers, ''], ['users', invited, "AND role='user'"]]) {
+      // Table names and restrictions are fixed server constants.
+      const result = await db.query(`SELECT id FROM ${table} WHERE id=ANY($1::uuid[]) ${restriction} FOR SHARE`, [ids]);
+      if (result.rowCount !== ids.length) throw Object.assign(new Error('Un cours, une offre ou un étudiant est introuvable.'), { status: 400 });
+    }
+  };
+  let meeting;
+  let client;
+  let committed = false;
+  try {
+    await validate(pool);
+    const times = [...new Set(dates.map(date => new Date(date).toISOString()))].sort();
+    meeting = await createZoomMeeting({ topic: title.trim(), startTime: times[0], durationMinutes: Number(durationMinutes), isRecurring: times.length > 1 });
+    client = await pool.connect();
+    await client.query('BEGIN');
+    await validate(client);
+    const result = await client.query(`INSERT INTO live_sessions
+      (title,description,scheduled_at,duration_minutes,zoom_meeting_id,zoom_join_url,zoom_start_url,zoom_password,status,access_policy,granted_student_ids)
+      SELECT $1,$2,occurrence,$3,$4,$5,$6,$7,'scheduled','any_selected',$8::uuid[]
+      FROM unnest($9::timestamptz[]) dates(occurrence)
+      RETURNING id,title,scheduled_at,zoom_meeting_id`,
+      [title.trim(), description || null, Number(durationMinutes), meeting.zoom_meeting_id, meeting.zoom_join_url,
+        meeting.zoom_start_url, meeting.zoom_password, invited.length ? invited : null, times]);
+    for (const session of result.rows) {
+      await client.query('INSERT INTO live_session_courses(session_id,course_id) SELECT $1,unnest($2::uuid[])', [session.id, courses]);
+      await client.query('INSERT INTO live_session_offers(session_id,offer_id) SELECT $1,unnest($2::uuid[])', [session.id, offers]);
+    }
+    await client.query('COMMIT');
+    committed = true;
+    return res.status(201).json({ success: true, sessions: result.rows });
+  } catch (error) {
+    if (client) await client.query('ROLLBACK').catch(() => {});
+    if (meeting && !committed) await deleteZoomMeeting(meeting.zoom_meeting_id).catch(() => console.error('Failed to clean up unscheduled Zoom meeting'));
+    return res.status(error.status || 500).json({ error: error.status ? error.message : 'Impossible de créer la séance.' });
+  } finally { client?.release(); }
+}
+
 /**
  * DELETE /api/live/:sessionId — ADMIN ONLY
  */
@@ -436,12 +514,27 @@ router.patch("/:sessionId/replay", requireAdmin, async (req, res) => {
       return res.status(400).json({ error: "Invalid replay upload key" });
     }
     try {
-      const result = await pool.query(
+      const client = await pool.connect();
+      try {
+        await client.query('BEGIN');
+        // Match publication's lock order: session first, then recording rows.
+        const target = await client.query('SELECT id FROM live_sessions WHERE id=$1 FOR UPDATE', [sessionId]);
+        if (!target.rowCount) { await client.query('ROLLBACK'); return res.status(404).json({ error:'Session not found' }); }
+        if (liveFeatures.recordingsTable) {
+          const imports = await client.query("SELECT status FROM zoom_recording_imports WHERE object_key=$1 FOR UPDATE", [replayKey]);
+          if (imports.rows.some(row => row.status === 'discarded')) {
+            await client.query('ROLLBACK');
+            return res.status(409).json({ error:'Ce fichier a été supprimé. Téléversez une nouvelle vidéo.' });
+          }
+        }
+        const result = await client.query(
         `UPDATE live_sessions SET replay_url = $1 WHERE id = $2 RETURNING id, replay_url`,
         [replayKey, sessionId]
-      );
-      if (!result.rowCount) return res.status(404).json({ error: "Session not found" });
-      return res.json({ success: true, ...result.rows[0] });
+        );
+        await client.query('COMMIT');
+        return res.json({ success:true,...result.rows[0] });
+      } catch (error) { await client.query('ROLLBACK'); throw error; }
+      finally { client.release(); }
     } catch (error) {
       console.error("Error attaching live replay:", error.message);
       return res.status(500).json({ error: "Failed to attach replay" });
@@ -503,19 +596,25 @@ router.get("/admin/sessions", requireAdmin, async (req, res) => {
       `SELECT ls.id, ls.course_id, ls.offer_id, ls.title, ls.description, ls.scheduled_at,
               ls.duration_minutes, ls.status, ls.zoom_meeting_id, ls.replay_url, ls.audience_student_ids,
               ${hasExtendedLiveAccess() ? "ls.additional_offer_ids, ls.granted_student_ids," : ""}
+              ${liveFeatures.multiAudience ? "ls.access_policy, ARRAY(SELECT course_id FROM live_session_courses WHERE session_id=ls.id) AS course_ids, ARRAY(SELECT offer_id FROM live_session_offers WHERE session_id=ls.id) AS offer_ids," : ""}
+              ${hasExtendedLiveAccess() ? "COALESCE((SELECT json_agg(json_build_object('id',u.id,'name',u.name,'email',u.email)) FROM users u WHERE u.id=ANY(ls.granted_student_ids)), '[]'::json) AS invited_students," : ""}
+              ${liveFeatures.recordingsTable ? "EXISTS(SELECT 1 FROM zoom_recording_imports r WHERE r.live_session_id=ls.id AND r.status='published' AND r.object_key=ls.replay_url)" : "false"} AS replay_is_zoom,
               ls.zoom_start_url IS NOT NULL AS has_host_link, c.title AS course_title
        FROM live_sessions ls
-       JOIN courses c ON c.id = ls.course_id
+       LEFT JOIN courses c ON c.id = ls.course_id
        WHERE ls.status <> 'cancelled'
        ORDER BY ls.scheduled_at DESC`
     );
 
-    const data = result.rows.map(({ course_title, ...s }) => ({
+    const data = await Promise.all(result.rows.map(async ({ course_title, replay_is_zoom, ...s }) => ({
       ...s,
       course: { title: course_title },
-    }));
+      replay_source: !s.replay_url ? null : replay_is_zoom ? 'zoom' : /^https?:\/\//i.test(s.replay_url) ? 'external' : 'upload',
+      replay_preview_url: await signReplay(s.replay_url),
+    })));
 
-    res.json(await attachSessionResources(data));
+    res.set('Cache-Control', 'private, no-store');
+    res.json(await attachSessionResources(data, true));
   } catch (error) {
     console.error("Error fetching admin sessions:", error);
     res.status(500).json({ error: "Internal server error" });
@@ -526,7 +625,8 @@ router.get("/admin/sessions", requireAdmin, async (req, res) => {
  * GET /api/live/admin/features — ADMIN ONLY
  */
 router.get("/admin/features", requireAdmin, (req, res) => {
-  res.json({ extendedAccess: hasExtendedLiveAccess(), recordings: liveFeatures.recordingsTable });
+  res.json({ extendedAccess: hasExtendedLiveAccess(), recordings: liveFeatures.recordingsTable,
+    multiAudience: liveFeatures.multiAudience && process.env.LIVE_MULTI_AUDIENCE_ENABLED === 'true' });
 });
 
 /**
@@ -625,7 +725,7 @@ router.post("/admin/recordings/publish", requireAdmin, requireRecordingsTable, a
       `SELECT id, object_key FROM zoom_recording_imports
        WHERE id = ANY($1::uuid[]) AND status IN ('needs_review', 'published') AND object_key IS NOT NULL
          AND zoom_meeting_id = $2 AND (live_session_id IS NULL OR live_session_id = $3)
-       ORDER BY recording_start
+       ORDER BY recording_start, id
        FOR UPDATE`,
       [importIds, session.zoom_meeting_id, sessionId]
     );
@@ -663,25 +763,37 @@ router.post("/admin/recordings/publish", requireAdmin, requireRecordingsTable, a
  */
 router.delete("/admin/recordings/:importId", requireAdmin, requireRecordingsTable, async (req, res) => {
   if (!uuidPattern.test(req.params.importId)) return res.status(400).json({ error: "Import invalide." });
+  const client = await pool.connect();
   try {
-    const { rows: [row] } = await pool.query(
-      `UPDATE zoom_recording_imports SET status = 'discarded', updated_at = NOW()
-       WHERE id = $1 AND status IN ('needs_review', 'failed')
-       RETURNING object_key, multipart_upload_id`,
+    await client.query('BEGIN');
+    const { rows: [row] } = await client.query(
+      `SELECT object_key, multipart_upload_id FROM zoom_recording_imports
+       WHERE id = $1 AND status IN ('needs_review', 'failed') FOR UPDATE`,
       [req.params.importId]
     );
-    if (!row) return res.status(409).json({ error: "Seuls les segments non publiés peuvent être supprimés." });
+    if (!row) { await client.query('ROLLBACK'); return res.status(409).json({ error: "Seuls les segments non publiés peuvent être supprimés." }); }
+    if (row.object_key) {
+      const reference = await client.query(`SELECT EXISTS(SELECT 1 FROM live_sessions WHERE replay_url=$1)
+        OR EXISTS(SELECT 1 FROM zoom_recording_imports WHERE object_key=$1 AND id<>$2 AND status<>'discarded') AS used`, [row.object_key,req.params.importId]);
+      if (reference.rows[0].used) {
+        await client.query('ROLLBACK');
+        return res.status(409).json({ error:'Ce fichier est encore utilisé par un replay publié.' });
+      }
+    }
     if (row.object_key && row.multipart_upload_id) {
-      await recordingStorage.abortMultipart(row.object_key, row.multipart_upload_id).catch(() => {});
+      await recordingStorage.abortMultipart(row.object_key, row.multipart_upload_id);
     }
     if (row.object_key?.startsWith("live-replays/")) await recordingStorage.delete(row.object_key);
-    await pool.query(
-      "UPDATE zoom_recording_imports SET object_key = NULL, multipart_upload_id = NULL WHERE id = $1", [req.params.importId]);
+    await client.query(
+      // Keep the key as a tombstone so concurrent/manual attachment cannot revive a deleted file.
+      "UPDATE zoom_recording_imports SET status='discarded',multipart_upload_id = NULL,updated_at=NOW() WHERE id = $1", [req.params.importId]);
+    await client.query('COMMIT');
     res.json({ success: true });
   } catch (error) {
+    await client.query('ROLLBACK').catch(() => {});
     console.error("Error deleting recording segment:", error.code ?? error.name);
     res.status(500).json({ error: "Impossible de supprimer le segment." });
-  }
+  } finally { client.release(); }
 });
 
 export default router;

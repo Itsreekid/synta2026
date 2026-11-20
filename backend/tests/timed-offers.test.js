@@ -460,7 +460,7 @@ test("timed offers on disposable PostgreSQL", { skip: !process.env.BUGI_QA_POSTG
                 const old = await buyTimedOffer(db, learner, requestFor(expiredId, await createOfferQuote(db, learner, expiredId)));
                 await db.query("UPDATE offer_access_grants SET starts_at=NOW()-interval '2 months', expires_at=NOW()-interval '1 month' WHERE id=$1", [old.grantId]);
                 await open("/app/offers", studentToken, 390);
-                const expiredButton = `[...document.querySelectorAll('.offer-card')].find(c=>c.querySelector('img')?.alt==='Browser expired')?.querySelector('button.acheter-btn')`;
+                const expiredButton = `[...document.querySelectorAll('.offer-card')].find(c=>c.dataset.offerId===${JSON.stringify(expiredId)})?.querySelector('button.acheter-btn')`;
                 await until(() => evaluate(`Boolean(${expiredButton})`), "expired offer available");
                 assert.match(await evaluate(`${expiredButton}.textContent`), /Acheter/);
                 await evaluate(`${expiredButton}.click()`);
@@ -568,7 +568,7 @@ test("timed offers on disposable PostgreSQL", { skip: !process.env.BUGI_QA_POSTG
                   await until(() => evaluate("document.querySelector('#upgrade-policy-status').textContent.includes('Règles enregistrées')"), "saved upgrade configuration");
                   for (const [id, width, useCredit] of [[upgradeStudent, 390, true], [ordinaryStudent, 1280, false]]) {
                     await open("/app/offers", token(id, "user"), width);
-                    const selector = `[...document.querySelectorAll('.offer-card')].find(c=>c.querySelector('img')?.alt==='Browser upgrade target')?.querySelector('[data-scheduled-index]')`;
+                    const selector = `[...document.querySelectorAll('.offer-card')].find(c=>c.dataset.offerId===${JSON.stringify(upgradeTarget)})?.querySelector('[data-scheduled-index]')`;
                     await until(() => evaluate(`Boolean(${selector})`), "scheduled checkout button");
                     assert.equal(await evaluate(`${selector}.closest('.purchase-section').querySelectorAll('button').length`), 1);
                     assert.equal(await evaluate(`${selector}.closest('.offer-card').querySelector('.feature-text').textContent`), "<b>Libellé synthétique</b>");

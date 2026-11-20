@@ -43,6 +43,14 @@ export function enrollmentAccess(alias) {
 }
 
 let extendedLiveAccess = false;
+let multiLiveAccess = false;
+
+export function setMultiLiveAccess(enabled) { multiLiveAccess = Boolean(enabled); }
+export function sessionCourseMatch(course) {
+  return multiLiveAccess ? `(ls.course_id = ${course} OR EXISTS (
+    SELECT 1 FROM live_session_courses sc WHERE sc.session_id=ls.id AND sc.course_id=${course}
+  ))` : `ls.course_id = ${course}`;
+}
 
 /** Enabled at startup only when live_sessions has additional_offer_ids and granted_student_ids. */
 export function setExtendedLiveAccess(enabled) {
@@ -67,6 +75,22 @@ export function activeOfferAccess(user, offer) {
 }
 
 export function liveSessionAccess(user) {
+  if (multiLiveAccess) {
+    return `ls.status <> 'cancelled' AND (
+      (ls.access_policy='legacy' AND ${legacyLiveSessionAccess(user)}) OR
+      (ls.access_policy='any_selected' AND (
+        ${user}=ANY(COALESCE(ls.granted_student_ids,'{}'::uuid[]))
+        OR EXISTS (SELECT 1 FROM live_session_offers so WHERE so.session_id=ls.id AND ${offerEntitlement(user, 'so.offer_id')})
+        OR EXISTS (SELECT 1 FROM live_session_courses sc JOIN enrollments e ON e.course_id=sc.course_id
+          WHERE sc.session_id=ls.id AND e.user_id=${user} AND ${enrollmentAccess('e')})
+        OR EXISTS (SELECT 1 FROM live_session_courses sc WHERE sc.session_id=ls.id AND ${timedCourseGrant(user, 'sc.course_id')})
+      ))
+    )`;
+  }
+  return legacyLiveSessionAccess(user);
+}
+
+function legacyLiveSessionAccess(user) {
   const audience = `(ls.audience_student_ids IS NULL OR ${user} = ANY(ls.audience_student_ids))`;
   const courseAndPrimaryOffer = `EXISTS (
       SELECT 1 FROM enrollments e WHERE e.user_id = ${user} AND e.course_id = ls.course_id
