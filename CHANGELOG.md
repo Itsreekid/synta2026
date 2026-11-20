@@ -1,5 +1,9 @@
 # CHANGELOG.md — Synta Academy
 
+## 2026-11-20 — Student desktop calendar
+
+- Added a seven-day desktop timetable with hourly lines and overlap placement while preserving the mobile day view.
+
 ## 2026-11-20 — Contact navigation
 
 - Removed the empty standalone Contact page and its student navigation entry. Contact links now target the public footer’s social links, and previous URLs redirect there.

@@ -1,5 +1,10 @@
 # CURRENT_STATE.md — Synta Academy
 
+### 2026-11-20 — Desktop student timetable
+
+- Wide screens (1200px+) show a seven-day time grid, sticky day headings, and separate lanes for overlapping sessions. The grid opens near the week's earliest session. Tablets retain the readable week agenda and phones retain the selected-day view.
+- Checked on a disposable local preview using synthetic sessions at 1440px and 390px. Session details, overlapping sessions and next-week navigation were exercised. Live authenticated session joining still needs staging verification.
+
 - Homepage orange elements use white text across registration, free trial, enrollment, CTA buttons and course badges.
 
 - Removed the standalone Contact page and student sidebar entry. Existing contact URLs redirect to the landing footer’s contact section, and public contact links point to that section.

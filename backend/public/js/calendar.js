@@ -250,6 +250,62 @@ function renderCalendar() {
 
     // Store allDaysData globally for updateExpandedCard function
     window.calendarDaysData = allDaysData;
+    layoutWeekTimetable(allDaysData);
+}
+
+function layoutWeekTimetable(days) {
+    const grid = document.getElementById('calendar-grid');
+    grid.querySelector('.calendar-hours')?.remove();
+    const minutes = event => {
+        const [hour, minute] = event.time.split(':').map(Number);
+        return hour * 60 + minute;
+    };
+    const events = days.flatMap(day => day.events);
+    const firstHour = Math.max(0, Math.min(8, ...events.map(event => Math.floor(minutes(event) / 60))));
+    const lastHour = Math.min(24, Math.max(22, ...events.map(event => Math.ceil((minutes(event) + (Number(event.duration_minutes) || 60)) / 60))));
+    grid.style.setProperty('--calendar-hours', lastHour - firstHour);
+    const rail = document.createElement('div');
+    rail.className = 'calendar-hours';
+    rail.setAttribute('aria-hidden', 'true');
+    for (let hour = firstHour; hour < lastHour; hour++) {
+        const label = document.createElement('span');
+        label.textContent = String(hour).padStart(2, '0') + ':00';
+        rail.append(label);
+    }
+    grid.prepend(rail);
+    days.forEach((day, index) => {
+        const elements = [...grid.querySelector(`[data-day-index="${index}"] .day-events`).children];
+        const placed = day.events.map((event, position) => ({ element: elements[position],
+            start: minutes(event), end: Math.min(1440, minutes(event) + Math.max(1, Number(event.duration_minutes) || 60)) }))
+            .sort((a, b) => a.start - b.start || a.end - b.end);
+        let group = [];
+        let groupEnd = -1;
+        const commit = () => {
+            const lanes = [];
+            for (const item of group) {
+                let lane = lanes.findIndex(end => end <= item.start);
+                if (lane < 0) lane = lanes.length;
+                lanes[lane] = item.end;
+                item.lane = lane;
+            }
+            for (const item of group) {
+                item.element.style.setProperty('--event-top', (item.start - firstHour * 60) * 1.5 + 'px');
+                item.element.style.setProperty('--event-height', (item.end - item.start) * 1.5 - 4 + 'px');
+                item.element.style.setProperty('--event-left', item.lane / lanes.length * 100 + '%');
+                item.element.style.setProperty('--event-width', 100 / lanes.length + '%');
+            }
+        };
+        for (const item of placed) {
+            if (item.start >= groupEnd) { commit(); group = []; }
+            group.push(item);
+            groupEnd = Math.max(groupEnd, item.end);
+        }
+        commit();
+    });
+    if (window.matchMedia('(min-width: 1200px)').matches) {
+        const focusMinute = events.length ? Math.min(...events.map(minutes)) : firstHour * 60;
+        grid.parentElement.scrollTop = Math.max(0, (focusMinute - firstHour * 60 - 60) * 1.5);
+    }
 }
 
 // Function to update the expanded card when a day is clicked
@@ -375,6 +431,8 @@ function createEventElement(event, date) {
     eventElement.appendChild(descEl);
     eventElement.tabIndex = 0;
     eventElement.setAttribute('role', 'button');
+    eventElement.setAttribute('aria-label', `${event.title} · ${event.time}. Voir les détails`);
+    eventElement.title = `${event.time} · ${event.title}`;
 
     // FIX #7: Use addEventListener instead of onclick attribute (prevents attribute injection)
     const openDetails = () => showEventDetails(event, date);
