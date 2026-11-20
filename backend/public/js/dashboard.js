@@ -214,6 +214,10 @@ function renderPathStepper(pathSection, activeCourse, modules, completedIds) {
     });
 
     stepperTrack.innerHTML = html;
+    const currentStep = stepperTrack.querySelector('.step.current');
+    if (currentStep && stepperTrack.scrollWidth > stepperTrack.clientWidth) {
+        stepperTrack.scrollLeft = Math.max(0, currentStep.offsetLeft - stepperTrack.offsetLeft - (stepperTrack.clientWidth - currentStep.offsetWidth) / 2);
+    }
 }
 
 let dashboardPathRequest = 0;
@@ -309,13 +313,13 @@ function loadReplays() {
     if (!list) return;
     fetchDashboardData('/api/live/replays', replays => {
         if (!Array.isArray(replays) || !replays.length) {
-            list.innerHTML = '<div class="event-item">Les enregistrements publiés par ton enseignant apparaîtront ici.</div>';
+            list.innerHTML = '<div class="dash-empty">Les enregistrements publiés par ton enseignant apparaîtront ici.</div>';
             return;
         }
         list.innerHTML = replays.slice(0, 5).map(replay => `
-            <article class="replay-dashboard-item"><div><strong>${escapeDashboardHtml(replay.title)}</strong><div style="color:#64748b;font-size:.85rem">${escapeDashboardHtml(replay.course?.title || 'Formation')} · ${new Date(replay.scheduled_at).toLocaleDateString('fr-FR', {timeZone:'Africa/Tunis'})}</div></div>
-            <a class="btn-primary dashboard-course-link" href="${replay.course_id ? '/app/course-details?' + new URLSearchParams({id:replay.course_id,replay:replay.id}) : '/app/courses'}">Voir le replay</a></article>`).join('');
-    }, () => { list.innerHTML = '<div class="event-item">Impossible de charger les replays.</div>'; });
+            <article class="replay-dashboard-item"><div class="replay-info"><strong>${escapeDashboardHtml(replay.title)}</strong><div class="replay-meta">${escapeDashboardHtml(replay.course?.title || 'Formation')} · ${new Date(replay.scheduled_at).toLocaleDateString('fr-FR', {timeZone:'Africa/Tunis'})}</div></div>
+            <a class="replay-action dashboard-course-link" href="${replay.course_id ? '/app/course-details?' + new URLSearchParams({id:replay.course_id,replay:replay.id}) : '/app/courses'}">Voir le replay</a></article>`).join('');
+    }, () => { list.innerHTML = '<div class="dash-empty">Impossible de charger les replays.</div>'; });
 }
 
 function loadEvents() {
@@ -324,14 +328,14 @@ function loadEvents() {
 
     fetchDashboardData('/api/live/upcoming', (events) => {
         if (!Array.isArray(events) || events.length === 0) {
-            eventsList.innerHTML = '<div class="event-item">Aucun événement à venir</div>';
+            eventsList.innerHTML = '<div class="dash-empty">Aucun événement à venir</div>';
             return;
         }
         
         // Sort events chronologically to ensure the closest is first
         events = events.filter(event => Number.isFinite(Date.parse(event.scheduled_at))).sort((a, b) => new Date(a.scheduled_at) - new Date(b.scheduled_at));
         if (!events.length) {
-            eventsList.innerHTML = '<div class="event-item">Aucun événement à venir</div>';
+            eventsList.innerHTML = '<div class="dash-empty">Aucun événement à venir</div>';
             return;
         }
 

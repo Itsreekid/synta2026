@@ -1,5 +1,11 @@
 # CHANGELOG.md — Synta Academy
 
+## 2026-11-20 — Dashboard responsive redesign (uncommitted)
+
+- Fixed the mobile dashboard rendering 815px wide and cut off. It is now one clean column on phones, a balanced two-column grid on tablets and older 4:3 or 1:1 screens, and two independent columns on wide desktops.
+- All content kept. Larger tap targets, lighter replay buttons, no hover jumping, a scrollable chapter stepper centered on the current chapter, and styled empty states.
+- App pages now fill the screen exactly on phones (`100dvh`, no 10px gap under the 60px phone header), including Code Pratique.
+
 ## 2026-11-20 — Live sessions: multiple offers, individual access, automatic Zoom replays (uncommitted; migrations held)
 
 - A live session can accept several offers, and the admin can invite individual students without a purchase. Until held migration `202611200002` is applied, access stays exactly as before.

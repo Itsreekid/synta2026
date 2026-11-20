@@ -1,5 +1,30 @@
 # CURRENT_STATE.md — Synta Academy
 
+### 2026-11-20 — Dashboard responsive UX pass (uncommitted)
+
+- **Root cause of the messy mobile dashboard:** the dashboard container was a flex item with `margin: 0 auto`, so it sized itself to the chapter stepper's content width (~815px). Every phone and tablet rendered an 815px page cut off at the right. Fixed with `width: 100%` and `minmax(0, 1fr)` grid tracks.
+- **Layout (`public/css/dashboard.css`, rewritten; `views/pages/dashboard/index.ejs`, same content and IDs):**
+  - Phones: one column ordered greeting → stats → continue → next session → path → replays → quick links.
+  - 700–1339px (tablets, 1024px, and old 4:3 or 1:1 screens such as 1280×1024): balanced two-column grid.
+  - ≥1340px: independent main and side columns (`.dash-col` wrappers), so tall cards no longer leave empty gaps.
+- **Other fixes:**
+  - Tap targets are at least 40–48px.
+  - Calendar quick link no longer wraps.
+  - Replays use light outline buttons instead of heavy orange ones.
+  - Cards no longer lift on hover.
+  - The chapter stepper scrolls horizontally and auto-centers on the current chapter.
+  - Empty and error states are styled.
+  - Focus-visible and reduced-motion styles added.
+- **Shared shell (`public/css/user.css`):**
+  - `body` uses `100dvh`.
+  - On phones `.main-section` stretches instead of using `calc(100vh - 70px)`. The phone header is 60px, so pages previously ended 10px short, and the mobile browser toolbar hid content.
+  - Code Pratique (`views/pages/code/index.ejs`) had the same hard-coded 70px. `.cp-page` and the phone `.code-pratique-main` now fill their container.
+- **Verified (local mock server with synthetic data; no real accounts):**
+  - Dashboard at 11 sizes from 320×568 to 1920×1080, active and new-student scenarios: no horizontal overflow, no tap targets under 32px, no JS errors.
+  - Dashboard, calendar, courses and Code Pratique scroll areas end exactly at the screen bottom at 360, 390, 768 and 1440px.
+  - Unit tests: 51 passed, 3 skipped (no PostgreSQL).
+- **Next:** a real-phone check (iOS Safari and Android Chrome), then the same UX pass on other student pages if the owner asks. The deployment track is still paused, waiting for the owner's backup verification.
+
 ### 2026-11-20 — Live sessions verified + automatic Zoom → R2 replays (uncommitted; owner-approved plan)
 
 - **Verification of the existing feature:** admin scheduling, cancellation and host launch were unchanged and working. Every student endpoint shares one access rule (`liveSessionAccess`), and no host link reached students.

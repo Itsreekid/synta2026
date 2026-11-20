@@ -12,53 +12,70 @@
         <section id="main-section" class="main-section">
             <div class="dashboard-container ltr-design" dir="ltr">
 
-                <!-- ══ GREETING CARD ══ -->
-                <div class="dash-card greeting-card" id="greeting-section">
-                    <div class="greeting-content">
-                        <h1 class="greeting-title">Salut <span id="user-name">...</span> ! 👋</h1>
-                        <p class="greeting-subtitle">Prêt à continuer ton parcours scolaire ?<br><span>Chaque petit pas compte ! 💪</span></p>
-                    </div>
-                    <div class="greeting-illustration">
-                        👨‍💻
-                    </div>
-                </div>
+                <!-- Wide screens: two independent columns. Smaller screens: the columns dissolve into one ordered grid. -->
+                <div class="dash-col dash-col-main">
 
-                <!-- ══ STAT PILLS ══ -->
-                <div class="dash-card stats-card" id="stats-section">
-                    <div class="card-header">
-                        <h3>🔥 Ta progression</h3>
-                        <p>Continue comme ça !</p>
-                    </div>
-                    <div class="stats-grid">
-                        <div class="stat-item">
-                            <span class="stat-icon">📖</span>
-                            <div class="stat-info">
-                                <strong id="completed-courses">—</strong>
-                                <span>Leçons terminées</span>
-                            </div>
+                    <!-- ══ GREETING CARD ══ -->
+                    <div class="dash-card greeting-card" id="greeting-section">
+                        <div class="greeting-content">
+                            <h1 class="greeting-title">Salut <span id="user-name">...</span><span class="greeting-wave"> ! 👋</span></h1>
+                            <p class="greeting-subtitle">Prêt à continuer ton parcours scolaire ?<br><span>Chaque petit pas compte ! 💪</span></p>
                         </div>
-                        <div class="stat-item">
-                            <span class="stat-icon">🎯</span>
-                            <div class="stat-info">
-                                <strong id="overall-progress">—</strong>
-                                <span>Progression globale</span>
-                            </div>
+                        <div class="greeting-illustration" aria-hidden="true">👨‍💻</div>
+                    </div>
+
+                    <!-- ══ CONTINUE LEARNING ══ -->
+                    <div class="dash-card continue-card" id="continue-section">
+                        <div class="card-header">
+                            <h3>🚀 Continuer ton apprentissage</h3>
+                        </div>
+                        <div class="continue-content" id="continue-content-container">
+                            <div class="loading-state">Chargement...</div>
                         </div>
                     </div>
+
+                    <!-- ══ TON PARCOURS ══ -->
+                    <div class="dash-card path-card" id="path-section">
+                        <div class="card-header flex-between">
+                            <h3>🧭 Ton parcours</h3>
+                            <span class="path-progress-text"></span>
+                        </div>
+                        <div class="path-stepper">
+                            <div class="path-title"></div>
+                            <div class="stepper-track">
+                                <div class="loading-state">Chargement...</div>
+                            </div>
+                        </div>
+                    </div>
                 </div>
 
-                <!-- ══ CONTINUE LEARNING ══ -->
-                <div class="dash-card continue-card" id="continue-section">
-                    <div class="card-header">
-                        <h3>🚀 Continuer ton apprentissage</h3>
-                    </div>
-                    <div class="continue-content" id="continue-content-container">
-                        <div class="loading-state">Chargement...</div>
-                    </div>
-                </div>
+                <div class="dash-col dash-col-side">
 
-                <!-- ══ SESSIONS + REPLAYS (stacked right rail) ══ -->
-                <div class="session-rail" id="session-rail">
+                    <!-- ══ STAT PILLS ══ -->
+                    <div class="dash-card stats-card" id="stats-section">
+                        <div class="card-header">
+                            <h3>🔥 Ta progression</h3>
+                            <p>Continue comme ça !</p>
+                        </div>
+                        <div class="stats-grid">
+                            <div class="stat-item">
+                                <span class="stat-icon" aria-hidden="true">📖</span>
+                                <div class="stat-info">
+                                    <strong id="completed-courses">—</strong>
+                                    <span>Leçons terminées</span>
+                                </div>
+                            </div>
+                            <div class="stat-item">
+                                <span class="stat-icon" aria-hidden="true">🎯</span>
+                                <div class="stat-info">
+                                    <strong id="overall-progress">—</strong>
+                                    <span>Progression globale</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- ══ NEXT SESSION ══ -->
                     <div class="dash-card session-card" id="session-section">
                         <div class="card-header flex-between">
                             <h3>📅 Prochaine session</h3>
@@ -69,6 +86,7 @@
                         </div>
                     </div>
 
+                    <!-- ══ REPLAYS ══ -->
                     <div class="dash-card session-card replay-card" id="replay-section">
                         <div class="card-header flex-between">
                             <h3>▶️ Replays disponibles</h3>
@@ -76,48 +94,34 @@
                         </div>
                         <div id="replay-list"><div class="loading-state">Chargement...</div></div>
                     </div>
-                </div>
 
-                <!-- ══ TON PARCOURS ══ -->
-                <div class="dash-card path-card" id="path-section">
-                    <div class="card-header flex-between">
-                        <h3>🧭 Ton parcours</h3>
-                        <span class="path-progress-text"></span>
-                    </div>
-                    <div class="path-stepper">
-                        <div class="path-title"></div>
-                        <div class="stepper-track">
-                            <div class="loading-state">Chargement...</div>
+                    <!-- ══ QUICK ACTIONS ══ -->
+                    <div class="dash-card quick-card" id="quick-section">
+                        <div class="card-header">
+                            <h3>⚡ Accès rapide</h3>
                         </div>
-                    </div>
-                </div>
-
-                <!-- ══ QUICK ACTION GRID ══ -->
-                <div class="dash-card quick-card" id="quick-section">
-                    <div class="card-header">
-                        <h3>⚡ Accès rapide</h3>
-                    </div>
-                    <div class="quick-grid">
-                        <a href="/app/courses" class="quick-btn" data-turbo="true">
-                            <div class="quick-icon bg-orange">📖</div>
-                            <span>Cours</span>
-                        </a>
-                        <a href="/app/code-pratique" class="quick-btn" data-turbo="true">
-                            <div class="quick-icon bg-dark">💻</div>
-                            <span>Code</span>
-                        </a>
-                        <a href="/app/calendar" class="quick-btn" data-turbo="true">
-                            <div class="quick-icon bg-dark">📅</div>
-                            <span>Calendrier</span>
-                        </a>
-                        <a href="/app/paiement" class="quick-btn" data-turbo="true">
-                            <div class="quick-icon bg-dark">💳</div>
-                            <span>Mon solde</span>
-                        </a>
-                        <a href="/app/profile" class="quick-btn" data-turbo="true">
-                            <div class="quick-icon bg-dark">👤</div>
-                            <span>Profil</span>
-                        </a>
+                        <nav class="quick-grid" aria-label="Accès rapide">
+                            <a href="/app/courses" class="quick-btn" data-turbo="true">
+                                <span class="quick-icon bg-orange" aria-hidden="true">📖</span>
+                                <span>Cours</span>
+                            </a>
+                            <a href="/app/code-pratique" class="quick-btn" data-turbo="true">
+                                <span class="quick-icon bg-dark" aria-hidden="true">💻</span>
+                                <span>Code</span>
+                            </a>
+                            <a href="/app/calendar" class="quick-btn" data-turbo="true">
+                                <span class="quick-icon bg-dark" aria-hidden="true">📅</span>
+                                <span>Calendrier</span>
+                            </a>
+                            <a href="/app/paiement" class="quick-btn" data-turbo="true">
+                                <span class="quick-icon bg-dark" aria-hidden="true">💳</span>
+                                <span>Mon solde</span>
+                            </a>
+                            <a href="/app/profile" class="quick-btn" data-turbo="true">
+                                <span class="quick-icon bg-dark" aria-hidden="true">👤</span>
+                                <span>Profil</span>
+                            </a>
+                        </nav>
                     </div>
                 </div>
 
@@ -127,6 +131,6 @@
 
     <script src="/js/authentication.js?v=2"></script>
     <script src="/js/user.js?v=2"></script>
-    <script src="/js/dashboard.js?v=7"></script>
+    <script src="/js/dashboard.js?v=8"></script>
 </body>
 </html>

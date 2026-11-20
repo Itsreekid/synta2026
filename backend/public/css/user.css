@@ -41,6 +41,8 @@ body {
     font-family: 'Tajawal', sans-serif;
     background: #f4f8ff;
     height: 100vh;
+    /* Mobile browsers: follow the visible area so the toolbar never hides the bottom of the page. */
+    height: 100dvh;
     display: flex;
     flex-direction: column;
     overflow: hidden;
@@ -709,7 +711,8 @@ iframe {
         width: 100%;
         box-sizing: border-box;
         padding: 0;
-        height: calc(100vh - 70px);
+        /* Stretches to the space left under the header (60–70px depending on width). */
+        height: auto;
         overflow-y: auto;
         overflow-x: hidden;
         -webkit-overflow-scrolling: touch;

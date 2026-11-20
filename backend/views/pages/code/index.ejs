@@ -912,7 +912,7 @@
         }
         /* ========= Synta Code Pratique workspace ========= */
         .code-pratique-main { min-width:0; padding:0 !important; overflow:hidden; }
-        .cp-page { height:calc(100dvh - 70px); min-height:520px; overflow:hidden; padding:12px clamp(12px,1.35vw,24px); gap:10px; background:#f3f5fa; }
+        .cp-page { height:100%; min-height:520px; overflow:hidden; padding:12px clamp(12px,1.35vw,24px); gap:10px; background:#f3f5fa; }
         .ide-ribbon { display:grid; grid-template-columns:minmax(190px,1fr) minmax(250px,auto); align-items:center; gap:clamp(10px,1.5vw,22px); flex:none; min-width:0; padding:10px 16px; background:#fff; border:1px solid #dfe5ef; border-radius:14px; box-shadow:0 5px 18px rgba(23,36,59,.06); }
         .cp-brand { min-width:0; }
         .cp-brand-icon { width:42px; height:42px; border-radius:12px; }
@@ -994,7 +994,7 @@
             #mode-web { grid-template-columns:minmax(0,1fr) minmax(0,1fr); }
         }
         @media (max-width:700px) {
-            .code-pratique-main { height:calc(100dvh - 70px); min-height:0; overflow:hidden; }
+            .code-pratique-main { height:auto; min-height:0; overflow:hidden; }
             .cp-page { height:100%; min-height:0; box-sizing:border-box; overflow:hidden; padding:10px; gap:10px; }
             .ide-ribbon { grid-template-columns:minmax(0,1fr) auto; gap:9px 10px; padding:10px; }
             .cp-brand { gap:9px; }
