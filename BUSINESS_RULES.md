@@ -28,7 +28,7 @@ Rules below that belong to deferred areas stay as documented but must not receiv
 
 ### BR-00: Course Content Reuse
 
-Course descriptions preserve their stored text and support safe bold, italic, paragraphs and lists when displayed to students. Cards show a 220-character/four-line preview; details show the complete formatted description. Raw HTML, links and images are not enabled in description Markdown.
+Course descriptions preserve their stored text. Cards show normalized plain text with Markdown syntax removed and a three-line CSS preview; details support safe bold, italic, paragraphs and lists for the complete description. Raw HTML, links and images are not enabled in description Markdown.
 
 | Behavior | Status | Evidence |
 |----------|--------|----------|

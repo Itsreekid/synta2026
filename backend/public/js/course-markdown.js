@@ -67,5 +67,13 @@
         }
         return clean;
     }
-    window.CourseMarkdown = Object.freeze({ render });
+    function preview(value) {
+        const source = String(value ?? '').replace(/\\([\\*_`#[\]()])/g, '$1')
+            .replace(/^\s{0,3}#{1,6}\s+/gm, '')
+            .replace(/!?\[([^\]]+)\]\([^\n]*?\)/g, '$1');
+        const blocks = render(source).querySelectorAll('p, li');
+        return [...blocks].map(block => block.textContent).join(' ')
+            .replace(/\*{1,3}|_{2,3}|`+/g, '').replace(/\s+/gu, ' ').trim();
+    }
+    window.CourseMarkdown = Object.freeze({ render, preview });
 })();

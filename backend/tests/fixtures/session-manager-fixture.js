@@ -50,6 +50,11 @@ export async function createSessionManagerFixture() {
         session.replay_source=req.body.replayKey?'upload':'external';session.replay_preview_url=session.replay_url;
         res.json({success:true,replay_url:session.replay_url});
     });
+    app.delete('/api/live/:id',(req,res)=>{
+        const index=sessions.findIndex(item=>item.id===req.params.id);
+        if(index<0)return res.sendStatus(404);
+        sessions.splice(index,1);res.json({success:true,cancelledIds:[req.params.id]});
+    });
     app.use(express.static(fileURLToPath(new URL('../../public',import.meta.url))));
     const server=app.listen(0,'127.0.0.1');await once(server,'listening');
     return {server,calls,sessions,recordings,emptyId,singleId,multiId,setRecordingsFailure(value){failRecordings=value;}};

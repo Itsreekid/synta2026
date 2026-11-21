@@ -1,3 +1,9 @@
+## 2026-11-21 — Compact session actions and plain course previews
+
+- Course cards strip Markdown into normalized plain text, clamp to three lines and reserve consistent description heights. Complete safe formatting remains on details.
+- Added gear/green host/red delete icons to admin session cards, including completed sessions. Existing cancellation protects source files and removes student session access after confirmation.
+- Full regression: 86 passed, no failures/skips; mobile and desktop browser checks passed. No deployment.
+
 ## 2026-11-21 — Safe course description formatting
 
 - Render bold, italic, paragraphs and lists using an attribute-free sanitized Markdown subset; preserve original descriptions and plain-text compatibility.

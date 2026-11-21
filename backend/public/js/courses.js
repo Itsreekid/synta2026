@@ -115,7 +115,7 @@ async function loadCourses(filters = {}, { keepCards = false } = {}) {
                     <div class="course-info">
                         ${course.category ? `<span class="course-card-category">${courseCardText(formatCategory(course.category))}</span>` : ''}
                         <h3 class="course-card-title">${courseCardText(course.title)}</h3>
-                        ${course.description?.trim() ? `<div class="course-markdown course-card-description" dir="auto" data-description-index="${index}"></div>` : ''}
+                        <div class="course-card-description" dir="auto" data-description-index="${index}"></div>
                         ${isEnrolled ? `
                         <div class="course-card-progress" aria-label="Progression : ${progress} %">
                             <div class="course-card-progress-track"><span style="width: ${progress}%"></span></div>
@@ -157,7 +157,7 @@ async function loadCourses(filters = {}, { keepCards = false } = {}) {
                 (activeCourseHtml ? group('Mes cours', 'graduation-cap', count(activeCourseHtml), activeCourseHtml) : '') +
                 (regularCoursesHtml ? group(activeCourseHtml ? 'Découvrir d’autres cours' : 'Tous les cours', 'compass', count(regularCoursesHtml), regularCoursesHtml) : '');
             for (const description of coursesList.querySelectorAll('[data-description-index]')) {
-                description.replaceChildren(CourseMarkdown.render(courses[Number(description.dataset.descriptionIndex)].description, { maxLength: 220 }));
+                description.textContent = CourseMarkdown.preview(courses[Number(description.dataset.descriptionIndex)].description);
             }
             for (const image of coursesList.querySelectorAll('[data-thumbnail-index]')) {
                 const course = courses[Number(image.dataset.thumbnailIndex)];

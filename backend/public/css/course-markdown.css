@@ -7,4 +7,5 @@
 .course-markdown strong { font-weight: 700; color: inherit; }
 .course-markdown em { font-style: italic; }
 .course-markdown > :last-child { margin-bottom: 0; }
-.course-card-description { color: var(--c-text-muted, #64748b); font-size: .875rem; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 4; overflow: hidden; }
+.course-card-description { color: var(--c-text-muted, #64748b); font-size: .875rem; line-height: 1.65; height: 4.95em; flex-shrink: 0; overflow-wrap: anywhere; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 3; line-clamp: 3; overflow: hidden; }
+.courses-grid { grid-auto-rows: 1fr; }

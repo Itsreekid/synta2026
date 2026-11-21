@@ -14,6 +14,9 @@ test('session management dialog uses existing replay and resource actions on des
                 await open('/admin/pages/sessions.html','synthetic-admin',width);
                 await until(()=>evaluate('allSessions.length===3 && allCourses.length===1'),'sessions loaded');
                 assert.equal(await evaluate("document.querySelectorAll('.session-card .recording-pick').length"),0);
+                assert.equal(await evaluate("document.querySelectorAll('.session-card [data-delete-session]').length"),3);
+                assert.equal(await evaluate("document.querySelector('[data-manage-session]').textContent.trim()"),'');
+                assert.equal(await evaluate("document.querySelector('.session-card .btn-host').getAttribute('aria-label')"),'Lancer (Hôte)');
                 await evaluate(`document.querySelector('#card-${emptyId} [data-manage-session]').click()`);
                 await until(()=>evaluate("document.querySelector('.session-manager-notice').textContent===''") ,'manager loaded');
                 assert.match(await evaluate("document.getElementById('manager-replays').textContent"),/Aucun replay publié/);
@@ -69,6 +72,12 @@ test('session management dialog uses existing replay and resource actions on des
             fixture.setRecordingsFailure(false);
             await evaluate("document.querySelector('[data-refresh]').click()");
             await until(()=>evaluate("document.querySelector('.session-manager-notice').textContent===''") ,'recordings recovered');
+            await evaluate("document.querySelector('.session-manager').close()");
+            await evaluate("window.confirm=message=>{window.lastConfirmation=message;return true;}");
+            await evaluate(`document.querySelector('#card-${emptyId} [data-delete-session]').click()`);
+            await until(()=>evaluate(`!document.getElementById('card-${emptyId}')`),'completed session removed without opening manager');
+            assert.ok(calls.some(call=>call.path===`/live/${emptyId}` && call.method==='DELETE'));
+            assert.match(await evaluate('window.lastConfirmation'),/replay.*Drive et R2/s);
             assert.deepEqual(errors,[]);
         });
     } finally {await new Promise(resolve=>server.close(resolve));}

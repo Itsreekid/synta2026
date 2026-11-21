@@ -58,6 +58,8 @@
             text-decoration: none; transition: opacity 0.15s;
         }
         .btn-host:hover { opacity: 0.88; }
+        .session-actions .session-icon-action { width: 40px; height: 40px; padding: 0; display: inline-flex; align-items: center; justify-content: center; flex: 0 0 40px; }
+        .session-icon-action:focus-visible { outline: 3px solid #f97316; outline-offset: 3px; }
 
         /* ── Stat cards ── */
         .stats-row {
@@ -748,7 +750,7 @@ function renderCard(s, status) {
         + (grantedCount ? `<span class="meta-chip badge-offer"><i class="fas fa-user-check"></i> ${grantedCount} accès individuel(s)</span>` : '');
 
     const hostBtn = s.has_host_link
-        ? `<a href="/admin/sessions/${encodeURIComponent(s.id)}/host" target="_blank" rel="noopener noreferrer" class="btn-host"><i class="fas fa-video"></i> Lancer (Hôte)</a>`
+        ? `<a href="/admin/sessions/${encodeURIComponent(s.id)}/host" target="_blank" rel="noopener noreferrer" class="btn-host session-icon-action" aria-label="Lancer (Hôte)" title="Lancer (Hôte)"><i class="fas fa-video" aria-hidden="true"></i></a>`
         : '<span class="meta-chip" style="color:#e53e3e"><i class="fas fa-exclamation"></i> Pas de lien Zoom</span>';
     const hasUpcomingSibling = s.zoom_meeting_id && allSessions.some(other =>
         other.id !== s.id && other.zoom_meeting_id === s.zoom_meeting_id &&
@@ -771,8 +773,8 @@ function renderCard(s, status) {
         </div>
         <div class="session-actions">
             ${hostBtn}
-            <button class="btn-secondary" data-manage-session onclick="openSessionManager('${s.id}',this)">Gérer la séance</button>
-            ${status !== 'completed' ? `<button class="btn-danger" onclick="deleteSession('${s.id}')"><i class="fas fa-trash"></i></button>` : ''}
+            <button class="btn-secondary session-icon-action" data-manage-session aria-label="Gérer la séance" title="Gérer la séance" onclick="openSessionManager('${s.id}',this)"><i class="fas fa-cog" aria-hidden="true"></i></button>
+            <button class="btn-danger session-icon-action" data-delete-session aria-label="Supprimer la séance" title="Supprimer la séance" onclick="deleteSession('${s.id}')"><i class="fas fa-trash" aria-hidden="true"></i></button>
             ${status !== 'completed' && hasUpcomingSibling ? `<button class="btn-secondary" onclick="deleteSession('${s.id}', true)">Annuler la série</button>` : ''}
         </div>
     </div>`;
@@ -1033,7 +1035,7 @@ async function createSession() {
 
 // ── Delete Session ─────────────────────────────────────────────────────
 async function deleteSession(sessionId, series = false) {
-    const message = series ? 'Annuler toutes les séances restantes de cette série ?' : 'Annuler cette séance ?';
+    const message = series ? 'Annuler toutes les séances restantes de cette série ?' : 'Supprimer cette séance et retirer son replay et ses ressources de la plateforme ? Les fichiers d’origine dans Drive et R2 seront conservés.';
     if (!confirm(message)) return;
 
     try {

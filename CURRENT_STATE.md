@@ -1,5 +1,11 @@
 # CURRENT_STATE.md — Synta Academy
 
+### 2026-11-21 — Plain course-card previews and compact live-session actions
+
+- Course cards use a normalized plain-text Markdown preview via textContent, with three-line CSS clamping and a reserved three-line area even for short/empty descriptions. Catalog grid rows have equal heights. Full sanitized Markdown rendering on course details and stored descriptions remain unchanged. Asset query versions updated.
+- Admin session cards now show accessible gear, green host-video and red trash icons (40px targets). Trash is available for completed sessions and reuses the existing protected cancellation API; confirmation explains removal of the session/replay/resources from platform access while preserving original Drive/R2 files. No physical files were deleted; no backend/schema changes.
+- Regression coverage includes escaped Markdown, whitespace, plain text, XSS probes, equal short/long/empty card heights and clamping at 360/390/1440px; completed-session removal from its card without opening the manager. Full regression: 86 passed, 0 failed/skipped on disposable PostgreSQL and Chrome. Mobile preview screenshot inspected. No push/deploy/production changes.
+
 ### 2026-11-21 — Safe course description Markdown
 
 - Admin description remains the original plain-text textarea/storage, with a short formatting hint. Student course cards now display formatted previews (220 visible characters plus ellipsis, four-line clamp); course details display the complete description.
