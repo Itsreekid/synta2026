@@ -1,0 +1,10 @@
+.course-markdown { overflow-wrap: anywhere; line-height: 1.65; text-align: start; }
+.course-markdown p { margin: 0 0 .65em; }
+.course-markdown ul, .course-markdown ol { margin: .35em 0 .75em; padding-inline-start: 1.4em; }
+.course-markdown ul { list-style: disc; }
+.course-markdown ol { list-style: decimal; }
+.course-markdown li { margin: .2em 0; }
+.course-markdown strong { font-weight: 700; color: inherit; }
+.course-markdown em { font-style: italic; }
+.course-markdown > :last-child { margin-bottom: 0; }
+.course-card-description { color: var(--c-text-muted, #64748b); font-size: .875rem; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 4; overflow: hidden; }

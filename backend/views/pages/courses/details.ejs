@@ -4,6 +4,7 @@
     <%- include('../../partials/head', { turboReload: true, title: 'Détails du Cours', css: 'course-details',
         extraHead: '<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">'
     }) %>
+    <link rel="stylesheet" href="/css/course-markdown.css?v=1">
 </head>
 <body>
     <%- include('../../partials/header') %>
@@ -27,7 +28,7 @@
                             <div class="course-title-wrapper">
                                 <span class="course-badge" id="course-category-badge" hidden></span>
                                 <h1 id="course-title">Chargement...</h1>
-                                <p class="course-subtitle" id="course-description">Chargement de la description...</p>
+                                <div class="course-subtitle course-markdown" id="course-description" dir="auto">Chargement de la description...</div>
                                 <div class="course-stats-grid">
                                     <div class="stat-box is-lessons">
                                         <div class="stat-icon"><i class="fas fa-play" aria-hidden="true"></i></div>
@@ -111,6 +112,7 @@
     <script src="/js/api-client.js"></script>
     <script src="/js/course-image.js"></script>
     <script src="/js/replay-player.js"></script>
-    <script src="/js/course-details.js?v=4"></script>
+    <script src="/js/course-markdown.js?v=1"></script>
+    <script src="/js/course-details.js?v=5"></script>
 </body>
 </html>

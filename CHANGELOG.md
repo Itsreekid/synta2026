@@ -1,3 +1,8 @@
+## 2026-11-21 — Safe course description formatting
+
+- Render bold, italic, paragraphs and lists using an attribute-free sanitized Markdown subset; preserve original descriptions and plain-text compatibility.
+- Added short course-card previews, complete course-details formatting and admin field guidance. Desktop/mobile and XSS regression checks pass; full suite: 86 passed, no failures/skips.
+
 # CHANGELOG.md — Synta Academy
 
 ## 2026-11-21 — Admin live-session management

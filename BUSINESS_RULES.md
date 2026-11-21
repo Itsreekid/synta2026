@@ -27,6 +27,9 @@ Rules below that belong to deferred areas stay as documented but must not receiv
 ## 1. User Roles
 
 ### BR-00: Course Content Reuse
+
+Course descriptions preserve their stored text and support safe bold, italic, paragraphs and lists when displayed to students. Cards show a 220-character/four-line preview; details show the complete formatted description. Raw HTML, links and images are not enabled in description Markdown.
+
 | Behavior | Status | Evidence |
 |----------|--------|----------|
 | One educational module can be included in multiple courses | ✅ | `course_modules` join table; legacy course placements are backfilled by migration |

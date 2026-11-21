@@ -1,5 +1,11 @@
 # CURRENT_STATE.md — Synta Academy
 
+### 2026-11-21 — Safe course description Markdown
+
+- Admin description remains the original plain-text textarea/storage, with a short formatting hint. Student course cards now display formatted previews (220 visible characters plus ellipsis, four-line clamp); course details display the complete description.
+- Shared course-markdown.js supports bold, italic, paragraphs, unordered/ordered lists. Raw HTML is rendered as text; generated DOM is sanitized through an element allowlist with no attributes, links or images. No dependencies, database changes or description rewrites.
+- Added course-markdown.css and tests/course-markdown.test.js; included the test in the package test command. Browser checks use actual EJS course templates and synthetic content at 360/390/1440px, including Arabic/French, plain text, long descriptions and HTML/script/unsafe-link probes. Full regression: 86 passed, 0 failed/skipped, including disposable PostgreSQL and Chrome. Screenshots visually inspected. No deployment.
+
 ### 2026-11-21 — Final session manager integration verification
 
 - Full regression: 85 passed, 0 failed/skipped with disposable PostgreSQL and Chrome. Affected suite rerun after additional assertions: 12 passed. Manager Details tested against actual multi-offer/course/invitation API responses on desktop/mobile. Real browser file-chooser events uploaded synthetic Python and MP4 fixtures to localhost storage; actual R2/video decoding was not tested.

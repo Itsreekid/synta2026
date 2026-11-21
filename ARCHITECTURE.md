@@ -1,5 +1,7 @@
 # ARCHITECTURE.md — Synta Academy
 
+Course description formatting uses a shared browser-only, restricted Markdown renderer (public/js/course-markdown.js) on the catalogue and course details templates. It builds text/formatting DOM and then sanitizes with an attribute-free tag allowlist. Course API/storage contracts remain plain text, unchanged; no remote Markdown library is loaded.
+
 > **Last audited:** 2026-11-05  
 > **Audited by:** Senior Software Architect (AI documentation audit)  
 > **Status:** Reflects ACTUAL codebase — not aspirational

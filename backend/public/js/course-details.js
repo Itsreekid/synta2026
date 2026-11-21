@@ -353,7 +353,7 @@ async function renderCourseInfo(course, totalLessons, hasAccess, courseProgress,
     // Update description
     const descSection = document.getElementById('course-description');
     if (descSection) {
-        descSection.textContent = course.description || 'Aucune description disponible';
+        descSection.replaceChildren(CourseMarkdown.render(course.description || 'Aucune description disponible'));
     }
     
     // Update category badge
