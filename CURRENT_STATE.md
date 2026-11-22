@@ -1,5 +1,13 @@
 # CURRENT_STATE.md — Synta Academy
 
+### 2026-11-22 — Course copy form and offer audience badges
+
+- Course rows now have a Dupliquer le cours action beside edit. It opens the existing form with copied metadata/image/offer selections, a blank ID, title suffix — Copie and publication off. Nothing is saved until confirmation. UI explicitly states chapters are not copied; the existing chapter-reuse workflow remains available after saving. Source course and shared media are untouched.
+- Linked-offer picker retains price/status and adds separate class/branch badges, including unrestricted labels. Existing picker search now naturally matches these labels. Admin filter offer options include audience labels, and Offers replaces free-text Recherche with an existing-offer selector as requested. Shared script version bumped.
+- 35 targeted tests passed with no failures/skips: security plus actual admin Chrome at 1440/390/360px, same-name Arabic offers, audience badges, existing-offer selection, draft-copy payload/offer links and original preservation. Backend save endpoint is reused unchanged; browser save uses synthetic API storage, not live data. No migration/deployment. Prior unrelated full-suite badge assertion remains unresolved.
+- Next: staging review; attach/reuse chapters in the copied course as desired. This is a settings copy, not a deep content clone.
+
+
 ### 2026-11-22 — Admin course and offer organization filters
 
 - Existing Courses and Offers pages now share an accessible responsive filter bar: class, branch, search and status; Courses preserves category/publication filters and adds an audience-filtered Offer selector with Sans offre associée. Visible/total counts and reset are provided. SessionStorage remembers each page's choices across navigation/reloads in the same tab.

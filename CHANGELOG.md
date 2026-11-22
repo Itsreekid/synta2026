@@ -1,3 +1,8 @@
+## 2026-11-22 — Course copy and clearer offer selection
+
+- Added reviewed draft-course settings copy, class/branch badges in linked offers, and existing-offer dropdown filtering with audience labels. Chapters remain explicitly outside the copy and can be reused through the chapter manager.
+- 35 targeted security/browser tests passed, including same-name offers and desktop/mobile copy saves. No deployment.
+
 ## 2026-11-22 — Simplify admin Courses and Offers management
 
 - Added persistent class/branch/search/status filters, course offer/category selection, counts, reset and clear audience labels within existing pages. No student-access or database changes.

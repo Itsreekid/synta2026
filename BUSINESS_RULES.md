@@ -392,3 +392,5 @@ New monthly terms include the final day when their anchor does not exist in the 
 ### Offer upgrade credit
 
 Annual destinations only. Monthly payments never qualify, including after an offer is relabeled. A configured pair normally requires a fully paid source. Verified partial credit is opt-in per pair, preserves source debt and requires a separate acknowledgment. The required initial coverage is the larger of the first tranche and the configured minimum. Eligible credit counts toward it without changing wallet balance or cash sales. Unset later due dates remain undefined and do not suspend access. Credit corrections preserve grant windows and the original evidence claim.
+
+Admin course duplication opens a prefilled, unpublished new-course form for review before saving. It copies settings and offer associations, not chapters, purchases, enrollments or student progress. Chapters may be reused through the existing chapter manager. Offer pickers show class/branch alongside price/status to distinguish identical titles.

@@ -492,7 +492,7 @@
     </style>
     <link rel="stylesheet" href="/admin/admin.css">
 <link rel="stylesheet" href="/admin/css/catalog-filters.css?v=1">
-<script src="/admin/js/catalog-filters.js?v=1"></script>
+<script src="/admin/js/catalog-filters.js?v=2"></script>
 </head>
 
 <body class="admin-page admin-courses">
@@ -570,6 +570,7 @@
     <div id="courseModal" class="modal">
         <div class="modal-content">
             <h2 id="modalTitle">Nouveau Cours</h2>
+            <p id="course-copy-note" class="offer-picker-hint" hidden>Copie des informations et des offres associées, en brouillon. Les chapitres ne sont pas copiés : utilisez « Réutiliser un chapitre » dans le programme pédagogique après enregistrement.</p>
             <form id="courseForm">
                 <input type="hidden" id="courseId">
 
@@ -889,6 +890,7 @@
                         <td style="color:var(--text-muted); font-size:0.85rem;">${created}</td>
                         <td>
                             <div class="actions">
+                                <button class="btn-icon" title="Dupliquer le cours" aria-label="Dupliquer le cours" data-copy-course><i class="fas fa-copy" aria-hidden="true"></i></button>
                                 <button class="btn-icon" title="Modifier" data-edit-course>
                                     <i class="fas fa-edit" style="pointer-events:none;"></i>
                                 </button>
@@ -922,6 +924,7 @@
                     cell.prepend(image);
                     image.src = url;
                 }
+                row.querySelector('[data-copy-course]').addEventListener('click', () => duplicateCourse(course.id));
                 row.querySelector('[data-edit-course]').addEventListener('click', () => editCourse(course.id));
                 row.querySelector('[data-course-chapters]').addEventListener('click', () => openChapterManager(course.id));
                 row.querySelector('[data-publish-course]').addEventListener('click', () => togglePublish(course.id, course.is_published));
@@ -1386,6 +1389,7 @@
 
         // ── Open modal (create) ────────────────────────
         function openModal() {
+            document.getElementById('course-copy-note').hidden = true;
             document.getElementById('modalTitle').textContent = 'Nouveau Cours';
             document.getElementById('courseForm').reset();
             document.getElementById('courseId').value = '';
@@ -1398,6 +1402,7 @@
 
         // ── Open modal (edit) ──────────────────────────
         function editCourse(id) {
+            document.getElementById('course-copy-note').hidden = true;
             const course = allCourses.find(c => String(c.id) === String(id));
             if (!course) { showToast('Cours introuvable', 'error'); return; }
 
@@ -1415,6 +1420,15 @@
             renderOfferPicker(course.offers_ids || []);
 
             document.getElementById('courseModal').style.display = 'flex';
+        }
+
+        function duplicateCourse(id) {
+            editCourse(id);
+            document.getElementById('courseId').value = '';
+            document.getElementById('title').value += ' — Copie';
+            document.getElementById('is_published').checked = false;
+            document.getElementById('modalTitle').textContent = 'Dupliquer le cours';
+            document.getElementById('course-copy-note').hidden = false;
         }
 
         // ── Close modal ────────────────────────────────
@@ -1570,6 +1584,7 @@
                         <span class="offer-option-meta">
                             <span>${price}</span>
                             <span>${status}</span>
+                            ${AdminCatalogFilters.audienceBadges(offer).map(label => `<span>${escHtml(label)}</span>`).join('')}
                         </span>
                     </span>
                 </label>`;
