@@ -75,6 +75,7 @@ async function loadRoute(name, doubles, env = {}) {
       statusCode: 200, cookies: {}, headers: {},
       status(code) { this.statusCode = code; return this; },
       json(body) { this.body = body; return this; },
+      send(body) { this.body = body; return this; },
       set(name, value) { this.headers[name] = value; },
       sendStatus(code) { this.statusCode = code; return this; },
       redirect(code, url) { this.statusCode = code; this.headers.Location = url; return this; },
@@ -813,25 +814,65 @@ test("lesson video replacement verifies the uploaded object and removal only cle
 });
 
 test("course image delivery requires a session and refuses keys outside the image folder", async () => {
-  const allowed = "Courses-th/Un cours.webp";
+  const allowed = "Courses-th/Un cours.png";
+  const bytes = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAusB9Wl6VQAAAABJRU5ErkJggg==', 'base64');
+  let reads = 0, failed = false, destroyed = false;
   const call = await loadRoute("content", {
     "../config/db.js": { default: {} },
-    "../config/r2.js": { r2Client: {}, R2_BUCKET: "synthetic" },
-    "@aws-sdk/client-s3": { GetObjectCommand: class {} },
+    "../config/r2.js": { r2Client: { async send(command) {
+      reads++;
+      assert.equal(command.input.Key, allowed);
+      if (failed) throw new Error('synthetic storage failure');
+      return { ETag: '"synthetic-image"', Body: {
+        async transformToByteArray() { return bytes; },
+        destroy() { destroyed = true; },
+      } };
+    } }, R2_BUCKET: "synthetic" },
+    "@aws-sdk/client-s3": { GetObjectCommand: class { constructor(input) { this.input = input; } } },
     "../middleware/auth.js": { checkLessonAccess() {} },
-    "../utils/r2Utils.js": { async generateSignedUrl(key, ttl) {
-      assert.equal(key, allowed);
-      assert.equal(ttl, 900);
-      return "https://storage.example.invalid/synthetic-signed-image";
-    } },
+    "../utils/r2Utils.js": { async generateSignedUrl() { throw new Error('must not redirect'); } },
   });
   const route = "get /course-image/:key";
   assert.equal((await call(route, { params: { key: allowed } })).statusCode, 401);
   assert.equal((await call(route, { user: { id: USER }, params: { key: "receipts/private.png" } })).statusCode, 404);
+  assert.equal(reads, 0);
   const image = await call(route, { user: { id: USER }, params: { key: allowed } });
-  assert.equal(image.statusCode, 302);
-  assert.equal(image.headers.Location, "https://storage.example.invalid/synthetic-signed-image");
-  assert.equal(image.headers["Cache-Control"], "private, max-age=300");
+  assert.equal(image.statusCode, 200);
+  assert.deepEqual(image.body, bytes);
+  assert.equal(image.headers.Location, undefined);
+  assert.equal(image.headers["Content-Type"], 'image/png');
+  assert.equal(image.headers["Cache-Control"], "private, max-age=86400");
+  const cached = await call(route, { user: { id: USER }, params: { key: allowed }, headers: { 'if-none-match': '"synthetic-image"' } });
+  assert.equal(cached.statusCode, 304);
+  assert.equal(destroyed, true);
+  failed = true;
+  const unavailable = await call(route, { user: { id: USER }, params: { key: allowed } });
+  assert.equal(unavailable.statusCode, 503);
+  assert.equal(unavailable.headers['Cache-Control'], 'no-store');
+  if (process.env.TIMED_QA_CHROME) {
+    failed = false;
+    const { default: express } = await import('express');
+    const { once } = await import('node:events');
+    const { withTimedOfferBrowser } = await import('./timed-offer-browser.js');
+    const app = express();
+    app.get('/image', async (req, res) => {
+      const result = await call(route, { user: { id: USER }, params: { key: allowed }, headers: req.headers });
+      res.set(result.headers).status(result.statusCode).send(result.body);
+    });
+    app.get('/page/:id', (_req, res) => res.send('<img src="/image" alt="Course">'));
+    const server = app.listen(0, '127.0.0.1'); await once(server, 'listening');
+    const before = reads;
+    try {
+      await withTimedOfferBrowser(process.env.TIMED_QA_CHROME, 'http://127.0.0.1:' + server.address().port, async ({ open, evaluate, errors }) => {
+        await open('/page/desktop', 'synthetic', 1440);
+        assert.equal(await evaluate('document.querySelector("img").naturalWidth'), 1);
+        await open('/page/mobile', 'synthetic', 390);
+        assert.equal(await evaluate('document.querySelector("img").naturalWidth'), 1);
+        assert.equal(reads - before, 1, 'second page must reuse the cached image without an R2 read');
+        assert.deepEqual(errors, []);
+      });
+    } finally { await new Promise(resolve => server.close(resolve)); }
+  }
 });
 
 test("student profile updates keep class and section locked and validate the phone", async () => {

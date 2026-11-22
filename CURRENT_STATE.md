@@ -1,5 +1,13 @@
 # CURRENT_STATE.md — Synta Academy
 
+### 2026-11-22 — Cache course image bytes at stable URLs
+
+- Authenticated Courses-th image delivery now returns image bytes at the existing stable URL, with private 24-hour browser caching, ETag revalidation and nosniff. Removed expiring signed redirects from this route. No cookies store images; no changes to private video/document delivery or schema.
+- Admin uploads already generate UUID keys, so image replacements use a fresh URL. External third-party image URLs retain their provider caching behavior. Browser cache may be cleared/evicted; no promise of offline or instant first loads.
+- 34 targeted security/course-Markdown tests passed, zero failed/skipped, including actual Chrome 1440px to 390px navigation displaying the same image with exactly one R2 read, unauthorized/wrong-folder rejection, conditional 304 and noncached storage failures. Synthetic storage only; live R2 not exercised. Previous unrelated offer-badge full-suite failure remains documented. No deployment.
+- Next: staging verification with actual course thumbnails; no migration needed.
+
+
 ### 2026-11-22 — Inactivity window revised to 14 days
 
 - Owner revised the previous 48-hour policy to 14 days. Normal refresh tokens/cookies and startup diagnostics now use 14 days; 30-day absolute cap, logout/revocation, and one-hour nonrenewable admin login-as sessions remain unchanged. Existing refresh cookies retain their original expiry until successfully renewed.

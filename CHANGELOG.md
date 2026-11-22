@@ -1,3 +1,7 @@
+## 2026-11-22 — Course thumbnail browser caching
+
+- Serve course thumbnails at stable authenticated URLs with private 24-hour caching and ETags instead of expiring R2 redirects. Verified repeat desktop/mobile navigation avoids a second R2 read; 34 relevant tests passed. No deployment.
+
 ## 2026-11-22 — 14-day inactivity policy
 
 - Revised normal session renewal from 48 hours to 14 days at owner request. Existing 30-day cap and revocation remain. All 35 targeted authentication tests passed locally; no deployment.
