@@ -235,6 +235,8 @@
         #discount_amount_field[hidden] { display:none; }
     </style>
     <link rel="stylesheet" href="/admin/admin.css">
+<link rel="stylesheet" href="/admin/css/catalog-filters.css?v=1">
+<script src="/admin/js/catalog-filters.js?v=1"></script>
 </head>
 
 <body class="admin-page admin-offers">
@@ -252,6 +254,7 @@
         </button>
     </div>
 
+    <div id="catalogFilters"></div>
     <div class="offers-list" id="offersList">
         <!-- Offers will be loaded here -->
     </div>
@@ -452,6 +455,8 @@
     <script src="../js/admin-dashboard.js"></script>
     <script>
         let allOffers = [];
+        let offerCatalogFilter;
+        function applyOfferFilters() { const visible = offerCatalogFilter.filter(allOffers); offerCatalogFilter.summary(visible.length,allOffers.length); renderOffers(visible); }
         document.addEventListener('DOMContentLoaded', initOffers);
 
         async function initOffers() {
@@ -473,7 +478,8 @@
                 if (window.AdminDashboard) {
                     allOffers = await window.AdminDashboard.loadOffers();
                     console.log('Loaded offers:', allOffers);
-                    renderOffers(allOffers);
+                    if (!offerCatalogFilter) offerCatalogFilter = AdminCatalogFilters.create({ root: document.getElementById('catalogFilters'), kind: 'offers', offers: () => allOffers, onChange: applyOfferFilters });
+                    applyOfferFilters();
                 } else {
                     console.error('AdminDashboard utility not found');
                 }
@@ -487,7 +493,7 @@
         function renderOffers(offers) {
             const container = document.getElementById('offersList');
             if (offers.length === 0) {
-                container.innerHTML = '<p style="text-align: center; color: #64748b; padding: 2rem;">Aucune offre trouvée.</p>';
+                container.innerHTML = '<p style="text-align: center; color: #64748b; padding: 2rem;">Aucune offre ne correspond aux filtres. Réinitialisez les filtres pour tout afficher.</p>';
                 return;
             }
 
@@ -499,7 +505,7 @@
                                 ${offer.is_active ? 'Active' : 'Inactive'}
                             </span>
                         </h3>
-                        <p>${adminText(offer.description || 'Pas de description')}</p>
+                        <span class="catalog-audience">${adminText(AdminCatalogFilters.courseLabel({offers_ids:[offer.id]},allOffers))}</span><p>${adminText(offer.description || 'Pas de description')}</p>
                     </div>
                     <div style="display: flex; align-items: center; gap: 2rem;">
                         <div class="offer-price">${adminText(offer.fixed_price)} DT</div>
@@ -541,6 +547,7 @@
                 badge.classList.toggle('badge-active', result.is_active);
                 badge.classList.toggle('badge-inactive', !result.is_active);
                 badge.textContent = result.is_active ? 'Active' : 'Inactive';
+                applyOfferFilters();
             } catch {
                 toggle.checked = Boolean(offer.is_active);
                 alert('Impossible de modifier le statut de cette offre.');

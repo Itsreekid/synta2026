@@ -491,6 +491,8 @@
         }
     </style>
     <link rel="stylesheet" href="/admin/admin.css">
+<link rel="stylesheet" href="/admin/css/catalog-filters.css?v=1">
+<script src="/admin/js/catalog-filters.js?v=1"></script>
 </head>
 
 <body class="admin-page admin-courses">
@@ -519,17 +521,18 @@
         <div class="stat-chip"><span class="num" id="freeCount">–</span> gratuits</div>
     </div>
 
+    <div id="catalogFilters"></div>
     <!-- Filters -->
     <div class="filter-bar">
-        <input type="text" id="searchInput" placeholder="🔍 Rechercher un cours..." oninput="applyFilter()">
-        <select id="categoryFilter" onchange="applyFilter()">
+        <input type="text" aria-label="Rechercher un cours" id="searchInput" placeholder="🔍 Rechercher un cours..." oninput="applyFilter()">
+        <select aria-label="Catégorie" id="categoryFilter" onchange="applyFilter()">
             <option value="">Toutes les catégories</option>
             <option value="bac-info">Bac Informatique</option>
             <option value="bac-math">Bac Mathématiques</option>
             <option value="web-dev">Développement Web</option>
             <option value="general">Général</option>
         </select>
-        <select id="statusFilter" onchange="applyFilter()">
+        <select aria-label="Statut" id="statusFilter" onchange="applyFilter()">
             <option value="">Tous les statuts</option>
             <option value="published">Publiés</option>
             <option value="draft">Brouillons</option>
@@ -807,7 +810,8 @@
                 if (!data.success) throw new Error(data.error || 'Erreur serveur');
                 allCourses = data.data || [];
                 updateStats(allCourses);
-                renderCourses(allCourses);
+                if (!window.courseCatalogFilter) window.courseCatalogFilter = AdminCatalogFilters.create({ root: document.getElementById('catalogFilters'), kind: 'courses', offers: () => allOffers, onChange: applyFilter, extra: ['searchInput','categoryFilter','statusFilter'] });
+                applyFilter();
             } catch (err) {
                 console.error('Error loading courses:', err);
                 document.getElementById('coursesBody').innerHTML = `
@@ -839,7 +843,7 @@
                     <tr><td colspan="7">
                         <div class="empty-state">
                             <i class="fas fa-book-open"></i>
-                            <p>Aucun cours trouvé. Créez votre premier cours.</p>
+                            <p>Aucun cours ne correspond aux filtres. Réinitialisez les filtres ou créez un cours.</p>
                         </div>
                     </td></tr>`;
                 return;
@@ -867,7 +871,7 @@
                     <tr>
                         <td data-course-thumbnail><div class="course-thumb-placeholder"><i class="fas fa-image"></i></div></td>
                         <td class="course-title-cell">
-                            <strong>${escHtml(course.title)}</strong>
+                            <strong>${escHtml(course.title)}</strong><span class="catalog-audience">${adminText(AdminCatalogFilters.courseLabel(course,allOffers))}</span>
                             ${course.category ? `<span><span class="badge badge-category">${adminText(categoryLabels[course.category] || course.category)}</span></span>` : ''}
                         </td>
                         <td>${adminText(levelLabels[course.level] || course.level || '–')}</td>
@@ -1343,7 +1347,7 @@
             const cat = document.getElementById('categoryFilter').value;
             const status = document.getElementById('statusFilter').value;
 
-            const filtered = allCourses.filter(c => {
+            const filtered = (window.courseCatalogFilter?.filter(allCourses) || allCourses).filter(c => {
                 const matchSearch = !q || c.title.toLowerCase().includes(q) || (c.description || '').toLowerCase().includes(q);
                 const matchCat = !cat || c.category === cat;
                 const matchStatus = !status
@@ -1352,6 +1356,7 @@
                 return matchSearch && matchCat && matchStatus;
             });
 
+            window.courseCatalogFilter?.summary(filtered.length, allCourses.length);
             renderCourses(filtered);
         }
 

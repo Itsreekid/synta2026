@@ -30,6 +30,8 @@ Rules below that belong to deferred areas stay as documented but must not receiv
 
 Administrators may add historical replays to one course with the original completed date/time in Africa/Tunis. No Zoom meeting is created. Existing active course access controls apply; historical dates do not grant or extend access. Course catalogue viewers may see only the title/date/duration of course-wide historical replays as locked entries. Offer-specific and individually restricted replay metadata is excluded from this preview; playback and attachments still require authorization. Links or uploaded video and optional resources use existing student playback and resource authorization.
 
+Admin Courses and Offers filters organize existing records by class and branch without modifying student eligibility. Course filters use existing linked-offer targeting (class and branch on the same offer); unlinked courses remain visible and clearly labeled. Default lists include all records and inactive offers. Filters are remembered per page in the same browser tab.
+
 Course descriptions preserve their stored text. Cards show normalized plain text with Markdown syntax removed and a three-line CSS preview; details support safe bold, italic, paragraphs and lists for the complete description. Raw HTML, links and images are not enabled in description Markdown.
 
 | Behavior | Status | Evidence |

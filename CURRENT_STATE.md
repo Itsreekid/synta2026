@@ -1,5 +1,14 @@
 # CURRENT_STATE.md — Synta Academy
 
+### 2026-11-22 — Admin course and offer organization filters
+
+- Existing Courses and Offers pages now share an accessible responsive filter bar: class, branch, search and status; Courses preserves category/publication filters and adds an audience-filtered Offer selector with Sans offre associée. Visible/total counts and reset are provided. SessionStorage remembers each page's choices across navigation/reloads in the same tab.
+- Course audience derives from existing offers_ids and offer targeting. Class and branch must match the same linked offer; unrestricted targets match all. Unlinked courses remain visible under audience filters and are labeled Tous les niveaux · Sans offre associée. Shared courses appear once. All offers, including inactive ones, remain available under the default filters. No student authorization, API, schema or financial changes.
+- Shared assets: public/admin/js/catalog-filters.js and css/catalog-filters.css. Existing search/category/status controls are moved into the unified bar without removing their behavior. Offer activation reapplies current filters; filtered-course edit targets retain correct IDs.
+- 36 targeted tests passed, zero failed/skipped. Actual Chrome at 1440/390/360px covers same-offer targeting, shared/general courses, independent remembered page filters, reset, empty state, search, publication/status filtering, inactive offer activation, correct course editor, hostile HTML-like labels and viewport overflow. No deployment. Prior unrelated full-suite offer-card assertion remains documented; full suite not rerun for this admin-only change.
+- Next: review using real admin data in staging; no migration or feature flag needed.
+
+
 ### 2026-11-22 — Correct thumbnail first-load regression
 
 - Supersedes the buffered-image proxy below: it added a full backend R2 download before sending image bytes. Restored direct R2 loading with a signed image-only response cache override; redirect and bytes cache privately for 23 hours, signed thumbnail lifetime 24 hours. No backend image download. Authentication/folder restrictions remain.

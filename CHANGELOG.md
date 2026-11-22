@@ -1,3 +1,8 @@
+## 2026-11-22 — Simplify admin Courses and Offers management
+
+- Added persistent class/branch/search/status filters, course offer/category selection, counts, reset and clear audience labels within existing pages. No student-access or database changes.
+- Verified actual desktop/mobile admin navigation, filters and retained actions; 36 targeted tests passed. No deployment.
+
 ## 2026-11-22 — Remove thumbnail proxy bottleneck
 
 - Supersedes buffered thumbnail delivery with direct R2 signed downloads. Cache image responses and redirects for 23 hours within a 24-hour image-only signature. Keep protected-media expiry unchanged. 35 targeted tests passed, including Chrome cache reuse. Live R2 latency not measured; no deployment.

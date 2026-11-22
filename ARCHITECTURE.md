@@ -543,3 +543,7 @@ The admin overview separates confirmed deposit transactions, purchase transactio
 ### Offer upgrade credit
 
 The existing timed-offer router serves signed upgrade quotes, atomic confirmations, admin policy and correction operations, and wallet collection of the next scheduled tranche. The shared student row lock serializes source collection, reversal and credit use. Unique payment claims and grant-origin constraints provide database enforcement. The original legacy path remains available for unconfigured offers. The new sales paths require both TIMED_OFFER_SALES_ENABLED and TIMED_OFFER_UPGRADES_ENABLED.
+
+### Admin catalog organization
+
+The existing Courses/Offers HTML pages share public/admin/js/catalog-filters.js and css/catalog-filters.css. Filtering is client-side using existing authenticated admin APIs, with per-page sessionStorage state. Course audiences derive from offers_ids and target_classes/target_branches; no additional database queries, tables, permissions or student-access changes are introduced. Native labeled controls, counts and reset preserve desktop/mobile workflows.
