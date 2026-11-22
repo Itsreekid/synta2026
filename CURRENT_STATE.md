@@ -1,5 +1,15 @@
 # CURRENT_STATE.md — Synta Academy
 
+### 2026-11-23 — Educational video controls and smoother lesson quizzes
+
+- Added shared learning-player.js/CSS for native uploaded lessons and course/calendar replays: central Play, orange seek range, ±10 seconds, playback speeds, mute/volume, fullscreen, keyboard-accessible labeled controls and graceful autoplay rejection. Existing page layout retained. Direct click-to-watch attempts autoplay; next lessons after completion/quiz wait paused. Lesson position uses the existing server save path; replay position is stored per profile/session/part on the device, without storing signed URLs.
+- Lessons with a following quiz show Passer au quiz, and actual video ended opens that quiz over the current lesson once. No-quiz lessons show Leçon suivante. Quiz correct answers advance/results after 1.2s feedback (manual Continue still available); incorrect corrections wait for Continue. Advance timeout is cancelled on close, manual progression and results. Tracking remains one call per submitted answer.
+- Drive replays and Drive lesson URLs retain provider iframe controls and manual quiz navigation; custom controls/ended detection cannot be applied reliably across provider origins. Existing signed URL retry, resources and access APIs retained; no Gemini calls or schema changes.
+- Removed completion-on-first-playing for the native inline lesson path; end/manual completion remains. The prior 90%-watched requirement (P1-2) is still not implemented; do not claim watch-time verification.
+- 39 affected regression tests passed, zero failed/skipped, with disposable PostgreSQL and Chrome at 1440/390/360px. New browser test generates synthetic WebM, performs trusted keyboard playback through actual media end, checks automatic quiz/correct-answer progression, retained wrong-answer feedback, single tracking calls, paused next lesson, closing during feedback, speed/resume/seek/autoplay fallback, uploaded replay enhancement and unchanged Drive embed selection. Student lesson-preview/API security, course layout and admin session/catalog tests also passed. Mobile capture inspected. No live Drive/Zoom/R2 playback or physical-phone validation; existing unrelated offer-badge full-suite assertion remains unresolved. No deployment.
+- Next: staging playback across physical iOS/Android, actual R2/Drive media and fullscreen; no migration/feature flag required for these controls.
+
+
 ### 2026-11-22 — Course copy form and offer audience badges
 
 - Course rows now have a Dupliquer le cours action beside edit. It opens the existing form with copied metadata/image/offer selections, a blank ID, title suffix — Copie and publication off. Nothing is saved until confirmation. UI explicitly states chapters are not copied; the existing chapter-reuse workflow remains available after saving. Source course and shared media are untouched.

@@ -2,6 +2,7 @@
 <html lang="fr" dir="ltr">
 <head>
     <%- include('../../partials/head', { turboReload: true, title: 'Calendrier des Sessions', css: 'calendar' }) %>
+<link rel="stylesheet" href="/css/learning-player.css?v=1">
 </head>
 <body>
     <div id="global-hydration-overlay"><div class="spinner"></div></div>
@@ -51,7 +52,8 @@
          Events are fetched via GET /api/events (server-filtered). -->
     <script src="/js/authentication.js"></script>
     <script src="/js/user.js"></script>
+    <script src="/js/learning-player.js?v=1"></script>
     <script src="/js/replay-player.js"></script>
-    <script src="/js/calendar.js?v=2"></script>
+    <script src="/js/calendar.js?v=3"></script>
 </body>
 </html>

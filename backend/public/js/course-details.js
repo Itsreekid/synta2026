@@ -600,6 +600,7 @@ function openReplayPlayer(replayUrl, title, resources = [], sessionId = '', { pa
             return true;
         };
         prepareCourseVideo(player, parsed.href, retry, recover);
+        window.enhanceLearningPlayer?.(player, { autoplay: true, storageKey: sessionId ? sessionId + ':' + partIndex : '' });
     }
 
     if (resources.length) details.appendChild(createResourceSection(resources, 'Fichiers utilisés pendant la séance'));
@@ -743,7 +744,7 @@ function formatDuration(seconds) {
 /**
  * Play lesson (open video player)
  */
-async function playLesson(lessonId) {
+async function playLesson(lessonId, { autoplay = true } = {}) {
     const request = ++lessonRequest;
     try {
         // Fetch lesson details + signed video URL via REST API
@@ -793,7 +794,7 @@ async function playLesson(lessonId) {
         }
 
         if (request !== lessonRequest) return;
-        await showLessonInMainArea(lesson, videoUrl, contentData.pdfUrl, practiceFiles, Boolean(contentData.videoError));
+        await showLessonInMainArea(lesson, videoUrl, contentData.pdfUrl, practiceFiles, Boolean(contentData.videoError), autoplay);
 
     } catch (error) {
         if (request !== lessonRequest) return;
@@ -870,7 +871,7 @@ function prepareCourseVideo(video, source, retry, recover = () => false) {
     video.src = source;
 }
 
-async function showLessonInMainArea(lesson, videoUrl, pdfUrl, practiceFiles = [], videoUnavailable = false) {
+async function showLessonInMainArea(lesson, videoUrl, pdfUrl, practiceFiles = [], videoUnavailable = false, autoplay = true) {
     const courseMain = document.querySelector('.course-main');
     const courseSidebar = document.querySelector('.course-sidebar');
     const modulesContainer = courseOverview?.main.find(node => node.nodeType === 1 && node.id === 'chapters-panel')
@@ -881,6 +882,8 @@ async function showLessonInMainArea(lesson, videoUrl, pdfUrl, practiceFiles = []
     // Legacy PDFs and newly uploaded files are presented in one resource section.
 
     const chapterIndex = (currentCourse?.modules || []).findIndex(module => (module.lessons || []).some(item => item.id === lesson.id));
+    const linkedQuiz = nextCourseItem(lesson.id);
+    const hasQuiz = linkedQuiz?.type === 'quiz';
     const chapterLabel = chapterIndex >= 0 ? `Chapitre ${chapterIndex + 1} · ${currentCourse.modules[chapterIndex].title || ''}` : 'Leçon';
 
     // Replace main content with the video (when present), lesson resources, and actions.
@@ -906,7 +909,7 @@ async function showLessonInMainArea(lesson, videoUrl, pdfUrl, practiceFiles = []
                     <h2 class="course-player-title" dir="auto">${escapeQuizHtml(lesson.title)}</h2>
                     <div class="lesson-actions">
                         <button type="button" class="btn-complete-next" onclick="completeLessonAndNext('${escapeQuizHtml(lesson.id)}')">
-                            <i class="fas fa-check" aria-hidden="true"></i> Terminer &amp; suivante
+                            <i class="fas fa-${hasQuiz ? 'bolt' : 'arrow-right'}" aria-hidden="true"></i> ${hasQuiz ? 'Passer au quiz' : 'Leçon suivante'}
                         </button>
                     </div>
                 </div>
@@ -963,7 +966,13 @@ async function showLessonInMainArea(lesson, videoUrl, pdfUrl, practiceFiles = []
 
     // Disable right-click on video
     {
-        const video = courseMain.querySelector('#current-lesson-video');
+        let video = courseMain.querySelector('#current-lesson-video');
+        if (video && videoUrl && videoUrl.startsWith('https://drive.google.com/')) {
+            try {
+                const embedded = window.createSessionReplayPlayer(videoUrl, lesson.title);
+                embedded.className = 'course-replay-player'; video.replaceWith(embedded); video = null;
+            } catch { /* Keep the native error/retry behavior for invalid sources. */ }
+        }
         if (video) {
             video.addEventListener('contextmenu', (e) => e.preventDefault());
             video.addEventListener('loadedmetadata', () => {
@@ -972,8 +981,18 @@ async function showLessonInMainArea(lesson, videoUrl, pdfUrl, practiceFiles = []
             }, { once: true });
             video.addEventListener('timeupdate', () => persistLessonVideoPosition(video));
             video.addEventListener('pause', () => persistLessonVideoPosition(video, true));
-            if (lesson.id) video.addEventListener('playing', () => markLessonProgress(lesson.id), { once: true });
+            let checkpointOpened = false;
+            video.addEventListener('ended', async () => {
+                if (!video.isConnected || checkpointOpened) return;
+                checkpointOpened = true;
+                void markLessonProgress(lesson.id);
+                if (hasQuiz) {
+                    if (document.fullscreenElement?.contains(video)) await document.exitFullscreen().catch(()=>{});
+                    if (video.isConnected) void playLesson(linkedQuiz.id);
+                }
+            });
             prepareCourseVideo(video, videoUrl, () => playLesson(lesson.id));
+            window.enhanceLearningPlayer?.(video, { autoplay });
         }
     }
 
@@ -1659,6 +1678,7 @@ async function openQuizLesson(lessonId, loadedContent = null) {
         const timeLimit = Number.isInteger(configuredTime) && configuredTime >= 15 && configuredTime <= 3600 ? configuredTime : 90;
         const deadline = performance.now() + timeLimit * 1000;
         let timer;
+        let advanceTimer;
         let finished = false;
         let currentQuestionIndex = 0;
         let score = 0;
@@ -1688,6 +1708,7 @@ async function openQuizLesson(lessonId, loadedContent = null) {
         const closeQuizModal = () => {
             finished = true;
             clearInterval(timer);
+            clearTimeout(advanceTimer);
             modal.remove();
             modal.removeEventListener('keydown', keepQuizFocus);
             document.querySelector('.content-wrapper')?.removeAttribute('inert');
@@ -1846,9 +1867,11 @@ async function openQuizLesson(lessonId, loadedContent = null) {
                 else if (choice.classList.contains('is-selected')) choice.classList.add('is-wrong');
             });
             const checkButton = container.querySelector('#quiz-check-button');
-            checkButton.textContent = currentQuestionIndex === questions.length - 1 ? 'Voir mon résultat' : 'Question suivante';
+            checkButton.textContent = currentQuestionIndex === questions.length - 1 ? 'Voir mon résultat' : 'Continuer';
             checkButton.onclick = () => {
                 if (finished || performance.now() >= deadline) return showResults(true);
+                clearTimeout(advanceTimer);
+                if (checkButton.disabled) return;
                 checkButton.disabled = true;
                 currentQuestionIndex++;
                 if (currentQuestionIndex < questions.length) {
@@ -1857,6 +1880,7 @@ async function openQuizLesson(lessonId, loadedContent = null) {
                 }
                 else showResults();
             };
+            if (isCorrect) advanceTimer = setTimeout(() => { if (modal.isConnected && !finished) checkButton.click(); }, 1200);
             checkButton.classList.add('is-next');
             container.querySelectorAll('button,select').forEach(control => { if (control !== checkButton) control.disabled = true; });
         }
@@ -1865,6 +1889,7 @@ async function openQuizLesson(lessonId, loadedContent = null) {
             if (finished) return;
             finished = true;
             clearInterval(timer);
+            clearTimeout(advanceTimer);
             modal.querySelector('.quiz-time-track').hidden = !timedOut;
             modal.querySelector('.quiz-time-left').hidden = true;
             if (timedOut) timeBar.style.transform = 'scaleX(1)';
@@ -1899,7 +1924,7 @@ async function openQuizLesson(lessonId, loadedContent = null) {
             finish.disabled = false;
             finish.addEventListener('click', () => {
                 closeQuizModal();
-                if (next && hasAccess) void playLesson(next.id);
+                if (next && hasAccess) void playLesson(next.id, { autoplay: false });
             });
         }
 
@@ -1982,7 +2007,7 @@ async function completeLessonAndNext(lessonId) {
         if (request !== lessonRequest) return;
         const next = nextCourseItem(lessonId);
         if (next && (hasAccess || next.is_preview)) {
-            void playLesson(next.id);
+            void playLesson(next.id, { autoplay: false });
         } else {
             // Reached the end of the course or next lesson is locked
             switchCoursePlayerTo('chapters');

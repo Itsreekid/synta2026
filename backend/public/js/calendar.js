@@ -579,6 +579,7 @@ function showEventDetails(event, date) {
             const frame = document.createElement('div');
             frame.className = 'calendar-replay-frame';
             frame.append(player);
+            if (player instanceof HTMLVideoElement) window.enhanceLearningPlayer?.(player, { autoplay: true, storageKey: event.id ? event.id + ':0' : '' });
             modalBody.querySelector('.calendar-replay-frame')?.remove();
             modalBody.prepend(frame);
             modal.classList.add('has-replay');

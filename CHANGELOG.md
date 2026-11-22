@@ -1,3 +1,9 @@
+## 2026-11-23 — Educational video player and quiz flow
+
+- Added custom native-video controls, click-to-play fallback, paused next lessons and local replay resume while preserving Drive embeds and page layouts.
+- Linked quizzes open at native lesson end; correct answers advance after feedback, incorrect answers wait for Continue. Timer cleanup prevents duplicate navigation.
+- 39 affected security/API/browser regressions passed with disposable PostgreSQL and 1440/390/360px Chrome checks. No deployment or migration.
+
 ## 2026-11-22 — Course copy and clearer offer selection
 
 - Added reviewed draft-course settings copy, class/branch badges in linked offers, and existing-offer dropdown filtering with audience labels. Chapters remain explicitly outside the copy and can be reused through the chapter manager.

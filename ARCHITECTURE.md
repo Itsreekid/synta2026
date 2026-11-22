@@ -547,3 +547,7 @@ The existing timed-offer router serves signed upgrade quotes, atomic confirmatio
 ### Admin catalog organization
 
 The existing Courses/Offers HTML pages share public/admin/js/catalog-filters.js and css/catalog-filters.css. Filtering is client-side using existing authenticated admin APIs, with per-page sessionStorage state. Course audiences derive from offers_ids and target_classes/target_branches; no additional database queries, tables, permissions or student-access changes are introduced. Native labeled controls, counts and reset preserve desktop/mobile workflows.
+
+### Shared educational media controls (2026-11-23)
+
+public/js/learning-player.js enhances existing native video elements after mounting in Courses and Calendar, preserving HTMLVideoElement identity, signed URL renewal, resources and existing API authorization. learning-player.css scopes all controls to the player frame. replay-player.js continues to select provider iframes; these are not enhanced. course-details.js handles native ended checkpoints and cancellable correct-answer timers without leaving the lesson page. No new dependencies, APIs, database writes beyond existing progress tracking, or Gemini calls.

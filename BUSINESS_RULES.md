@@ -306,7 +306,7 @@ Two roles exist: `user` (student) and `admin`.
 | Video resume position is restored and saved during playback, on pause, and when switching players | ✅ | Lesson-content response returns `last_position`; `POST /api/tracking/position` checks preview or active enrollment and updates the position without changing completion |
 | Course-level progress % is recalculated on each completion | ✅ | `content.js` and `tracking.js` |
 | `enrollments.progress` is kept in sync with `lesson_progress` | ✅ | UPDATE enrollments in tracking route |
-| A video lesson is complete when about 90% has been watched (owner decision 2026-11-20) | ❌ | Not yet implemented: the player still marks a lesson complete when playback starts (`course-details.js`). Roadmap P1-2 |
+| A video lesson is complete when about 90% has been watched (owner decision 2026-11-20) | ❌ | 90%-watched threshold remains unimplemented. Native inline playback now completes on end or explicit completion, rather than first playing (`course-details.js`). Roadmap P1-2 |
 | XP, levels and badges are hidden until a real rule is defined (owner decision 2026-11-20) | ❌ | Dashboard still shows client-computed XP, level and badges. Roadmap P2-3 |
 
 ### BR-20: Quiz Progress
@@ -394,3 +394,7 @@ New monthly terms include the final day when their anchor does not exist in the 
 Annual destinations only. Monthly payments never qualify, including after an offer is relabeled. A configured pair normally requires a fully paid source. Verified partial credit is opt-in per pair, preserves source debt and requires a separate acknowledgment. The required initial coverage is the larger of the first tranche and the configured minimum. Eligible credit counts toward it without changing wallet balance or cash sales. Unset later due dates remain undefined and do not suspend access. Credit corrections preserve grant windows and the original evidence claim.
 
 Admin course duplication opens a prefilled, unpublished new-course form for review before saving. It copies settings and offer associations, not chapters, purchases, enrollments or student progress. Chapters may be reused through the existing chapter manager. Offer pickers show class/branch alongside price/status to distinguish identical titles.
+
+### Educational player and lesson checkpoints (2026-11-23)
+
+Uploaded video playback uses custom accessible controls while preserving native media and existing authorization. Explicit lesson/replay selection attempts autoplay with a Play fallback; next lessons after a quiz/completion start paused. Linked quizzes remain manually available and open on native video end. Correct quiz answers advance after brief feedback; incorrect answers retain their correction until Continue. Provider embeds retain provider controls and manual quiz entry. Replay positions are saved locally by profile/session/segment; lesson positions retain existing server persistence.
