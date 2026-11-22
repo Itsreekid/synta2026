@@ -95,7 +95,7 @@ async function initOffers() {
                         <img src="${escapeOfferHtml(offerImage)}" alt="" decoding="async" ${index > 2 ? 'loading="lazy"' : ''}>
                     </div>
                     <header class="offer-card-heading">
-                        <h2 class="validity-box" id="offer-title-${index}" dir="auto">${escapeOfferHtml(accessLabel)}</h2>
+                        <h2 class="validity-box${monthly ? ' monthly-access-badge' : ''}" id="offer-title-${index}" dir="auto">${monthly ? '<span class="monthly-access-title">Abonnement mensuel</span><small class="monthly-access-note">1 mois d’accès · renouvellement manuel</small>' : escapeOfferHtml(accessLabel)}</h2>
                     </header>
 
                     <div class="offer-price-section" dir="ltr">
@@ -109,7 +109,6 @@ async function initOffers() {
                         </div>
                     </div>
 
-                    ${monthly ? '<p class="validity-box">Un mois d’accès. Renouvellement manuel.</p>' : ''}
 
                     <ul class="features-section" role="list">
                         ${featureItems.map(item => `

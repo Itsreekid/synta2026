@@ -1,21 +1,14 @@
 # CURRENT_STATE.md — Synta Academy
 
-### 2026-11-22 — Misplaced compression input and visible launcher logs
+### 2026-11-22 — Single monthly offer badge
 
-- User video was placed in Compresses, which the watcher correctly excludes. Moved that file back to the watched root without overwriting or changing its bytes. Confirmed the existing FFmpeg process is actively encoding; the real long recording is still in progress, not yet verified as a completed output.
-- Ignored local CMD now displays surveillance.log live when the background watcher is already running. Local readme clarifies that original videos go in Replays Zoom, never in Compresses. These local media/launcher files remain Git-ignored. No production changes.
+- Badge-only monthly card refinement: combined Abonnement mensuel and 1 mois d’accès · renouvellement manuel into one cyan/blue-tinted badge beneath the image; removed the duplicate monthly notice below the price. Other card content/actions and annual badges unchanged. Offer CSS/JS asset versions bumped.
+- Actual EJS template checked with synthetic offers at 1440/390px: exactly one monthly badge, expected blue border, price/renewal action and annual label preserved; no browser errors. No deployment.
 
-### 2026-11-22 — Automatic local replay drop folder
+### 2026-11-22 — Local video compression removed at owner request
 
-- Created ignored Replays Zoom/Compresses and ignored Optimiser les replays.cmd. Both are also excluded from Docker context; existing portable .local-tools remains ignored. No files were removed from Git tracking because these local paths were never tracked.
-- Added watch-replays.js: 10-second polling, 30-second stable-file delay, sequential processing, output exclusion, persisted completion signatures and PID duplicate-start guard. CMD starts watching with no argument and retains optional drag/drop batch mode. Copied a portable Node executable into ignored .local-tools/node so Explorer does not depend on the coding-runtime PATH.
-- Tested stable/in-progress files, new arrivals, restart deduplication and actual synthetic 1080p compression through the watcher. Launcher verified with only the ordinary Windows system PATH. A hidden local watcher was started for the empty drop folder; surveillance.log and erreurs.log live inside it. It lasts until stopped/rebooted, not a Windows startup service. Reopen CMD after reboot. No production, DB/R2, push or deploy changes.
-
-### 2026-11-22 — Offline replay compression tool — validated locally
-
-- Added backend/scripts/optimize-replays.js and Windows drag/drop launcher Optimiser les replays.cmd. This is explicitly a local before-upload workflow, not automatic website/server transcoding. No R2/DB/Gemini or original media is modified.
-- FFmpeg H.264 CRF23/medium, original resolution/cadence, AAC96k per audio track, faststart, bounded threads and sequential processing. FFprobe checks plus full decode validation precede exclusive output publication; larger results are discarded. JSON savings/checksum report, per-file failures, no overwrite, output subtree excluded from recursive scans. REPLAY_COMPRESSION.md has usage and limitations.
-- Portable FFmpeg 9.1 was downloaded from the Gyan distribution linked by ffmpeg.org and SHA256-verified, then installed under ignored .local-tools/ffmpeg/bin. Full regression: 90 passed, 0 failed/skipped with disposable PostgreSQL, Chrome and REPLAY_COMPRESSION_QA=true. Real encoding/decoding tested on a 3-second synthetic 1920x1080 recording with audio; verified smaller MP4, preserved duration/resolution/audio, faststart, no overwrite, invalid/corrupt inputs and already-compressed no-gain behavior. No real user recordings processed; folder path requested. No deployment.
+- Removed the local watcher, compressor/progress scripts, launcher, test, docs, logs/state, temporary output and portable FFmpeg/Node tools. Original video remains in Replays Zoom; its SHA256 was verified unchanged. That media folder stays Git/Docker-ignored to avoid uploading private recordings. No compression processes or startup services remain. Full remaining regression suite: 88 passed, 0 failed/skipped. No R2 or production changes.
+- Unrelated pending historical replay editing remains: Détails → Modifier edits title, Tunis date/time, duration, associated course and description for imported non-Zoom replays, preserving media/resources. The protected details PATCH endpoint rejects unauthorized users, future dates and Zoom changes; browser/API tests were executed before the local compression removal. No migration or deployment.
 
 ### 2026-11-22 — Single dashboard replay
 

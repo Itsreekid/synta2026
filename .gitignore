@@ -36,9 +36,6 @@ build/
 coverage/
 
 # Temporary files
-.local-tools/
 /Replays Zoom/
-/Optimiser les replays.cmd
-replay-output/
 *.tmp
 *.temp

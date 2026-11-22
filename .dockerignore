@@ -6,7 +6,4 @@ backend/.env
 **/*.log
 data
 backend/data
-.local-tools
 Replays Zoom
-Optimiser les replays.cmd
-**/replay-output

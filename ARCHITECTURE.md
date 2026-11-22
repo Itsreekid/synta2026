@@ -1,6 +1,7 @@
 # ARCHITECTURE.md — Synta Academy
 
-Offline replay preparation: backend/scripts/optimize-replays.js runs FFmpeg/FFprobe locally before uploads. It is not imported by the server or exposed by a route; no DB/R2/Gemini integration or background production worker is added. Portable binaries live only in ignored .local-tools.
+PATCH /api/live/:sessionId/details (requireAdmin) transactionally corrects title, description, Tunis date/time, duration and course of completed imported replays without Zoom. It preserves replay/resource references and rejects scheduling edits to Zoom-backed or offer-specific sessions.
+
 
 The course details API includes replay_previews (id/title/scheduled_at/duration_minutes only) for unrestricted, course-wide historical replays. Existing course visibility checks run first; all playable URLs and resources still come from the authorized live-session API.
 

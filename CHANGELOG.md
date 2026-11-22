@@ -1,10 +1,10 @@
-## 2026-11-22 — Automatic local replay folder
+## 2026-11-22 — Consolidate monthly offer badge
 
-- Added a stable-file watcher for Replays Zoom with output in Compresses, restart deduplication and a portable Node launcher fix. Excluded video folder and CMD from Git/Docker. Compression/source preservation tests passed; no deployment.
+- One blue monthly subscription badge combines access duration and manual renewal, replacing the duplicate notice. Desktop/mobile verified; no checkout or pricing changes.
 
-## 2026-11-22 — Local replay compression
+## 2026-11-22 — Remove local video compression
 
-- Added an offline folder/video optimizer and Windows drag/drop launcher. Keeps originals, validates full-duration smaller H.264 MP4 output and reports savings. No website/server, database or R2 behavior change. See REPLAY_COMPRESSION.md.
+- Removed the local compression tools, jobs and temporary outputs at the owner’s request. Original recording preserved and checksum-verified; media folder remains excluded from Git/Docker. No production changes.
 
 ## 2026-11-22 — Limit dashboard replay list
 
