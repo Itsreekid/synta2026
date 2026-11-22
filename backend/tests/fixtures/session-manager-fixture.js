@@ -27,6 +27,11 @@ export async function createSessionManagerFixture() {
     app.get('/api/admin/offers',(req,res)=>res.json({data:[{id:offerId,title:'Mensuel',fixed_price:60}]}));
     app.get('/api/admin/courses',(req,res)=>res.json({data:[{id:courseId,title:'Python'}]}));
     app.get('/api/live/admin/students',(req,res)=>res.json([]));
+    app.post('/api/live/replays',(req,res)=>{
+        const existing=sessions.find(item=>item.id===req.body.id);
+        if(!existing)sessions.push({...makeSession(req.body.id,req.body.title),course_id:req.body.courseId,scheduled_at:req.body.startTime,replay_url:req.body.replayUrl,replay_source:req.body.replayUrl?'external':null});
+        res.status(existing?200:201).json({success:true,id:req.body.id});
+    });
     app.post('/api/live/admin/recordings/publish',(req,res)=>{
         const chosen=recordings.filter(recording=>req.body.importIds.includes(recording.id)).sort((a,b)=>a.recording_start.localeCompare(b.recording_start));
         for(const recording of chosen)recording.status='published';

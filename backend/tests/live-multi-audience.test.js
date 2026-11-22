@@ -291,6 +291,23 @@ test('OR session migration, API access and admin browser on disposable PostgreSQ
       const state=(await db.query('SELECT replay_url FROM live_sessions WHERE id=$1',[session])).rows[0];
       assert.ok(!state.replay_url || !storageDeletes.includes(state.replay_url));
     });
+    await t.test('historical replay preserves October date, course permissions and retry identity without Zoom',async()=>{
+      const before=zoomCalls,id=randomUUID();
+      const body={id,courseId:c2,title:'Ancienne séance octobre',startTime:'2025-10-15T20:00:00+01:00',durationMinutes:90,replayUrl:'https://drive.google.com/file/d/synthetic/view'};
+      assert.equal((await request('/api/live/replays',guest,body)).status,403);
+      for(const invalid of [{...body,startTime:'bad'},{...body,startTime:'2099-01-01T00:00:00Z'},{...body,replayUrl:'javascript:alert(1)'}])assert.equal((await request('/api/live/replays',admin,invalid)).status,400);
+      assert.equal((await request('/api/live/replays',admin,body)).status,201);
+      assert.equal((await request('/api/live/replays',admin,body)).status,200);
+      assert.equal((await request('/api/live/replays',admin,{...body,title:'Conflicting retry'})).status,409);
+      const saved=(await db.query('SELECT * FROM live_sessions WHERE id=$1',[id])).rows[0];
+      assert.equal(saved.scheduled_at.toISOString(),'2025-10-15T19:00:00.000Z');assert.equal(saved.status,'completed');assert.equal(saved.zoom_meeting_id,null);assert.equal(zoomCalls,before);
+      assert.equal((await request('/api/live/session/'+id,enrolled)).status,200);
+      assert.equal((await request('/api/live/session/'+id,stranger)).status,404);
+      assert.ok((await(await request('/api/live/replays',enrolled)).json()).some(row=>row.id===id));
+      assert.ok((await(await request('/api/live/course/'+c2,enrolled)).json()).some(row=>row.id===id));
+      const draft=randomUUID();assert.equal((await request('/api/live/replays',admin,{...body,id:draft,replayUrl:null})).status,201);
+      assert.equal((await request('/api/live/'+draft+'/replay',admin,{replayKey:`live-replays/${draft}/manual.mp4`},'PATCH')).status,200);
+    });
     if(process.env.TIMED_QA_CHROME) await t.test('desktop and mobile searchable selectors create one session',async()=>{
       await db.query("UPDATE live_sessions SET status='completed' WHERE id=$1",[mixed]);
       await withTimedOfferBrowser(process.env.TIMED_QA_CHROME,origin,async({open,evaluate,until,errors,screenshot})=>{

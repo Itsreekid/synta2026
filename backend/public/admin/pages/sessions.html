@@ -204,6 +204,7 @@
 <!-- Page Header -->
 <div class="page-header">
     <h1><i class="fas fa-video"></i> Gestion des Séances Live</h1>
+    <button class="btn-secondary" type="button" onclick="openHistoricalReplay(this)"><i class="fas fa-plus" aria-hidden="true"></i> Ajouter un replay</button>
     <button class="btn-primary" onclick="openCreateModal()">
         <i class="fas fa-plus"></i> Nouvelle Séance
     </button>
@@ -751,7 +752,7 @@ function renderCard(s, status) {
 
     const hostBtn = s.has_host_link
         ? `<a href="/admin/sessions/${encodeURIComponent(s.id)}/host" target="_blank" rel="noopener noreferrer" class="btn-host session-icon-action" aria-label="Lancer (Hôte)" title="Lancer (Hôte)"><i class="fas fa-video" aria-hidden="true"></i></a>`
-        : '<span class="meta-chip" style="color:#e53e3e"><i class="fas fa-exclamation"></i> Pas de lien Zoom</span>';
+        : !s.zoom_meeting_id ? '<span class="meta-chip">Replay sans réunion Zoom</span>' : '<span class="meta-chip" style="color:#e53e3e"><i class="fas fa-exclamation"></i> Pas de lien Zoom</span>';
     const hasUpcomingSibling = s.zoom_meeting_id && allSessions.some(other =>
         other.id !== s.id && other.zoom_meeting_id === s.zoom_meeting_id &&
         new Date(other.scheduled_at).getTime() + other.duration_minutes * 60000 > Date.now()
@@ -859,19 +860,7 @@ async function updateReplay(sessionId, providedUrl) {
     }
 }
 
-async function uploadReplay(sessionId) {
-    const input = document.createElement('input');
-    input.type = 'file';
-    input.accept = 'video/mp4,video/webm,video/quicktime,.mp4,.webm,.mov';
-    input.onchange = async () => {
-        const file = input.files?.[0];
-        if (!file) return;
-        if (file.size > 1024 * 1024 * 1024) return showToast('La vidéo doit faire 1 Go ou moins.', 'error');
-        const contentType = file.type || ({'.mp4':'video/mp4','.webm':'video/webm','.mov':'video/quicktime'}[file.name.toLowerCase().match(/\.[^.]+$/)?.[0]]);
-        if (!contentType) return showToast('Format non pris en charge. Choisissez MP4, WebM ou MOV.', 'error');
-        if (allSessions.find(session => session.id === sessionId)?.replay_url && !confirm('Remplacer le replay publié par ce fichier vidéo ?')) return;
-        showToast('Préparation du transfert…');
-        try {
+async function uploadReplayFile(sessionId,file,contentType) {
             const signedResponse = await fetch(`${API}/api/live/${encodeURIComponent(sessionId)}/replay-upload-url`, {
                 method:'POST', credentials:'include', headers:{'Content-Type':'application/json'},
                 body:JSON.stringify({ fileName:file.name, contentType, size:file.size })
@@ -886,6 +875,22 @@ async function uploadReplay(sessionId) {
             });
             const saved = await saveResponse.json();
             if (!saveResponse.ok) throw new Error(saved.error || 'Vidéo transférée mais impossible de l’attacher');
+}
+
+async function uploadReplay(sessionId) {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = 'video/mp4,video/webm,video/quicktime,.mp4,.webm,.mov';
+    input.onchange = async () => {
+        const file = input.files?.[0];
+        if (!file) return;
+        if (file.size > 1024 * 1024 * 1024) return showToast('La vidéo doit faire 1 Go ou moins.', 'error');
+        const contentType = file.type || ({'.mp4':'video/mp4','.webm':'video/webm','.mov':'video/quicktime'}[file.name.toLowerCase().match(/\.[^.]+$/)?.[0]]);
+        if (!contentType) return showToast('Format non pris en charge. Choisissez MP4, WebM ou MOV.', 'error');
+        if (allSessions.find(session => session.id === sessionId)?.replay_url && !confirm('Remplacer le replay publié par ce fichier vidéo ?')) return;
+        showToast('Préparation du transfert…');
+        try {
+            await uploadReplayFile(sessionId,file,contentType);
             await loadSessions();
             showToast('Replay téléversé et visible pour les étudiants inscrits.', 'success');
         } catch (error) { showToast(error.message, 'error'); }
@@ -1078,5 +1083,6 @@ function escT(str) {
 }
 </script>
 <script src="/admin/js/session-manager.js"></script>
+<script src="/admin/js/historical-replay.js"></script>
 </body>
 </html>

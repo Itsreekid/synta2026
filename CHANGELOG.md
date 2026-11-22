@@ -1,3 +1,7 @@
+## 2026-11-22 — Add dated historical replays
+
+- Add old Drive or uploaded recordings with original Tunis dates, course association and teaching files, without scheduling Zoom. Reuses protected replay/resource APIs, adds retry identity and responsive popup. Full suite: 88 passing; final browser checks passed. No schema changes or deployment.
+
 ## 2026-11-22 — Lesson preview switch
 
 - Added a simple free/paid switch per lesson using existing preview permissions and admin API, with immediate save and failure recovery. Browser checks passed at desktop/mobile widths. No database changes or deployment.

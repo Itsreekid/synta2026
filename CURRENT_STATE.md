@@ -1,5 +1,12 @@
 # CURRENT_STATE.md — Synta Academy
 
+### 2026-11-22 — Historical replay entry
+
+- Existing Live Sessions page has Ajouter un replay: responsive native dialog with title, original Tunis date/time, duration, one associated course, external Drive/HTTP(S) link or video upload, and optional teaching files. Form body scrolls while save remains visible. Existing source files and Zoom import pipeline are untouched.
+- Administrator-only POST /api/live/replays saves a completed legacy-policy course session without Zoom. Existing fields only; no migration. Past completed dates and safe external schemes are validated. Client UUID retry identity avoids duplicate session creation. Uploads reuse existing video/resource APIs; successful per-file work is skipped when retrying in the same popup. Closing a failed upload leaves the saved session available in the manager for completion.
+- Fixed manager Details fallback for primary-course legacy sessions when multi-audience association arrays are empty. Course permissions and October date preservation tested on disposable PostgreSQL. Full regression: 88 passed, 0 failed/skipped. Final browser rerun passed at 1440/390/360px with save button visible. Actual Zoom/R2 media delivery was mocked, not live-tested. A non-fatal local config/db connection-probe timeout appeared in full-suite logs; the disposable database-backed cases all passed.
+- New asset: backend/public/admin/js/historical-replay.js; include it in any reviewed commit. No production changes, push or deployment.
+
 ### 2026-11-22 — Simple lesson free/paid switch
 
 - Added an accessible Gratuit/Payant switch beside each lesson in the existing admin chapter manager. Uses the existing administrator-only PATCH lessons endpoint and is_preview field; no schema, access rules or existing preview values changed. Saves immediately, disables while saving and rolls back the control on failure.

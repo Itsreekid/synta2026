@@ -20,6 +20,41 @@ const JOIN_EARLY_MS = 10 * 60_000;
 const joinPath = id => `/api/live/${encodeURIComponent(id)}/join`;
 const signReplay = async url => url && !/^https?:\/\//i.test(url) ? generateSignedUrl(url, 3600) : url;
 
+// Historical recordings reuse course enrollment permissions; never schedule Zoom.
+router.post('/replays', requireAdmin, async (req, res) => {
+  const { id, courseId, title, startTime, durationMinutes = 60, replayUrl = null } = req.body || {};
+  if (!uuidPattern.test(id || '') || !uuidPattern.test(courseId || '') ||
+      typeof title !== 'string' || !title.trim() || title.length > 500 ||
+      typeof startTime !== 'string' || !Number.isFinite(Date.parse(startTime)) || Date.parse(startTime) > Date.now() ||
+      !Number.isInteger(durationMinutes) || durationMinutes < 1 || durationMinutes > 1440 ||
+      Date.parse(startTime) + durationMinutes * 60000 > Date.now() ||
+      (replayUrl !== null && (typeof replayUrl !== 'string' || replayUrl.length > 4096))) {
+    return res.status(400).json({ error:'Vérifiez le titre, le cours, la date passée et la durée.' });
+  }
+  if (replayUrl !== null) {
+    try {
+      const url = new URL(replayUrl);
+      if (!['http:','https:'].includes(url.protocol) || url.username || url.password) throw new Error();
+    } catch { return res.status(400).json({ error:'Lien du replay invalide. Utilisez un lien HTTP ou HTTPS.' }); }
+  }
+  try {
+    const inserted = await pool.query(`INSERT INTO live_sessions
+      (id,course_id,title,scheduled_at,duration_minutes,status,replay_url)
+      SELECT $1,c.id,$3,$4,$5,'completed',$6 FROM courses c WHERE c.id=$2
+      ON CONFLICT (id) DO NOTHING RETURNING id`,
+      [id,courseId,title.trim(),startTime,durationMinutes,replayUrl]);
+    if (inserted.rowCount) return res.status(201).json({ success:true,id });
+    const existing = await pool.query(`SELECT id FROM live_sessions WHERE id=$1 AND course_id=$2 AND title=$3
+      AND scheduled_at=$4 AND duration_minutes=$5 AND status='completed' AND zoom_meeting_id IS NULL`,
+      [id,courseId,title.trim(),startTime,durationMinutes]);
+    if (existing.rowCount) return res.json({ success:true,id });
+    return res.status(409).json({ error:'Cours introuvable ou référence déjà utilisée. Fermez puis réessayez.' });
+  } catch (error) {
+    console.error('Error adding historical replay:',error.code ?? error.name);
+    return res.status(500).json({ error:'Impossible d’ajouter le replay. Réessayez.' });
+  }
+});
+
 router.get('/session/:sessionId', authApiMiddleware, async (req, res) => {
   if (!uuidPattern.test(req.params.sessionId)) return res.status(400).json({ error: 'Séance invalide.' });
   try {

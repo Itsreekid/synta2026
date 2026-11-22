@@ -138,8 +138,8 @@
         const rows = [
             ['Titre',session.title],['Date et heure',date.toLocaleString('fr-FR',{timeZone:'Africa/Tunis',dateStyle:'full',timeStyle:'short'})+' (Tunis)'],
             ['Durée',session.duration_minutes+' min'],['Statut',status],
-            ['Offres',names(session.offer_ids || [session.offer_id,...(session.additional_offer_ids || [])].filter(Boolean),allOffers)],
-            ['Cours',names(session.course_ids || [session.course_id].filter(Boolean),allCourses)],
+            ['Offres',names(session.offer_ids?.length ? session.offer_ids : [session.offer_id,...(session.additional_offer_ids || [])].filter(Boolean),allOffers)],
+            ['Cours',names(session.course_ids?.length ? session.course_ids : [session.course_id].filter(Boolean),allCourses)],
             ['Étudiants invités',(session.invited_students || []).map(student=>student.name || student.email).join(', ') || (session.granted_student_ids || []).join(', ') || 'Aucun'],
             ['Participants restreints',session.audience_student_ids?.length ? session.audience_student_ids.join(', ') : 'Tous les étudiants admissibles'],
             ['Zoom Meeting ID',session.zoom_meeting_id || 'Non associé'],['Description',session.description || 'Aucune description'],

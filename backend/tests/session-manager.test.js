@@ -78,6 +78,24 @@ test('session management dialog uses existing replay and resource actions on des
             await until(()=>evaluate(`!document.getElementById('card-${emptyId}')`),'completed session removed without opening manager');
             assert.ok(calls.some(call=>call.path===`/live/${emptyId}` && call.method==='DELETE'));
             assert.match(await evaluate('window.lastConfirmation'),/replay.*Drive et R2/s);
+            for(const width of [1440,360,390]) {
+                // Exercise both historical source modes using the actual admin form.
+                await open('/admin/pages/sessions.html','synthetic-admin',width);
+                await until(()=>evaluate('allCourses.length===1'),'historical courses loaded');
+                await evaluate('openHistoricalReplay()');
+                await evaluate("document.getElementById('history-title').value='Ancienne séance';document.getElementById('history-date').value='2025-10-12T20:00';document.getElementById('history-course').selectedIndex=1;document.getElementById('history-link').value='https://drive.google.com/file/d/old/view';document.querySelector('.historical-replay form').requestSubmit()");
+                await until(()=>evaluate("!document.querySelector('.historical-replay').open"),'historical Drive saved');
+                const entry=calls.filter(call=>call.path==='/live/replays').at(-1);
+                assert.equal(entry.body.startTime,'2025-10-12T20:00:00+01:00');
+                await evaluate('openHistoricalReplay()');
+                assert.equal(await evaluate("document.querySelector('.historical-replay').getBoundingClientRect().right<=innerWidth"),true);
+                await until(()=>evaluate("getComputedStyle(document.querySelector('.historical-replay')).opacity==='1'"),'historical dialog animation complete');
+                assert.equal(await evaluate("document.querySelector('.historical-replay [type=submit]').getBoundingClientRect().bottom<=innerHeight"),true);
+                if(process.env.HISTORICAL_REPLAY_SCREENSHOTS)await screenshot(process.env.HISTORICAL_REPLAY_SCREENSHOTS+'-'+width+'.png');
+                await evaluate("(()=>{document.getElementById('history-title').value='Ancienne vidéo';document.getElementById('history-date').value='2025-10-13T20:00';document.getElementById('history-course').selectedIndex=1;document.getElementById('history-source').value='upload';document.getElementById('history-source').dispatchEvent(new Event('change'));const dt=new DataTransfer();dt.items.add(new File(['synthetic'],'old.mp4',{type:'video/mp4'}));document.getElementById('history-video').files=dt.files;const files=new DataTransfer();files.items.add(new File(['print(1)'],'old.py'));document.getElementById('history-files').files=files.files;document.querySelector('.historical-replay form').requestSubmit();})()");
+                await until(()=>evaluate("!document.querySelector('.historical-replay').open"),'historical upload and resource saved');
+                assert.ok(calls.some(call=>call.path==='/admin/resources' && call.body.fileName==='old.py'));
+            }
             assert.deepEqual(errors,[]);
         });
     } finally {await new Promise(resolve=>server.close(resolve));}

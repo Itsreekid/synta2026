@@ -28,6 +28,8 @@ Rules below that belong to deferred areas stay as documented but must not receiv
 
 ### BR-00: Course Content Reuse
 
+Administrators may add historical replays to one course with the original completed date/time in Africa/Tunis. No Zoom meeting is created. Existing active course access controls apply; historical dates do not grant or extend access. Links or uploaded video and optional resources use existing student playback and resource authorization.
+
 Course descriptions preserve their stored text. Cards show normalized plain text with Markdown syntax removed and a three-line CSS preview; details support safe bold, italic, paragraphs and lists for the complete description. Raw HTML, links and images are not enabled in description Markdown.
 
 | Behavior | Status | Evidence |
