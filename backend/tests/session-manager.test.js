@@ -87,6 +87,13 @@ test('session management dialog uses existing replay and resource actions on des
                 await until(()=>evaluate("!document.querySelector('.historical-replay').open"),'historical Drive saved');
                 const entry=calls.filter(call=>call.path==='/live/replays').at(-1);
                 assert.equal(entry.body.startTime,'2025-10-12T20:00:00+01:00');
+                await evaluate(`openSessionManager('${entry.body.id}')`);
+                await until(()=>evaluate("document.querySelector('[data-refresh]').disabled===false"),'historical manager loaded');
+                await evaluate("document.querySelector('[data-tab=details]').click();document.querySelector('[data-edit-details]').click();document.getElementById('session-edit-title').value='Titre corrigé';document.getElementById('session-edit-date').value='2025-10-11T19:30';document.getElementById('session-edit-description').value='<b>Texte seulement</b>';document.querySelector('.session-details-form').requestSubmit()");
+                await until(()=>evaluate("document.querySelector('#session-manager-title').textContent==='Titre corrigé'"),'metadata saved');
+                assert.equal(await evaluate("document.querySelector('#manager-details b')"),null);
+                assert.match(await evaluate("document.querySelector('#manager-details').textContent"),/19:30/);
+                await evaluate("document.querySelector('.session-manager').close()");
                 await evaluate('openHistoricalReplay()');
                 assert.equal(await evaluate("document.querySelector('.historical-replay').getBoundingClientRect().right<=innerWidth"),true);
                 await until(()=>evaluate("getComputedStyle(document.querySelector('.historical-replay')).opacity==='1'"),'historical dialog animation complete');

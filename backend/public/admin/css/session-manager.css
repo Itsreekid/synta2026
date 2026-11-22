@@ -35,6 +35,12 @@ html.session-manager-open { overflow: hidden; }
 .session-manager dl { display:grid; grid-template-columns:minmax(100px,1fr) minmax(0,3fr); gap:.75rem 1rem; margin:0; }
 .session-manager dt { color:#667c8d; }
 .session-manager dd { margin:0; overflow-wrap:anywhere; line-height:1.5; }
+.session-details-form { max-width:720px; }
+.session-details-form :is(input,select,textarea) { width:100%; padding:.7rem; border:1px solid #cbd5e1; border-radius:9px; font:inherit; box-sizing:border-box; }
+.session-details-form label { display:block; margin-bottom:.4rem; font-weight:600; }
+.session-details-form .form-group { margin-bottom:1rem; }
+.session-details-form small { color:#667c8d; }
+.session-details-form [data-edit-error] { color:#a43025; }
 .session-manager-footer { display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:.6rem; padding:.8rem 1.2rem; border-top:1px solid #e2e8f0; }
 .session-manager-notice { margin:0; min-height:1.2em; color:#64748b; padding:.6rem 1.2rem 0; font-size:.85rem; }
 .session-manager-notice[data-type=error] { color:#a43025; }

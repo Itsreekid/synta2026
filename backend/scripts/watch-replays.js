@@ -10,6 +10,14 @@ export async function createReplayWatcher(folder, { stableMs=30000, now=Date.now
     await mkdir(output,{recursive:true});
     let completed={};try {completed=JSON.parse(await readFile(statePath,'utf8'));}catch{}
     const observations=new Map();let scanning=false;
+    let progress={}, writes=Promise.resolve();
+    const onStatus=update=>{
+        progress={...progress,...update,updatedAt:new Date().toISOString()};
+        if(update.phase==='preparing'){progress={...update,updatedAt:new Date().toISOString()};}
+        const snapshot=JSON.stringify(progress), path=join(root,'.progress-state.json');
+        writes=writes.then(async()=>{const temporary=path+'.'+randomUUID()+'.tmp';await writeFile(temporary,snapshot);await rename(temporary,path);}).catch(error=>log('Etat de progression : '+error.message));
+        return writes;
+    };
     async function filesIn(directory) {
         const files=[];
         for(const item of await readdir(directory,{withFileTypes:true})) {
@@ -34,7 +42,7 @@ export async function createReplayWatcher(folder, { stableMs=30000, now=Date.now
                 if(now()-seen.since<stableMs)continue;
                 // Preserve subfolders and don't run simultaneous encoders.
                 log('Nouvelle video stable : '+relative(root,path));
-                const result=await processFile(path,{output:join(output,relative(root,dirname(path))),log});
+                const result=await processFile(path,{output:join(output,relative(root,dirname(path))),log,onStatus});
                 const current=await stat(path);
                 if(current.size===info.size && current.mtimeMs===info.mtimeMs){
                     completed[path]=signature;

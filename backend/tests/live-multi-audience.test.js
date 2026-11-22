@@ -318,6 +318,14 @@ test('OR session migration, API access and admin browser on disposable PostgreSQ
       assert.equal((await request('/api/live/session/'+restricted,stranger)).status,404);
       const draft=randomUUID();assert.equal((await request('/api/live/replays',admin,{...body,id:draft,replayUrl:null})).status,201);
       assert.equal((await request('/api/live/'+draft+'/replay',admin,{replayKey:`live-replays/${draft}/manual.mp4`},'PATCH')).status,200);
+      const edit={title:'Titre corrigé',courseId:c1,startTime:'2025-10-01T18:30:00+01:00',durationMinutes:75,description:'<b>Description texte</b>'};
+      assert.equal((await request('/api/live/'+id+'/details',guest,edit,'PATCH')).status,403);
+      assert.equal((await request('/api/live/'+id+'/details',admin,{...edit,startTime:'2099-01-01T00:00:00Z'},'PATCH')).status,400);
+      assert.equal((await request('/api/live/'+id+'/details',admin,edit,'PATCH')).status,200);
+      const updated=(await db.query('SELECT * FROM live_sessions WHERE id=$1',[id])).rows[0];
+      assert.equal(updated.title,edit.title);assert.equal(updated.scheduled_at.toISOString(),'2025-10-01T17:30:00.000Z');assert.equal(updated.course_id,c1);assert.equal(updated.replay_url,body.replayUrl);assert.equal(updated.description,edit.description);
+      assert.ok(!(await(await request('/api/live/course/'+c2,enrolled)).json()).some(row=>row.id===id));
+      assert.equal((await request('/api/live/'+mixed+'/details',admin,edit,'PATCH')).status,409,'Zoom metadata cannot be silently desynchronized');
     });
     if(process.env.TIMED_QA_CHROME) await t.test('desktop and mobile searchable selectors create one session',async()=>{
       await db.query("UPDATE live_sessions SET status='completed' WHERE id=$1",[mixed]);

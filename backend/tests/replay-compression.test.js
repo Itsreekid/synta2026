@@ -6,6 +6,40 @@ import { join, dirname, resolve } from 'node:path';
 import { createHash } from 'node:crypto';
 import { compressionArgs, validateOutput, optimizeReplays, mediaTool, runMediaTool, probeMedia } from '../scripts/optimize-replays.js';
 import { createReplayWatcher } from '../scripts/watch-replays.js';
+import { readReplayProgress, createReplayProgressServer } from '../scripts/replay-progress.js';
+import { withTimedOfferBrowser } from './timed-offer-browser.js';
+
+test('local progress UI reads running and completed states without serving media',async()=>{
+    const folder=await mkdtemp(join(tmpdir(),'synta-compression-ui-'));await mkdir(join(folder,'Compresses'));
+    let server;
+    try{
+        await writeFile(join(folder,'surveillance.log'),'Compression : test.mp4 (101 Mo)…\n  20 %\n');
+        assert.equal((await readReplayProgress(folder)).percent,20);
+        const live=await createReplayProgressServer(folder,{token:'synthetic-progress'});server=live.server;
+        assert.equal((await fetch(live.url+'/status')).status,200);
+        assert.equal((await fetch(live.url+'/status',{method:'POST'})).status,405);
+        assert.equal((await fetch(live.url+'/status',{headers:{Origin:'https://example.invalid'}})).status,403);
+        assert.equal((await fetch(live.url+'/video.mp4')).status,404);
+        const update=state=>writeFile(join(folder,'.progress-state.json'),JSON.stringify(state));
+        await update({phase:'compressing',file:'<b>video</b>.mp4',percent:42,originalBytes:1000000});
+        if(process.env.TIMED_QA_CHROME)await withTimedOfferBrowser(process.env.TIMED_QA_CHROME,new URL(live.url).origin,async({open,evaluate,until,errors,screenshot})=>{
+            for(const width of [1440,390]){
+                await open('/synthetic-progress','local',width);
+                await until(()=>evaluate("document.getElementById('percent').textContent==='42 %'"),'live percentage');
+                assert.equal(await evaluate("document.querySelector('#file b')"),null);
+                assert.equal(await evaluate('document.documentElement.scrollWidth>innerWidth'),false);
+                if(process.env.REPLAY_PROGRESS_SCREENSHOTS)await screenshot(process.env.REPLAY_PROGRESS_SCREENSHOTS+'-'+width+'.png');
+            }
+            await update({phase:'verifying',file:'test.mp4',percent:100});
+            await evaluate("document.getElementById('refresh').click()");
+            await until(()=>evaluate("document.getElementById('badge').textContent.includes('Vérification')"),'verification distinct from finish');
+            await update({phase:'complete',file:'test.mp4',result:{status:'optimized',originalBytes:1000000,optimizedBytes:400000,savedPercent:60}});
+            await evaluate("document.getElementById('refresh').click()");
+            await until(()=>evaluate("document.getElementById('panel').classList.contains('done')"),'finished state');
+            assert.equal(await evaluate("document.getElementById('saved').textContent"),'60 %');assert.deepEqual(errors,[]);
+        });
+    }finally{if(server)await new Promise(resolve=>server.close(resolve));assert.equal(dirname(resolve(folder)),resolve(tmpdir()));await rm(folder,{recursive:true,force:true});}
+});
 
 test('watched folder waits for stable copies, ignores outputs and remembers completed files',async()=>{
     const folder=await mkdtemp(join(tmpdir(),'synta-compression-watch-'));

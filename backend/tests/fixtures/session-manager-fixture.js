@@ -29,8 +29,13 @@ export async function createSessionManagerFixture() {
     app.get('/api/live/admin/students',(req,res)=>res.json([]));
     app.post('/api/live/replays',(req,res)=>{
         const existing=sessions.find(item=>item.id===req.body.id);
-        if(!existing)sessions.push({...makeSession(req.body.id,req.body.title),course_id:req.body.courseId,scheduled_at:req.body.startTime,replay_url:req.body.replayUrl,replay_source:req.body.replayUrl?'external':null});
+        if(!existing)sessions.push({...makeSession(req.body.id,req.body.title),zoom_meeting_id:null,has_host_link:false,offer_id:null,course_id:req.body.courseId,scheduled_at:req.body.startTime,replay_url:req.body.replayUrl,replay_source:req.body.replayUrl?'external':null});
         res.status(existing?200:201).json({success:true,id:req.body.id});
+    });
+    app.patch('/api/live/:id/details',(req,res)=>{
+        const session=sessions.find(item=>item.id===req.params.id);
+        Object.assign(session,{title:req.body.title,scheduled_at:req.body.startTime,duration_minutes:req.body.durationMinutes,course_id:req.body.courseId,description:req.body.description});
+        res.json({success:true});
     });
     app.post('/api/live/admin/recordings/publish',(req,res)=>{
         const chosen=recordings.filter(recording=>req.body.importIds.includes(recording.id)).sort((a,b)=>a.recording_start.localeCompare(b.recording_start));

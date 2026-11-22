@@ -55,6 +55,35 @@ router.post('/replays', requireAdmin, async (req, res) => {
   }
 });
 
+// Correct historical replay metadata without touching media, files or Zoom.
+router.patch('/:sessionId/details', requireAdmin, async (req,res)=>{
+  const {title,courseId,startTime,durationMinutes,description=''}=req.body || {};
+  if(!uuidPattern.test(req.params.sessionId)||!uuidPattern.test(courseId||'')||
+      typeof title!=='string'||!title.trim()||title.length>500||typeof description!=='string'||description.length>10000||
+      typeof startTime!=='string'||!Number.isFinite(Date.parse(startTime))||!Number.isInteger(durationMinutes)||
+      durationMinutes<1||durationMinutes>1440||Date.parse(startTime)+durationMinutes*60000>Date.now()||
+      Object.keys(req.body).some(key=>!['title','courseId','startTime','durationMinutes','description'].includes(key))) {
+    return res.status(400).json({error:'Vérifiez le titre, le cours, la date passée et la durée.'});
+  }
+  let client;
+  try{
+    client=await pool.connect();
+    await client.query('BEGIN');
+    const result=await client.query('SELECT course_id,offer_id,zoom_meeting_id,status FROM live_sessions WHERE id=$1 FOR UPDATE',[req.params.sessionId]);
+    const session=result.rows[0];
+    if(!session){await client.query('ROLLBACK');return res.status(404).json({error:'Séance introuvable.'});}
+    if(session.zoom_meeting_id||session.offer_id||!session.course_id||session.status!=='completed'){
+      await client.query('ROLLBACK');return res.status(409).json({error:'Cette modification concerne les replays importés sans réunion Zoom.'});
+    }
+    const course=await client.query('SELECT id FROM courses WHERE id=$1 FOR SHARE',[courseId]);
+    if(!course.rowCount){await client.query('ROLLBACK');return res.status(400).json({error:'Cours introuvable.'});}
+    await client.query(`UPDATE live_sessions SET title=$2,course_id=$3,scheduled_at=$4,duration_minutes=$5,description=$6
+      WHERE id=$1`,[req.params.sessionId,title.trim(),courseId,startTime,durationMinutes,description.trim()||null]);
+    await client.query('COMMIT');return res.json({success:true});
+  }catch(error){if(client)await client.query('ROLLBACK').catch(()=>{});console.error('Error editing historical replay:',error.code??error.name);return res.status(500).json({error:'Impossible de modifier la séance.'});}
+  finally{client?.release();}
+});
+
 router.get('/session/:sessionId', authApiMiddleware, async (req, res) => {
   if (!uuidPattern.test(req.params.sessionId)) return res.status(400).json({ error: 'Séance invalide.' });
   try {

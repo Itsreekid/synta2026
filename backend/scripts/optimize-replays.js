@@ -65,7 +65,7 @@ async function checksum(path) {
 
 const inside = (parent, child) => { const rel = relative(parent, child); return rel === '' || (!rel.startsWith('..') && !isAbsolute(rel)); };
 
-export async function optimizeReplays(input, { output, crf = 23, preset = 'medium', threads = 2, recursive = false, log = console.log } = {}) {
+export async function optimizeReplays(input, { output, crf = 23, preset = 'medium', threads = 2, recursive = false, log = console.log, onStatus = () => {} } = {}) {
     const source = await realpath(resolve(input));
     const info = await stat(source);
     const base = info.isDirectory() ? source : dirname(source);
@@ -98,22 +98,30 @@ export async function optimizeReplays(input, { output, crf = 23, preset = 'mediu
         const entry = { source: file, output: target };
         let temporary;
         try {
+            await onStatus({ phase:'preparing', file:basename(file), startedAt:new Date().toISOString() });
             await mkdir(dirname(target), { recursive: true });
-            if (existsSync(target)) { entry.status = 'exists'; entry.message = 'Sortie déjà présente, aucun écrasement.'; report.files.push(entry); continue; }
+            if (existsSync(target)) { entry.status = 'exists'; entry.message = 'Sortie déjà présente, aucun écrasement.'; report.files.push(entry); await onStatus({phase:'complete',file:basename(file),result:entry});continue; }
             const original = await stat(file);
             entry.originalBytes = original.size;
             entry.sourceSha256 = await checksum(file);
             const before = await probeMedia(file);
             temporary = join(dirname(target), '.' + randomUUID() + '.partial.mp4');
             log(`Compression : ${basename(file)} (${Math.round(original.size / 1048576)} Mo)…`);
-            let lastProgress = 0;
+            await onStatus({phase:'compressing',file:basename(file),percent:0,originalBytes:original.size,durationSeconds:before.duration});
+            let lastProgress = 0, lastUpdate = 0, progressBuffer='';
             await runMediaTool(mediaTool('ffmpeg'), compressionArgs(file, temporary, { crf, preset, threads }), {
                 onProgress: chunk => {
-                    const match = /out_time_us=(\d+)/.exec(chunk);
-                    const progress = match ? Math.min(100, Math.floor(Number(match[1]) / (before.duration * 10000))) : 0;
-                    if (progress >= lastProgress + 10) { lastProgress = progress; log(`  ${progress} %`); }
+                    progressBuffer+=chunk;
+                    const lines=progressBuffer.split('\n');progressBuffer=lines.pop();
+                    for(const line of lines){
+                        const match=/^out_time_us=(\d+)/.exec(line);if(!match)continue;
+                        const progress=Math.min(100,Math.floor(Number(match[1])/(before.duration*10000)));
+                        if(progress>=lastProgress+10){lastProgress=progress;log(`  ${progress} %`);}
+                        if(Date.now()-lastUpdate>=1500||progress===100){lastUpdate=Date.now();void onStatus({phase:'compressing',file:basename(file),percent:progress});}
+                    }
                 },
             });
+            await onStatus({phase:'verifying',file:basename(file),percent:100});
             const after = await probeMedia(temporary);
             validateOutput(before, after);
             // Decode the entire candidate: metadata checks alone cannot prove it is playable.
@@ -143,6 +151,7 @@ export async function optimizeReplays(input, { output, crf = 23, preset = 'mediu
             if (temporary) await unlink(temporary).catch(() => {});
         }
         report.files.push(entry);
+        await onStatus({phase:entry.status==='failed'?'failed':'complete',file:basename(file),result:entry});
     }
     const reportPath = join(realDestination, `compression-report-${Date.now()}-${randomUUID().slice(0,8)}.json`);
     await writeFile(reportPath, JSON.stringify(report, null, 2), { flag: 'wx' });
