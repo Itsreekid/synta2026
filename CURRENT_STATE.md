@@ -1,5 +1,10 @@
 # CURRENT_STATE.md — Synta Academy
 
+### 2026-11-22 — Orange annual offer badge
+
+- Annual badge now matches the monthly badge structure using orange border/tint, school-year title and the configured cutoff as an inclusive Tunis date. If no valid cutoff is supplied, shows Accès pour l’année scolaire. Prices, actions, images and monthly styles unchanged; offer asset versions bumped.
+- Actual EJS/browser checked at 1440/390px with synthetic offers, including an ISO cutoff crossing midnight into the next Tunis date. No browser errors; no deployment.
+
 ### 2026-11-22 — Single monthly offer badge
 
 - Badge-only monthly card refinement: combined Abonnement mensuel and 1 mois d’accès · renouvellement manuel into one cyan/blue-tinted badge beneath the image; removed the duplicate monthly notice below the price. Other card content/actions and annual badges unchanged. Offer CSS/JS asset versions bumped.

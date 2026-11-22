@@ -63,6 +63,12 @@ async function initOffers() {
                 : 'Offre à durée limitée';
             const year = Number(offer.academic_year_start);
             const annualLabel = year ? `Abonnement annuel ${year}/${year + 1}` : 'Abonnement annuel';
+            const cutoffText = typeof offer.access_cutoff_date === 'string' ? offer.access_cutoff_date : '';
+            const cutoffDate = /^\d{4}-\d{2}-\d{2}(?:$|T)/.test(cutoffText)
+                ? new Date(cutoffText.length === 10 ? cutoffText + 'T00:00:00Z' : cutoffText) : null;
+            const annualNote = cutoffDate && Number.isFinite(cutoffDate.getTime())
+                ? `Accès jusqu’au ${new Intl.DateTimeFormat('fr-FR', { day:'numeric', month:'long', year:'numeric', timeZone:'Africa/Tunis' }).format(cutoffDate)} inclus`
+                : 'Accès pour l’année scolaire';
             const accessLabel = monthly ? 'Abonnement mensuel' : annual ? annualLabel : dateRange;
 
             // Use the separate config file for features and images
@@ -95,7 +101,7 @@ async function initOffers() {
                         <img src="${escapeOfferHtml(offerImage)}" alt="" decoding="async" ${index > 2 ? 'loading="lazy"' : ''}>
                     </div>
                     <header class="offer-card-heading">
-                        <h2 class="validity-box${monthly ? ' monthly-access-badge' : ''}" id="offer-title-${index}" dir="auto">${monthly ? '<span class="monthly-access-title">Abonnement mensuel</span><small class="monthly-access-note">1 mois d’accès · renouvellement manuel</small>' : escapeOfferHtml(accessLabel)}</h2>
+                        <h2 class="validity-box${monthly ? ' monthly-access-badge' : annual ? ' annual-access-badge' : ''}" id="offer-title-${index}" dir="auto">${monthly ? '<span class="monthly-access-title">Abonnement mensuel</span><small class="monthly-access-note">1 mois d’accès · renouvellement manuel</small>' : annual ? `<span class="annual-access-title">${escapeOfferHtml(annualLabel)}</span><small class="annual-access-note">${escapeOfferHtml(annualNote)}</small>` : escapeOfferHtml(accessLabel)}</h2>
                     </header>
 
                     <div class="offer-price-section" dir="ltr">

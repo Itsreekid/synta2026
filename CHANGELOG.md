@@ -1,3 +1,7 @@
+## 2026-11-22 — Orange annual subscription badge
+
+- Matched the annual badge to the monthly style in orange, with school year and configured inclusive access cutoff. Badge-only change verified on desktop/mobile.
+
 ## 2026-11-22 — Consolidate monthly offer badge
 
 - One blue monthly subscription badge combines access duration and manual renewal, replacing the duplicate notice. Desktop/mobile verified; no checkout or pricing changes.
