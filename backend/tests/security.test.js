@@ -1020,13 +1020,14 @@ test("refresh tokens rotate once and a replayed old token ends the whole session
   assert.equal(await sessions.rotateRefreshToken(db, rotated.refresh.token), null);
 });
 
-test("refresh tokens expire after seven idle days and never outlive the 30-day session cap", async () => {
+test("refresh tokens expire after 14 idle days and never outlive the 30-day session cap", async () => {
   process.env.JWT_SECRET = SECRET;
   const db = refreshTokenDb();
   const login = cookieJar();
   await sessions.startSession(db, login, SESSION_USER);
   const [row] = db.rows;
   const now = Date.now();
+  assert.equal(sessions.REFRESH_IDLE_MS,14*24*60*60*1000);
   assert.ok(Math.abs(row.expires_at - (now + sessions.REFRESH_IDLE_MS)) < 5000);
   assert.ok(Math.abs(row.family_expires_at - (now + sessions.SESSION_MAX_MS)) < 5000);
 
@@ -1051,6 +1052,21 @@ test("refresh tokens expire after seven idle days and never outlive the 30-day s
   assert.equal(await sessions.rotateRefreshToken(db, crypto.randomBytes(32).toString("base64url")), null);
   assert.equal(await sessions.rotateRefreshToken(db, ["not-a-token"]), null);
   assert.equal(await sessions.rotateRefreshToken(db, "x".repeat(3000)), null);
+});
+
+test('active renewal extends the 14-day window, and missing storage is detectable',async()=>{
+  process.env.JWT_SECRET=SECRET;
+  const db=refreshTokenDb(),login=cookieJar();
+  await sessions.startSession(db,login,SESSION_USER);
+  // Represent a session near the end of its idle window, then resume browsing.
+  db.rows[0].expires_at=new Date(Date.now()+60*60*1000);
+  const refreshed=await sessions.rotateRefreshToken(db,login.cookies.synta_refresh.value);
+  assert.ok(refreshed.refresh);
+  assert.ok(Math.abs(refreshed.refresh.expiresAt.getTime()-Date.now()-14*24*60*60*1000)<5000);
+  const renewed=cookieJar();sessions.applyRotation(renewed,refreshed);
+  assert.ok(Math.abs(renewed.cookies.synta_refresh.options.maxAge-14*24*60*60*1000)<5000);
+  assert.equal(await sessions.sessionRenewalReady({query:async()=>({rows:[{ready:true}]})}),true);
+  assert.equal(await sessions.sessionRenewalReady({query:async()=>({rows:[{ready:false}]})}),false);
 });
 
 test("pre-rotation refresh JWTs are accepted once and only when genuine", async () => {

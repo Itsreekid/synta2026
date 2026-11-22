@@ -1,3 +1,12 @@
+## 2026-11-22 — 14-day inactivity policy
+
+- Revised normal session renewal from 48 hours to 14 days at owner request. Existing 30-day cap and revocation remain. All 35 targeted authentication tests passed locally; no deployment.
+
+## 2026-11-22 — Session renewal reliability
+
+- Normal renewal uses a 48-hour inactivity window; preserve the 30-day cap and short admin impersonation sessions.
+- Clear stale Turbo expiry countdowns and diagnose missing renewal storage. Added real HTTP/PostgreSQL and browser tests. Production migration/deployment remain unapproved.
+
 ## 2026-11-22 — Orange annual subscription badge
 
 - Matched the annual badge to the monthly style in orange, with school year and configured inclusive access cutoff. Badge-only change verified on desktop/mobile.

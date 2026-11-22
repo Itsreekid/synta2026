@@ -8,13 +8,19 @@ import jwt from "jsonwebtoken";
 const HOUR_MS = 60 * 60 * 1000;
 const DAY_MS = 24 * HOUR_MS;
 export const ACCESS_TTL_MS = HOUR_MS;
-export const REFRESH_IDLE_MS = 7 * DAY_MS;
+export const REFRESH_IDLE_MS = 14 * DAY_MS;
 export const SESSION_MAX_MS = 30 * DAY_MS;
 // Parallel requests from several tabs may present the same token right after it rotates.
 export const ROTATION_GRACE_MS = 20 * 1000;
 
 const jwtSecret = () => process.env.JWT_SECRET;
 const isProd = () => process.env.NODE_ENV === "production";
+
+// Deployment diagnostic only. Never creates or alters authentication tables.
+export async function sessionRenewalReady(db) {
+  const result = await db.query("SELECT to_regclass('refresh_tokens') IS NOT NULL AS ready");
+  return result.rows[0]?.ready === true;
+}
 
 export function hashToken(token) {
   return createHash("sha256").update(token).digest("hex");

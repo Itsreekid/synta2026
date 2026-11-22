@@ -1,5 +1,20 @@
 # CURRENT_STATE.md — Synta Academy
 
+### 2026-11-22 — Inactivity window revised to 14 days
+
+- Owner revised the previous 48-hour policy to 14 days. Normal refresh tokens/cookies and startup diagnostics now use 14 days; 30-day absolute cap, logout/revocation, and one-hour nonrenewable admin login-as sessions remain unchanged. Existing refresh cookies retain their original expiry until successfully renewed.
+- Targeted authentication suite rerun: 35 passed, zero failed/skipped, including disposable PostgreSQL and Chrome checks. Previous unrelated full-suite offer-badge assertion failure remains unresolved; full suite not rerun for this constant-only revision.
+- No new migration. Existing pending refresh-token migration still requires approval before production activation. No deployment or production changes. Next: TASK-003 migration rollout approval and staging verification.
+
+
+### 2026-11-22 — Session renewal and stale countdown fix
+
+- Normal refresh sessions now use a 48-hour inactivity window advanced on renewal, retaining one-hour access JWTs and the 30-day absolute cap. Admin login-as links remain deliberately nonrenewable one-hour test sessions. Logout/revocation preserved.
+- Fixed a stale Turbo expiry countdown surviving navigation into a renewable session. Guard asset version bumped. Added read-only startup diagnostics for missing refresh_tokens storage; no runtime schema changes.
+- Focused suite: 35 passed, zero skipped, including real HTTP/disposable PostgreSQL rotation, concurrency, revocation, expiry, migration prerequisites and Chrome countdown/401 checks. Full suite: 91 tests, 88 passed, 3 failed (one unrelated offer-browser assertion plus two parent tests: old annual/monthly badge wording at 320px). No skipped tests. Full regression is not green.
+- Existing pending migration database/pending-migrations/202611200001_create_refresh_tokens.sql applied only in disposable test databases. Production state unverified; approval still required before promoting/applying migration or deploying. Missing storage leaves normal logins at one hour. Fresh normal sign-in is needed after activation. Next: approve/verify renewal migration rollout and separately reconcile stale offer-badge browser assertions.
+
+
 ### 2026-11-22 — Orange annual offer badge
 
 - Annual badge now matches the monthly badge structure using orange border/tint, school-year title and the configured cutoff as an inclusive Tunis date. If no valid cutoff is supplied, shows Accès pour l’année scolaire. Prices, actions, images and monthly styles unchanged; offer asset versions bumped.

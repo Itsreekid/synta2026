@@ -140,7 +140,16 @@
     }
 
     function readDeadline() {
-        const seconds = Number(document.querySelector('meta[name="synta-session-expires-in"]')?.content);
+        const meta = document.querySelector('meta[name="synta-session-expires-in"]');
+        // Turbo can move from a fixed testing session to a renewable page without
+        // recreating this script. Do not retain its previous one-hour countdown.
+        clearTimeout(timer);
+        deadline = null;
+        if (!meta) {
+            if (!expired) document.getElementById('session-banner')?.remove();
+            return;
+        }
+        const seconds = Number(meta.content);
         if (Number.isFinite(seconds) && seconds >= 0) {
             deadline = Date.now() + seconds * 1000;
             schedule();

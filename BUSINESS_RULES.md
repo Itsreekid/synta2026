@@ -113,7 +113,7 @@ Two roles exist: `user` (student) and `admin`.
 | Behavior | Status | Evidence |
 |----------|--------|----------|
 | Access token lasts 1 hour | ✅ | `services/sessions.js`: `ACCESS_TTL_MS` |
-| A signed-in student stays signed in while active: the session ends after 7 days without any visit, and always 30 days after sign-in (owner decision 2026-11-20) | ✅ | `services/sessions.js`: `REFRESH_IDLE_MS`, `SESSION_MAX_MS` (2026-11-20, Batch 2B) |
+| A signed-in student stays signed in while active: normal sessions renew with a 14-day refresh inactivity window and a 30-day absolute cap (owner decision 2026-11-22; requires refresh-token migration) | ✅ | `services/sessions.js`: `REFRESH_IDLE_MS`, `SESSION_MAX_MS` (2026-11-20, Batch 2B) |
 | Refresh token auto-renews access token when it expires, on any page or API request, with no client-side code | ✅ | `sessionRenewal` in `middleware/requireAuth.js`, mounted in `server.js` (2026-11-20). Active only after `database/pending-migrations/202611200001_create_refresh_tokens.sql` is approved and applied; until then sessions last one hour and the 2A expiry handling applies |
 | Each refresh token works once. Reusing an old token more than 20 seconds after it was exchanged ends every session from that sign-in | ✅ | `rotateRefreshToken` in `services/sessions.js` |
 | Session cookies are HttpOnly, Secure in production and `SameSite=Lax`, so links opened from WhatsApp or email keep the student signed in (owner decision 2026-11-20) | ✅ | `services/sessions.js` `cookieBase()` |

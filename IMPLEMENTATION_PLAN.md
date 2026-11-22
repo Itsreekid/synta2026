@@ -42,7 +42,7 @@
 - **Priority:** CRITICAL
 - **Status:** COMPLETED 2026-11-20 (Batch 2B, uncommitted; dormant until the owner approves `database/pending-migrations/202611200001_create_refresh_tokens.sql`). Implemented as server-side renewal middleware with rotating, hashed refresh tokens instead of a client-called `/api/auth/refresh` endpoint, so no client change was needed. See `ARCHITECTURE.md` Section 7.
 - **Objective:** Prevent users from being logged out every hour
-- **Current situation:** 7-day refresh tokens are issued but never consumed. The only way to get a new access token is to log in again.
+- **Current situation:** Server middleware consumes rotating refresh tokens with a 14-day inactivity window and 30-day absolute cap. Deployment requires owner approval of the held refresh-token migration; missing storage falls back to one-hour access. Local HTTP/PostgreSQL and browser regressions passed 2026-11-22.
 - **Required changes:**
   1. Add `POST /api/auth/refresh` endpoint in `auth-api.js`
   2. Verify `synta_refresh` cookie, issue new `synta_access`

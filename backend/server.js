@@ -35,6 +35,7 @@ import aiApiRoutes from "./routes/ai-api.js";
 import zoomWebhookRoutes from "./routes/zoom-webhook.js";
 import { detectLiveFeatures, liveFeatures, recordingImportsEnabled } from "./services/live-features.js";
 import { recordingWorker } from "./services/recording-worker.js";
+import { sessionRenewalReady } from "./services/sessions.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -227,6 +228,11 @@ process.on("SIGTERM", () => {
   console.log("SIGTERM received, shutting down gracefully...");
   process.exit(0);
 });
+
+sessionRenewalReady(pool).then(ready => {
+  if(ready)console.log('[sessions] Automatic renewal ready: 14-day idle window, 30-day maximum.');
+  else console.warn('[sessions] Automatic renewal unavailable: apply approved migration 202611200001_create_refresh_tokens.sql. Logins currently fall back to one-hour access.');
+}).catch(error=>console.error('[sessions] Cannot verify renewal storage:',error.code??error.name));
 
 detectLiveFeatures(pool).then(features => {
   console.log(`[Live] Extended session access: ${features.extendedAccess ? "on" : "off (migration pending)"}`);
