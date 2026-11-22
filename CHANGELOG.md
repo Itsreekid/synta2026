@@ -1,3 +1,7 @@
+## 2026-11-22 — Remove thumbnail proxy bottleneck
+
+- Supersedes buffered thumbnail delivery with direct R2 signed downloads. Cache image responses and redirects for 23 hours within a 24-hour image-only signature. Keep protected-media expiry unchanged. 35 targeted tests passed, including Chrome cache reuse. Live R2 latency not measured; no deployment.
+
 ## 2026-11-22 — Course thumbnail browser caching
 
 - Serve course thumbnails at stable authenticated URLs with private 24-hour caching and ETags instead of expiring R2 redirects. Verified repeat desktop/mobile navigation avoids a second R2 read; 34 relevant tests passed. No deployment.

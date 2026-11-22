@@ -813,38 +813,53 @@ test("lesson video replacement verifies the uploaded object and removal only cle
   assert.deepEqual(updates, [[key, lessonId], [null, lessonId]]);
 });
 
+test('long-lived image signing cannot extend protected video or receipt links', async () => {
+  let signed;
+  const context = vm.createContext({ process: { env: { NODE_ENV: 'production' } }, console, Buffer });
+  const source = new vm.SourceTextModule(await readFile(new URL('../utils/r2Utils.js', import.meta.url), 'utf8'), { context });
+  await source.link(specifier => {
+    const commands = ['GetObjectCommand','PutObjectCommand','DeleteObjectCommand','HeadObjectCommand','ListObjectsV2Command','CreateMultipartUploadCommand','UploadPartCommand','CompleteMultipartUploadCommand','AbortMultipartUploadCommand'];
+    const exports = specifier === '@aws-sdk/client-s3' ? Object.fromEntries(commands.map(name => [name, class { constructor(input) { this.input = input; } }]))
+      : specifier === '@aws-sdk/s3-request-presigner' ? { getSignedUrl: async (_client, command, options) => { signed = { command: command.input, options }; return 'https://synthetic.invalid/image'; } }
+      : specifier === './courseImages.js' ? courseImages : { r2Client: {}, R2_BUCKET: 'synthetic', SIGNED_URL_EXPIRY: 300 };
+    return new vm.SyntheticModule(Object.keys(exports), function () { for (const [key, value] of Object.entries(exports)) this.setExport(key, value); }, { context });
+  });
+  await source.evaluate();
+  const sign = source.namespace.generateSignedUrl;
+  await assert.rejects(sign('videos/private.mp4', 86400));
+  await assert.rejects(sign('receipts/private.png', 86400, null, true));
+  await sign('Courses-th/example.webp', 86400, null, true);
+  assert.equal(signed.command.ResponseCacheControl, 'private, max-age=82800');
+  assert.equal(signed.options.expiresIn, 86400);
+  await sign('videos/private.mp4', 300);
+  assert.equal(signed.command.ResponseCacheControl, undefined);
+  assert.equal(signed.options.expiresIn, 300);
+});
+
 test("course image delivery requires a session and refuses keys outside the image folder", async () => {
   const allowed = "Courses-th/Un cours.png";
   const bytes = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAusB9Wl6VQAAAABJRU5ErkJggg==', 'base64');
-  let reads = 0, failed = false, destroyed = false;
+  let reads = 0, failed = false;
   const call = await loadRoute("content", {
     "../config/db.js": { default: {} },
-    "../config/r2.js": { r2Client: { async send(command) {
-      reads++;
-      assert.equal(command.input.Key, allowed);
-      if (failed) throw new Error('synthetic storage failure');
-      return { ETag: '"synthetic-image"', Body: {
-        async transformToByteArray() { return bytes; },
-        destroy() { destroyed = true; },
-      } };
-    } }, R2_BUCKET: "synthetic" },
-    "@aws-sdk/client-s3": { GetObjectCommand: class { constructor(input) { this.input = input; } } },
+    "../config/r2.js": { r2Client: { async send() { throw new Error('must not download through backend'); } }, R2_BUCKET: "synthetic" },
+    "@aws-sdk/client-s3": { GetObjectCommand: class {} },
     "../middleware/auth.js": { checkLessonAccess() {} },
-    "../utils/r2Utils.js": { async generateSignedUrl() { throw new Error('must not redirect'); } },
+    "../utils/r2Utils.js": { async generateSignedUrl(key, ttl, name, imageCache) {
+      reads++;
+      assert.equal(key, allowed); assert.equal(ttl, 86400); assert.equal(name, null); assert.equal(imageCache, true);
+      if (failed) throw new Error('synthetic signing failure');
+      return '/storage-image';
+    } },
   });
   const route = "get /course-image/:key";
   assert.equal((await call(route, { params: { key: allowed } })).statusCode, 401);
   assert.equal((await call(route, { user: { id: USER }, params: { key: "receipts/private.png" } })).statusCode, 404);
   assert.equal(reads, 0);
   const image = await call(route, { user: { id: USER }, params: { key: allowed } });
-  assert.equal(image.statusCode, 200);
-  assert.deepEqual(image.body, bytes);
-  assert.equal(image.headers.Location, undefined);
-  assert.equal(image.headers["Content-Type"], 'image/png');
-  assert.equal(image.headers["Cache-Control"], "private, max-age=86400");
-  const cached = await call(route, { user: { id: USER }, params: { key: allowed }, headers: { 'if-none-match': '"synthetic-image"' } });
-  assert.equal(cached.statusCode, 304);
-  assert.equal(destroyed, true);
+  assert.equal(image.statusCode, 302);
+  assert.equal(image.headers.Location, '/storage-image');
+  assert.equal(image.headers["Cache-Control"], "private, max-age=82800");
   failed = true;
   const unavailable = await call(route, { user: { id: USER }, params: { key: allowed } });
   assert.equal(unavailable.statusCode, 503);
@@ -857,8 +872,12 @@ test("course image delivery requires a session and refuses keys outside the imag
     const app = express();
     app.get('/image', async (req, res) => {
       const result = await call(route, { user: { id: USER }, params: { key: allowed }, headers: req.headers });
-      res.set(result.headers).status(result.statusCode).send(result.body);
+      res.set(result.headers);
+      if (result.statusCode === 302) return res.redirect(302, result.headers.Location);
+      res.status(result.statusCode).send(result.body);
     });
+    let storageReads = 0;
+    app.get('/storage-image', (_req, res) => { storageReads++; res.set('Cache-Control', 'private, max-age=82800').type('png').send(bytes); });
     app.get('/page/:id', (_req, res) => res.send('<img src="/image" alt="Course">'));
     const server = app.listen(0, '127.0.0.1'); await once(server, 'listening');
     const before = reads;
@@ -868,7 +887,9 @@ test("course image delivery requires a session and refuses keys outside the imag
         assert.equal(await evaluate('document.querySelector("img").naturalWidth'), 1);
         await open('/page/mobile', 'synthetic', 390);
         assert.equal(await evaluate('document.querySelector("img").naturalWidth'), 1);
-        assert.equal(reads - before, 1, 'second page must reuse the cached image without an R2 read');
+        assert.equal(reads - before, 1, 'second page must reuse the cached redirect without signing again'
+        );
+        assert.equal(storageReads, 1, 'image bytes must also be cached');
         assert.deepEqual(errors, []);
       });
     } finally { await new Promise(resolve => server.close(resolve)); }

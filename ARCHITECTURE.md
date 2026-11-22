@@ -424,7 +424,7 @@ The internal on-demand deep analysis entry point is `analyzeStudentLearning(pool
 
 ### Cloudflare R2 (Object Storage)
 
-The admin course editor can select an associated offer image, list recent raster images under the existing `Courses-th/` prefix, or upload a raster image there (up to 5 MiB). It stores the selected reference in `courses.thumbnail_url`. The session-protected `/api/content/course-image/:key` route serves only raster keys in that image folder directly from R2 at a stable URL, with private 24-hour browser caching and ETag revalidation. Uploaded replacements use UUID keys, avoiding stale cached replacements. External image URLs retain provider cache policies. Removing a course thumbnail clears the reference on save and preserves shared R2 objects.
+The admin course editor can select an associated offer image, list recent raster images under the existing `Courses-th/` prefix, or upload a raster image there (up to 5 MiB). It stores the selected reference in `courses.thumbnail_url`. The session-protected `/api/content/course-image/:key` route redirects only raster keys in that image folder directly to R2 without buffering image bytes through the backend. Image-only signed links last 24 hours; redirects and image responses cache privately for 23 hours. Protected video/document signing limits are unchanged. Uploaded replacements use UUID keys, avoiding stale cached replacements. External image URLs retain provider cache policies. Removing a course thumbnail clears the reference on save and preserves shared R2 objects.
 - Used for: course videos, PDFs, thumbnails, payment receipts
 - Access: Private bucket with signed URLs (5-minute default expiry)
 - SDK: AWS SDK v3 (S3-compatible)

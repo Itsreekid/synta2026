@@ -15,6 +15,7 @@ import {
 } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import { r2Client, R2_BUCKET, SIGNED_URL_EXPIRY } from "../config/r2.js";
+import { isCourseImageKey } from "./courseImages.js";
 
 // =====================================================
 // SIGNED URL GENERATION (Core Security Feature)
@@ -37,13 +38,14 @@ import { r2Client, R2_BUCKET, SIGNED_URL_EXPIRY } from "../config/r2.js";
  * const url = await generateSignedUrl('courses/python/lesson1/video.mp4', 300);
  * // URL valid for 5 minutes
  */
-export async function generateSignedUrl(key, expiresIn = SIGNED_URL_EXPIRY, downloadFileName = null) {
+export async function generateSignedUrl(key, expiresIn = SIGNED_URL_EXPIRY, downloadFileName = null, cacheCourseImage = false) {
   // Input validation
   if (!key || typeof key !== "string") {
     throw new Error("Invalid R2 key: must be a non-empty string");
   }
 
-  if (expiresIn < 60 || expiresIn > 3600) {
+  if (cacheCourseImage && !isCourseImageKey(key)) throw new Error("Only course thumbnails may use image caching");
+  if (expiresIn < 60 || expiresIn > (cacheCourseImage ? 86400 : 3600)) {
     throw new Error("Expiry time must be between 60 and 3600 seconds (1-60 minutes)");
   }
 
@@ -55,6 +57,7 @@ export async function generateSignedUrl(key, expiresIn = SIGNED_URL_EXPIRY, down
       Bucket: R2_BUCKET,
       Key: key,
       ...(responseContentDisposition ? { ResponseContentDisposition: responseContentDisposition } : {}),
+      ...(cacheCourseImage ? { ResponseCacheControl: 'private, max-age=82800' } : {}),
     });
 
     const signedUrl = await getSignedUrl(r2Client, command, {

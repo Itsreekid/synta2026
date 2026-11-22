@@ -1,5 +1,13 @@
 # CURRENT_STATE.md — Synta Academy
 
+### 2026-11-22 — Correct thumbnail first-load regression
+
+- Supersedes the buffered-image proxy below: it added a full backend R2 download before sending image bytes. Restored direct R2 loading with a signed image-only response cache override; redirect and bytes cache privately for 23 hours, signed thumbnail lifetime 24 hours. No backend image download. Authentication/folder restrictions remain.
+- Longer signing is explicitly restricted to validated Courses-th raster images. Video, receipt and document limits remain unchanged; no public bucket, cookies, schema changes or deployment. External providers still control external-image caching.
+- 35 security/course layout tests passed, zero failed/skipped, including Chrome 1440px/390px repeat navigation, one signer call and one image fetch, signing failure, unauthorized access and rejection of longer protected-media signatures. Synthetic R2 only: live latency is unmeasured, so production speed is not claimed verified. Earlier unrelated offer-badge suite failure remains unresolved.
+- Next: staging measurement against actual R2 thumbnails before deployment.
+
+
 ### 2026-11-22 — Cache course image bytes at stable URLs
 
 - Authenticated Courses-th image delivery now returns image bytes at the existing stable URL, with private 24-hour browser caching, ETag revalidation and nosniff. Removed expiring signed redirects from this route. No cookies store images; no changes to private video/document delivery or schema.

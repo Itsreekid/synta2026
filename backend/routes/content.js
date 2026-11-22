@@ -17,20 +17,11 @@ router.get("/course-image/:key", authApiMiddleware, async (req, res) => {
   const { key } = req.params;
   if (!isCourseImageKey(key)) return res.sendStatus(404);
   try {
-    // Cache the image itself at a stable URL, not an expiring signed redirect.
-    const image = await r2Client.send(new GetObjectCommand({ Bucket: R2_BUCKET, Key: key }));
-    res.set("Cache-Control", "private, max-age=86400");
-    res.set("X-Content-Type-Options", "nosniff");
-    if (image.ETag) {
-      res.set("ETag", image.ETag);
-      if ((req.headers?.['if-none-match'] || '').split(',').map(value => value.trim()).includes(image.ETag)) {
-        image.Body?.destroy?.();
-        return res.sendStatus(304);
-      }
-    }
-    const types = { png: 'image/png', jpg: 'image/jpeg', jpeg: 'image/jpeg', gif: 'image/gif', webp: 'image/webp', avif: 'image/avif' };
-    res.set("Content-Type", types[key.split('.').pop().toLowerCase()]);
-    return res.send(Buffer.from(await image.Body.transformToByteArray()));
+    // Download directly from R2: do not buffer thumbnails through the app server.
+    // Cache less than the signed lifetime so a cached redirect never outlives it.
+    const url = await generateSignedUrl(key, 86400, null, true);
+    res.set("Cache-Control", "private, max-age=82800");
+    return res.redirect(302, url);
   } catch {
     res.set("Cache-Control", "no-store");
     return res.sendStatus(503);
