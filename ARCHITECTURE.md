@@ -1,5 +1,7 @@
 # ARCHITECTURE.md — Synta Academy
 
+The course details API includes replay_previews (id/title/scheduled_at/duration_minutes only) for unrestricted, course-wide historical replays. Existing course visibility checks run first; all playable URLs and resources still come from the authorized live-session API.
+
 Historical replay entry uses POST /api/live/replays (requireAdmin) to create a completed course-scoped live_sessions row without Zoom. Date, title, course and duration use existing columns. Video and resource uploads reuse current endpoints; the browser retries creation with a stable UUID. No new schema or import pipeline.
 
 Course description formatting uses a shared browser-only, restricted Markdown renderer (public/js/course-markdown.js) on the catalogue and course details templates. It builds text/formatting DOM and then sanitizes with an attribute-free tag allowlist. Course API/storage contracts remain plain text, unchanged; no remote Markdown library is loaded.

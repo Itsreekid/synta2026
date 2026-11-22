@@ -3,7 +3,7 @@ import { enrollmentAccess } from "../utils/offerAccess.js";
 // COURSES API ROUTES
 // =====================================================
 import express from "express";
-import { liveSessionAccess, sessionCourseMatch } from "../utils/offerAccess.js";
+import { liveSessionAccess, sessionCourseMatch, hasExtendedLiveAccess } from "../utils/offerAccess.js";
 import pool from "../config/db.js";
 import { authMiddleware, checkCourseEnrollment } from "../middleware/auth.js";
 import { authApiMiddleware } from "../middleware/requireAuth.js";
@@ -252,6 +252,16 @@ router.get("/:courseId", authMiddleware, async (req, res) => {
     }
 
     const course = courseResult.rows[0];
+
+    // Course-wide historical replay discovery only. Never return media/file URLs,
+    // or reveal individually restricted sessions to catalogue viewers.
+    const previews = await pool.query(`SELECT ls.id,ls.title,ls.scheduled_at,ls.duration_minutes
+      FROM live_sessions ls WHERE ls.course_id=$1 AND ls.zoom_meeting_id IS NULL
+        AND ls.offer_id IS NULL AND ls.audience_student_ids IS NULL
+        ${hasExtendedLiveAccess() ? "AND cardinality(COALESCE(ls.granted_student_ids,'{}'::uuid[]))=0 AND cardinality(COALESCE(ls.additional_offer_ids,'{}'::uuid[]))=0" : ''}
+        AND ls.status='completed' AND ls.replay_url IS NOT NULL AND btrim(ls.replay_url)<>''
+        AND ls.scheduled_at<NOW() ORDER BY ls.scheduled_at DESC`,[courseId]);
+    course.replay_previews = previews.rows;
 
     const modulesResult = await pool.query(
       `SELECT m.id, m.title, m.description, cm.order_index FROM course_modules cm

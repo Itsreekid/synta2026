@@ -1,5 +1,12 @@
 # CURRENT_STATE.md — Synta Academy
 
+### 2026-11-22 — Historical replay discovery for locked course viewers
+
+- Reproduced the screenshot state: a viewer without course enrollment sees preview lessons and locked paid lessons, but the old configureCourseTabs logic hid Replays entirely. This is a local reproduction; no production student enrollment or media records were inspected/changed.
+- Course detail API now exposes only id/title/original date/duration of course-wide completed historical replays, after existing published-course/targeting checks. No video, signed URLs or resource keys are returned in previews. Sessions with offer/audience/invitation restrictions are excluded. One additional parameterized query; no migration.
+- Course UI lists those entries as locked under their original month and links to offers; enrolled playback still uses the unchanged protected live API. Empty replay tabs remain hidden. Updated asset version.
+- Tests verify full page load for an unenrolled viewer at 360/390/1440px, October grouping, locked CTA and no playable URL; PostgreSQL checks metadata allowlist and restricted-session exclusion. Full regression: 88 passed, 0 failed/skipped. No push/deploy or production modifications. If the actual student already owns active access, verify their enrollment separately; this change does not grant access.
+
 ### 2026-11-22 — Historical replay entry
 
 - Existing Live Sessions page has Ajouter un replay: responsive native dialog with title, original Tunis date/time, duration, one associated course, external Drive/HTTP(S) link or video upload, and optional teaching files. Form body scrolls while save remains visible. Existing source files and Zoom import pipeline are untouched.

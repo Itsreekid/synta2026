@@ -40,6 +40,14 @@ test('safe course Markdown, compatible plain text and responsive card/detail lay
                 await evaluate(`positionCourseHero();renderCourseInfo(${JSON.stringify(course)},4,false,null,2)`);
                 const result=await evaluate("({strong:document.querySelectorAll('#course-description strong').length,em:document.querySelectorAll('#course-description em').length,p:document.querySelectorAll('#course-description p').length,lists:document.querySelectorAll('#course-description ul,#course-description ol').length,length:document.getElementById('course-description').textContent.length,overflow:document.documentElement.scrollWidth>innerWidth})");
                 assert.equal(result.strong,3); assert.equal(result.em,2); assert.equal(result.lists,2);assert.ok(result.p>=3);assert.ok(result.length>700);assert.equal(result.overflow,false);
+                // Match a course viewer who can try preview lessons but has no paid enrollment.
+                await evaluate(`window.SyntaAPI={fetchCourseDetails:async()=>(${JSON.stringify({...course,modules:[],replay_previews:[{id:'old-replay',title:'Séance octobre',scheduled_at:'2025-10-15T19:00:00Z',duration_minutes:90}]})}),checkCourseAccess:async()=>false};loadCourseDetails('synthetic')`);
+                assert.equal(await evaluate("document.getElementById('live-tab').hidden"),false);
+                assert.equal(await evaluate("document.getElementById('chapters-tab').hidden"),true);
+                assert.match(await evaluate("document.getElementById('course-live-list').textContent"),/octobre 2025.*Séance octobre/s);
+                assert.equal(await evaluate("document.querySelector('#course-live-list a').getAttribute('href')"),'/app/offers');
+                assert.equal(await evaluate("document.querySelector('#course-live-list [data-replay-url]')"),null);
+                assert.equal(await evaluate("document.documentElement.scrollWidth>innerWidth"),false);
                 if(process.env.COURSE_MARKDOWN_SCREENSHOTS)await screenshot(process.env.COURSE_MARKDOWN_SCREENSHOTS+'-details-'+width+'.png');
             }
             const attacks=['<script>window.markdownAttack=1</script>','<img src=x onerror="window.markdownAttack=1">','<svg onload="window.markdownAttack=1"></svg>','[clic](javascript:alert(1))','**<iframe srcdoc="attack"></iframe>**','&lt;img src=x onerror=alert(1)&gt;'];

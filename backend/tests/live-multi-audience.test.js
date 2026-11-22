@@ -98,6 +98,7 @@ test('OR session migration, API access and admin browser on disposable PostgreSQ
     const app=express();app.use(express.json(),cookieParser());
     app.use('/api/live',await load('live'));app.use(await load('user-api'));
     app.use('/api/content',await load('content'));
+    app.use('/api/courses',await load('courses'));
     app.use(express.static(fileURLToPath(new URL('../public',import.meta.url))));
     app.get('/api/admin/offers',requireAdmin,async(req,res)=>res.json({data:(await db.query('SELECT * FROM offers')).rows}));
     app.get('/api/admin/courses',requireAdmin,async(req,res)=>res.json({data:(await db.query('SELECT * FROM courses')).rows}));
@@ -305,6 +306,16 @@ test('OR session migration, API access and admin browser on disposable PostgreSQ
       assert.equal((await request('/api/live/session/'+id,stranger)).status,404);
       assert.ok((await(await request('/api/live/replays',enrolled)).json()).some(row=>row.id===id));
       assert.ok((await(await request('/api/live/course/'+c2,enrolled)).json()).some(row=>row.id===id));
+      const catalogue=await(await request('/api/courses/'+c2,stranger)).json();
+      const preview=catalogue.replay_previews.find(row=>row.id===id);
+      assert.deepEqual(Object.keys(preview).sort(),['duration_minutes','id','scheduled_at','title']);
+      assert.equal(preview.title,body.title);
+      const restricted=randomUUID();
+      await db.query(`INSERT INTO live_sessions(id,course_id,title,scheduled_at,status,replay_url,audience_student_ids)
+        VALUES($1,$2,'Private replay',NOW()-interval '1 day','completed','https://drive.google.com/private',$3)`,[restricted,c2,[enrolled]]);
+      const filtered=await(await request('/api/courses/'+c2,stranger)).json();
+      assert.ok(!filtered.replay_previews.some(row=>row.id===restricted));
+      assert.equal((await request('/api/live/session/'+restricted,stranger)).status,404);
       const draft=randomUUID();assert.equal((await request('/api/live/replays',admin,{...body,id:draft,replayUrl:null})).status,201);
       assert.equal((await request('/api/live/'+draft+'/replay',admin,{replayKey:`live-replays/${draft}/manual.mp4`},'PATCH')).status,200);
     });

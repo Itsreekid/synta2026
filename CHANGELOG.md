@@ -1,3 +1,7 @@
+## 2026-11-22 — Show locked historical replays
+
+- Show course-wide historical replay metadata to catalogue viewers instead of hiding the Replays tab when unenrolled. Paid playback and files remain protected; individually restricted sessions are excluded. Full suite: 88 passing; desktop/mobile checked. No migration or deployment.
+
 ## 2026-11-22 — Add dated historical replays
 
 - Add old Drive or uploaded recordings with original Tunis dates, course association and teaching files, without scheduling Zoom. Reuses protected replay/resource APIs, adds retry identity and responsive popup. Full suite: 88 passing; final browser checks passed. No schema changes or deployment.

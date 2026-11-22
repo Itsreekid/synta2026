@@ -115,7 +115,7 @@ function configureCourseTabs(modules, sessions, hasAccess) {
     const chapters = document.getElementById('chapters-tab');
     const replays = document.getElementById('live-tab');
     chapters.hidden = modules.length === 0;
-    replays.hidden = sessions?.length === 0 || !hasAccess;
+    replays.hidden = sessions?.length === 0;
     document.querySelector('.course-content-tabs').hidden = chapters.hidden && replays.hidden;
     setCourseContentTab(chapters.hidden ? 'live' : 'chapters');
     if (!hasAccess) return;
@@ -198,6 +198,10 @@ async function loadCourseDetails(courseId) {
         let liveSessionsLoaded = false;
         let resourceTypes = null;
         let courseProgress = null;
+        if (!hasAccess) {
+            liveSessions = (course.replay_previews || []).map(session => ({ ...session, locked: true }));
+            liveSessionsLoaded = true;
+        }
         if (hasAccess) {
             const [liveResult, resourceResult, progressResult] = await Promise.allSettled([
                 fetch(`/api/live/course/${encodeURIComponent(courseId)}`, { credentials: 'include' })
@@ -400,7 +404,7 @@ function renderCourseLiveSessions(sessions, hasAccess, loaded) {
     if (!tab || !container) return;
 
     if (count) count.textContent = String(sessions.length);
-    if (!hasAccess) {
+    if (!hasAccess && !sessions.length) {
         container.innerHTML = '<p class="course-live-note">Inscrivez-vous à ce cours pour voir ses replays.</p>';
         return;
     }
@@ -430,9 +434,11 @@ function renderCourseLiveSessions(sessions, hasAccess, loaded) {
         const monthContent = monthSessions.map(session => {
         const start = new Date(session.scheduled_at);
         const dateLabel = start.toLocaleString('fr-FR', { dateStyle: 'full', timeStyle: 'short' });
-        const action = `<button type="button" class="course-replay-button" data-session-id="${escapeHtml(session.id)}" data-replay-url="${escapeHtml(session.replay_url)}" data-replay-title="${escapeHtml(session.title)}" data-replay-resources="${escapeHtml(JSON.stringify(session.resources || []))}"><i class="fas fa-play-circle" aria-hidden="true"></i> Regarder le replay</button>`;
+        const action = !hasAccess
+            ? '<a class="course-replay-button" href="/app/offers"><i class="fas fa-lock" aria-hidden="true"></i> Voir les offres pour accéder</a>'
+            : `<button type="button" class="course-replay-button" data-session-id="${escapeHtml(session.id)}" data-replay-url="${escapeHtml(session.replay_url)}" data-replay-title="${escapeHtml(session.title)}" data-replay-resources="${escapeHtml(JSON.stringify(session.resources || []))}"><i class="fas fa-play-circle" aria-hidden="true"></i> Regarder le replay</button>`;
         return `<article class="course-live-session">
-            <div class="course-live-session-main"><span class="course-live-status has-replay">Replay disponible</span><strong>${escapeHtml(session.title)}</strong><div class="course-live-session-date"><i class="far fa-clock" aria-hidden="true"></i> ${escapeHtml(dateLabel)}</div>${session.description ? `<p>${escapeHtml(session.description)}</p>` : ''}</div>
+            <div class="course-live-session-main"><span class="course-live-status has-replay">${hasAccess ? 'Replay disponible' : 'Accès réservé'}</span><strong>${escapeHtml(session.title)}</strong><div class="course-live-session-date"><i class="far fa-clock" aria-hidden="true"></i> ${escapeHtml(dateLabel)}</div>${session.description ? `<p>${escapeHtml(session.description)}</p>` : ''}</div>
             <div class="course-live-session-action">${action}</div>
         </article>`;
         }).join('');
