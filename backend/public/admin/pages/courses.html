@@ -466,6 +466,10 @@
         }
         .toggle input:checked + .toggle-slider { background: var(--success); }
         .toggle input:checked + .toggle-slider:before { transform: translateX(18px); }
+        .lesson-preview-control { display:inline-flex; align-items:center; gap:.45rem; font-size:.8rem; white-space:nowrap; }
+        .lesson-preview-control .toggle { display:inline-block; flex-shrink:0; margin:0; }
+        .lesson-preview-control input:focus-visible + .toggle-slider { outline:3px solid #f97316; outline-offset:3px; }
+        .lesson-preview-control input:disabled + .toggle-slider { opacity:.5; cursor:wait; }
 
         .modal-footer {
             margin-top: 1.5rem;
@@ -973,6 +977,7 @@
                             <div class="lesson-row" data-lesson-id="${escHtml(lesson.id)}" data-module-id="${escHtml(chapter.id)}" draggable="true">
                                 <div style="flex:1;min-width:150px"><i class="fas fa-grip-lines drag-grip" aria-hidden="true"></i><strong>${escHtml(lesson.title)}</strong><small style="display:block;color:var(--text-muted)">${lesson.type === 'quiz' ? 'Quiz interactif' : escHtml(lesson.type)} · ordre ${lesson.order_index}${lesson.is_preview ? ' · aperçu' : ''}${(lesson.resources || []).length + (lesson.has_document ? 1 : 0)} ressource(s) · glisser pour déplacer</small></div>
                                 <input aria-label="Ordre de la leçon" type="number" min="0" value="${lesson.order_index}" style="width:72px;padding:.4rem;border:1px solid var(--border);border-radius:7px" onchange="updateLessonOrder('${lesson.id}',this.value)">
+                                <div class="lesson-preview-control"><label class="toggle"><input type="checkbox" role="switch" aria-label="Aperçu gratuit de la leçon" ${lesson.is_preview ? 'checked' : ''} onchange="toggleLessonPreview('${lesson.id}',this)"><span class="toggle-slider" aria-hidden="true"></span></label><span>${lesson.is_preview ? 'Gratuit' : 'Payant'}</span></div>
                                 ${lesson.type !== 'quiz' ? `<button class="btn" type="button" onclick="uploadLessonPracticeFiles('${lesson.id}')"><i class="fas fa-paperclip"></i> Ressources (${(lesson.resources || []).length + (lesson.has_document ? 1 : 0)})</button>` : `<button class="btn" type="button" onclick="editInteractiveQuiz('${lesson.id}')"><i class="fas fa-sliders-h"></i> Modifier le quiz</button>`}
                                 ${lesson.type === 'video' ? `<button class="btn" type="button" onclick="uploadLessonVideo('${lesson.id}',this)"><i class="fas fa-video" aria-hidden="true"></i> ${lesson.has_video ? 'Remplacer la vidéo' : 'Ajouter une vidéo'}</button>
                                 ${lesson.has_video ? `<button class="btn-icon danger" type="button" aria-label="Retirer la vidéo" title="Retirer la vidéo" onclick="removeLessonVideo('${lesson.id}',this)"><i class="fas fa-video-slash" aria-hidden="true"></i></button>` : ''}` : ''}
@@ -1258,6 +1263,18 @@
         async function updateLessonOrder(lessonId, orderIndex) {
             await chapterRequest(`/api/admin/lessons/${lessonId}`, 'PATCH', { orderIndex:Number(orderIndex) });
             await loadChapterManager();
+        }
+
+        async function toggleLessonPreview(lessonId, input) {
+            const isPreview = input.checked;
+            input.disabled = true;
+            try {
+                await chapterRequest(`/api/admin/lessons/${encodeURIComponent(lessonId)}`, 'PATCH', { isPreview });
+                await loadChapterManager();
+            } catch {
+                input.checked = !isPreview;
+                // chapterRequest already displays the save error.
+            } finally { input.disabled = false; }
         }
 
         function uploadLessonVideo(lessonId, button) {

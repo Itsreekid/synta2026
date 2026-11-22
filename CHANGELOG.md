@@ -1,3 +1,7 @@
+## 2026-11-22 — Lesson preview switch
+
+- Added a simple free/paid switch per lesson using existing preview permissions and admin API, with immediate save and failure recovery. Browser checks passed at desktop/mobile widths. No database changes or deployment.
+
 ## 2026-11-21 — Compact session actions and plain course previews
 
 - Course cards strip Markdown into normalized plain text, clamp to three lines and reserve consistent description heights. Complete safe formatting remains on details.

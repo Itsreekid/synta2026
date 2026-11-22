@@ -1,5 +1,10 @@
 # CURRENT_STATE.md — Synta Academy
 
+### 2026-11-22 — Simple lesson free/paid switch
+
+- Added an accessible Gratuit/Payant switch beside each lesson in the existing admin chapter manager. Uses the existing administrator-only PATCH lessons endpoint and is_preview field; no schema, access rules or existing preview values changed. Saves immediately, disables while saving and rolls back the control on failure.
+- Local browser test passed at 1440/390/360px for both directions and failed saves. Tests/lesson-preview.test.js added to normal test command. No deployment; administrators choose the first lesson manually, other lessons are not automatically changed.
+
 ### 2026-11-21 — Plain course-card previews and compact live-session actions
 
 - Course cards use a normalized plain-text Markdown preview via textContent, with three-line CSS clamping and a reserved three-line area even for short/empty descriptions. Catalog grid rows have equal heights. Full sanitized Markdown rendering on course details and stored descriptions remain unchanged. Asset query versions updated.
