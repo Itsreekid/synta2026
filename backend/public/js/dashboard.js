@@ -316,7 +316,7 @@ function loadReplays() {
             list.innerHTML = '<div class="dash-empty">Les enregistrements publiés par ton enseignant apparaîtront ici.</div>';
             return;
         }
-        list.innerHTML = replays.slice(0, 5).map(replay => `
+        list.innerHTML = replays.slice(0, 1).map(replay => `
             <article class="replay-dashboard-item"><div class="replay-info"><strong>${escapeDashboardHtml(replay.title)}</strong><div class="replay-meta">${escapeDashboardHtml(replay.course?.title || 'Formation')} · ${new Date(replay.scheduled_at).toLocaleDateString('fr-FR', {timeZone:'Africa/Tunis'})}</div></div>
             <a class="replay-action dashboard-course-link" href="${replay.course_id ? '/app/course-details?' + new URLSearchParams({id:replay.course_id,replay:replay.id}) : '/app/calendar?' + new URLSearchParams({replay:replay.id})}">Voir le replay</a></article>`).join('');
     }, () => { list.innerHTML = '<div class="dash-empty">Impossible de charger les replays.</div>'; });

@@ -1,3 +1,15 @@
+## 2026-11-22 — Automatic local replay folder
+
+- Added a stable-file watcher for Replays Zoom with output in Compresses, restart deduplication and a portable Node launcher fix. Excluded video folder and CMD from Git/Docker. Compression/source preservation tests passed; no deployment.
+
+## 2026-11-22 — Local replay compression
+
+- Added an offline folder/video optimizer and Windows drag/drop launcher. Keeps originals, validates full-duration smaller H.264 MP4 output and reports savings. No website/server, database or R2 behavior change. See REPLAY_COMPRESSION.md.
+
+## 2026-11-22 — Limit dashboard replay list
+
+- Show only the most recent accessible replay on the dashboard instead of five; retain all replays within courses. Verified renderer and unchanged empty/error states. No deployment.
+
 ## 2026-11-22 — Show locked historical replays
 
 - Show course-wide historical replay metadata to catalogue viewers instead of hiding the Replays tab when unenrolled. Paid playback and files remain protected; individually restricted sessions are excluded. Full suite: 88 passing; desktop/mobile checked. No migration or deployment.
