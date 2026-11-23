@@ -22,7 +22,10 @@ async function versionHomepageAssets(content, publicDir) {
 }
 
 export function setPublicAssetCache(res, filePath) {
-  if (path.extname(filePath).toLowerCase() === ".html") {
+  if (/[\\/]vendor[\\/]videojs[\\/]10\.6\.0[\\/]/.test(filePath)) {
+    // Pinned, self-hosted library assets change only with the versioned directory.
+    res.setHeader("Cache-Control", "public, max-age=31536000, immutable");
+  } else if (path.extname(filePath).toLowerCase() === ".html") {
     res.setHeader("Cache-Control", "public, max-age=0, must-revalidate");
   } else if (/^[a-f0-9]{12}$/.test(String(res.req.query.v || ""))) {
     // Homepage references carry content hashes. A changed file gets a new URL.

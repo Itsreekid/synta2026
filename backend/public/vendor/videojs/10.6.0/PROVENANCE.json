@@ -1,0 +1,16 @@
+{
+  "package": "@videojs/cdn",
+  "version": "10.6.0",
+  "source": "https://registry.npmjs.org/@videojs/cdn/-/cdn-10.6.0.tgz",
+  "integrity": "sha512-DsuXvdxbqvaTBiecbiDJ/pF4/ttso3JHfGxSMuN7K43UvPY8zUTKJqhAY9f+DTDN/Xjuen491FKDMcgP4Gr7kQ==",
+  "layout": "Production browser bundles mirrored unchanged; development builds and sourcemaps omitted.",
+  "orientationController": {
+    "package": "@videojs/core",
+    "version": "10.6.0",
+    "source": "https://registry.npmjs.org/@videojs/core/-/core-10.6.0.tgz",
+    "integrity": "sha512-tJUghkaapzbKmi2QjcTsvbiuRzqVsHI47TLQsn3FNGWyX7KOQODKh/PgyKpnHaRmOfaK1pG7N+f0yrC5Yg0JhQ==",
+    "file": "dist/default/dom/presentation/orientation.js",
+    "localFile": "orientation-support.js",
+    "adaptation": "Only the two predicate imports are inlined; the official controller body is unchanged."
+  }
+}

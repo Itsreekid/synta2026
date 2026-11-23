@@ -83,7 +83,7 @@ export async function withTimedOfferBrowser(executable, origin, run) {
       await command('Input.dispatchKeyEvent', { type:'keyDown', key, windowsVirtualKeyCode:virtualKeyCode });
       await command('Input.dispatchKeyEvent', { type:'keyUp', key, windowsVirtualKeyCode:virtualKeyCode });
     };
-    await run({ open, evaluate, until, errors, screenshot, pressKey });
+    await run({ open, evaluate, until, errors, screenshot, pressKey, command });
   } finally {
     socket?.close();
     if (browser.exitCode === null) browser.kill();

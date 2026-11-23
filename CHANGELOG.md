@@ -1,3 +1,9 @@
+## 2026-11-23 — Video.js mobile-first player replacement
+
+- Replaced hand-maintained controls with pinned self-hosted Video.js 10.6.0, retaining native video identity, progress/resume, quiz flow, resources and provider embeds.
+- Added mobile sizing/visibility refinements, library touch gestures and speeds through 1.75×, caption controls and official orientation-controller cleanup. Native controls remain a library-load fallback.
+- Versioned vendor assets cache immutably; no build tool, schema, production migration or deployment. Final affected suite: 44 passed, zero failed/skipped. Native fullscreen/physical rotation require device validation because available headless Chrome rejects fullscreen.
+
 ## 2026-11-23 — Educational video player and quiz flow
 
 - Added custom native-video controls, click-to-play fallback, paused next lessons and local replay resume while preserving Drive embeds and page layouts.
