@@ -18,7 +18,7 @@
 | Courses as chapters, lessons, video replays and quizzes | XP, badges and ranks (hidden) |
 | Admin schedules Zoom sessions for eligible students; they appear automatically on the student Dashboard and Calendar | Major architectural redesigns |
 | Students access their purchased courses and learning materials | Code Pratique Web mode |
-| Clean, fast mobile and desktop student experience; Admin and Student data stay in sync | Batch 3 learning-progress work (90% completion, resume next lesson) — paused |
+| Clean, fast mobile and desktop student experience; Admin and Student data stay in sync | Remaining learning-progress work (resume next lesson) — paused |
 
 Rules below that belong to deferred areas stay as documented but must not receive development time until the owner lifts the launch freeze.
 
@@ -306,7 +306,7 @@ Two roles exist: `user` (student) and `admin`.
 | Video resume position is restored and saved during playback, on pause, and when switching players | ✅ | Lesson-content response returns `last_position`; `POST /api/tracking/position` checks preview or active enrollment and updates the position without changing completion |
 | Course-level progress % is recalculated on each completion | ✅ | `content.js` and `tracking.js` |
 | `enrollments.progress` is kept in sync with `lesson_progress` | ✅ | UPDATE enrollments in tracking route |
-| A video lesson is complete when about 90% has been watched (owner decision 2026-11-20) | ❌ | 90%-watched threshold remains unimplemented. Native inline playback now completes on end or explicit completion, rather than first playing (`course-details.js`). Roadmap P1-2 |
+| A native video lesson completes when its playhead reaches 90% (owner confirmed 2026-11-23) | ✅ | `course-details.js` uses the existing authenticated completion API; confirmed saves update visible/cached course progress. End/manual completion is preserved. Repeated events share one save; failed attempts can retry. |
 | XP, levels and badges are hidden until a real rule is defined (owner decision 2026-11-20) | ❌ | Dashboard still shows client-computed XP, level and badges. Roadmap P2-3 |
 
 ### BR-20: Quiz Progress

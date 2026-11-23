@@ -1,5 +1,20 @@
 # CURRENT_STATE.md — Synta Academy
 
+### 2026-11-23 — Compact mobile lesson quiz button
+
+- Passer au quiz alone now uses a 50px pill radius and content-width mobile sizing (44px minimum touch height). Other lesson actions retain their sizing and behavior. Course script cache version v9.
+- Actual course template checked in Chrome at 320/390/768/1440px: mobile button about 131px wide ×44px high, desktop about147px ×46px, radius50px, no horizontal overflow. Existing completion regression passed. No deployment.
+
+
+### 2026-11-23 — Fix 90% lesson completion and stale progress
+
+- Narrow fix in course-details.js only (plus its EJS cache version): native lesson timeupdate/pause now confirms completion at playhead >=90% of a positive finite duration; ended/manual completion remains. Existing SyntaAPI.markLessonComplete and backend authorization/database logic are reused unchanged. No player styles, controls, quiz behavior, resources, schema or unrelated business changes.
+- Completion requests are coalesced per course/lesson and confirmed IDs suppress duplicate end/pause/timeupdate saves. Failed saves do not mark the UI complete; active-play retries are throttled to 10s and ended can retry immediately. Manual completion now uses the same confirmed-save/UI path.
+- Confirmed completion patches the active sidebar AND detached overview DOM: green checkmark, chapter count/completed state and progress percentage/bar/count. This avoids replacing the player or losing its playback state. Course reload still uses authoritative server progress; percentages exclude quizzes.
+- 37 targeted tests passed, zero failed/skipped: actual course browser threshold test at mobile/desktop, existing six-width real Video.js playback/quiz/resume test, course Markdown/layout and security suite. New regression verifies invalid durations/<90%, exact90%, repeated events/end duplicate protection, persisted reload, failed save/no false checkmark and end retry to 100%. Synthetic API storage is used by the new browser test; no live student data or production changes. The earlier unrelated full-suite offer-card assertion remains outside this fix; full suite not rerun.
+- Files: public/js/course-details.js, views/pages/courses/details.ejs (v8), tests/lesson-completion.test.js, package test list and these docs. No migration/env change/deployment. Next: verify the affected student's course in staging after rollout approval; Drive provider embeds still lack reliable native timeupdate/ended events and retain manual completion.
+
+
 ### 2026-11-23 — Video.js 10.6.0 mobile-first replacement
 
 - Replaced hand-maintained playback controls in public/js/learning-player.js with the pinned self-hosted @videojs/cdn 10.6.0 stock skin. Existing native video IDs/listeners, signed lesson/replay URLs, authentication, progress/completion, resume, quizzes, resources and course/sidebar layout are preserved. Drive/provider embeds remain unchanged. No frontend build system or npm runtime dependency added.

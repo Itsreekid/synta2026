@@ -3,6 +3,8 @@
 // =====================================================
 
 let currentCourse = null;
+let currentCourseProgress = { completedIds: [] };
+const lessonCompletionSaves = new Map();
 let currentEnrollment = null;
 let currentLiveSessions = [];
 let courseOverview = null;
@@ -233,6 +235,7 @@ async function loadCourseDetails(courseId) {
         const totalLessons = modulesWithLessons.reduce((sum, module) =>
             sum + (module.lessons || []).filter(lesson => lesson.type !== 'quiz').length, 0);
 
+        currentCourseProgress = courseProgress || { completedIds: [] };
         // Render course information
         await renderCourseInfo(course, totalLessons, hasAccess, courseProgress, liveSessionsLoaded ? liveSessions.length : null);
         renderCourseLiveSessions(liveSessions, hasAccess, liveSessionsLoaded);
@@ -807,11 +810,55 @@ async function playLesson(lessonId, { autoplay = true } = {}) {
  * Mark lesson progress via REST API
  */
 async function markLessonProgress(lessonId) {
-    try {
-        await window.SyntaAPI.markLessonComplete(lessonId, 100);
-    } catch (error) {
-        console.error('Error marking progress:', error);
-    }
+    const course = currentCourse;
+    if (!course) return false;
+    if (currentCourseProgress.completedIds.includes(lessonId)) return true;
+    const key = course.id + ':' + lessonId;
+    if (lessonCompletionSaves.has(key)) return lessonCompletionSaves.get(key);
+    const saving = (async () => {
+        try {
+            const result = await window.SyntaAPI.markLessonComplete(lessonId, 100);
+            if (result?.success === false) throw new Error('Lesson completion was not saved');
+            if (currentCourse?.id === course.id) {
+                currentCourseProgress.completedIds = [...new Set([...currentCourseProgress.completedIds, lessonId])];
+                refreshSavedLessonProgress();
+            }
+            return true;
+        } catch (error) {
+            console.error('Error marking progress:', error);
+            return false;
+        } finally { lessonCompletionSaves.delete(key); }
+    })();
+    lessonCompletionSaves.set(key, saving);
+    return saving;
+}
+
+function refreshSavedLessonProgress() {
+    const completed = new Set(currentCourseProgress.completedIds);
+    const lessons = (currentCourse?.modules || []).flatMap(module => module.lessons || []).filter(lesson => lesson.type !== 'quiz');
+    const count = lessons.filter(lesson => completed.has(lesson.id)).length;
+    const percentage = lessons.length ? Math.round(100 * count / lessons.length) : 0;
+    const roots = [document, ...(courseOverview?.main || []), ...(courseOverview?.sidebar || [])];
+    const select = selector => [...new Set(roots.flatMap(root => root.querySelectorAll ? [...(root.matches?.(selector) ? [root] : []), ...root.querySelectorAll(selector)] : []))];
+    select('#progress-percentage-text').forEach(el => el.textContent = percentage + '%');
+    select('#progress-bar-fill').forEach(el => el.style.width = percentage + '%');
+    select('#progress-completed-text').forEach(el => el.textContent = count + ' / ' + lessons.length + ' leçons');
+    select('.lesson-item[data-lesson-id]').forEach(row => {
+        if (!completed.has(row.dataset.lessonId) || row.classList.contains('locked')) return;
+        const icon = row.querySelector('.lesson-info .lesson-icon');
+        if (icon) { icon.classList.remove('active'); icon.classList.add('completed'); icon.setAttribute('aria-label','Terminée'); icon.innerHTML = '<i class="fas fa-check" aria-hidden="true"></i>'; }
+    });
+    select('.module-card').forEach(card => {
+        const rows = [...card.querySelectorAll('.lesson-item[data-lesson-id]')];
+        const done = rows.filter(row => completed.has(row.dataset.lessonId)).length;
+        const counter = card.querySelector('.module-meta strong');
+        if (counter) counter.textContent = done === rows.length ? 'Terminé' : done + '/' + rows.length;
+        if (rows.length && done === rows.length) {
+            card.classList.add('is-complete');
+            const number = card.querySelector('.module-number');
+            if (number) number.innerHTML = '<i class="fas fa-check" aria-hidden="true"></i>';
+        }
+    });
 }
 
 /**
@@ -907,8 +954,8 @@ async function showLessonInMainArea(lesson, videoUrl, pdfUrl, practiceFiles = []
             <div class="lesson-details-content">
                 <div class="lesson-title-row">
                     <h2 class="course-player-title" dir="auto">${escapeQuizHtml(lesson.title)}</h2>
-                    <div class="lesson-actions">
-                        <button type="button" class="btn-complete-next" onclick="completeLessonAndNext('${escapeQuizHtml(lesson.id)}')">
+                    <div class="lesson-actions${hasQuiz ? ' lesson-actions-quiz' : ''}">
+                        <button type="button" class="btn-complete-next${hasQuiz ? ' btn-lesson-quiz' : ''}" onclick="completeLessonAndNext('${escapeQuizHtml(lesson.id)}')">
                             <i class="fas fa-${hasQuiz ? 'bolt' : 'arrow-right'}" aria-hidden="true"></i> ${hasQuiz ? 'Passer au quiz' : 'Leçon suivante'}
                         </button>
                     </div>
@@ -981,11 +1028,22 @@ async function showLessonInMainArea(lesson, videoUrl, pdfUrl, practiceFiles = []
             }, { once: true });
             video.addEventListener('timeupdate', () => persistLessonVideoPosition(video));
             video.addEventListener('pause', () => persistLessonVideoPosition(video, true));
+            let lastCompletionAttempt = -Infinity;
+            const saveWatchedLesson = (ended = false) => {
+                if (!video.isConnected || video.dataset.completionSaved === 'true') return;
+                const duration = video.duration;
+                if (!ended && (!Number.isFinite(duration) || duration <= 0 || video.currentTime / duration < 0.9)) return;
+                if (!ended && Date.now() - lastCompletionAttempt < 10000) return;
+                lastCompletionAttempt = Date.now();
+                void markLessonProgress(lesson.id).then(saved => { if (saved) video.dataset.completionSaved = 'true'; });
+            };
+            video.addEventListener('timeupdate', () => saveWatchedLesson());
+            video.addEventListener('pause', () => saveWatchedLesson());
             let checkpointOpened = false;
             video.addEventListener('ended', async () => {
                 if (!video.isConnected || checkpointOpened) return;
                 checkpointOpened = true;
-                void markLessonProgress(lesson.id);
+                saveWatchedLesson(true);
                 if (hasQuiz) {
                     if (document.fullscreenElement?.contains(video)) await document.exitFullscreen().catch(()=>{});
                     if (video.isConnected) void playLesson(linkedQuiz.id);
@@ -1991,14 +2049,9 @@ function nextCourseItem(lessonId, skipQuizzes = false) {
 async function completeLessonAndNext(lessonId) {
     const request = ++lessonRequest;
     try {
-        // Mark as complete in backend
-        const progressResponse = await fetch('/api/tracking/progress', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ lessonId, progress: 100 })
-        });
-        if (!progressResponse.ok) console.warn('Lesson progress was not saved:', progressResponse.status);
-        
+        // Use the same confirmed-save/UI update path as automatic 90% completion.
+        if (!await markLessonProgress(lessonId)) console.warn('Lesson progress was not saved');
+
         // Find next lesson and check access
         if (!currentCourse || !currentCourse.modules) return;
         

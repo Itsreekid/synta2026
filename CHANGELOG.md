@@ -1,3 +1,8 @@
+## 2026-11-23 — Restore 90% lesson completion tracking
+
+- Mark native lessons complete at 90%, coalesce repeated saves, retry failures and refresh course/sidebar checkmarks, chapter counts and progress only after success. Reuse existing authorized API; player design unchanged.
+- 37 targeted browser/security/player regressions passed, zero failed/skipped. No migration or deployment.
+
 ## 2026-11-23 — Video.js mobile-first player replacement
 
 - Replaced hand-maintained controls with pinned self-hosted Video.js 10.6.0, retaining native video identity, progress/resume, quiz flow, resources and provider embeds.
