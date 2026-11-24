@@ -178,16 +178,28 @@ function checkZoomReadCooldown(){
   if(Date.now()<zoomReadBlockedUntil){const error=new Error('Zoom rate limited');error.status=429;throw error;}
 }
 
-// Type 3 has no provider schedule: reschedule only the selected local date.
-export async function rescheduleZoomMeeting(meetingId,startTime,durationMinutes){
-  const token=await getZoomAccessToken();
-  const url='https://api.zoom.us/v2/meetings/'+encodeURIComponent(meetingId);
-  const headers={Authorization:'Bearer '+token,'Content-Type':'application/json'};
-  const current=await fetch(url,{headers,signal:AbortSignal.timeout(10000)});
-  if(!current.ok)throw new Error('Zoom meeting lookup failed');
-  const meeting=await current.json();
-  if(meeting.type===3)return;
-  if(meeting.type!==2)throw new Error('Unsupported Zoom recurrence');
-  const response=await fetch(url,{method:'PATCH',headers,signal:AbortSignal.timeout(10000),body:JSON.stringify({start_time:startTime,duration:durationMinutes,timezone:'Africa/Tunis'})});
-  if(!response.ok)throw new Error('Zoom rescheduling failed');
+// Shared no-fixed-time meetings use the platform's individual session dates.
+// A scheduled meeting needs only the existing write permission, not a GET/read scope.
+export async function rescheduleZoomMeeting(meetingId,startTime,durationMinutes,{sharedMeeting=false}={}){
+  if(sharedMeeting)return;
+  let token;
+  try{token=await getZoomAccessToken();}catch{throw rescheduleError('authentication');}
+  let response;
+  try{
+    response=await fetch('https://api.zoom.us/v2/meetings/'+encodeURIComponent(meetingId),{
+      method:'PATCH',headers:{Authorization:'Bearer '+token,'Content-Type':'application/json'},
+      signal:AbortSignal.timeout(10000),redirect:'error',
+      body:JSON.stringify({start_time:startTime,duration:durationMinutes,timezone:'Africa/Tunis'}),
+    });
+  }catch{throw rescheduleError('network');}
+  if(response.ok)return;
+  const problem=await response.json().catch(()=>({}));
+  const code=Number.isInteger(problem.code)?problem.code:undefined;
+  const reason=response.status===429?'rate_limit':response.status===401||response.status===403||code===4711?'permissions':response.status===404||code===3001?'missing_meeting':'provider_rejected';
+  throw rescheduleError(reason,response.status,code);
+}
+function rescheduleError(reason,httpStatus,zoomCode){
+  const error=new Error('Zoom reschedule failed');
+  error.reason=reason;error.httpStatus=httpStatus;error.zoomCode=zoomCode;
+  return error;
 }

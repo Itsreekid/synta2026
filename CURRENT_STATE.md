@@ -1,3 +1,9 @@
+### 2026-11-24 — Reschedule Zoom failure correction
+
+- Removed the unnecessary GET meeting lookup from rescheduleZoomMeeting; standalone scheduled meetings now use PATCH directly with existing update permission. Shared meeting IDs (multiple persisted local session rows, as created by this app for no-fixed-time series) update only the selected local schedule and notifications; other recurring dates/provider meeting remain unchanged.
+- API errors now distinguish OAuth failure, permissions, missing Zoom meeting, rate limit, network timeout and other rejection. Structured reschedule_zoom_failed logs include safe reason/HTTP status/numeric Zoom code only; provider messages, tokens and URLs are omitted. Local transaction still rolls back on provider failure.
+- Five focused mocked tests passed including no-GET contract, shared-meeting no-call, PATCH payload/timezone, 401/403/404/429/400/network errors, retry/notification safety, finish/rename and recurrence. No actual Zoom request, production access, deploy or migration. Production root cause is not proven: screenshot contains only the old generic error. Required follow-up: verify Zoom update scope, deploy with approval, then check safe diagnostic if rejected. Full browser/PostgreSQL checks still pending.
+
 ### 2026-11-24 — Live finish → replay editing
 
 - Existing Details popup now permits title/description/course metadata edits before a session starts; future scheduling fields stay disabled in that form and use Reporter la séance. Started sessions expose Terminer la séance, which marks only that Synta row completed, idempotently, with requireAdmin. Future/cancelled sessions cannot be finished. Admin list and popup honor completed status before scheduled end.

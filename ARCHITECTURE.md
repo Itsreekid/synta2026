@@ -1,3 +1,7 @@
+### Reschedule provider correction — 2026-11-24
+
+The reschedule endpoint derives shared_meeting from existing local rows sharing zoom_meeting_id. App-created shared no-fixed-time meetings need no provider schedule update; standalone meetings use PATCH directly without GET/read permission. Provider failures are classified into safe diagnostic codes. Earlier documentation about checking provider meeting type is superseded. Zoom update permission remains required for standalone meetings.
+
 ### Manual completion — 2026-11-24
 
 PATCH /api/live/:sessionId/finish (requireAdmin) atomically updates existing started scheduled/live row status to completed and treats repeat completion as success. It makes no Zoom/storage call. Completion is respected by upcoming/join APIs and metadata-editor guards while original scheduling coordinates remain available to occurrence matching. No schema change.

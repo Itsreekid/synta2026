@@ -1,3 +1,7 @@
+## 2026-11-24 — Fix unnecessary Zoom read dependency during rescheduling
+
+- Rescheduling standalone meetings now uses direct Zoom PATCH; shared recurring meeting schedules remain local. Added safe actionable French errors and structured diagnostics. Five focused mocked regressions pass. No production operation.
+
 ## 2026-11-24 — Finish live sessions and edit replay titles
 
 - Added Terminer la séance in existing manager Details, independent of nominal ending time. Completed sessions close platform joins and unlock replay editing immediately.

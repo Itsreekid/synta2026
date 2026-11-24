@@ -82,7 +82,7 @@ router.patch('/:sessionId/reschedule',requireAdmin,async(req,res)=>{
   let client;
   try{
     client=await pool.connect();await client.query('BEGIN');
-    const result=await client.query('SELECT id,title,scheduled_at,duration_minutes,status,zoom_meeting_id FROM live_sessions WHERE id=$1 FOR UPDATE',[req.params.sessionId]);
+    const result=await client.query('SELECT id,title,scheduled_at,duration_minutes,status,zoom_meeting_id, (SELECT COUNT(*)>1 FROM live_sessions sibling WHERE sibling.zoom_meeting_id=live_sessions.zoom_meeting_id) AS shared_meeting FROM live_sessions WHERE id=$1 FOR UPDATE',[req.params.sessionId]);
     const session=result.rows[0];
     if(!session){await client.query('ROLLBACK');return res.status(404).json({error:'Séance introuvable.'});}
     if(session.status!=='scheduled'||new Date(session.scheduled_at).getTime()<=Date.now()){await client.query('ROLLBACK');return res.status(409).json({error:'Seule une séance à venir peut être reportée.'});}
@@ -95,7 +95,22 @@ router.patch('/:sessionId/reschedule',requireAdmin,async(req,res)=>{
     const notifications=await client.query(`INSERT INTO notifications(user_id,title,message,type,link)
       SELECT u.id,$2,$3,'info','/app/calendar' FROM users u
       WHERE u.role='user' AND EXISTS(SELECT 1 FROM live_sessions ls WHERE ls.id=$1 AND ${liveSessionAccess('u.id')})`,[session.id,'Séance reportée',message]);
-    if(session.zoom_meeting_id){try{await rescheduleZoomMeeting(session.zoom_meeting_id,new Date(startTime).toISOString(),session.duration_minutes);}catch{await client.query('ROLLBACK');return res.status(502).json({error:'Zoom n’a pas confirmé le report. Aucun changement enregistré. Réessayez.'});}}
+    if(session.zoom_meeting_id){try{
+      await rescheduleZoomMeeting(session.zoom_meeting_id,new Date(startTime).toISOString(),session.duration_minutes,{sharedMeeting:session.shared_meeting===true});
+    }catch(error){
+      await client.query('ROLLBACK');
+      const messages={
+        permissions:'Zoom refuse la modification. Vérifiez le droit meeting:update:meeting:admin (ou meeting:write:admin) de l’application Zoom, puis réactivez-la si nécessaire.',
+        authentication:'La connexion à Zoom a échoué. Vérifiez la configuration OAuth Zoom côté serveur.',
+        missing_meeting:'La réunion associée est introuvable sur Zoom. Vérifiez cette réunion avant de reporter la séance.',
+        rate_limit:'Zoom limite les modifications pour le moment. Réessayez plus tard.',
+        network:'Impossible de joindre Zoom ou délai dépassé. Vérifiez aussi l’horaire sur Zoom avant de réessayer.',
+      };
+      const reason=Object.hasOwn(messages,error.reason)?error.reason:'provider_rejected';
+      console.warn(JSON.stringify({service:'live-sessions',event:'reschedule_zoom_failed',sessionId:session.id,reason,httpStatus:Number.isInteger(error.httpStatus)?error.httpStatus:undefined,zoomCode:Number.isInteger(error.zoomCode)?error.zoomCode:undefined}));
+      return res.status(reason==='rate_limit'?429:502).json({error:(messages[reason]||'Zoom a refusé le report. Consultez le diagnostic reschedule_zoom_failed dans les logs serveur.')+' Aucun changement enregistré sur Synta.'});
+    }}
+
     await client.query('COMMIT');
     console.info(JSON.stringify({service:'live-sessions',event:'rescheduled',sessionId:session.id,adminId:req.user.id,notified:notifications.rowCount}));
     return res.json({success:true,notified:notifications.rowCount});
