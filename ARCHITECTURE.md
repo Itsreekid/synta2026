@@ -1,3 +1,9 @@
+### Important notification popup — 2026-11-25
+
+GET /api/user/notifications/important and POST /api/user/notifications/:id/acknowledge reuse cookie auth and notifications rows. Current session access/time is checked on listing; acknowledgment is ownership-constrained/idempotent and independent of is_read. Three additive popup fields link the existing notification to the current reschedule snapshot. Missing columns leave the popup dormant and preserve reschedule/bell behavior. Native dialog controller in shared user.js refreshes on lifecycle events without polling.
+
+Docker already gates app startup on the versioned migration runner; checksum ledger, advisory lock and per-file transactions remain. Common destructive pending statements are rejected; safe error codes are logged. See NOTIFICATION_POPUP_DEPLOYMENT.md.
+
 ### Reschedule provider correction — 2026-11-24
 
 The reschedule endpoint derives shared_meeting from existing local rows sharing zoom_meeting_id. App-created shared no-fixed-time meetings need no provider schedule update; standalone meetings use PATCH directly without GET/read permission. Provider failures are classified into safe diagnostic codes. Earlier documentation about checking provider meeting type is superseded. Zoom update permission remains required for standalone meetings.

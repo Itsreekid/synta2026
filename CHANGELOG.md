@@ -1,3 +1,9 @@
+## 2026-11-25 — Important session-change popup and automatic migration verification
+
+- Added persistent, independent popup acknowledgments to existing reschedule notifications and a responsive, accessible modal with calendar navigation.
+- Approved additive 202611250001 migration is now in the automatic deployment directory. Reused ledger/checksum/locking runner; blocked common destructive SQL and sanitized failure logs.
+- 56 affected tests passed on disposable PostgreSQL and synthetic Chrome. No production action.
+
 ## 2026-11-24 — Refine notification dropdown
 
 - Added compact category icons, cleaner flat rows, French timestamps and responsive panel styling. Simplified reschedule notification copy for existing and new messages.

@@ -1279,6 +1279,7 @@ test("login starts a rotating session, logout revokes it, and magic login is not
  const old=new Date(Date.now()+86400000).toISOString(),future=new Date(Date.now()+172800000).toISOString();
  let state={id:DATES[0],title:'Cours Matrice',scheduled_at:old,status:'scheduled',duration_minutes:90,zoom_meeting_id:'synthetic'},snapshot,notices=0,fail=false;
  const query=async(sql,args)=>{
+ if(sql.includes('information_schema.columns')&&sql.includes('popup_session_id'))return {rows:[{count:3}]};
  if(sql==='BEGIN'){snapshot={...state};return {rows:[]};}
  if(sql==='ROLLBACK'){state={...snapshot};notices=0;return {rows:[]};}
  if(sql==='COMMIT')return {rows:[]};

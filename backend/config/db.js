@@ -20,14 +20,14 @@ const pool = new Pool({
 });
 
 pool.on("error", (err) => {
-  console.error("Unexpected error on idle pg client", err);
+  console.error("Unexpected error on idle pg client", /^[A-Z0-9_]{1,32}$/.test(err.code||"")?err.code:"DATABASE_ERROR");
 });
 
 // Connection check only. DDL belongs in versioned migrations.
 pool.query("SELECT 1").then(() => {
   console.log("✅ Database connected successfully");
 }).catch((err) => {
-  console.error("❌ Database connection failed (Local Dev):", err.message);
+  console.error("Database connection failed:", /^[A-Z0-9_]{1,32}$/.test(err.code||"")?err.code:"DATABASE_ERROR");
   // process.exit(1);
 });
 

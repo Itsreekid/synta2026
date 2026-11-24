@@ -64,6 +64,8 @@ async function initializeCalendar() {
 
         // Render the calendar
         renderCalendar();
+        const focusId=urlParams.get('session');
+        if(focusId){const event=window.upcomingEvents.find(item=>item.id===focusId);if(event)showEventDetails(event,new Date(event.scheduled_at));}
         const replayId = urlParams.get('replay');
         if (replayId) {
             const response = await fetch('/api/live/session/' + encodeURIComponent(replayId), { credentials: 'include' });

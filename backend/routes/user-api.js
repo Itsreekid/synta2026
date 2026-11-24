@@ -38,6 +38,32 @@ function ensureTransactionsSchema() {
   return transactionsSchemaReady;
 }
 
+async function popupSchemaReady(){
+ const r=await pool.query("SELECT COUNT(*)::int AS count FROM information_schema.columns WHERE table_schema=current_schema() AND table_name='notifications' AND column_name IN ('popup_session_id','popup_scheduled_at','popup_acknowledged_at')");return r.rows[0]?.count===3;
+}
+router.get('/api/user/notifications/important',authApiMiddleware,async(req,res)=>{
+ res.set('Cache-Control','private, no-store');
+ try{
+ if(!await popupSchemaReady())return res.json({notifications:[]});
+ const result=await pool.query(`SELECT n.id,ls.id AS session_id,ls.title,ls.scheduled_at,n.created_at
+ FROM notifications n JOIN live_sessions ls ON ls.id=n.popup_session_id
+ WHERE n.user_id=$1 AND n.popup_acknowledged_at IS NULL AND ls.status='scheduled' AND ls.scheduled_at>NOW()
+ AND n.popup_scheduled_at=ls.scheduled_at AND ${liveSessionAccess('$1')}
+ AND NOT EXISTS(SELECT 1 FROM notifications newer WHERE newer.user_id=n.user_id AND newer.popup_session_id=n.popup_session_id AND (newer.created_at,newer.id)>(n.created_at,n.id))
+ ORDER BY n.created_at,n.id LIMIT 50`,[req.user.id]);
+ const format=new Intl.DateTimeFormat('fr-FR',{timeZone:'Africa/Tunis',dateStyle:'full',timeStyle:'short'});
+ return res.json({notifications:result.rows.map(row=>({id:row.id,title:'Séance reportée',message:'La séance « '+row.title+' » est reportée au '+format.format(new Date(row.scheduled_at))+'.',link:'/app/calendar?session='+encodeURIComponent(row.session_id)+'&date='+new Date(new Date(row.scheduled_at).getTime()+3600000).toISOString().slice(0,10)}))});
+ }catch(error){console.error('Important notifications unavailable:',error.code??error.name);return res.status(503).json({error:'Impossible de charger les notifications importantes.'});}
+});
+router.post('/api/user/notifications/:id/acknowledge',authApiMiddleware,async(req,res)=>{
+ if(!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(req.params.id))return res.status(400).json({error:'Notification invalide.'});
+ try{
+ if(!await popupSchemaReady())return res.status(503).json({error:'Confirmation indisponible. Réessayez.'});
+ const result=await pool.query('UPDATE notifications SET popup_acknowledged_at=COALESCE(popup_acknowledged_at,NOW()) WHERE id=$1 AND user_id=$2 AND popup_session_id IS NOT NULL RETURNING id',[req.params.id,req.user.id]);
+ if(!result.rowCount)return res.status(404).json({error:'Notification introuvable.'});return res.json({success:true});
+ }catch(error){console.error('Important acknowledgment failed:',error.code??error.name);return res.status(503).json({error:'Confirmation impossible. Réessayez.'});}
+});
+
 /**
  * GET /api/user/notifications
  */

@@ -360,3 +360,59 @@ window.toggleMobileMenu = toggleMobileMenu;
 window.closeMobileMenu = closeMobileMenu;
 window.toggleNotifications = toggleNotifications;
 window.toggleProfileDropdown = toggleProfileDropdown; 
+
+// One persistent, server-backed popup controller across Turbo page navigation.
+(() => {
+ if(window.syntaImportantPopup)return;
+ window.syntaImportantPopup=true;
+ let dialog=null,current=null,busy=false,saving=false,lastCheck=0,opener=null;
+ function close(){if(dialog){dialog.remove();dialog=null;}current=null;}
+ function create(){
+  dialog=document.createElement('dialog');dialog.className='important-notification';
+  dialog.setAttribute('aria-labelledby','important-notification-title');dialog.setAttribute('aria-describedby','important-notification-message');
+  dialog.innerHTML='<button type="button" class="important-close" aria-label="Fermer et confirmer la lecture">×</button><div class="important-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M8 2v4m8-4v4M3 10h18M5 4h14a2 2 0 0 1 2 2v14H3V6a2 2 0 0 1 2-2m3 10h3m-3 3h6"/></svg></div><h2 id="important-notification-title">Séance reportée</h2><p id="important-notification-message" dir="auto"></p><div class="important-actions"><button type="button" class="important-calendar">Voir le calendrier</button><button type="button" class="important-understood">J’ai compris</button></div><p class="important-error" role="alert"></p>';
+  document.body.append(dialog);
+  dialog.querySelector('.important-close').onclick=()=>acknowledge(false);
+  dialog.querySelector('.important-understood').onclick=()=>acknowledge(false);
+  dialog.querySelector('.important-calendar').onclick=()=>acknowledge(true);
+  dialog.addEventListener('cancel',event=>{event.preventDefault();acknowledge(false);});
+ }
+ async function acknowledge(navigate){
+  if(saving||!current)return;saving=true;
+  const item=current;dialog.querySelectorAll('button').forEach(b=>b.disabled=true);
+  try{
+   const response=await fetch('/api/user/notifications/'+encodeURIComponent(item.id)+'/acknowledge',{method:'POST',credentials:'include'});
+   if(!response.ok)throw Error('Confirmation impossible. Vérifiez votre connexion et réessayez.');
+   if(dialog&&!window.matchMedia('(prefers-reduced-motion: reduce)').matches)await dialog.animate([{opacity:1},{opacity:0}],{duration:100}).finished.catch(()=>{});
+   close();opener?.isConnected&&opener.focus();
+   if(navigate){window.location.assign(item.link);return;}
+  }catch(error){if(dialog){dialog.querySelector('.important-error').textContent=error.message;dialog.querySelectorAll('button').forEach(b=>b.disabled=false);}}
+  finally{saving=false;}
+  if(!dialog)check(true);
+ }
+ async function check(force=false){
+  if(busy||saving||document.visibilityState==='hidden'||!document.getElementById('app-header-top'))return;
+  if(!force&&Date.now()-lastCheck<2000)return;
+  if(document.querySelector('dialog[open]:not(.important-notification)'))return;
+  busy=true;lastCheck=Date.now();
+  try{
+   const response=await fetch('/api/user/notifications/important',{credentials:'include',cache:'no-store'});
+   if(!response.ok)return;
+   const data=await response.json();if(document.visibilityState==='hidden')return;
+   const item=data.notifications?.[0];
+   if(!item){close();return;}
+   if(dialog&&current?.id===item.id)return;
+   close();if(document.querySelector('dialog[open]'))return;
+   current=item;opener=document.activeElement;create();
+   dialog.querySelector('#important-notification-message').textContent=item.message;
+   dialog.showModal();dialog.querySelector('.important-calendar').focus();
+  }catch{}finally{busy=false;}
+ }
+ document.addEventListener('DOMContentLoaded',()=>check());
+ document.addEventListener('turbo:load',()=>check(true));
+ document.addEventListener('turbo:before-cache',close);
+ document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='hidden')close();else check(true);});
+ document.addEventListener('close',()=>check(),true);
+ window.addEventListener('pageshow',()=>check(true));window.addEventListener('focus',()=>check());
+ if(document.readyState!=='loading')check();
+})();

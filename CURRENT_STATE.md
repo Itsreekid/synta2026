@@ -1,3 +1,15 @@
+### 2026-11-25 — Important popup implemented; automatic migrations verified locally
+
+- Implemented same-event important reschedule popup using three approved nullable notifications fields and existing notification IDs; promoted only 202611250001 to database/migrations. JWT-owned important list/ack routes, revalidated current access/schedule, supersession/cancel/expiry suppression and independent persistent acknowledgment. Bell system unchanged. Mobile accessible native dialog, sequential events, failure retry, Escape/X/calendar acknowledgment and session calendar deep-link.
+- Reused existing Docker npm run migrate && npm start. Ledger/checksum/advisory-lock/transaction workflow already existed; added conservative destructive SQL rejection and sanitized migration/DB failure logs. No new env or Docker startup change. Production Coolify settings/ledger not inspected. See NOTIFICATION_POPUP_DEPLOYMENT.md for exact conditions/rollout/rollback.
+- Affected suite: 56 passed, 0 failed/skipped using disposable PostgreSQL and synthetic Chrome at 320/375/390/430/768/1440. Verified repeated/concurrent runner invocation, rollback and ledger preservation on failed SQL, destructive statement block, owner isolation, persisted acknowledgment/bell preservation, retry/superseded/cancelled events. Browser tested retry/Escape/reload/navigation and text safety. Full repository suite and Docker build not claimed. JS/EJS project has no production build script.
+- No production DB operation, deployment, push, credentials change or unrelated migration promotion. Next: owner-approved synthetic staging deployment with backups; verify live Coolify Dockerfile CMD and update-scope before any real Zoom reschedule.
+
+### 2026-11-25 — Important reschedule popup proposal, awaiting schema approval
+
+- Read attached popup request and inspected notification/reschedule/auth/shared UI architecture. Prepared NOTIFICATION_POPUP_PLAN.md and held 202611250001_notification_popup_acknowledgment.sql (three nullable notifications columns plus partial index). Schema proposal documented in DATABASE_SCHEMA.md.
+- AGENTS.md database rule 1 requires confirmation of new columns; no application implementation, database operation, migration promotion, push or deploy performed. Next: owner approves this exact additive schema; then implement and test complete feature per plan. No production build script exists in backend/package.json.
+
 ### 2026-11-24 — Notification presentation and timezone-label cleanup
 
 - Refined existing student notification dropdown: compact static SVG category icons (session/payment/warning/success/info), scoped flat message/date styling to prevent calendar pill styles leaking, French timestamps, subtle unread state, keyboard-native button rows and mobile viewport-safe panel. Existing read/navigation APIs preserved; untrusted titles/messages still use textContent. Shared JS/CSS references versioned.

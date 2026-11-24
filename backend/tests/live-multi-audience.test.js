@@ -38,6 +38,26 @@ test('OR session migration, API access and admin browser on disposable PostgreSQ
     await promisify(execFile)(process.execPath,[fileURLToPath(new URL('../scripts/migrate.js',import.meta.url))], {
       env:{...process.env,DATABASE_URL:`postgresql://bugi_qa:bugi-synthetic-local-only@127.0.0.1:${connection.port}/${name}`,DB_SSL:'false'},timeout:30000,
     });
+    await Promise.all([1,2].map(()=>promisify(execFile)(process.execPath,[fileURLToPath(new URL('../scripts/migrate.js',import.meta.url))],{env:{...process.env,DATABASE_URL:`postgresql://bugi_qa:bugi-synthetic-local-only@127.0.0.1:${connection.port}/${name}`,DB_SSL:'false'},timeout:30000})));
+    assert.equal((await db.query("SELECT COUNT(*)::int n FROM schema_migrations WHERE filename='202611250001_notification_popup_acknowledgment.sql'")).rows[0].n,1);
+    await t.test('migration failures roll back and destructive SQL is blocked before execution',async()=>{
+      let sequence=0;
+      for(const sql of ['CREATE TABLE popup_rollback_probe(id INT); SELECT 1/0;','DROP TABLE users;']){
+        const filename='29990101000'+(++sequence)+'_failure_probe.sql';let done;const finished=new Promise(resolve=>done=resolve);const logs=[];
+        const context=vm.createContext({console:{log(){},error:(...args)=>logs.push(args)},process:{}});
+        const file=new URL('../scripts/migrate.js',import.meta.url);
+        const source=new vm.SourceTextModule(await readFile(file,'utf8'),{context,initializeImportMeta:meta=>meta.url=file.href});
+        await source.link(async spec=>{
+          const values=spec==='../config/db.js'?{default:{connect:()=>db.connect(),end:async()=>done()}}:spec==='../loadEnv.js'?{}:spec==='node:fs/promises'?{access:async()=>{},readdir:async()=>[filename],readFile:async()=>sql}:await import(spec);
+          return new vm.SyntheticModule(Object.keys(values),function(){for(const[k,v]of Object.entries(values))this.setExport(k,v);},{context});
+        });
+        await source.evaluate();await finished;await new Promise(resolve=>setTimeout(resolve,0));
+        assert.equal(context.process.exitCode,1);assert.equal(logs.length,1);
+        assert.equal((await db.query('SELECT count(*)::int n FROM schema_migrations WHERE filename=$1',[filename])).rows[0].n,0);
+      }
+      assert.equal((await db.query("SELECT to_regclass('popup_rollback_probe') AS probe,to_regclass('users') AS users")).rows[0].probe,null);
+      assert.ok((await db.query("SELECT to_regclass('users') AS users")).rows[0].users);
+    });
     const makeUser = async (label,role='user') => (await db.query("INSERT INTO users(email,password_hash,name,role) VALUES($1,'synthetic',$2,$3) RETURNING id",[label+'@example.invalid',label,role])).rows[0].id;
     const course = async label => (await db.query('INSERT INTO courses(title,is_published) VALUES($1,true) RETURNING id',[label])).rows[0].id;
     const admin=await makeUser('Admin','admin'), buyer=await makeUser('Buyer'), enrolled=await makeUser('Enrolled');
@@ -142,7 +162,27 @@ test('OR session migration, API access and admin browser on disposable PostgreSQ
       const notices=(await db.query('SELECT user_id,message FROM notifications')).rows;
       assert.deepEqual(notices.map(r=>r.user_id).sort(),[buyer,enrolled,guest].sort());
       assert.ok(notices.every(r=>r.message.includes('est reportée au')&&!r.message.includes('heure de Tunis')));
+      const pending=await(await request('/api/user/notifications/important',guest)).json();
+      assert.equal(pending.notifications.length,1);assert.match(pending.notifications[0].message,/est reportée au/);
+      const notice=pending.notifications[0];
+      assert.equal((await request('/api/user/notifications/'+notice.id+'/acknowledge',stranger,{})).status,404);
+      assert.equal((await request('/api/user/notifications/'+notice.id+'/acknowledge',guest,{})).status,200);
+      assert.equal((await request('/api/user/notifications/'+notice.id+'/acknowledge',guest,{})).status,200);
+      assert.equal((await(await request('/api/user/notifications/important',guest)).json()).notifications.length,0);
+      const bell=(await db.query('SELECT is_read,popup_acknowledged_at FROM notifications WHERE id=$1',[notice.id])).rows[0];
+      assert.equal(bell.is_read,false);assert.ok(bell.popup_acknowledged_at);
+      assert.equal((await(await request('/api/user/notifications/important',enrolled)).json()).notifications.length,1);
+      assert.equal((await(await request('/api/user/notifications/important',stranger)).json()).notifications.length,0);
+
       assert.equal((await request('/api/live/'+id+'/reschedule',admin,{...body,startTime:new Date(Date.now()+172800000).toISOString()},'PATCH')).status,409);
+      const nextTime=new Date(Date.now()+259200000).toISOString();
+      assert.equal((await request('/api/live/'+id+'/reschedule',admin,{expectedStartTime:body.startTime,startTime:nextTime},'PATCH')).status,200);
+      const renewed=(await(await request('/api/user/notifications/important',guest)).json()).notifications;
+      assert.equal(renewed.length,1);assert.notEqual(renewed[0].id,notice.id);
+      assert.equal((await(await request('/api/user/notifications/important',enrolled)).json()).notifications.length,1,'superseded popup suppressed');
+      await db.query("UPDATE live_sessions SET status='cancelled' WHERE id=$1",[id]);
+      assert.equal((await(await request('/api/user/notifications/important',guest)).json()).notifications.length,0,'cancelled popup suppressed');
+
     });
     let mixed,offerOnly,courseOnly,resource;
     await t.test('offer-only, course-only, invitations, duplicate selections and API guards',async()=>{
@@ -156,7 +196,7 @@ test('OR session migration, API access and admin browser on disposable PostgreSQ
       assert.equal((await request('/api/live/schedule',guest,{})).status,403);
       assert.equal((await request('/api/live/upcoming',null)).status,401);
       assert.equal((await request('/api/live/schedule',admin,{title:'Bad',courseIds:[randomUUID()],offerIds:[],startTime:new Date().toISOString()})).status,400);
-      assert.equal(zoomCalls,3);
+      assert.equal(zoomCalls,4);
       const links=(await db.query('SELECT COUNT(*)::int n FROM enrollments WHERE user_id=$1',[guest])).rows[0].n;
       assert.equal(links,0,'invitation cannot grant paid course enrollment');
       const module=(await db.query("INSERT INTO modules(course_id,title) VALUES($1,'Paid chapter') RETURNING id",[c1])).rows[0].id;
@@ -391,7 +431,7 @@ test('OR session migration, API access and admin browser on disposable PostgreSQ
       assert.equal((await request('/api/live/'+draft+'/replay',admin,{replayKey:`live-replays/${draft}/manual.mp4`},'PATCH')).status,200);
       const edit={title:'Titre corrigé',courseId:c1,startTime:'2025-10-01T18:30:00+01:00',durationMinutes:75,description:'<b>Description texte</b>'};
       assert.equal((await request('/api/live/'+id+'/details',guest,edit,'PATCH')).status,403);
-      assert.equal((await request('/api/live/'+id+'/details',admin,{...edit,startTime:'2099-01-01T00:00:00Z'},'PATCH')).status,400);
+      assert.equal((await request('/api/live/'+id+'/details',admin,{...edit,startTime:'2099-01-01T00:00:00Z'},'PATCH')).status,409);
       assert.equal((await request('/api/live/'+id+'/details',admin,edit,'PATCH')).status,200);
       const updated=(await db.query('SELECT * FROM live_sessions WHERE id=$1',[id])).rows[0];
       assert.equal(updated.title,edit.title);assert.equal(updated.scheduled_at.toISOString(),'2025-10-01T17:30:00.000Z');assert.equal(updated.course_id,c1);assert.equal(updated.replay_url,body.replayUrl);assert.equal(updated.description,edit.description);
@@ -405,7 +445,7 @@ test('OR session migration, API access and admin browser on disposable PostgreSQ
       const edit={title:'Replay corrigé',courseIds:[c2],startTime:'2025-10-01T18:30:00+01:00',durationMinutes:75,description:'Description corrigée'};
       assert.equal((await request('/api/live/'+id+'/details',guest,edit,'PATCH')).status,403);
       assert.equal((await request('/api/live/'+id+'/details',admin,{...edit,zoom_meeting_id:'changed'},'PATCH')).status,400);
-      assert.equal((await request('/api/live/'+id+'/details',admin,{...edit,courseIds:[randomUUID()]},'PATCH')).status,409);
+      assert.equal((await request('/api/live/'+id+'/details',admin,{...edit,courseIds:[randomUUID()]},'PATCH')).status,400);
       assert.equal((await request('/api/live/'+id+'/details',admin,edit,'PATCH')).status,200);
       const saved=(await db.query('SELECT * FROM live_sessions WHERE id=$1',[id])).rows[0];
       assert.equal(saved.title,edit.title);assert.equal(saved.course_id,null);assert.equal(saved.zoom_meeting_id,original.zoom_meeting_id);assert.equal(saved.replay_url,original.replay_url);

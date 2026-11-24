@@ -38,6 +38,11 @@ async function migrate() {
         continue;
       }
 
+      // Conservative guard for unapproved data-destructive operations; migrations remain reviewed code.
+      const statements=sql.replace(/\/\*[\s\S]*?\*\//g,'').replace(/--[^\n]*/g,'');
+      if(/\b(?:DROP\s+(?:TABLE|SCHEMA|DATABASE)|TRUNCATE|DELETE\s+FROM|DROP\s+COLUMN)\b/i.test(statements)){
+        throw new Error('Destructive migration requires a separate reviewed deployment plan.');
+      }
       await client.query("BEGIN");
       try {
         await client.query(sql);
@@ -56,7 +61,7 @@ async function migrate() {
 }
 
 migrate().then(() => pool.end()).catch(async (error) => {
-  console.error("[migrate] deployment stopped; database migration failed:", error.message);
+  console.error("[migrate] deployment stopped; database migration failed:", typeof error.code === "string" && /^[A-Z0-9_]{1,32}$/.test(error.code) ? error.code : "Migration validation or execution failed. Check approved migration files and database connectivity.");
   await pool.end();
   process.exitCode = 1;
 });

@@ -92,9 +92,11 @@ router.patch('/:sessionId/reschedule',requireAdmin,async(req,res)=>{
     const message='La séance « '+session.title+' » est reportée au '+format(startTime)+'.';
     // All fallible local writes precede the provider request; rollback if Zoom rejects it.
     await client.query('UPDATE live_sessions SET scheduled_at=$2 WHERE id=$1',[session.id,startTime]);
-    const notifications=await client.query(`INSERT INTO notifications(user_id,title,message,type,link)
-      SELECT u.id,$2,$3,'info','/app/calendar' FROM users u
-      WHERE u.role='user' AND EXISTS(SELECT 1 FROM live_sessions ls WHERE ls.id=$1 AND ${liveSessionAccess('u.id')})`,[session.id,'Séance reportée',message]);
+    const popupSchema=await client.query("SELECT COUNT(*)::int AS count FROM information_schema.columns WHERE table_schema=current_schema() AND table_name='notifications' AND column_name IN ('popup_session_id','popup_scheduled_at','popup_acknowledged_at')");
+    const popupReady=popupSchema.rows[0]?.count===3;
+    const notifications=await client.query(`INSERT INTO notifications(user_id,title,message,type,link${popupReady?',popup_session_id,popup_scheduled_at':''})
+      SELECT u.id,$2,$3,'info','/app/calendar'${popupReady?',$1::uuid,$4::timestamptz':''} FROM users u
+      WHERE u.role='user' AND EXISTS(SELECT 1 FROM live_sessions ls WHERE ls.id=$1 AND ${liveSessionAccess('u.id')})`,[session.id,'Séance reportée',message,...(popupReady?[startTime]:[])]);
     if(session.zoom_meeting_id){try{
       await rescheduleZoomMeeting(session.zoom_meeting_id,new Date(startTime).toISOString(),session.duration_minutes,{sharedMeeting:session.shared_meeting===true});
     }catch(error){

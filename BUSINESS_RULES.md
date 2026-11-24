@@ -1,3 +1,8 @@
+### Important session notification acknowledgment — 2026-11-25
+
+- Future rescheduling creates one existing bell row per currently entitled student, enriched for important popup display. Acknowledging popup (X, Escape, understood or calendar) persists independently of reading/deleting the bell notification.
+- Current entitlement and session relevance are rechecked. Suppress outdated, cancelled, finished/started, deleted and superseded reschedules. Later reschedule produces a new popup; retry of the same schedule does not. Backdrop does not dismiss; interruption/navigation without saved acknowledgment leaves it pending. Failed acknowledgment remains retryable. Dates use Africa/Tunis without visible timezone suffix.
+
 ### Notification copy and timezone labels — 2026-11-24
 
 - Rescheduling notifications display session title and new date/time only; omit prior schedule. Existing stored messages may be simplified at display time without changing history. Visible timezone suffixes are omitted throughout admin/student interfaces; date calculations continue to use Africa/Tunis. Notification icons are selected from fixed safe categories.
