@@ -9,7 +9,7 @@
         <fieldset style="border:0;padding:0;margin:0">
         <div class="form-group"><label for="history-title">Titre *</label><input id="history-title" required maxlength="500" data-metadata></div>
         <div class="form-group"><label for="history-course">Cours associé *</label><select id="history-course" required data-metadata></select></div>
-        <div class="form-row"><div class="form-group"><label for="history-date">Date et heure d’origine (Tunis) *</label><input id="history-date" type="datetime-local" required data-metadata></div>
+        <div class="form-row"><div class="form-group"><label for="history-date">Date et heure d’origine *</label><input id="history-date" type="datetime-local" required data-metadata></div>
         <div class="form-group"><label for="history-duration">Durée (minutes)</label><input id="history-duration" type="number" min="1" max="1440" value="90" required data-metadata></div></div>
         <div class="form-group"><label for="history-source">Vidéo *</label><select id="history-source" data-metadata><option value="link">Lien externe (Google Drive…)</option><option value="upload">Téléverser une vidéo</option></select></div>
         <div class="form-group" data-link><label for="history-link">Lien externe *</label><input id="history-link" type="url" required placeholder="https://drive.google.com/file/d/…/view" data-metadata><small>Le fichier Drive doit être accessible à vos élèves.</small></div>

@@ -275,7 +275,7 @@ async function subscribeToOffer(offerId, title, accessMode) {
             }).format(new Date(data.expires_at));
             request.quote = data.quote;
             request.requestId = data.requestId;
-            details += `\nMontant : ${data.price} DT. Fin d’accès : ${expiry} (Tunis).`;
+            details += `\nMontant : ${data.price} DT. Fin d’accès : ${expiry}.`;
             if (accessMode === 'monthly') {
                 details += '\nRenouvellement manuel. Si le mois suivant ne comporte pas le 29, 30 ou 31 choisi, l’accès inclut son dernier jour. Un renouvellement continu conserve le jour initial.';
             }
@@ -284,7 +284,7 @@ async function subscribeToOffer(offerId, title, accessMode) {
                 const days = Math.max(0, Math.ceil((Date.parse(data.expires_at) - Date.parse(data.starts_at)) / 86400000));
                 const cutoff = new Intl.DateTimeFormat('fr-FR', { dateStyle: 'long', timeZone: 'UTC' })
                     .format(new Date(data.access_cutoff_date + 'T00:00:00Z'));
-                details += `\nAnnée scolaire ${year}–${year + 1} · environ ${days} jour(s) d’accès. Accès jusqu’au ${cutoff} inclus (heure de Tunis), quelle que soit la date d’achat.`;
+                details += `\nAnnée scolaire ${year}–${year + 1} · environ ${days} jour(s) d’accès. Accès jusqu’au ${cutoff} inclus, quelle que soit la date d’achat.`;
             }
         }
         const confirmed = confirm(details);

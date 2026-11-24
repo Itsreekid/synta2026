@@ -77,7 +77,7 @@
     function recordingGroups(session,segments){
         const groups=new Map();for(const segment of segments){const key=segment.zoom_meeting_uuid||'unknown';if(!groups.has(key))groups.set(key,[]);groups.get(key).push(segment);}
         return [...groups.entries()].sort((a,b)=>new Date(b[1][0].recording_start)-new Date(a[1][0].recording_start)).map(([uuid,files])=>
-            '<section class="zoom-occurrence-group"><header class="zoom-group-heading"><small>Enregistrement Zoom</small><h4>'+RecordingUI.esc(session.title)+'</h4><p>'+RecordingUI.date(files[0].recording_start)+' · '+RecordingUI.clock(files[0].recording_start)+' (Tunis)</p>'+RecordingUI.summary(files)+'<details class="zoom-advanced"><summary>Détails techniques</summary><code>'+RecordingUI.esc(uuid)+'</code></details></header>'+files.map((file,index)=>segmentLine(file,{selectable:true,index})).join('')+'</section>').join('');
+            '<section class="zoom-occurrence-group"><header class="zoom-group-heading"><small>Enregistrement Zoom</small><h4>'+RecordingUI.esc(session.title)+'</h4><p>'+RecordingUI.date(files[0].recording_start)+' · '+RecordingUI.clock(files[0].recording_start)+'</p>'+RecordingUI.summary(files)+'<details class="zoom-advanced"><summary>Détails techniques</summary><code>'+RecordingUI.esc(uuid)+'</code></details></header>'+files.map((file,index)=>segmentLine(file,{selectable:true,index})).join('')+'</section>').join('');
     }
     function renderReplays(session) {
         const panel = document.getElementById('manager-replays');
@@ -232,7 +232,7 @@
         const end = date.getTime() + session.duration_minutes*60000;
         const status = session.status==='completed'||Date.now()>end ? 'Terminée' : Date.now()>=date ? 'En direct' : 'Planifiée';
         const rows = [
-            ['Titre',session.title],['Date et heure',date.toLocaleString('fr-FR',{timeZone:'Africa/Tunis',dateStyle:'full',timeStyle:'short'})+' (Tunis)'],
+            ['Titre',session.title],['Date et heure',date.toLocaleString('fr-FR',{timeZone:'Africa/Tunis',dateStyle:'full',timeStyle:'short'})+''],
             ['Durée',session.duration_minutes+' min'],['Statut',status],
             ['Offres',names(session.offer_ids?.length ? session.offer_ids : [session.offer_id,...(session.additional_offer_ids || [])].filter(Boolean),allOffers)],
             ['Cours',names(session.course_ids?.length ? session.course_ids : [session.course_id].filter(Boolean),allCourses)],
@@ -256,7 +256,7 @@
     }
     function reschedule(session){
         const panel=document.getElementById('manager-details');
-        panel.innerHTML='<form class="session-details-form"><h3>Reporter la séance</h3><p data-old-date></p><div class="form-group"><label for="session-new-date">Nouvelle date et heure (Tunis)</label><input type="datetime-local" id="session-new-date" required></div><p>Les étudiants ayant accès à cette séance recevront une notification avec l’ancienne et la nouvelle date. Les autres séances restent inchangées.</p><div class="session-manager-actions"><button type="submit" class="btn-primary">Confirmer le report et notifier</button><button type="button" class="btn-secondary" data-cancel>Annuler</button></div><p role="alert" data-error></p></form>';
+        panel.innerHTML='<form class="session-details-form"><h3>Reporter la séance</h3><p data-old-date></p><div class="form-group"><label for="session-new-date">Nouvelle date et heure</label><input type="datetime-local" id="session-new-date" required></div><p>Les étudiants ayant accès à cette séance recevront une notification avec la nouvelle date. Les autres séances restent inchangées.</p><div class="session-manager-actions"><button type="submit" class="btn-primary">Confirmer le report et notifier</button><button type="button" class="btn-secondary" data-cancel>Annuler</button></div><p role="alert" data-error></p></form>';
         panel.querySelector('[data-old-date]').textContent='Actuellement : '+new Date(session.scheduled_at).toLocaleString('fr-FR',{timeZone:'Africa/Tunis',dateStyle:'full',timeStyle:'short'});
         const input=panel.querySelector('input');input.value=new Date(new Date(session.scheduled_at).getTime()+3600000).toISOString().slice(0,16);
         panel.querySelector('[data-cancel]').onclick=()=>renderDetails(session);
@@ -275,7 +275,7 @@
         const multi=session.access_policy==='any_selected';
         const selectedCourses=new Set(session.course_ids?.length?session.course_ids:session.course_id?[session.course_id]:[]);
         panel.innerHTML=`<form class="session-details-form"><div class="form-group"><label for="session-edit-title">Titre *</label><input id="session-edit-title" required maxlength="500"></div>
-            <div class="form-row"><div class="form-group"><label for="session-edit-date">Date et heure (Tunis) *</label><input id="session-edit-date" type="datetime-local" required></div><div class="form-group"><label for="session-edit-duration">Durée (minutes) *</label><input id="session-edit-duration" type="number" min="1" max="1440" required></div></div>
+            <div class="form-row"><div class="form-group"><label for="session-edit-date">Date et heure *</label><input id="session-edit-date" type="datetime-local" required></div><div class="form-group"><label for="session-edit-duration">Durée (minutes) *</label><input id="session-edit-duration" type="number" min="1" max="1440" required></div></div>
             ${multi?'<div class="form-group" id="session-edit-courses"></div>':'<div class="form-group"><label for="session-edit-course">Cours associé *</label><select id="session-edit-course" required></select></div>'}<p class="session-edit-note">Le titre, la date et la description sont affichés sur la plateforme. Les fichiers et identifiants Zoom restent inchangés. Changer les cours déplace le replay et ses ressources ; les offres et invitations sont conservées.</p>
             <div class="form-group"><label for="session-edit-description">Description</label><textarea id="session-edit-description" rows="4" maxlength="10000"></textarea></div>
             <div class="session-manager-actions"><button class="btn-primary" type="submit">Enregistrer les modifications</button><button class="btn-secondary" type="button" data-cancel-edit>Annuler</button></div><p data-edit-error role="alert"></p></form>`;

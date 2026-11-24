@@ -78,7 +78,7 @@ router.patch('/:sessionId/finish',requireAdmin,async(req,res)=>{
 // Reschedule one upcoming session and notify each currently entitled student once.
 router.patch('/:sessionId/reschedule',requireAdmin,async(req,res)=>{
   const {startTime,expectedStartTime}=req.body||{};
-  if(!uuidPattern.test(req.params.sessionId)||typeof startTime!=='string'||!Number.isFinite(Date.parse(startTime))||Date.parse(startTime)<=Date.now()||!Number.isFinite(Date.parse(expectedStartTime))||Object.keys(req.body||{}).some(key=>!['startTime','expectedStartTime'].includes(key)))return res.status(400).json({error:'Choisissez une date future valide (heure de Tunis).'});
+  if(!uuidPattern.test(req.params.sessionId)||typeof startTime!=='string'||!Number.isFinite(Date.parse(startTime))||Date.parse(startTime)<=Date.now()||!Number.isFinite(Date.parse(expectedStartTime))||Object.keys(req.body||{}).some(key=>!['startTime','expectedStartTime'].includes(key)))return res.status(400).json({error:'Choisissez une date future valide.'});
   let client;
   try{
     client=await pool.connect();await client.query('BEGIN');
@@ -89,7 +89,7 @@ router.patch('/:sessionId/reschedule',requireAdmin,async(req,res)=>{
     if(new Date(session.scheduled_at).getTime()===Date.parse(startTime)){await client.query('COMMIT');return res.json({success:true,notified:0});}
     if(new Date(session.scheduled_at).getTime()!==Date.parse(expectedStartTime)){await client.query('ROLLBACK');return res.status(409).json({error:'La séance a déjà été modifiée. Actualisez avant de réessayer.'});}
     const format=value=>new Date(value).toLocaleString('fr-FR',{timeZone:'Africa/Tunis',dateStyle:'full',timeStyle:'short'});
-    const message='La séance « '+session.title+' », initialement prévue le '+format(session.scheduled_at)+', est reportée au '+format(startTime)+' (heure de Tunis).';
+    const message='La séance « '+session.title+' » est reportée au '+format(startTime)+'.';
     // All fallible local writes precede the provider request; rollback if Zoom rejects it.
     await client.query('UPDATE live_sessions SET scheduled_at=$2 WHERE id=$1',[session.id,startTime]);
     const notifications=await client.query(`INSERT INTO notifications(user_id,title,message,type,link)

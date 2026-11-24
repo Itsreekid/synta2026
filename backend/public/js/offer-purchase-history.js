@@ -34,7 +34,7 @@
         top.append(title, badge);
 
         const expiry = purchase.expires_at
-            ? 'Fin d’accès : ' + format.format(new Date(purchase.expires_at)) + ' (Tunis)'
+            ? 'Fin d’accès : ' + format.format(new Date(purchase.expires_at)) + ''
             : 'Conditions d’accès d’origine';
         const meta = document.createElement('p');
         meta.className = 'offer-purchase-meta';

@@ -1,3 +1,9 @@
+### 2026-11-24 — Notification presentation and timezone-label cleanup
+
+- Refined existing student notification dropdown: compact static SVG category icons (session/payment/warning/success/info), scoped flat message/date styling to prevent calendar pill styles leaking, French timestamps, subtle unread state, keyboard-native button rows and mobile viewport-safe panel. Existing read/navigation APIs preserved; untrusted titles/messages still use textContent. Shared JS/CSS references versioned.
+- Reschedule notifications now say only La séance « title » est reportée au [new date]. Old stored notification messages are simplified in presentation without DB rewrites. Removed visible (heure de Tunis), (Tunis), and reminder timezone wording across student/admin UI and new messages; Africa/Tunis formatting and +01:00 conversions remain unchanged.
+- Executed presentation/unsafe-string/icon and reschedule regression tests: 2 passed, 0 failed. Modified JS syntax checks and diff checks passed. Browser/mobile visual validation has not been executed in this turn; previous local Chrome/approval runner limitation remains. No migration, production data changes, push or deployment.
+
 ### 2026-11-24 — Reschedule Zoom failure correction
 
 - Removed the unnecessary GET meeting lookup from rescheduleZoomMeeting; standalone scheduled meetings now use PATCH directly with existing update permission. Shared meeting IDs (multiple persisted local session rows, as created by this app for no-fixed-time series) update only the selected local schedule and notifications; other recurring dates/provider meeting remain unchanged.

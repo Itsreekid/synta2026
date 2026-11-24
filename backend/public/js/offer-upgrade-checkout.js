@@ -104,7 +104,7 @@
                 terms.className = 'offer-checkout-terms';
                 terms.textContent = 'Année scolaire ' + q.academicYear + '/' + (q.academicYear + 1) +
                     '. Dernier jour inclus : ' + cutoffDate.format(new Date(q.cutoff + 'T00:00:00Z')) +
-                    '. Fin d’accès : ' + tunisDate.format(new Date(q.expires_at)) + ' (Tunis). Accès restant : environ ' + duration + '.';
+                    '. Fin d’accès : ' + tunisDate.format(new Date(q.expires_at)) + '. Accès restant : environ ' + duration + '.';
                 quoteArea.append(terms);
                 const list = document.createElement('ol');
                 list.className = 'offer-checkout-schedule';

@@ -841,3 +841,21 @@ iframe.loading {
 .session-banner span {
     flex: 1 1 14rem;
 }
+/* Compact, scoped notification inbox: never inherit calendar time-pill styles. */
+#notificationDropdown { width:380px; min-width:0; max-width:calc(100vw - 24px); max-height:min(520px,75dvh); border:1px solid #e2e8f0; border-radius:16px; box-shadow:0 12px 36px #12304724; }
+#notificationDropdown .dropdown-header { position:sticky; top:0; background:#fff; z-index:1; padding:16px; font-size:14px; color:#123047; }
+#notificationDropdown .notification-event-item { appearance:none; width:100%; border:0; border-bottom:1px solid #edf1f5; border-radius:0; background:#fff; box-shadow:none; margin:0; padding:14px 16px; display:flex; align-items:flex-start; gap:12px; text-align:left; font:inherit; color:#123047; cursor:pointer; }
+#notificationDropdown .notification-event-item.is-unread { background:#f4f8fc; }
+#notificationDropdown .notification-event-item:hover { background:#eef4f8; }
+#notificationDropdown .notification-event-item:focus-visible { outline:2px solid #f97316; outline-offset:-3px; }
+#notificationDropdown .notification-kind { width:34px; height:34px; border-radius:10px; display:grid; place-items:center; flex:0 0 34px; background:#eaf3fb; color:#2474a0; }
+#notificationDropdown .notification-kind svg { width:19px; height:19px; }
+#notificationDropdown .notification-kind--session { color:#d45a11; background:#fff0e3; }
+#notificationDropdown .notification-kind--payment,#notificationDropdown .notification-kind--success { color:#07806f; background:#e5f6ef; }
+#notificationDropdown .notification-kind--warning { color:#ad7212; background:#fff5d9; }
+#notificationDropdown .event-info { display:block; min-width:0; flex:1; }
+#notificationDropdown .event-title { display:block; white-space:normal; overflow-wrap:anywhere; font-size:12px; font-weight:600; color:#52687b; margin:0 0 4px; line-height:1.4; }
+#notificationDropdown .notification-message { display:block; background:none; border:0; border-radius:0; padding:0; margin:0; font-size:13px; font-weight:400; color:#19354a; line-height:1.55; overflow-wrap:anywhere; }
+#notificationDropdown .notification-date { display:block; margin-top:6px; font-size:11px; font-weight:400; line-height:1.4; color:#738596; background:none; padding:0; }
+#notificationDropdown .notification-unread-dot { width:6px; height:6px; border-radius:50%; background:#f97316; flex:0 0 6px; margin-top:14px; }
+@media(max-width:480px) { #notificationDropdown { position:fixed; right:12px; left:12px; top:64px; width:auto; max-width:none; } #notificationDropdown .notification-event-item { padding:13px 14px; gap:10px; } }

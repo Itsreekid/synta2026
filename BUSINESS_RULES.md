@@ -1,3 +1,7 @@
+### Notification copy and timezone labels — 2026-11-24
+
+- Rescheduling notifications display session title and new date/time only; omit prior schedule. Existing stored messages may be simplified at display time without changing history. Visible timezone suffixes are omitted throughout admin/student interfaces; date calculations continue to use Africa/Tunis. Notification icons are selected from fixed safe categories.
+
 ### Manual live completion — 2026-11-24
 
 - Admin may mark a started Synta live session completed before its nominal end. This closes new platform joins and permits replay metadata edits immediately, without changing scheduled duration/Zoom identity or publishing unfinished media. Admin must separately end the meeting for all in Zoom. Recording processing/delivery remains event-driven with manual publication.

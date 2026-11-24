@@ -1284,7 +1284,7 @@ test("login starts a rotating session, logout revokes it, and magic login is not
  if(sql==='COMMIT')return {rows:[]};
  if(sql.startsWith('SELECT id,title'))return {rows:[state]};
  if(sql.startsWith('UPDATE live_sessions SET scheduled_at')){state.scheduled_at=args[1];return {rows:[]};}
- if(sql.includes('INSERT INTO notifications')){notices++;assert.match(args[2],/heure de Tunis/);return {rowCount:2,rows:[]};}
+ if(sql.includes('INSERT INTO notifications')){notices++;assert.match(args[2],/est reportée au/);assert.ok(!args[2].includes("heure de Tunis"));return {rowCount:2,rows:[]};}
  throw Error(sql);
  };
  const call=await loadRoute('live',{

@@ -86,6 +86,18 @@ async function updateNotificationBadge() {
     }
 }
 
+// Presentation only: old stored messages remain unchanged and render as text.
+function notificationPresentation(notification){
+    const title=String(notification.title||'');
+    const message=String(notification.message||'').replace(/\s*\((?:heure de )?Tunis\)/gi,'').replace(/, heure de Tunis/gi,'')
+        .replace(/^(La séance «[\s\S]*?»),?\s*initialement prévue le[\s\S]*?, est reportée au\s*/,'$1 est reportée au ');
+    const label=title+' '+String(notification.type||'');
+    const kind=/séance|session|replay|cours|reportée/i.test(label)?'session':/paiement|solde|portefeuille|transaction|rembours/i.test(label)?'payment':/warning|échéance|expire|expiration|alerte/i.test(label)?'warning':/success|confirm|validé|réussi/i.test(label)?'success':'info';
+    const paths={session:'M8 2v4m8-4v4M3 10h18M5 4h14a2 2 0 0 1 2 2v14H3V6a2 2 0 0 1 2-2m3 10h3m-3 3h6',payment:'M3 6h17v14H3V6Zm0 0V4h14v2m0 6h4v4h-4v-4Z',warning:'m12 3 10 18H2L12 3Zm0 6v5m0 3v1',success:'m5 12 4 4L19 6',info:'M18 8a6 6 0 0 0-12 0v7l-2 3h16l-2-3V8m-8 13h4'};
+    const icon='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" focusable="false"><path d="'+paths[kind]+'"/></svg>';
+    return {kind,message,icon};
+}
+
 // Load notifications into dropdown
 async function loadUserNotifications() {
     const eventsList = document.getElementById('notificationEventsList');
@@ -104,28 +116,19 @@ async function loadUserNotifications() {
             return;
         }
 
-        eventsList.innerHTML = notifications.map((notif, index) => {
-            const date = new Date(notif.created_at);
-            const timeStr = date.toLocaleDateString() + ' à ' + date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-            const isUnread = !notif.is_read;
-            const bgClass = isUnread ? 'style="background: #fff7ed;"' : '';
-            
-            return `
-                <div class="notification-event-item" ${bgClass} data-notification-index="${index}">
-                    <div class="event-icon">${notif.type === 'success' ? '🎉' : notif.type === 'warning' ? '⚠️' : '💡'}</div>
-                    <div class="event-info">
-                        <div class="event-title" style="font-weight: ${isUnread ? '700' : '500'}; color: #1e293b;" data-notification-title></div>
-                        <div class="event-time" style="font-size: 0.8rem; color: #64748b; margin-top: 2px;" data-notification-message></div>
-                        <div class="event-time" style="font-size: 0.7rem; color: #94a3b8; margin-top: 4px;">${timeStr}</div>
-                    </div>
-                    ${isUnread ? '<div style="width:8px;height:8px;border-radius:50%;background:#f97316;"></div>' : ''}
-                </div>
-            `;
+        eventsList.innerHTML = notifications.map((notif,index)=>{
+            const presentation=notificationPresentation(notif);
+            return '<button type="button" class="notification-event-item '+(!notif.is_read?'is-unread':'')+'" data-notification-index="'+index+'">'+
+                '<span class="notification-kind notification-kind--'+presentation.kind+'" aria-hidden="true">'+presentation.icon+'</span>'+
+                '<span class="event-info"><span class="event-title" data-notification-title></span><span class="notification-message" data-notification-message dir="auto"></span><span class="notification-date" data-notification-date></span></span>'+
+                (!notif.is_read?'<span class="notification-unread-dot" aria-label="Non lue"></span>':'')+'</button>';
         }).join('');
         for (const element of eventsList.querySelectorAll('[data-notification-index]')) {
             const notification = notifications[Number(element.dataset.notificationIndex)];
             element.querySelector('[data-notification-title]').textContent = notification.title;
-            element.querySelector('[data-notification-message]').textContent = notification.message;
+            element.querySelector('[data-notification-message]').textContent = notificationPresentation(notification).message;
+            const date=new Date(notification.created_at);
+            element.querySelector('[data-notification-date]').textContent=Number.isFinite(date.getTime())?date.toLocaleString('fr-FR',{timeZone:'Africa/Tunis',day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'}):'';
             element.addEventListener('click', () => markNotificationRead(notification.id, notification.link));
         }
     } catch (error) {

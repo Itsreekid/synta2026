@@ -141,7 +141,7 @@ test('OR session migration, API access and admin browser on disposable PostgreSQ
       assert.equal((await request('/api/live/'+id+'/reschedule',admin,body,'PATCH')).status,200);
       const notices=(await db.query('SELECT user_id,message FROM notifications')).rows;
       assert.deepEqual(notices.map(r=>r.user_id).sort(),[buyer,enrolled,guest].sort());
-      assert.ok(notices.every(r=>r.message.includes('heure de Tunis')));
+      assert.ok(notices.every(r=>r.message.includes('est reportée au')&&!r.message.includes('heure de Tunis')));
       assert.equal((await request('/api/live/'+id+'/reschedule',admin,{...body,startTime:new Date(Date.now()+172800000).toISOString()},'PATCH')).status,409);
     });
     let mixed,offerOnly,courseOnly,resource;

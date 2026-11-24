@@ -806,7 +806,7 @@
                     if (item.next_due_date) detail.push('Échéance : ' + item.next_due_date);
                     if (item.expires_at) detail.push('Fin d’accès : ' + new Intl.DateTimeFormat('fr-FR', {
                         timeZone: 'Africa/Tunis', dateStyle: 'short', timeStyle: 'short'
-                    }).format(new Date(item.expires_at)) + ' (Tunis)');
+                    }).format(new Date(item.expires_at)) + '');
                     info.textContent = detail.join(' · ');
                     card.append(name, info);
                     const itemUrl = url + '/' + encodeURIComponent(item.id);
@@ -834,7 +834,7 @@
                         const coverage = document.createElement('p');
                         coverage.textContent = 'Début d’accès : ' + new Intl.DateTimeFormat('fr-FR', {
                             timeZone: 'Africa/Tunis', dateStyle: 'short', timeStyle: 'short'
-                        }).format(new Date(item.starts_at)) + ' (Tunis)';
+                        }).format(new Date(item.starts_at)) + '';
                         card.append(coverage);
                     }
                     for (const payment of item.payments || []) {
@@ -882,7 +882,7 @@
                             '<label>Date réelle du paiement externe <input name="paidOn" type="date"></label>' +
                             '<label>Référence du reçu (facultative) <input name="receiptReference" minlength="3" maxlength="120" placeholder="N° de virement ou de reçu"></label>' +
                             '<label>Photo du reçu (facultative) <input name="receiptImage" type="file" accept="image/jpeg,image/png,image/webp"></label>' +
-                            (draft ? '<label>Début d’accès convenu (Tunis) <input name="coverageStart" type="date" disabled style="background:#e9eef3;color:#475569"></label>' +
+                            (draft ? '<label>Début d’accès convenu <input name="coverageStart" type="date" disabled style="background:#e9eef3;color:#475569"></label>' +
                                 '<label><input type="checkbox" name="overrideCoverageStart"> Choisir une autre date de début</label>' : '') +
                             (draft ? '<label>Prochaine échéance (facultative) <input name="nextDueDate" type="date"></label>' : '') +
                             '<button class="btn btn-primary" type="submit"></button>';
