@@ -1,3 +1,11 @@
+### Manual completion — 2026-11-24
+
+PATCH /api/live/:sessionId/finish (requireAdmin) atomically updates existing started scheduled/live row status to completed and treats repeat completion as success. It makes no Zoom/storage call. Completion is respected by upcoming/join APIs and metadata-editor guards while original scheduling coordinates remain available to occurrence matching. No schema change.
+
+### Upcoming reschedule endpoint — 2026-11-24
+
+PATCH /api/live/:sessionId/reschedule uses requireAdmin, row locking, expectedStartTime optimistic concurrency and the existing liveSessionAccess predicate to insert notifications once per student in the same transaction as the new scheduled_at. Zoom type 2 is patched; type 3 retains its no-fixed-time meeting. Original identifiers and recording occurrence associations are preserved. Provider success followed by DB/network failure still requires reconciliation; this is not a distributed transaction. No schema change.
+
 # ARCHITECTURE.md — Synta Academy
 
 PATCH /api/live/:sessionId/details (requireAdmin) transactionally corrects title, description, Tunis date/time, duration and course of completed imported replays without Zoom. It preserves replay/resource references and rejects scheduling edits to Zoom-backed or offer-specific sessions.

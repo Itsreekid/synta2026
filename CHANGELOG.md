@@ -1,3 +1,13 @@
+## 2026-11-24 — Finish live sessions and edit replay titles
+
+- Added Terminer la séance in existing manager Details, independent of nominal ending time. Completed sessions close platform joins and unlock replay editing immediately.
+- Enabled upcoming session metadata editing; future time changes retain the dedicated reschedule workflow. Zoom recordings and manual publication pipeline unchanged. Five focused mocked regressions pass; full integration/browser checks pending.
+
+## 2026-11-24 — Reschedule upcoming sessions
+
+- Added admin reschedule form in the current session popup, Tunis date/time handling, stale-edit protection and deduplicated in-app notifications for eligible students. Existing Zoom meeting identities, recurring dates and replay pipeline preserved.
+- Local mocked regression passes; PostgreSQL/browser validation remains blocked by local runner restrictions. No production operation or migration.
+
 ## 2026-11-24 — Edit imported replay details and remove finished sessions
 
 - Enabled the existing replay metadata editor for finished Zoom sessions, including multiple associated courses. Preserved recording identity, selected offers and invitations.

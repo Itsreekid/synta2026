@@ -1,3 +1,13 @@
+### Manual live completion — 2026-11-24
+
+- Admin may mark a started Synta live session completed before its nominal end. This closes new platform joins and permits replay metadata edits immediately, without changing scheduled duration/Zoom identity or publishing unfinished media. Admin must separately end the meeting for all in Zoom. Recording processing/delivery remains event-driven with manual publication.
+- Upcoming session title, description and course associations may be edited locally; use the dedicated reschedule action for future time changes. No automatic title conversion or historical access change.
+
+### Upcoming session rescheduling — 2026-11-24
+
+- Admin can reschedule one future, scheduled session to another future date/time in Africa/Tunis. Other sessions sharing the Zoom meeting are unchanged. Affected currently entitled student accounts receive one in-app notification naming the old and new date; overlapping audiences do not duplicate recipients. Retry of the same confirmed date does not notify again.
+- Finished/cancelled/in-progress sessions cannot use the reschedule action. Access rights and replay records do not change. External provider failure rolls back local changes and notifications.
+
 ### Finished replay administration — 2026-11-24
 
 - Administrators may correct finished manual or Zoom-linked session title, past scheduled date/time, duration, description and associated courses through the existing popup. This changes platform presentation; Zoom occurrence identity and cloud originals remain unchanged. Multi-audience offer and invitation rules remain intact.

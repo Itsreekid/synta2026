@@ -26,7 +26,7 @@ test('occurrence cards, segment summaries and compact trash work at phone and de
     try{
         await withTimedOfferBrowser(process.env.TIMED_QA_CHROME,'http://127.0.0.1:'+fixture.server.address().port,async({open,evaluate,until,errors,screenshot})=>{
             for(const width of [360,390,1440]){
-                await open('/admin/pages/sessions.html','synthetic-admin',width);await until(()=>evaluate('allSessions.length===3'),'sessions');
+                await open('/admin/pages/sessions.html','synthetic-admin',width);await until(()=>evaluate('allSessions.length===3 && allCourses.length===1'),'sessions');
                 await evaluate(`openSessionManager('${fixture.emptyId}')`);await until(()=>evaluate("!document.querySelector('[data-refresh]').disabled"),'manager ready');
                 const before=fixture.calls.filter(call=>call.path==='/live/admin/recordings/discover').length;
                 await evaluate("document.querySelector('[data-recover]').click()");await until(()=>evaluate("document.querySelectorAll('.zoom-occurrence-choice').length===2"),'occurrence cards');

@@ -72,7 +72,7 @@ test('OR session migration, API access and admin browser on disposable PostgreSQ
     });
     const {authApiMiddleware,isAccessPayload}=await import('../middleware/requireAuth.js');
     const {requireAdmin}=await import('../middleware/requireAdmin.js');
-    let zoomCalls=0, zoomDeletes=0;
+    let zoomCalls=0, zoomDeletes=0,failReschedule=false;
     const storageDeletes=[];
     let failStorageDelete=false;
     const previousImportFlag=process.env.ZOOM_RECORDING_IMPORT_ENABLED;process.env.ZOOM_RECORDING_IMPORT_ENABLED='true';t.after(()=>{if(previousImportFlag===undefined)delete process.env.ZOOM_RECORDING_IMPORT_ENABLED;else process.env.ZOOM_RECORDING_IMPORT_ENABLED=previousImportFlag;});
@@ -87,7 +87,7 @@ test('OR session migration, API access and admin browser on disposable PostgreSQ
         delete:async key=>{if(failStorageDelete)throw new Error('Synthetic storage outage');storageDeletes.push(key);},
         abortMultipart:async()=>{},head:async()=>({ContentLength:100}),
       },recordingWorker:{kick(){}}},
-      '../utils/zoomClient.js':{getZoomPastInstances:async()=>historicalMetadata?[{uuid:historicalMetadata.uuid,start_time:historicalMetadata.start_time}]:[],getZoomOccurrenceRecordings:async uuid=>{if(historicalMetadata?.uuid!==uuid)throw new Error('synthetic-unavailable');return structuredClone(historicalMetadata);},createZoomMeeting:async()=>{zoomCalls++;return {zoom_meeting_id:'synthetic-'+zoomCalls,zoom_join_url:'https://zoom.us/j/synthetic',zoom_start_url:'private-host',zoom_password:'synthetic'};},deleteZoomMeeting:async()=>{zoomDeletes++;}},
+      '../utils/zoomClient.js':{getZoomPastInstances:async()=>historicalMetadata?[{uuid:historicalMetadata.uuid,start_time:historicalMetadata.start_time}]:[],getZoomOccurrenceRecordings:async uuid=>{if(historicalMetadata?.uuid!==uuid)throw new Error('synthetic-unavailable');return structuredClone(historicalMetadata);},rescheduleZoomMeeting:async()=>{if(failReschedule)throw new Error("synthetic Zoom failure");},createZoomMeeting:async()=>{zoomCalls++;return {zoom_meeting_id:'synthetic-'+zoomCalls,zoom_join_url:'https://zoom.us/j/synthetic',zoom_start_url:'private-host',zoom_password:'synthetic'};},deleteZoomMeeting:async()=>{zoomDeletes++;}},
       '../utils/r2Utils.js':{createR2UploadUrl:async()=>'',generateSignedUrl:async key=>'https://storage.example.invalid/'+key},
       '@aws-sdk/client-s3':{GetObjectCommand:class{}},
       '../config/r2.js':{r2Client:{send:async()=>({Body:{transformToString:async()=> 'print(42)'}})},R2_BUCKET:'synthetic'},
@@ -125,6 +125,25 @@ test('OR session migration, API access and admin browser on disposable PostgreSQ
       const response=await request('/api/live/schedule',admin,{title:'Séance partagée',startTime:new Date(Date.now()+60000).toISOString(),courseIds:[],offerIds:[],...fields});
       const result=await response.json();assert.equal(response.status,201,JSON.stringify(result));return result.sessions[0].id;
     };
+    await db.query(await readFile(new URL('../../database/migrations/202611050001_create_notifications.sql',import.meta.url),'utf8'));
+    await t.test('reschedule authorizes, rejects stale changes and atomically notifies eligible students once',async()=>{
+      const id=await schedule({courseIds:[c1,c2],offerIds:[o1],grantedStudentIds:[guest]});
+      const old=(await db.query('SELECT scheduled_at FROM live_sessions WHERE id=$1',[id])).rows[0].scheduled_at.toISOString();
+      const body={expectedStartTime:old,startTime:new Date(Date.now()+86400000).toISOString()};
+      assert.equal((await request('/api/live/'+id+'/reschedule',guest,body,'PATCH')).status,403);
+      assert.equal((await request('/api/live/'+id+'/reschedule',admin,{...body,startTime:'bad'},'PATCH')).status,400);
+      failReschedule=true;
+      assert.equal((await request('/api/live/'+id+'/reschedule',admin,body,'PATCH')).status,502);
+      assert.equal((await db.query('SELECT scheduled_at FROM live_sessions WHERE id=$1',[id])).rows[0].scheduled_at.toISOString(),old);
+      assert.equal((await db.query('SELECT count(*)::int n FROM notifications')).rows[0].n,0);
+      failReschedule=false;
+      assert.equal((await request('/api/live/'+id+'/reschedule',admin,body,'PATCH')).status,200);
+      assert.equal((await request('/api/live/'+id+'/reschedule',admin,body,'PATCH')).status,200);
+      const notices=(await db.query('SELECT user_id,message FROM notifications')).rows;
+      assert.deepEqual(notices.map(r=>r.user_id).sort(),[buyer,enrolled,guest].sort());
+      assert.ok(notices.every(r=>r.message.includes('heure de Tunis')));
+      assert.equal((await request('/api/live/'+id+'/reschedule',admin,{...body,startTime:new Date(Date.now()+172800000).toISOString()},'PATCH')).status,409);
+    });
     let mixed,offerOnly,courseOnly,resource;
     await t.test('offer-only, course-only, invitations, duplicate selections and API guards',async()=>{
       offerOnly=await schedule({offerIds:[o1]});courseOnly=await schedule({courseIds:[c2]});
@@ -386,7 +405,7 @@ test('OR session migration, API access and admin browser on disposable PostgreSQ
       const edit={title:'Replay corrigé',courseIds:[c2],startTime:'2025-10-01T18:30:00+01:00',durationMinutes:75,description:'Description corrigée'};
       assert.equal((await request('/api/live/'+id+'/details',guest,edit,'PATCH')).status,403);
       assert.equal((await request('/api/live/'+id+'/details',admin,{...edit,zoom_meeting_id:'changed'},'PATCH')).status,400);
-      assert.equal((await request('/api/live/'+id+'/details',admin,{...edit,courseIds:[randomUUID()]},'PATCH')).status,400);
+      assert.equal((await request('/api/live/'+id+'/details',admin,{...edit,courseIds:[randomUUID()]},'PATCH')).status,409);
       assert.equal((await request('/api/live/'+id+'/details',admin,edit,'PATCH')).status,200);
       const saved=(await db.query('SELECT * FROM live_sessions WHERE id=$1',[id])).rows[0];
       assert.equal(saved.title,edit.title);assert.equal(saved.course_id,null);assert.equal(saved.zoom_meeting_id,original.zoom_meeting_id);assert.equal(saved.replay_url,original.replay_url);

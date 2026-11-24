@@ -230,7 +230,7 @@
         const names = (ids, items) => (ids || []).map(id=>items.find(item=>item.id===id)?.title || id).join(', ') || 'Aucun';
         const date = new Date(session.scheduled_at);
         const end = date.getTime() + session.duration_minutes*60000;
-        const status = Date.now()>end ? 'Terminée' : Date.now()>=date ? 'En direct' : 'Planifiée';
+        const status = session.status==='completed'||Date.now()>end ? 'Terminée' : Date.now()>=date ? 'En direct' : 'Planifiée';
         const rows = [
             ['Titre',session.title],['Date et heure',date.toLocaleString('fr-FR',{timeZone:'Africa/Tunis',dateStyle:'full',timeStyle:'short'})+' (Tunis)'],
             ['Durée',session.duration_minutes+' min'],['Statut',status],
@@ -241,9 +241,34 @@
             ['Zoom Meeting ID',session.zoom_meeting_id || 'Non associé'],['Description',session.description || 'Aucune description'],
         ];
         document.getElementById('manager-details').innerHTML = `<dl>${rows.map(([label,value])=>`<dt>${escT(label)}</dt><dd dir="auto">${escT(value)}</dd>`).join('')}</dl>
-            ${session.status!=='cancelled' && Date.now()>=end ? '<div class="session-manager-actions"><button type="button" class="btn-primary" data-edit-details>Modifier</button></div>' : ''}
+            ${session.status!=='cancelled' && (session.status==='completed'||Date.now()>=end||Date.now()<date.getTime()) ? '<div class="session-manager-actions"><button type="button" class="btn-primary" data-edit-details>Modifier</button></div>' : ''}
+            ${['scheduled','live'].includes(session.status)&&Date.now()>=date.getTime()?'<div class="session-manager-actions"><button type="button" class="btn-primary" data-finish>Terminer la séance</button></div>':''}
+            ${session.status==='scheduled' && Date.now()<date.getTime()?'<div class="session-manager-actions"><button type="button" class="btn-primary" data-reschedule>Reporter la séance</button></div>':''}
             ${session.has_host_link ? `<div class="session-manager-actions"><a class="btn-host" href="/admin/sessions/${encodeURIComponent(session.id)}/host" target="_blank" rel="noopener noreferrer">Lancer (Hôte)</a></div>` : ''}`;
+        document.querySelector('#manager-details [data-finish]')?.addEventListener('click',async event=>{
+            if(!confirm('Marquer cette séance terminée sur Synta ? Terminez aussi la réunion pour tous dans Zoom. Les enregistrements arriveront après leur traitement par Zoom.'))return;
+            event.currentTarget.disabled=true;
+            try{const response=await fetch(API+'/api/live/'+encodeURIComponent(session.id)+'/finish',{method:'PATCH',credentials:'include'});const data=await response.json();if(!response.ok)throw new Error(data.error||'Action impossible.');await loadSessions();window.sessionManagerNotice('Séance terminée. En attente des enregistrements Zoom ; publication manuelle.','success');}
+            catch(error){window.sessionManagerNotice(error.message,'error');document.querySelector('[data-finish]')?.removeAttribute('disabled');}
+        });
+        document.querySelector('#manager-details [data-reschedule]')?.addEventListener('click',()=>reschedule(session));
         document.querySelector('#manager-details [data-edit-details]')?.addEventListener('click',()=>editDetails(session));
+    }
+    function reschedule(session){
+        const panel=document.getElementById('manager-details');
+        panel.innerHTML='<form class="session-details-form"><h3>Reporter la séance</h3><p data-old-date></p><div class="form-group"><label for="session-new-date">Nouvelle date et heure (Tunis)</label><input type="datetime-local" id="session-new-date" required></div><p>Les étudiants ayant accès à cette séance recevront une notification avec l’ancienne et la nouvelle date. Les autres séances restent inchangées.</p><div class="session-manager-actions"><button type="submit" class="btn-primary">Confirmer le report et notifier</button><button type="button" class="btn-secondary" data-cancel>Annuler</button></div><p role="alert" data-error></p></form>';
+        panel.querySelector('[data-old-date]').textContent='Actuellement : '+new Date(session.scheduled_at).toLocaleString('fr-FR',{timeZone:'Africa/Tunis',dateStyle:'full',timeStyle:'short'});
+        const input=panel.querySelector('input');input.value=new Date(new Date(session.scheduled_at).getTime()+3600000).toISOString().slice(0,16);
+        panel.querySelector('[data-cancel]').onclick=()=>renderDetails(session);
+        panel.querySelector('form').onsubmit=async event=>{
+            event.preventDefault();const controls=[...panel.querySelectorAll('button,input')];controls.forEach(c=>c.disabled=true);
+            try{
+                const response=await fetch(API+'/api/live/'+encodeURIComponent(session.id)+'/reschedule',{method:'PATCH',credentials:'include',headers:{'Content-Type':'application/json'},body:JSON.stringify({startTime:input.value+':00+01:00',expectedStartTime:session.scheduled_at})});
+                const data=await response.json();if(!response.ok)throw new Error(data.error||'Report impossible.');
+                await loadSessions();window.sessionManagerNotice('Séance reportée. '+data.notified+' étudiant(s) notifié(s).','success');
+            }catch(error){panel.querySelector('[data-error]').textContent=error.message;controls.forEach(c=>c.disabled=false);}
+        };
+        input.focus();
     }
     function editDetails(session){
         const panel=document.getElementById('manager-details');
@@ -258,6 +283,8 @@
         input('title').value=session.title||'';
         input('date').value=new Date(new Date(session.scheduled_at).getTime()+3600000).toISOString().slice(0,16);
         input('duration').value=session.duration_minutes;input('description').value=session.description||'';
+        if(new Date(session.scheduled_at).getTime()>Date.now()){input('date').disabled=true;input('duration').disabled=true;}
+
         if(multi)renderAudiencePicker('session-edit-courses','Cours associés',allCourses,selectedCourses);
         else {
             input('course').replaceChildren(...allCourses.map(course=>new Option(course.title,course.id)));
@@ -266,7 +293,7 @@
         panel.querySelector('[data-cancel-edit]').onclick=()=>renderDetails(session);
         panel.querySelector('form').onsubmit=async event=>{
             event.preventDefault();const controls=[...panel.querySelectorAll('input,select,textarea,button')];
-            const body={title:input('title').value.trim(),startTime:input('date').value+':00+01:00',durationMinutes:Number(input('duration').value),...(multi?{courseIds:[...selectedCourses]}:{courseId:input('course').value}),description:input('description').value};
+            const body={title:input('title').value.trim(),startTime:input('date').disabled?session.scheduled_at:input('date').value+':00+01:00',durationMinutes:Number(input('duration').value),...(multi?{courseIds:[...selectedCourses]}:{courseId:input('course').value}),description:input('description').value};
             controls.forEach(control=>control.disabled=true);
             try{
                 const response=await fetch(`${API}/api/live/${encodeURIComponent(session.id)}/details`,{method:'PATCH',credentials:'include',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});

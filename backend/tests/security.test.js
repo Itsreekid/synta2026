@@ -454,7 +454,7 @@ test("Zoom recurrence keeps other dates, cancels a series and rolls back failed 
     "../utils/r2Utils.js": { createR2UploadUrl() {}, generateSignedUrl() {} },
     "../utils/zoomClient.js": {
       getZoomPastInstances() {},getZoomOccurrenceRecordings() {},
-      createZoomMeeting: async options => {
+      rescheduleZoomMeeting:async()=>{},createZoomMeeting: async options => {
         assert.equal(options.isRecurring, true);
         return { zoom_meeting_id: "zoom-1", zoom_join_url: "https://example.invalid/join" };
       },
@@ -938,7 +938,7 @@ test("upcoming live sessions stay listed until their scheduled duration ends", a
     "@aws-sdk/client-s3": { GetObjectCommand: class {} },
     "../config/r2.js": { r2Client: {}, R2_BUCKET: "test" },
     "../utils/r2Utils.js": { createR2UploadUrl() {}, generateSignedUrl() {} },
-    "../utils/zoomClient.js": { createZoomMeeting() {}, deleteZoomMeeting() {}, getZoomPastInstances() {}, getZoomOccurrenceRecordings() {} },
+    "../utils/zoomClient.js": { rescheduleZoomMeeting() {}, createZoomMeeting() {}, deleteZoomMeeting() {}, getZoomPastInstances() {}, getZoomOccurrenceRecordings() {} },
   });
   const result = await call("get /upcoming", { user: { id: USER } });
   assert.equal(result.statusCode, 200);
@@ -1274,3 +1274,68 @@ test("login starts a rotating session, logout revokes it, and magic login is not
   await call("get /api/auth/magic-login", { query: { token: magicToken }, cookies: { synta_refresh: "admin" } });
   assert.deepEqual(calls.shift(), ["start", USER, { renewable: false, previousRefreshToken: "admin" }]);
 });
+
+ test('session reschedule validates admin, stale dates, retries and Zoom rollback',async()=>{
+ const old=new Date(Date.now()+86400000).toISOString(),future=new Date(Date.now()+172800000).toISOString();
+ let state={id:DATES[0],title:'Cours Matrice',scheduled_at:old,status:'scheduled',duration_minutes:90,zoom_meeting_id:'synthetic'},snapshot,notices=0,fail=false;
+ const query=async(sql,args)=>{
+ if(sql==='BEGIN'){snapshot={...state};return {rows:[]};}
+ if(sql==='ROLLBACK'){state={...snapshot};notices=0;return {rows:[]};}
+ if(sql==='COMMIT')return {rows:[]};
+ if(sql.startsWith('SELECT id,title'))return {rows:[state]};
+ if(sql.startsWith('UPDATE live_sessions SET scheduled_at')){state.scheduled_at=args[1];return {rows:[]};}
+ if(sql.includes('INSERT INTO notifications')){notices++;assert.match(args[2],/heure de Tunis/);return {rowCount:2,rows:[]};}
+ throw Error(sql);
+ };
+ const call=await loadRoute('live',{
+ '../config/db.js':{default:{query,connect:async()=>({query,release(){}})}},
+ '@aws-sdk/client-s3':{GetObjectCommand:class{}},'../config/r2.js':{r2Client:{},R2_BUCKET:'test'},
+ '../utils/r2Utils.js':{createR2UploadUrl(){},generateSignedUrl(){}},
+ '../utils/zoomClient.js':{createZoomMeeting(){},deleteZoomMeeting(){},getZoomPastInstances(){},getZoomOccurrenceRecordings(){},rescheduleZoomMeeting:async()=>{if(fail)throw Error('synthetic');}},
+ });
+ const req={user:{id:USER,role:'admin'},params:{sessionId:DATES[0]},body:{startTime:future,expectedStartTime:old}};
+ assert.equal((await call('patch /:sessionId/reschedule',{...req,user:{id:USER,role:'user'}})).statusCode,403);
+ assert.equal((await call('patch /:sessionId/reschedule',{...req,body:{...req.body,startTime:'bad'}})).statusCode,400);
+ fail=true;assert.equal((await call('patch /:sessionId/reschedule',req)).statusCode,502);assert.equal(state.scheduled_at,old);assert.equal(notices,0);
+ fail=false;assert.equal((await call('patch /:sessionId/reschedule',req)).statusCode,200);assert.equal(state.scheduled_at,future);assert.equal(notices,1);
+ assert.equal((await call('patch /:sessionId/reschedule',req)).statusCode,200);assert.equal(notices,1);
+ assert.equal((await call('patch /:sessionId/reschedule',{...req,body:{...req.body,startTime:new Date(Date.now()+259200000).toISOString()}})).statusCode,409);
+ });
+
+ test('finish live session is admin-only, idempotent and preserves Zoom recording identity',async()=>{
+ let status='scheduled',started=true,exists=true;const queries=[];
+ const query=async(sql,args)=>{
+ queries.push(sql);assert.equal(args[0],DATES[0]);
+ if(sql.startsWith('UPDATE live_sessions SET status=')){const changed=exists&&started&&['scheduled','live'].includes(status);if(changed)status='completed';return {rowCount:changed?1:0,rows:changed?[{id:DATES[0]}]:[]};}
+ if(sql.startsWith('SELECT status'))return {rowCount:exists?1:0,rows:exists?[{status}]:[]};
+ throw Error(sql);
+ };
+ const call=await loadRoute('live',{'../config/db.js':{default:{query}},'@aws-sdk/client-s3':{GetObjectCommand:class{}},'../config/r2.js':{r2Client:{},R2_BUCKET:'test'},'../utils/r2Utils.js':{createR2UploadUrl(){},generateSignedUrl(){}},'../utils/zoomClient.js':{rescheduleZoomMeeting(){},createZoomMeeting(){},deleteZoomMeeting(){throw Error('must not delete Zoom');},getZoomPastInstances(){},getZoomOccurrenceRecordings(){}}});
+ const req={params:{sessionId:DATES[0]},user:{id:USER,role:'admin'}};
+ assert.equal((await call('patch /:sessionId/finish',{...req,user:{id:USER}})).statusCode,403);
+ started=false;assert.equal((await call('patch /:sessionId/finish',req)).statusCode,409);
+ started=true;assert.equal((await call('patch /:sessionId/finish',req)).statusCode,200);assert.equal(status,'completed');
+ assert.equal((await call('patch /:sessionId/finish',req)).statusCode,200);
+ status='cancelled';assert.equal((await call('patch /:sessionId/finish',req)).statusCode,409);
+ exists=false;assert.equal((await call('patch /:sessionId/finish',req)).statusCode,404);
+ assert.ok(queries.every(sql=>!sql.includes('replay_url')&&!sql.includes('duration_minutes=')));
+ });
+
+ test('replay title may change immediately after manual finish and future metadata edits preserve schedule',async()=>{
+ const scheduled=new Date(Date.now()-60000).toISOString();
+ let session={course_id:COURSE,offer_id:null,zoom_meeting_id:'keep-zoom-id',status:'completed',scheduled_at:scheduled,duration_minutes:90};let saved;
+ const query=async(sql,args)=>{
+ if(['BEGIN','COMMIT','ROLLBACK'].includes(sql))return {rows:[]};
+ if(sql.startsWith('SELECT course_id,offer_id'))return {rows:[session]};
+ if(sql.startsWith('UPDATE live_sessions SET title=')){saved=args;return {rows:[]};}
+ throw Error(sql);
+ };
+ const call=await loadRoute('live',{'../config/db.js':{default:{query,connect:async()=>({query,release(){}})}},'@aws-sdk/client-s3':{GetObjectCommand:class{}},'../config/r2.js':{r2Client:{},R2_BUCKET:'test'},'../utils/r2Utils.js':{createR2UploadUrl(){},generateSignedUrl(){}},'../utils/zoomClient.js':{rescheduleZoomMeeting(){},createZoomMeeting(){},deleteZoomMeeting(){},getZoomPastInstances(){},getZoomOccurrenceRecordings(){}}});
+ const req={user:{id:USER,role:'admin'},params:{sessionId:DATES[0]},body:{title:'Séance Cours Matrice',startTime:scheduled,durationMinutes:90,description:'Replay'}};
+ assert.equal((await call('patch /:sessionId/details',req)).statusCode,200);assert.equal(saved[1],'Séance Cours Matrice');assert.equal(saved[3],scheduled);
+ session={...session,status:'scheduled'};
+ assert.equal((await call('patch /:sessionId/details',req)).statusCode,409);
+ session={...session,scheduled_at:new Date(Date.now()+86400000).toISOString()};req.body.startTime=session.scheduled_at;
+ assert.equal((await call('patch /:sessionId/details',req)).statusCode,200);
+ assert.equal((await call('patch /:sessionId/details',{...req,body:{...req.body,durationMinutes:60}})).statusCode,409);
+ });

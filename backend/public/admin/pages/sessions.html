@@ -716,8 +716,8 @@ function renderSessions() {
     list.innerHTML = sorted.map(s => {
         const start = new Date(s.scheduled_at);
         const end = new Date(start.getTime() + s.duration_minutes * 60000);
-        const isLive = now >= start && now <= end;
-        const isDone = now > end;
+        const isLive = s.status!=='completed' && now >= start && now <= end;
+        const isDone = s.status==='completed' || now > end;
         return renderCard(s, isLive ? 'live' : isDone ? 'completed' : 'scheduled');
     }).join('');
 }
@@ -1077,7 +1077,7 @@ function escT(str) {
 }
 </script>
 <script src="/admin/js/recording-ui.js?v=1"></script>
-<script src="/admin/js/session-manager.js?v=6"></script>
+<script src="/admin/js/session-manager.js?v=8"></script>
 <script src="/admin/js/historical-replay.js"></script>
 </body>
 </html>

@@ -177,3 +177,17 @@ export async function getZoomPastInstances(meetingId){
 function checkZoomReadCooldown(){
   if(Date.now()<zoomReadBlockedUntil){const error=new Error('Zoom rate limited');error.status=429;throw error;}
 }
+
+// Type 3 has no provider schedule: reschedule only the selected local date.
+export async function rescheduleZoomMeeting(meetingId,startTime,durationMinutes){
+  const token=await getZoomAccessToken();
+  const url='https://api.zoom.us/v2/meetings/'+encodeURIComponent(meetingId);
+  const headers={Authorization:'Bearer '+token,'Content-Type':'application/json'};
+  const current=await fetch(url,{headers,signal:AbortSignal.timeout(10000)});
+  if(!current.ok)throw new Error('Zoom meeting lookup failed');
+  const meeting=await current.json();
+  if(meeting.type===3)return;
+  if(meeting.type!==2)throw new Error('Unsupported Zoom recurrence');
+  const response=await fetch(url,{method:'PATCH',headers,signal:AbortSignal.timeout(10000),body:JSON.stringify({start_time:startTime,duration:durationMinutes,timezone:'Africa/Tunis'})});
+  if(!response.ok)throw new Error('Zoom rescheduling failed');
+}

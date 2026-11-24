@@ -6,7 +6,7 @@ import { GetObjectCommand } from "@aws-sdk/client-s3";
 import pool from "../config/db.js";
 import { authApiMiddleware } from "../middleware/requireAuth.js";
 import { requireAdmin } from "../middleware/requireAdmin.js";
-import { createZoomMeeting, deleteZoomMeeting, getZoomOccurrenceRecordings, getZoomPastInstances } from "../utils/zoomClient.js";
+import { rescheduleZoomMeeting, createZoomMeeting, deleteZoomMeeting, getZoomOccurrenceRecordings, getZoomPastInstances } from "../utils/zoomClient.js";
 import { createR2UploadUrl, generateSignedUrl } from "../utils/r2Utils.js";
 import { r2Client, R2_BUCKET } from "../config/r2.js";
 import { liveSessionAccess, offerEntitlement, enrollmentAccess, hasExtendedLiveAccess, sessionCourseMatch } from "../utils/offerAccess.js";
@@ -60,6 +60,49 @@ router.post('/replays', requireAdmin, async (req, res) => {
   }
 });
 
+// Mark the local session finished; Zoom recording delivery remains webhook-driven.
+router.patch('/:sessionId/finish',requireAdmin,async(req,res)=>{
+  if(!uuidPattern.test(req.params.sessionId))return res.status(400).json({error:'Séance invalide.'});
+  try{
+    const result=await pool.query("UPDATE live_sessions SET status='completed' WHERE id=$1 AND status IN ('scheduled','live') AND scheduled_at<=NOW() RETURNING id",[req.params.sessionId]);
+    if(!result.rowCount){
+      const current=await pool.query('SELECT status FROM live_sessions WHERE id=$1',[req.params.sessionId]);
+      if(!current.rowCount)return res.status(404).json({error:'Séance introuvable.'});
+      if(current.rows[0].status!=='completed')return res.status(409).json({error:'Seule une séance commencée peut être terminée.'});
+    }
+    console.info(JSON.stringify({service:'live-sessions',event:'finished',sessionId:req.params.sessionId,adminId:req.user.id}));
+    return res.json({success:true});
+  }catch(error){console.error('Session finish failed:',error.code??error.name);return res.status(500).json({error:'Impossible de terminer la séance.'});}
+});
+
+// Reschedule one upcoming session and notify each currently entitled student once.
+router.patch('/:sessionId/reschedule',requireAdmin,async(req,res)=>{
+  const {startTime,expectedStartTime}=req.body||{};
+  if(!uuidPattern.test(req.params.sessionId)||typeof startTime!=='string'||!Number.isFinite(Date.parse(startTime))||Date.parse(startTime)<=Date.now()||!Number.isFinite(Date.parse(expectedStartTime))||Object.keys(req.body||{}).some(key=>!['startTime','expectedStartTime'].includes(key)))return res.status(400).json({error:'Choisissez une date future valide (heure de Tunis).'});
+  let client;
+  try{
+    client=await pool.connect();await client.query('BEGIN');
+    const result=await client.query('SELECT id,title,scheduled_at,duration_minutes,status,zoom_meeting_id FROM live_sessions WHERE id=$1 FOR UPDATE',[req.params.sessionId]);
+    const session=result.rows[0];
+    if(!session){await client.query('ROLLBACK');return res.status(404).json({error:'Séance introuvable.'});}
+    if(session.status!=='scheduled'||new Date(session.scheduled_at).getTime()<=Date.now()){await client.query('ROLLBACK');return res.status(409).json({error:'Seule une séance à venir peut être reportée.'});}
+    if(new Date(session.scheduled_at).getTime()===Date.parse(startTime)){await client.query('COMMIT');return res.json({success:true,notified:0});}
+    if(new Date(session.scheduled_at).getTime()!==Date.parse(expectedStartTime)){await client.query('ROLLBACK');return res.status(409).json({error:'La séance a déjà été modifiée. Actualisez avant de réessayer.'});}
+    const format=value=>new Date(value).toLocaleString('fr-FR',{timeZone:'Africa/Tunis',dateStyle:'full',timeStyle:'short'});
+    const message='La séance « '+session.title+' », initialement prévue le '+format(session.scheduled_at)+', est reportée au '+format(startTime)+' (heure de Tunis).';
+    // All fallible local writes precede the provider request; rollback if Zoom rejects it.
+    await client.query('UPDATE live_sessions SET scheduled_at=$2 WHERE id=$1',[session.id,startTime]);
+    const notifications=await client.query(`INSERT INTO notifications(user_id,title,message,type,link)
+      SELECT u.id,$2,$3,'info','/app/calendar' FROM users u
+      WHERE u.role='user' AND EXISTS(SELECT 1 FROM live_sessions ls WHERE ls.id=$1 AND ${liveSessionAccess('u.id')})`,[session.id,'Séance reportée',message]);
+    if(session.zoom_meeting_id){try{await rescheduleZoomMeeting(session.zoom_meeting_id,new Date(startTime).toISOString(),session.duration_minutes);}catch{await client.query('ROLLBACK');return res.status(502).json({error:'Zoom n’a pas confirmé le report. Aucun changement enregistré. Réessayez.'});}}
+    await client.query('COMMIT');
+    console.info(JSON.stringify({service:'live-sessions',event:'rescheduled',sessionId:session.id,adminId:req.user.id,notified:notifications.rowCount}));
+    return res.json({success:true,notified:notifications.rowCount});
+  }catch(error){if(client)await client.query('ROLLBACK').catch(()=>{});console.error('Session reschedule failed:',error.code??error.name);return res.status(500).json({error:'Impossible de reporter la séance. Actualisez puis réessayez.'});}
+  finally{client?.release();}
+});
+
 // Edit completed replay/session presentation without changing Zoom or recording identity.
 router.patch('/:sessionId/details', requireAdmin, async (req,res)=>{
   const {title,courseId,courseIds,startTime,durationMinutes,description=''}=req.body || {};
@@ -68,7 +111,7 @@ router.patch('/:sessionId/details', requireAdmin, async (req,res)=>{
   if(!uuidPattern.test(req.params.sessionId)||(courseIds!==undefined&&!Array.isArray(courseIds))||!selectedCourses||selectedCourses.length>100||(courseId!==undefined&&courseIds!==undefined)||
       typeof title!=='string'||!title.trim()||title.length>500||typeof description!=='string'||description.length>10000||
       typeof startTime!=='string'||!Number.isFinite(Date.parse(startTime))||!Number.isInteger(durationMinutes)||
-      durationMinutes<1||durationMinutes>1440||Date.parse(startTime)+durationMinutes*60000>Date.now()||
+      durationMinutes<1||durationMinutes>1440||
       Object.keys(req.body).some(key=>!['title','courseId','courseIds','startTime','durationMinutes','description'].includes(key))) {
     return res.status(400).json({error:'Vérifiez le titre, les cours, la date passée et la durée.'});
   }
@@ -78,8 +121,14 @@ router.patch('/:sessionId/details', requireAdmin, async (req,res)=>{
     const result=await client.query('SELECT course_id,offer_id,zoom_meeting_id,status,scheduled_at,duration_minutes'+(liveFeatures.multiAudience?',access_policy':'')+' FROM live_sessions WHERE id=$1 FOR UPDATE',[req.params.sessionId]);
     const session=result.rows[0];
     if(!session){await client.query('ROLLBACK');return res.status(404).json({error:'Séance introuvable.'});}
-    if(session.status==='cancelled'||new Date(session.scheduled_at).getTime()+session.duration_minutes*60000>Date.now()){
-      await client.query('ROLLBACK');return res.status(409).json({error:'Seules les séances terminées peuvent être modifiées ici.'});
+    const started=new Date(session.scheduled_at).getTime()<=Date.now();
+    const finished=session.status==='completed'||new Date(session.scheduled_at).getTime()+session.duration_minutes*60000<=Date.now();
+    if(session.status==='cancelled'||(started&&!finished)){
+      await client.query('ROLLBACK');return res.status(409).json({error:'Terminez la séance avant de modifier ses détails.'});
+    }
+    const scheduleChanged=Date.parse(startTime)!==new Date(session.scheduled_at).getTime()||durationMinutes!==session.duration_minutes;
+    if((!finished&&scheduleChanged)||(finished&&scheduleChanged&&Date.parse(startTime)+durationMinutes*60000>Date.now())){
+      await client.query('ROLLBACK');return res.status(409).json({error:'Utilisez Reporter la séance pour modifier un horaire à venir. Pour un replay, choisissez une date terminée.'});
     }
     const multi=liveFeatures.multiAudience&&session.access_policy==='any_selected';
     if(hasCourses && !multi && selectedCourses.length!==1){await client.query('ROLLBACK');return res.status(400).json({error:'Choisissez un seul cours pour cette séance.'});}
@@ -111,7 +160,7 @@ router.get('/session/:sessionId', authApiMiddleware, async (req, res) => {
       WHERE ls.id=$1 AND ${liveSessionAccess('$2')}`, [req.params.sessionId, req.user.id]);
     if (!rows.length) return res.status(404).json({ error: 'Séance introuvable.' });
     const { has_join_link, ...session } = rows[0];
-    session.join_url = has_join_link ? joinPath(session.id) : null;
+    session.join_url = has_join_link && session.status!=='completed' ? joinPath(session.id) : null;
     session.replay_url = await signReplay(session.replay_url);
     res.set('Cache-Control', 'private, no-store');
     res.json((await attachSessionResources(await attachReplayParts([session]), true))[0]);
@@ -228,7 +277,7 @@ router.get("/course/:courseId", authApiMiddleware, async (req, res) => {
 
     const sessions = await Promise.all(result.rows.map(async ({ has_join_link, ...session }) => ({
       ...session,
-      join_url: has_join_link ? joinPath(session.id) : null,
+      join_url: has_join_link && session.status!=='completed' ? joinPath(session.id) : null,
       replay_url: await signReplay(session.replay_url),
     })));
     res.json(await attachSessionResources(await attachReplayParts(sessions), true));
@@ -283,7 +332,7 @@ router.get("/upcoming", authApiMiddleware, async (req, res) => {
        FROM live_sessions ls
        LEFT JOIN courses c ON c.id = ls.course_id
        WHERE ${liveSessionAccess("$1")}
-         AND ls.scheduled_at + make_interval(mins => COALESCE(ls.duration_minutes, 60)) > NOW()
+         AND ls.status <> 'completed' AND ls.scheduled_at + make_interval(mins => COALESCE(ls.duration_minutes, 60)) > NOW()
        ORDER BY ls.scheduled_at ASC`,
       [userId]
     );
@@ -351,7 +400,7 @@ router.get("/:sessionId/join", authApiMiddleware, async (req, res) => {
   if (!uuidPattern.test(req.params.sessionId)) return joinNotice(res, 404, "Séance introuvable.");
   try {
     const { rows: [session] } = await pool.query(
-      `SELECT ls.scheduled_at, ls.duration_minutes, ls.zoom_join_url
+      `SELECT ls.scheduled_at, ls.duration_minutes, ls.zoom_join_url, ls.status
        FROM live_sessions ls
        WHERE ls.id = $1 AND ${liveSessionAccess("$2")}`,
       [req.params.sessionId, req.user.id]
@@ -363,7 +412,7 @@ router.get("/:sessionId/join", authApiMiddleware, async (req, res) => {
     if (now < start - JOIN_EARLY_MS) {
       return joinNotice(res, 403, "La séance n’a pas encore commencé. Le lien s’ouvre 10 minutes avant le début.");
     }
-    if (now > end) return joinNotice(res, 410, "Cette séance est terminée.");
+    if (session.status==='completed' || now > end) return joinNotice(res, 410, "Cette séance est terminée.");
     res.set("Cache-Control", "private, no-store");
     res.redirect(302, session.zoom_join_url);
   } catch (error) {
