@@ -12,7 +12,12 @@ export function createRecordingDiscovery({pool,recordings,instances}) {
       const choices=known.length?known:await instances(session.zoom_meeting_id);
       if(!choices.length)return {state:'empty',message:'Aucun enregistrement disponible sur Zoom.',files:[]};
       if(choices.length>1)return {state:'choose_occurrence',message:'Plusieurs occurrences trouvées. Veuillez sélectionner la séance correspondante.',
-        occurrences:choices.map(item=>({uuid:item.uuid,start:item.start_time})),files:[]};
+        occurrences:choices.map(item=>({uuid:item.uuid,start:item.start_time,
+          topic:typeof item.topic==='string'?item.topic:null,sessionName:session.title||null,
+          timezone:'Africa/Tunis',durationSeconds:Number.isFinite(item.duration)&&item.duration>=0?item.duration*60:null,
+          segmentCount:Array.isArray(item.recording_files)?selectRecordingSegments(item.recording_files).length:null,
+          totalSize:Number.isFinite(item.total_size)&&item.total_size>=0?item.total_size:null
+        })).sort((a,b)=>(Date.parse(b.start)||0)-(Date.parse(a.start)||0)),files:[]};
       uuid=choices[0].uuid;
     }
     let data;
@@ -23,7 +28,7 @@ export function createRecordingDiscovery({pool,recordings,instances}) {
       const row=known.find(item=>item.zoom_file_id===String(file.id));
       return {id:String(file.id),start:file.recording_start,end:file.recording_end||null,
         durationSeconds:file.recording_end?Math.max(0,Math.round((Date.parse(file.recording_end)-Date.parse(file.recording_start))/1000)):null,
-        size:Number(file.file_size)||null,type:file.recording_type||null,importId:row?.id||null,
+        size:Number(file.file_size)||null,format:String(file.file_type).toUpperCase(),type:file.recording_type||null,importId:row?.id||null,
         status:row?.delete_requested_at||row?.status==='discarded'?'deleted':row?.status||'available'};
     });
     const pending=(data.recording_files||[]).some(file=>String(file.file_type).toUpperCase()==='MP4'&&file.status&&file.status!=='completed');
@@ -31,7 +36,8 @@ export function createRecordingDiscovery({pool,recordings,instances}) {
     const state=available?'available':files.some(file=>file.status==='deleted')?'trash':files.length?'imported':pending?'processing':'empty';
     const message={available:`${available} segment${available>1?'s':''} disponible${available>1?'s':''}.`,trash:'Des segments sont dans la Corbeille. Restaurez-les depuis la Corbeille.',
       imported:'Tous les segments sont déjà importés.',processing:'L’enregistrement est encore en cours de traitement.',empty:'Aucun enregistrement disponible sur Zoom.'}[state];
-    return {occurrenceUuid:uuid,state,message,files};
+    return {occurrenceUuid:uuid,topic:typeof data.topic==='string'?data.topic:null,sessionName:session.title||null,
+      timezone:'Africa/Tunis',state,message,files};
   }
   return {
     // Coalesce double clicks/cross-admin searches and cache briefly to bound Zoom calls.

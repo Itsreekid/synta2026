@@ -2,6 +2,59 @@ import {createSessionManagerFixture} from './fixtures/session-manager-fixture.js
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { withTimedOfferBrowser } from './timed-offer-browser.js';
+import vm from 'node:vm';
+import {readFile} from 'node:fs/promises';
+
+test('recording presentation formats real metadata, unknown totals and safe markup',async()=>{
+    const context={window:{},location:{href:'https://example.invalid/admin/'}};
+    vm.runInNewContext(await readFile(new URL('../public/admin/js/recording-ui.js',import.meta.url),'utf8'),context);
+    const ui=context.window.RecordingUI;
+    assert.equal(ui.duration(3661),'01:01:01');assert.equal(ui.duration(null),'Durée non renseignée');
+    assert.equal(ui.size(1024**3),'1 Go');assert.equal(ui.size(null),'Taille non renseignée');
+    assert.match(ui.date('2026-10-01T23:30:00Z','Africa/Tunis'),/2 octobre/);
+    const html=ui.segment({id:'synthetic',status:'importing',file_size:100,bytes_transferred:25,recording_start:'2026-01-01T18:00:00Z',last_error:'<img src=x>',preview_url:'javascript:alert(1)'},0);
+    assert.match(html,/<progress[^>]*value="25"/);assert.ok(!html.includes('<img'));assert.ok(!html.includes('href="javascript:'));
+    const unknown=ui.segment({id:'unknown',status:'importing',file_size:null,bytes_transferred:null},1);
+    assert.match(unknown,/<progress/);assert.doesNotMatch(unknown,/<progress[^>]*value=/);
+    assert.match(ui.summary([{durationSeconds:30,size:100},{durationSeconds:null,size:null}]),/connues/);
+});
+
+test('occurrence cards, segment summaries and compact trash work at phone and desktop widths',{
+    skip:!process.env.TIMED_QA_CHROME,timeout:60000,
+},async()=>{
+    const fixture=await createSessionManagerFixture();fixture.setDiscoveryMode('choices');
+    try{
+        await withTimedOfferBrowser(process.env.TIMED_QA_CHROME,'http://127.0.0.1:'+fixture.server.address().port,async({open,evaluate,until,errors,screenshot})=>{
+            for(const width of [360,390,1440]){
+                await open('/admin/pages/sessions.html','synthetic-admin',width);await until(()=>evaluate('allSessions.length===3'),'sessions');
+                await evaluate(`openSessionManager('${fixture.emptyId}')`);await until(()=>evaluate("!document.querySelector('[data-refresh]').disabled"),'manager ready');
+                const before=fixture.calls.filter(call=>call.path==='/live/admin/recordings/discover').length;
+                await evaluate("document.querySelector('[data-recover]').click()");await until(()=>evaluate("document.querySelectorAll('.zoom-occurrence-choice').length===2"),'occurrence cards');
+                assert.equal(fixture.calls.filter(call=>call.path==='/live/admin/recordings/discover').length,before+1,'listing cards must not fetch each occurrence');
+                assert.match(await evaluate("document.querySelector('.zoom-occurrence-choice').innerText"),/Révision Python/);
+                assert.equal(await evaluate("document.querySelector('.zoom-occurrence-choices').innerText.includes('new-uuid-technical')"),false);
+                assert.equal(await evaluate("document.querySelector('[data-recovery] select')===null"),true);
+                assert.ok(await evaluate("document.querySelector('[data-recovery]').getBoundingClientRect().width>=document.querySelector('#manager-replays').getBoundingClientRect().width-1"),'discovery uses available desktop width');
+                if(process.env.SESSION_MANAGER_SCREENSHOTS)await screenshot(process.env.SESSION_MANAGER_SCREENSHOTS+'-choices-'+width+'.png');
+                await evaluate("document.querySelector('.zoom-occurrence-choice').click()");await until(()=>evaluate("document.querySelectorAll('[data-results] .zoom-segment').length===2"),'segments');
+                assert.match(await evaluate("document.querySelector('[data-results]').innerText"),/Partie 1.*00:05:00.*Partie 2.*01:00:00/s);
+                assert.match(await evaluate("document.querySelector('[data-results] .zoom-summary').textContent"),/01:05:00/);
+                assert.equal(await evaluate("document.querySelector('[data-results] h4 img')===null"),true);
+                assert.equal(await evaluate("document.querySelector('[data-import-selection]').disabled"),true);
+                await evaluate("document.querySelectorAll('.discovery-pick').forEach(input=>input.click())");
+                assert.equal(await evaluate("document.querySelector('[data-import-selection]').textContent"),'Importer (2)');
+                assert.ok(await evaluate("document.querySelector('.session-manager-body').scrollWidth<=document.querySelector('.session-manager-body').clientWidth+1"));
+                assert.equal(await evaluate("document.querySelector('[data-trash]').open"),false);
+                assert.ok(await evaluate("document.querySelector('[data-trash] summary').getBoundingClientRect().width<document.querySelector('.session-manager-body').clientWidth"));
+                if(process.env.SESSION_MANAGER_SCREENSHOTS)await screenshot(process.env.SESSION_MANAGER_SCREENSHOTS+'-discovery-'+width+'.png');
+                await evaluate(`openSessionManager('${fixture.multiId}')`);await until(()=>evaluate("!document.querySelector('[data-refresh]').disabled"),'local records');
+                assert.equal(await evaluate("document.querySelector('.zoom-progress progress').value"),25);
+                assert.match(await evaluate("document.querySelector('.zoom-progress').textContent"),/25 %/);
+            }
+            assert.deepEqual(errors,[]);
+        });
+    }finally{await new Promise(resolve=>fixture.server.close(resolve));}
+});
 
 test('recording recovery and accurate feature errors at mobile and desktop widths',{
     skip:!process.env.TIMED_QA_CHROME,timeout:60000,
@@ -21,13 +74,13 @@ test('recording recovery and accurate feature errors at mobile and desktop width
                 await until(()=>evaluate("Boolean(document.querySelector('[data-results] input'))"),'historical metadata');
                 assert.ok(await evaluate("document.querySelector('.session-manager').getBoundingClientRect().right<=innerWidth"));
                 assert.ok(await evaluate("document.querySelector('.session-manager-body').scrollWidth<=document.querySelector('.session-manager-body').clientWidth+1"),'recovery panel must not scroll horizontally');
-                await evaluate("document.querySelector('[data-results] input').checked=true;document.querySelector('[data-recovery] .btn-primary').click()");
+                await evaluate("document.querySelector('[data-results] input').click();document.querySelector('[data-recovery] .btn-primary').click()");
                 await until(()=>evaluate("document.querySelector('[data-recovery] [role=status]').textContent.includes('ajouté')"),'import selected');
                 await evaluate(`openSessionManager('${fixture.multiId}')`);
                 await until(()=>evaluate("!document.querySelector('[data-refresh]').disabled"),'segments refreshed');
                 await evaluate("(()=>{const checks=[...document.querySelectorAll('.recording-pick')];checks[0].checked=true;checks[0].dispatchEvent(new Event('change'));const other=checks.find(input=>input.value==='other-occurrence-file');other.checked=true;other.dispatchEvent(new Event('change'));})()");
                 assert.equal(await evaluate("document.querySelectorAll('.recording-pick:checked').length"),1,'UI prevents mixed-occurrence selection');
-                await evaluate("document.querySelector('[data-trash]').click()");
+                await evaluate("document.querySelector('[data-trash] summary').click()");
                 await until(()=>evaluate("Boolean(document.querySelector('[data-trash-list] button'))"),'trash loaded');
                 await evaluate("document.querySelector('[data-trash-list] button').click()");
                 await until(()=>evaluate("document.querySelector('.session-manager-notice').textContent.includes('restauré')"),'trash restored');
@@ -85,7 +138,7 @@ test('session management dialog uses existing replay and resource actions on des
                 await evaluate(`openSessionManager('${singleId}')`);
                 await until(()=>evaluate("document.querySelector('.session-manager-notice').textContent===''") ,'single import loaded');
                 assert.match(await evaluate("document.getElementById('manager-replays').textContent"),/Zoom → R2.*Partie 1/s);
-                assert.match(await evaluate("document.getElementById('manager-replays').textContent"),/30 min/);
+                assert.match(await evaluate("document.getElementById('manager-replays').textContent"),/00:30:00/);
                 if(process.env.SESSION_MANAGER_SCREENSHOTS) await screenshot(process.env.SESSION_MANAGER_SCREENSHOTS+'-'+width+'.png');
                 await evaluate("document.querySelector('.session-manager').close()");
             }
@@ -93,11 +146,11 @@ test('session management dialog uses existing replay and resource actions on des
             await until(()=>evaluate("document.querySelector('[data-refresh]').disabled===false"),'multi session loaded');
             await until(()=>evaluate("document.querySelectorAll('#manager-replays .recording-pick').length===2"),'review segments');
             assert.equal(await evaluate("document.querySelector('#session-manager-title b')===null"),true);
-            assert.match(await evaluate("document.getElementById('manager-replays').textContent"),/À vérifier.*Échec.*En attente.*Import en cours/s);
+            assert.match(await evaluate("document.getElementById('manager-replays').textContent"),/Prêt à publier.*Échec.*En attente.*Importation/s);
             await evaluate("document.querySelector('#manager-replays input[type=search]').value='Échec';document.querySelector('#manager-replays input[type=search]').dispatchEvent(new Event('input'))");
             assert.equal(await evaluate("document.querySelectorAll('#manager-replays [data-search-row]:not([hidden])').length"),1);
             await evaluate("document.querySelector('#manager-replays input[type=search]').value='';document.querySelector('#manager-replays input[type=search]').dispatchEvent(new Event('input'));document.querySelectorAll('#manager-replays .recording-pick').forEach(input=>input.checked=true);document.querySelector('[data-publish]').click()");
-            await until(()=>evaluate("document.getElementById('manager-replays').textContent.includes('Partie 2')"),'published selection');
+            await until(()=>evaluate("document.querySelectorAll('#manager-replays [data-state=published]').length===2"),'published selection');
             assert.equal(calls.filter(call=>call.path==='/live/admin/recordings/publish').at(-1).body.importIds.length,2);
             await evaluate("document.querySelectorAll('#manager-replays .recording-pick').forEach(input=>input.checked=true);window.confirm=()=>false;document.querySelector('[data-publish]').click()");
             assert.equal(calls.filter(call=>call.path==='/live/admin/recordings/publish').length,1,'replacement cancelled');

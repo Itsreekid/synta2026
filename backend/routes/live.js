@@ -744,7 +744,7 @@ router.post('/admin/recordings/discover',requireAdmin,requireRecordingsTable,all
   const {occurrenceUuid,sessionId}=req.body||{};
   if((occurrenceUuid && !validOccurrence(occurrenceUuid))||!uuidPattern.test(sessionId||''))return res.status(400).json({error:'Séance ou occurrence invalide.'});
   try{
-    const {rows:[session]}=await pool.query("SELECT id,zoom_meeting_id,scheduled_at FROM live_sessions WHERE id=$1 AND status<>'cancelled'",[sessionId]);
+    const {rows:[session]}=await pool.query("SELECT id,title,zoom_meeting_id,scheduled_at FROM live_sessions WHERE id=$1 AND status<>'cancelled'",[sessionId]);
     if(!session||!session.zoom_meeting_id)return res.status(404).json({error:'Aucune réunion Zoom associée à cette séance.'});
     const result=await discovery.search(session,occurrenceUuid);
     res.json(result);recordingLog('historical_discovered',{sessionId,adminId:req.user.id,count:result.files.length,state:result.state});
@@ -822,6 +822,7 @@ router.get("/admin/recordings", requireAdmin, requireRecordingsTable, async (req
     const stored = new Set(["needs_review", "published"]);
     res.json(await Promise.all(rows.map(async ({ object_key, ...row }) => ({
       ...row,
+      format:'MP4',
       preview_url: stored.has(row.status) && !row.delete_requested_at && object_key ? await generateSignedUrl(object_key, 3600) : null,
     }))));
   } catch (error) {

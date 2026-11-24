@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Gestion des Séances — Admin</title>
-    <link rel="stylesheet" href="/admin/css/session-manager.css?v=2">
+    <link rel="stylesheet" href="/admin/css/session-manager.css?v=3">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
@@ -592,30 +592,15 @@ function formatSize(bytes) {
     return `${n} o`;
 }
 
-function segmentLine(rec, { selectable }) {
-    const start = new Date(rec.recording_start);
-    const end = rec.recording_end ? new Date(rec.recording_end) : null;
-    const duration = end ? Math.max(0, Math.round((end - start) / 60000)) : null;
-    const time = start.toLocaleDateString('fr-FR') + ' · ' + start.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }) +
-        (end ? ' – ' + end.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }) : '');
-    let state;
-    if (rec.status === 'pending') state = rec.attempts ? `Nouvel essai prévu (${rec.attempts}/6)` : 'En attente de transfert';
-    else if (rec.status === 'importing') state = `Import Zoom → R2 ${rec.file_size ? Math.min(99, Math.floor(100 * rec.bytes_transferred / rec.file_size)) + ' %' : ''}`;
-    else if (rec.status === 'published') state = '✅ Replay prêt';
-    else if (rec.status === 'failed') state = `❌ Échec : ${escT(rec.last_error || 'erreur inconnue')}`;
-    else state = `⚠️ ${escT(RECORDING_REASONS[rec.review_reason] || 'À vérifier')}`;
-    const stored = !rec.delete_requested_at && (rec.status === 'needs_review' || rec.status === 'published');
-    if(rec.delete_requested_at) state = 'Suppression en attente';
-    return `<div class="session-resource-item" data-recording="${rec.id}">
-        <span>${selectable && stored ? `<input type="checkbox" class="recording-pick" value="${rec.id}" ${rec.status === 'published' ? 'checked' : ''} style="width:auto">` : ''}
-        <i class="fas fa-film"></i> ${time}${duration !== null ? ' · ' + duration + ' min' : ''}${rec.file_size ? ' · ' + formatSize(rec.file_size) : ''} · ${state}</span>
-        <span style="display:flex;gap:0.4rem">
-            ${rec.preview_url ? `<a class="btn-secondary" href="${escT(rec.preview_url)}" target="_blank" rel="noopener noreferrer">Aperçu</a>` : ''}
-            ${rec.status === 'failed' ? `<button class="btn-secondary" onclick="retryRecording('${rec.id}')">Réessayer</button>` : ''}
-            ${!rec.delete_requested_at && (rec.status === 'needs_review' || rec.status === 'failed') ? `<button class="btn-danger" title="Placer dans la Corbeille (48 h minimum)" onclick="deleteRecording('${rec.id}')"><i class="fas fa-trash"></i></button>` : ''}
-        </span>
-    </div>`;
+function segmentLine(rec, { selectable, index=0 }) {
+    return RecordingUI.segment(rec,index,{selectable});
 }
+document.addEventListener('click',event=>{
+    const retry=event.target.closest?.('[data-retry-recording]');
+    const remove=event.target.closest?.('[data-delete-recording]');
+    if(retry)retryRecording(retry.dataset.retryRecording);
+    if(remove)deleteRecording(remove.dataset.deleteRecording);
+});
 
 function renderUnassignedRecordings() {
     const section = document.getElementById('recordings-review-section');
@@ -1091,7 +1076,8 @@ function escT(str) {
     return d.innerHTML;
 }
 </script>
-<script src="/admin/js/session-manager.js?v=4"></script>
+<script src="/admin/js/recording-ui.js?v=1"></script>
+<script src="/admin/js/session-manager.js?v=5"></script>
 <script src="/admin/js/historical-replay.js"></script>
 </body>
 </html>

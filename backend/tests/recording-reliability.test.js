@@ -83,7 +83,12 @@ test('on-demand discovery resolves old instances, coalesces requests and keeps t
   assert.equal(instanceCalls,0,'no API calls without a user-triggered search');
   const [a,b]=await Promise.all([service.search(session),service.search(session)]);assert.deepEqual(a,b);assert.equal(instanceCalls,1);assert.equal(recordingCalls,1);assert.equal(a.message,'1 segment disponible.');
   service.invalidate(session.id);choices.push({uuid:'another-uuid',start_time:'2020-10-08T18:00:00Z'});
-  assert.equal((await service.search(session)).state,'choose_occurrence');assert.equal(recordingCalls,1,'ambiguous search must not guess an occurrence');
+  const occurrenceResult=await service.search(session);
+  assert.equal(occurrenceResult.state,'choose_occurrence');assert.equal(recordingCalls,1,'ambiguous search must not guess an occurrence');
+  assert.equal(occurrenceResult.occurrences[0].uuid,'another-uuid','newest occurrence first');
+  assert.equal(occurrenceResult.occurrences[0].durationSeconds,null,'missing duration is not invented');
+  assert.equal(occurrenceResult.occurrences[0].totalSize,null,'missing size is not invented');
+  assert.equal(a.files[0].format,'MP4');
   service.invalidate(session.id);bound=[{uuid:'old-uuid'}];known=[{id:'saved',zoom_file_id:'file',status:'needs_review',delete_requested_at:new Date()}];
   assert.equal((await service.search(session)).files[0].status,'deleted');assert.equal(instanceCalls,2,'known UUID avoids an instance scan');
   service.invalidate(session.id);known=[{zoom_file_id:'file',status:'published'}];assert.equal((await service.search(session)).message,'Tous les segments sont déjà importés.');

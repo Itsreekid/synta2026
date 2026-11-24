@@ -1,3 +1,8 @@
+## 2026-11-24 — Refine admin Zoom recording UX
+
+- Replaced raw UUID selection with chronological occurrence cards and collapsed technical details. Added shared safe segment rendering, HH:MM:SS duration/size summaries, selection counts and measured/indeterminate progress.
+- Made Corbeille compact/collapsible while preserving restore/retention. Existing upload, link, preview, retry and publication actions retained. No schema or import-worker changes, provider polling, push or deployment.
+
 ## 2026-11-24 — Prepare Zoom recording deployment commit
 
 - Promoted only the three reviewed recording migrations, preserving SQL bytes/checksums. Updated regression paths and packaged existing runtime/admin recovery/retention implementation.

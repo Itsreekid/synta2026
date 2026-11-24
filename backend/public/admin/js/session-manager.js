@@ -74,25 +74,26 @@
             panel.querySelector('[data-no-results]').hidden = found > 0;
         };
     }
+    function recordingGroups(session,segments){
+        const groups=new Map();for(const segment of segments){const key=segment.zoom_meeting_uuid||'unknown';if(!groups.has(key))groups.set(key,[]);groups.get(key).push(segment);}
+        return [...groups.entries()].sort((a,b)=>new Date(b[1][0].recording_start)-new Date(a[1][0].recording_start)).map(([uuid,files])=>
+            '<section class="zoom-occurrence-group"><header class="zoom-group-heading"><small>Enregistrement Zoom</small><h4>'+RecordingUI.esc(session.title)+'</h4><p>'+RecordingUI.date(files[0].recording_start)+' · '+RecordingUI.clock(files[0].recording_start)+' (Tunis)</p>'+RecordingUI.summary(files)+'<details class="zoom-advanced"><summary>Détails techniques</summary><code>'+RecordingUI.esc(uuid)+'</code></details></header>'+files.map((file,index)=>segmentLine(file,{selectable:true,index})).join('')+'</section>').join('');
+    }
     function renderReplays(session) {
         const panel = document.getElementById('manager-replays');
         const source = { zoom:'Zoom → R2', external:'Lien externe', upload:'Vidéo téléversée' }[session.replay_source] || 'Replay associé';
         const preview = session.replay_preview_url && safeLink(session.replay_preview_url);
         const segments = allRecordings.filter(recording => recording.live_session_id === session.id)
             .sort((a,b) => new Date(a.recording_start)-new Date(b.recording_start) || a.id.localeCompare(b.id));
-        let part = 0;
+        const trashOpen=panel.querySelector('[data-trash]')?.open;
         panel.innerHTML = `<div class="session-manager-source"><strong>${session.replay_url ? 'Replay publié · ' + source : 'Aucun replay publié'}</strong>
             ${preview ? `<a class="btn-secondary" href="${preview}" target="_blank" rel="noopener noreferrer">Voir le replay publié</a>` : '<p>Ajoutez un enregistrement ou un lien pour cette séance.</p>'}</div>
             <div class="session-manager-actions"><button type="button" class="btn-secondary" data-upload>Téléverser le replay</button><button type="button" class="btn-secondary" data-external>Lien externe</button></div>
-            <h3>Enregistrements Zoom</h3>${session.zoom_meeting_id && liveFeatures.recordingDiagnostics?.status === 'ready' ? '<button type="button" class="btn-secondary" data-recover>Rechercher sur Zoom</button>' : ''}${liveFeatures.recordingDiagnostics?.schema === 'ready' || ['ready','disabled'].includes(liveFeatures.recordingDiagnostics?.status) ? '<button type="button" class="btn-secondary" data-trash>Corbeille</button>' : ''}
-            ${featuresLoadError ? '<p class="session-manager-empty">'+escT(featuresLoadError)+'</p>' : '<p class="session-manager-empty">'+escT(RECORDING_DIAGNOSTICS[liveFeatures.recordingDiagnostics?.status] || (liveFeatures.recordings ? 'Enregistrements disponibles pour révision.' : RECORDING_DIAGNOSTICS.missing_migration))+'</p>'}
-            ${!liveFeatures.recordings || featuresLoadError ? '' : recordingsLoadError ? '<p class="session-manager-empty">Impossible de charger les segments. Utilisez Actualiser pour réessayer.</p>' : !segments.length ? '<p class="session-manager-empty">Aucun segment importé pour cette séance.</p>' : `
-            <input class="session-manager-search" type="search" aria-label="Rechercher un segment" placeholder="Rechercher un segment…">
-            <div class="session-manager-list" id="recordings-${session.id}">${segments.map(recording => `<article class="session-manager-item" data-search-row>
-                <span class="session-manager-state" data-state="${escT(recording.status)}">${escT(states[recording.status] || recording.status)}${recording.status === 'published' && session.replay_source === 'zoom' ? ' · Partie ' + (++part) : ''}</span>
-                ${recording.zoom_meeting_uuid ? `<small style="display:block;overflow-wrap:anywhere" dir="ltr">Occurrence Zoom : ${escT(recording.zoom_meeting_uuid)}</small>` : ''}
-                ${segmentLine(recording,{selectable:true})}</article>`).join('')}</div><p data-no-results hidden>Aucun segment correspondant.</p>
-            ${segments.some(recording => ['needs_review','published'].includes(recording.status)) ? '<button type="button" class="btn-primary" data-publish>Publier la sélection</button>' : ''}`}`;
+            <div class="zoom-section-heading"><div><h3>Enregistrements Zoom</h3><p>Choisir un enregistrement, puis ses parties à importer ou publier.</p></div>
+            ${session.zoom_meeting_id && liveFeatures.recordingDiagnostics?.status === 'ready' ? '<button type="button" class="btn-secondary" data-recover><i class="fas fa-search" aria-hidden="true"></i> Rechercher sur Zoom</button>' : ''}</div>
+            ${featuresLoadError ? '<p class="session-manager-empty">'+RecordingUI.esc(featuresLoadError)+'</p>' : '<p class="zoom-readiness">'+RecordingUI.esc(RECORDING_DIAGNOSTICS[liveFeatures.recordingDiagnostics?.status] || (liveFeatures.recordings ? 'Enregistrements disponibles pour révision.' : RECORDING_DIAGNOSTICS.missing_migration))+'</p>'}
+            ${!liveFeatures.recordings || featuresLoadError ? '' : recordingsLoadError ? '<p class="session-manager-empty">Impossible de charger les segments. Utilisez Actualiser pour réessayer.</p>' : !segments.length ? '<p class="session-manager-empty">Aucun segment importé pour cette séance.</p>' : '<input class="session-manager-search" type="search" aria-label="Rechercher un segment" placeholder="Rechercher un segment…"><div class="zoom-recording-list session-manager-list" id="recordings-'+session.id+'">'+recordingGroups(session,segments)+'</div><p data-no-results hidden>Aucun segment correspondant.</p>'+ (segments.some(recording=>['needs_review','published'].includes(recording.status))?'<div class="zoom-publish-actions"><button type="button" class="btn-primary" data-publish>Publier la sélection</button><small>Visible aux étudiants uniquement après publication.</small></div>':'')}
+            ${liveFeatures.recordingDiagnostics?.schema === 'ready' || ['ready','disabled'].includes(liveFeatures.recordingDiagnostics?.status) ? '<details class="zoom-trash" data-trash><summary><i class="fas fa-trash" aria-hidden="true"></i> Corbeille <span data-trash-count>…</span></summary><div data-trash-list class="zoom-trash-list"></div></details>' : ''}`;
         panel.querySelector('[data-upload]').onclick = () => uploadReplay(session.id);
         panel.querySelector('[data-external]').onclick = () => {
             if (panel.querySelector('[data-link-form]')) return;
@@ -114,13 +115,14 @@
         };
         const recover = panel.querySelector('[data-recover]');
         if(recover) recover.onclick=()=>openRecovery(panel,session);
-        const trash=panel.querySelector('[data-trash]');if(trash)trash.onclick=()=>openTrash(panel,session);
+        const trash=panel.querySelector('[data-trash]');if(trash){trash.open=Boolean(trashOpen);void openTrash(panel,session);}
         const publish = panel.querySelector('[data-publish]');
         if (publish) publish.onclick = () => publishRecordings(session.id);
+        const updatePublish=()=>{if(publish)publish.textContent='Publier la sélection ('+panel.querySelectorAll('.recording-pick:checked').length+')';};
         panel.querySelectorAll('.recording-pick').forEach((checkbox,index) => {
             checkbox.setAttribute('aria-label', 'Sélectionner le segment ' + (index+1));
             checkbox.onchange=()=>{
-                if(!checkbox.checked)return;
+                if(!checkbox.checked){updatePublish();return;}
                 const occurrence=allRecordings.find(recording=>recording.id===checkbox.value)?.zoom_meeting_uuid;
                 for(const other of panel.querySelectorAll('.recording-pick')){
                     if(allRecordings.find(recording=>recording.id===other.value)?.zoom_meeting_uuid!==occurrence)other.checked=false;
@@ -146,21 +148,40 @@
                 const data=await recordingRequest('discover',{sessionId:session.id,...(uuid?{occurrenceUuid:uuid}:{})});
                 status.textContent=data.message||'Aucun enregistrement disponible sur Zoom.';
                 if(data.state==='choose_occurrence'){
-                    const label=document.createElement('label');label.textContent='Occurrence Zoom';
-                    const select=document.createElement('select');select.className='session-manager-search';select.setAttribute('aria-label','Occurrence Zoom');select.add(new Option('Sélectionnez la séance correspondante',''));
-                    for(const item of data.occurrences)select.add(new Option((item.start?new Date(item.start).toLocaleString('fr-FR',{timeZone:'Africa/Tunis'}):'Date inconnue')+' · '+item.uuid,item.uuid));
-                    const choose=document.createElement('button');choose.type='button';choose.className='btn-secondary';choose.textContent='Afficher les segments';choose.onclick=()=>{if(select.value)void search(select.value);else status.textContent='Veuillez sélectionner la séance correspondante.';};
-                    label.append(select);results.append(label,choose);return;
+                    const heading=document.createElement('p');heading.className='zoom-choice-help';heading.textContent='Chaque carte correspond à une séance Zoom distincte. Ses vidéos apparaîtront après sélection.';results.append(heading);
+                    const choices=document.createElement('div');choices.className='zoom-occurrence-choices';
+                    for(const item of [...data.occurrences].sort((a,b)=>(Date.parse(b.start)||0)-(Date.parse(a.start)||0))){
+                        const card=document.createElement('article');card.className='zoom-occurrence-card';
+                        const name=item.topic||item.sessionName||session.title;
+                        const button=document.createElement('button');button.type='button';button.className='zoom-occurrence-choice';
+                        button.innerHTML='<span class="zoom-eyebrow">Enregistrement Zoom</span><strong dir="auto">'+RecordingUI.esc(name)+'</strong><span>'+RecordingUI.date(item.start,item.timezone)+' · '+RecordingUI.clock(item.start,item.timezone)+'</span>';
+                        const facts=[];if(RecordingUI.number(item.durationSeconds)!==null)facts.push(RecordingUI.duration(item.durationSeconds));
+                        if(RecordingUI.number(item.segmentCount)!==null)facts.push(item.segmentCount+' segment(s)');
+                        if(RecordingUI.number(item.totalSize)!==null)facts.push(RecordingUI.size(item.totalSize));
+                        const known=allRecordings.filter(record=>record.zoom_meeting_uuid===item.uuid);
+                        if(item.segmentCount==null && known.length)facts.push(known.length+' segment(s) local(aux)');
+                        if(facts.length){const info=document.createElement('span');info.className='zoom-occurrence-facts';info.textContent=facts.join(' · ');button.append(info);}
+                        const action=document.createElement('span');action.className='zoom-choice-action';action.textContent='Voir les segments →';button.append(action);
+                        button.onclick=()=>{void search(item.uuid);};
+                        const technical=document.createElement('details');technical.className='zoom-advanced';technical.innerHTML='<summary>Détails techniques</summary><code>'+RecordingUI.esc(item.uuid)+'</code>';
+                        card.append(button,technical);choices.append(card);
+                    }
+                    results.append(choices);return;
                 }
-                for(const file of data.files||[]){
-                    const label=document.createElement('label');label.className='session-manager-item';
-                    const check=document.createElement('input');check.type='checkbox';check.value=file.id;check.disabled=file.status!=='available';check.style.width='auto';
-                    const states={available:'Disponible',deleted:'Corbeille',pending:'En attente',importing:'Import en cours…',needs_review:'À vérifier',published:'Publié',failed:'Échec — utilisez Réessayer'};
-                    const duration=file.durationSeconds==null?'':(' · '+Math.floor(file.durationSeconds/60)+' min '+file.durationSeconds%60+' s');
-                    label.append(check,document.createTextNode(' '+new Date(file.start).toLocaleString('fr-FR',{timeZone:'Africa/Tunis'})+duration+' · '+formatSize(file.size)+' · '+(states[file.status]||'Déjà importé')));results.append(label);
+                const files=(data.files||[]).map(file=>{
+                    const local=allRecordings.find(record=>record.id===file.importId);
+                    return {...file,timezone:data.timezone||'Africa/Tunis',preview_url:local?.preview_url,bytes_transferred:local?.bytes_transferred};
+                }).sort((a,b)=>Date.parse(a.start)-Date.parse(b.start)||a.id.localeCompare(b.id));
+                if(files.length){
+                    const heading=document.createElement('div');heading.className='zoom-selected-occurrence';
+                    heading.innerHTML='<small>Segments de cet enregistrement</small><h4 dir="auto">'+RecordingUI.esc(data.topic||data.sessionName||session.title)+'</h4><p>'+RecordingUI.date(files[0].start,data.timezone)+' · '+RecordingUI.clock(files[0].start,data.timezone)+'</p>'+RecordingUI.summary(files,{discovery:true})+'<details class="zoom-advanced"><summary>Détails techniques</summary><code>'+RecordingUI.esc(data.occurrenceUuid)+'</code></details>';
+                    results.append(heading);
                 }
+                files.forEach((file,index)=>results.insertAdjacentHTML('beforeend',RecordingUI.segment(file,index,{selectable:true,discovery:true})));
                 if((data.files||[]).some(file=>file.status==='available')){
-                    const submit=document.createElement('button');submit.type='button';submit.dataset.importSelection='';submit.className='btn-primary';submit.textContent='Importer';results.after(submit);
+                    const submit=document.createElement('button');submit.type='button';submit.dataset.importSelection='';submit.className='btn-primary';submit.textContent='Importer (0)';submit.disabled=true;results.after(submit);
+                    const updateSelected=()=>{const count=results.querySelectorAll('.discovery-pick:checked').length;submit.textContent='Importer ('+count+')';submit.disabled=busy||count===0;};
+                    results.querySelectorAll('.discovery-pick').forEach(input=>input.onchange=updateSelected);
                     submit.onclick=async()=>{
                         if(busy)return;const fileIds=Array.from(results.querySelectorAll('input:checked'),item=>item.value);
                         if(!fileIds.length){status.textContent='Choisissez au moins un segment.';return;}
@@ -169,23 +190,26 @@
                         catch(error){status.textContent=error.message;}finally{busy=false;form.querySelectorAll('button').forEach(button=>button.disabled=false);}
                     };
                 }
-            }catch(error){status.textContent=error.message;}finally{busy=false;form.querySelectorAll('button').forEach(button=>button.disabled=false);const button=panel.querySelector('[data-recover]');if(button)button.disabled=false;}
+            }catch(error){status.textContent=error.message;}finally{busy=false;form.querySelectorAll('button').forEach(button=>button.disabled=false);const submit=form.querySelector('[data-import-selection]');if(submit)submit.disabled=!results.querySelector('.discovery-pick:checked');const button=panel.querySelector('[data-recover]');if(button)button.disabled=false;}
         };
         form.onsubmit=event=>{event.preventDefault();void search(input.value.trim());};
-        panel.querySelector('[data-recover]').after(form);void search('');
+        panel.querySelector('.zoom-section-heading').after(form);void search('');
     }
+    const trashRequests=new Map();
     async function openTrash(panel,session){
-        panel.querySelector('[data-trash-list]')?.remove();const root=document.createElement('div');root.dataset.trashList='';root.className='session-manager-list';root.textContent='Chargement de la Corbeille…';panel.querySelector('[data-trash]').after(root);
+        const details=panel.querySelector('[data-trash]'),root=details.querySelector('[data-trash-list]'),count=details.querySelector('[data-trash-count]');
+        root.textContent='Chargement de la Corbeille…';
         try{
-            const rows=await recordingRequest('trash?sessionId='+encodeURIComponent(session.id),null,'GET');root.replaceChildren();
-            const note=document.createElement('p');note.textContent=rows.length?'Les fichiers restent récupérables pendant au moins 48 heures. Une restauration ne publie pas le replay.':'La Corbeille est vide.';root.append(note);
+            if(!trashRequests.has(session.id))trashRequests.set(session.id,recordingRequest('trash?sessionId='+encodeURIComponent(session.id),null,'GET').finally(()=>trashRequests.delete(session.id)));
+            const rows=await trashRequests.get(session.id);if(!details.isConnected)return;count.textContent=rows.length;root.replaceChildren();
+            const note=document.createElement('p');note.textContent=rows.length?'Récupérable pendant au moins 48 heures. Restaurer ne publie pas le replay.':'La Corbeille est vide.';root.append(note);
             for(const row of rows){
-                const item=document.createElement('article');item.className='session-manager-item';
-                item.textContent=new Date(row.recording_start).toLocaleString('fr-FR',{timeZone:'Africa/Tunis'})+' · '+formatSize(row.file_size)+' · '+(row.restorable?'Conservé au moins jusqu’au '+new Date(row.purge_after).toLocaleString('fr-FR',{timeZone:'Africa/Tunis'}):'Fichier supprimé définitivement');
+                const item=document.createElement('article');item.className='zoom-trash-item';
+                const text=document.createElement('div');text.innerHTML='<strong>'+RecordingUI.date(row.recording_start)+'</strong><p>'+RecordingUI.clock(row.recording_start)+' · '+RecordingUI.esc(RecordingUI.size(row.file_size))+'</p><small>'+RecordingUI.esc(row.restorable?'Conservé au moins jusqu’au '+new Date(row.purge_after).toLocaleString('fr-FR',{timeZone:'Africa/Tunis'}):'Fichier supprimé définitivement')+'</small>';item.append(text);
                 if(row.restorable){const restore=document.createElement('button');restore.type='button';restore.className='btn-secondary';restore.textContent='Restaurer';restore.onclick=async()=>{restore.disabled=true;try{await recordingRequest(row.id+'/restore',{});await loadSessions();window.sessionManagerNotice('Segment restauré. Vérifiez puis publiez manuellement.','success');}catch(error){note.textContent=error.message;restore.disabled=false;}};item.append(restore);}
                 root.append(item);
             }
-        }catch(error){root.textContent=error.message;}
+        }catch(error){if(details.isConnected){count.textContent='?';root.textContent=error.message;}}
     }
     function renderResources(session) {
         const panel = document.getElementById('manager-resources');
