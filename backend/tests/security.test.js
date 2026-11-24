@@ -52,7 +52,10 @@ async function loadRoute(name, doubles, env = {}) {
       clearSessionCookies: res => { res.clearCookie("synta_access"); res.clearCookie("synta_refresh"); },
     },
     "../middleware/authRateLimit.js": { authRateLimit },
-    "../services/live-features.js": { liveFeatures: { extendedAccess: false, recordingsTable: false } },
+    "../services/recording-discovery.js": {createRecordingDiscovery:()=>({search:async()=>({files:[]}),invalidate:()=>{}})},
+    "../services/recording-jobs.js": {restoreRecording:async()=>{},lockOccurrence:async()=>{},queueRecordingEvent:async()=>{},resolveOccurrence:async()=>{},requestRecordingDeletion:async()=>{},recordingLog:()=>{}},
+    "../services/zoom-recordings.js":{selectRecordingSegments:()=>[]},
+    "../services/live-features.js": {recordingImportsEnabled:()=>false,recordingDiagnostics:()=>({status:"disabled"}),recordingSchemaState:"missing_migration", liveFeatures: { extendedAccess: false, recordingsTable: false } },
     "../services/recording-worker.js": { recordingStorage: {}, recordingWorker: { kick() {} } },
     "../utils/offerAccess.js": offerAccess,
     "../utils/learnerProfile.js": learnerProfile,
@@ -450,6 +453,7 @@ test("Zoom recurrence keeps other dates, cancels a series and rolls back failed 
     "../config/r2.js": { r2Client: {}, R2_BUCKET: "test" },
     "../utils/r2Utils.js": { createR2UploadUrl() {}, generateSignedUrl() {} },
     "../utils/zoomClient.js": {
+      getZoomPastInstances() {},getZoomOccurrenceRecordings() {},
       createZoomMeeting: async options => {
         assert.equal(options.isRecurring, true);
         return { zoom_meeting_id: "zoom-1", zoom_join_url: "https://example.invalid/join" };
@@ -503,7 +507,7 @@ test("Zoom client accepts an already deleted meeting and surfaces API failures",
   const module = new vm.SourceTextModule(
     await readFile(new URL("../utils/zoomClient.js", import.meta.url), "utf8"), { context }
   );
-  await module.link(() => { throw new Error("Unexpected dependency"); });
+  await module.link(specifier => { assert.equal(specifier,'./recording-download.js'); return new vm.SyntheticModule(['downloadRecording'],function(){this.setExport('downloadRecording',async()=>{});},{context}); });
   await module.evaluate();
   await module.namespace.deleteZoomMeeting("test-meeting");
   await assert.rejects(module.namespace.deleteZoomMeeting("test-meeting"), /cancellation failed/);
@@ -934,7 +938,7 @@ test("upcoming live sessions stay listed until their scheduled duration ends", a
     "@aws-sdk/client-s3": { GetObjectCommand: class {} },
     "../config/r2.js": { r2Client: {}, R2_BUCKET: "test" },
     "../utils/r2Utils.js": { createR2UploadUrl() {}, generateSignedUrl() {} },
-    "../utils/zoomClient.js": { createZoomMeeting() {}, deleteZoomMeeting() {} },
+    "../utils/zoomClient.js": { createZoomMeeting() {}, deleteZoomMeeting() {}, getZoomPastInstances() {}, getZoomOccurrenceRecordings() {} },
   });
   const result = await call("get /upcoming", { user: { id: USER } });
   assert.equal(result.statusCode, 200);

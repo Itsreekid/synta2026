@@ -3,6 +3,59 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { withTimedOfferBrowser } from './timed-offer-browser.js';
 
+test('recording recovery and accurate feature errors at mobile and desktop widths',{
+    skip:!process.env.TIMED_QA_CHROME,timeout:60000,
+},async()=>{
+    const fixture=await createSessionManagerFixture();
+    fixture.recordings.push({...fixture.recordings[1],id:'other-occurrence-file',zoom_meeting_uuid:'a-different-occurrence'});
+    const trashed={...fixture.recordings[1],id:'trashed-file',delete_requested_at:new Date().toISOString()};fixture.recordings.push(trashed);
+    try{
+        await withTimedOfferBrowser(process.env.TIMED_QA_CHROME,'http://127.0.0.1:'+fixture.server.address().port,async({open,evaluate,until,errors})=>{
+            for(const width of [360,390,1440]){
+                trashed.delete_requested_at=new Date().toISOString();
+                await open('/admin/pages/sessions.html','synthetic-admin',width);
+                await until(()=>evaluate('allSessions.length===3'),'loaded');
+                await evaluate(`openSessionManager('${fixture.emptyId}')`);
+                await until(()=>evaluate("Boolean(document.querySelector('[data-recover]')) && !document.querySelector('[data-refresh]').disabled"),'recovery ready');
+                await evaluate("document.querySelector('[data-recover]').click()");
+                await until(()=>evaluate("Boolean(document.querySelector('[data-results] input'))"),'historical metadata');
+                assert.ok(await evaluate("document.querySelector('.session-manager').getBoundingClientRect().right<=innerWidth"));
+                assert.ok(await evaluate("document.querySelector('.session-manager-body').scrollWidth<=document.querySelector('.session-manager-body').clientWidth+1"),'recovery panel must not scroll horizontally');
+                await evaluate("document.querySelector('[data-results] input').checked=true;document.querySelector('[data-recovery] .btn-primary').click()");
+                await until(()=>evaluate("document.querySelector('[data-recovery] [role=status]').textContent.includes('ajouté')"),'import selected');
+                await evaluate(`openSessionManager('${fixture.multiId}')`);
+                await until(()=>evaluate("!document.querySelector('[data-refresh]').disabled"),'segments refreshed');
+                await evaluate("(()=>{const checks=[...document.querySelectorAll('.recording-pick')];checks[0].checked=true;checks[0].dispatchEvent(new Event('change'));const other=checks.find(input=>input.value==='other-occurrence-file');other.checked=true;other.dispatchEvent(new Event('change'));})()");
+                assert.equal(await evaluate("document.querySelectorAll('.recording-pick:checked').length"),1,'UI prevents mixed-occurrence selection');
+                await evaluate("document.querySelector('[data-trash]').click()");
+                await until(()=>evaluate("Boolean(document.querySelector('[data-trash-list] button'))"),'trash loaded');
+                await evaluate("document.querySelector('[data-trash-list] button').click()");
+                await until(()=>evaluate("document.querySelector('.session-manager-notice').textContent.includes('restauré')"),'trash restored');
+                const searches=fixture.calls.filter(call=>call.path==='/live/admin/recordings/discover').length;
+                await evaluate("document.querySelector('[data-refresh]').click()");
+                await until(()=>evaluate("!document.querySelector('[data-refresh]').disabled"),'local refresh');
+                assert.equal(fixture.calls.filter(call=>call.path==='/live/admin/recordings/discover').length,searches,'Actualiser never calls Zoom discovery');
+                fixture.setFeaturesFailure(true);
+                await open('/admin/pages/sessions.html','synthetic-admin',width);
+                await until(()=>evaluate('allSessions.length===3'),'loaded with failed features');
+                await evaluate(`openSessionManager('${fixture.emptyId}')`);
+                await until(()=>evaluate("document.getElementById('manager-replays').textContent.includes('erreur API ou réseau')"),'accurate network error');
+                assert.equal(await evaluate("document.getElementById('manager-replays').textContent.includes('Migration')"),false);
+                fixture.setFeaturesFailure(false);fixture.setImportStatus('disabled');
+                await open('/admin/pages/sessions.html','synthetic-admin',width);
+                await until(()=>evaluate('allSessions.length===3'),'disabled loaded');
+                await evaluate(`openSessionManager('${fixture.emptyId}')`);
+                await until(()=>evaluate("document.getElementById('manager-replays').textContent.includes('désactivés')"),'disabled imports message');
+                assert.equal(await evaluate("Boolean(document.querySelector('[data-recover]'))"),false);
+                fixture.setImportStatus('ready');
+            }
+            assert.equal(fixture.calls.filter(call=>call.path==='/live/admin/recordings/recover').length,3);
+            // The deliberately failed readiness fetch is an expected network error.
+            assert.deepEqual(errors.filter(error=>!String(error).includes('503')&&!String(error).includes('Failed to load resource')),[]);
+        });
+    }finally{await new Promise(resolve=>fixture.server.close(resolve));}
+});
+
 test('session management dialog uses existing replay and resource actions on desktop and phones', {
     skip: !process.env.TIMED_QA_CHROME, timeout: 60000,
 }, async () => {

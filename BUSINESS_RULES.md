@@ -282,15 +282,15 @@ Two roles exist: `user` (student) and `admin`.
 | Students can join from 10 minutes before the start until the scheduled end (owner decision 2026-11-20) | ✅ | `calendar.js` join window uses `duration_minutes` (default 60), and the server enforces the same window |
 | Students never receive the Zoom join link in API data; they get `/api/live/:id/join`, which checks access and the window before redirecting (owner decision 2026-11-20) | ✅ | `GET /api/live/:sessionId/join`: 302 to Zoom, otherwise a French notice (404 no access, 403 too early, 410 ended, 401 logged out) |
 
-### BR-19: Automatic Zoom Replays (owner decisions 2026-11-20)
+### BR-19: Automatic Zoom imports, manual replay publication (owner revision 2026-11-24)
 | Behavior | Status | Evidence |
 |----------|--------|----------|
 | Zoom cloud recordings are imported automatically after `recording.completed`: the MP4 itself is copied into private R2, never a Zoom link | ✅ code, ⏳ held migration + env flag | `routes/zoom-webhook.js`, `services/zoom-recordings.js` |
-| Every MP4 segment of a meeting is imported; nothing is merged and Zoom recordings are never deleted | ✅ | One `zoom_recording_imports` row per segment |
-| One segment for a matched session: published automatically | ✅ | Fills `replay_url` only when it is empty |
+| Each recording segment uses one preferred MP4 view; nothing is merged and Zoom originals are never deleted | ✅ | One `zoom_recording_imports` row per segment |
+| Every new segment, including a single matched segment, requires explicit admin publication | ✅ local code; held reliability migration | Worker never changes `replay_url`; legacy published records preserved |
 | Several segments (intro stopped/restarted): « À vérifier »; the admin chooses which segment(s) to publish | ✅ | Several published segments appear to students as « Partie 1 », « Partie 2 »… |
-| An existing replay is never overwritten automatically; recordings that match no session, or two sessions, wait for the admin | ✅ | Review reasons `replay_exists`, `no_matching_session`, `ambiguous_session` |
-| After review, the admin can delete unpublished segments from R2 (the Zoom original stays) | ✅ | `DELETE /api/live/admin/recordings/:importId`; published segments are refused (409) |
+| An existing replay is never overwritten automatically; recordings that match no session, or two sessions, wait for the admin | ✅ | Review reasons `admin_approval_required`, `multiple_segments`, `no_matching_session`, `ambiguous_session` |
+| After review, the admin can delete unpublished segments from R2 (the Zoom original stays) | ✅ | `DELETE /api/live/admin/recordings/:importId` commits durable intent (202), recovered by the worker; published/referenced segments are refused (409) |
 | Replay access follows exactly the live session's access rule | ✅ | Same `liveSessionAccess` SQL; short-lived signed R2 links; the player fetches a fresh link once if one expires |
 | Failed transfers retry (1 min, 5 min, 30 min, 2 h, 6 h; 6 tries max) and the admin can press « Réessayer » | ✅ | Interrupted imports resume after a server restart |
 
@@ -398,3 +398,15 @@ Admin course duplication opens a prefilled, unpublished new-course form for revi
 ### Educational player and lesson checkpoints (2026-11-23)
 
 Uploaded video playback uses Video.js 10.6.0 library controls while preserving native media and existing authorization. Small screens hide extra volume/casting controls, expose touch seeking and request landscape only during supported fullscreen; unsupported browsers retain native behavior with no forced page rotation. Captions are offered only when source tracks exist. Explicit lesson/replay selection attempts autoplay with a Play fallback; next lessons after a quiz/completion start paused. Linked quizzes remain manually available and open on native video end. Correct quiz answers advance after brief feedback; incorrect answers retain their correction until Continue. Provider embeds retain provider controls and manual quiz entry. Replay positions are saved locally by profile/session/segment; lesson positions retain existing server persistence.
+
+### Zoom recording reliability safeguards (2026-11-24, local implementation)
+
+Occurrence UUID bindings preserve existing session associations. Ambiguous occurrences require explicit admin association; conflicting legacy associations are retained for investigation. Publication cannot mix occurrences or include pending transfers/deletions. Each worker owns a unique fenced claim and private object key. Historical recovery is explicit, exact-UUID and selected-file only, never a bulk import. Feature disablement prevents intake, retries and worker claims; existing published playback remains available. See ZOOM_RECORDING_IMPLEMENTATION.md for held migration and activation requirements.
+
+### Event-driven recovery and Corbeille revision — 2026-11-24
+
+- recording.completed remains the primary automatic trigger. No Zoom polling, scheduled recording scan or automatic historical import was added. The periodic worker processes local import/deletion queues only; download metadata refresh is bounded by the existing six import attempts.
+- Rechercher sur Zoom now searches on demand by selected Synta session, reuses known exact UUIDs, or calls Zoom past instances when unknown. Multiple occurrences require admin selection. No binding or import is committed by discovery alone. Missing webhooks before deployment are supported when Zoom still exposes that session's meeting history/recordings.
+- Search responses show safe MP4 timestamps, duration, size, import status and deleted status. Importer queues selected missing segments through the existing fenced queue. Actualiser reads local APIs only. Requests are coalesced/cached briefly, UI prevents concurrent searches and Zoom Retry-After is honored. Réessayer still targets one failed import.
+- Corbeille now soft-deletes, excludes segments from the normal list and prevents discovery/webhooks from restoring them. A separate held migration 202611240002_recording_trash_retention.sql follows 003 and 202611240001. It guarantees at least 48 hours before purge (including unfinished preexisting intents from migration time), stores restore metadata and append-only deletion events, and adds a database minimum-retention constraint. Restoring uses the same stored object, never republishes or re-downloads it. Purge attempts are bounded at six; failure keeps the object for admin intervention. Already physically purged files are not restorable.
+- Added admin trash list/restore APIs, authorization checks, mocked discovery/instance/rate-limit tests, minimum-retention/duplicate/restore/purge tests and 360/390/1440 browser checks, including Actualiser causing no Zoom requests. Latest results: see ZOOM_RECORDING_IMPLEMENTATION.md. No production migration, deployment, live Zoom/R2 call or credential change.

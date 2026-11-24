@@ -71,7 +71,7 @@ export async function generateSignedUrl(key, expiresIn = SIGNED_URL_EXPIRY, down
 
     return signedUrl;
   } catch (error) {
-    console.error("❌ Error generating signed URL:", error.message);
+    console.error("❌ Error generating signed URL:", error.name);
     throw new Error(`Failed to generate signed URL for ${key}: ${error.message}`);
   }
 }
@@ -95,7 +95,7 @@ export async function uploadToR2(key, fileBuffer, contentType) {
     await r2Client.send(command);
     console.log(`File uploaded successfully: ${key}`);
   } catch (error) {
-    console.error("Error uploading to R2:", error);
+    console.error("Error uploading to R2:", error.name);
     throw new Error("Failed to upload file");
   }
 }
@@ -149,7 +149,7 @@ export async function deleteFromR2(key) {
     await r2Client.send(command);
     console.log(`File deleted successfully: ${key}`);
   } catch (error) {
-    console.error("Error deleting from R2:", error);
+    console.error("Error deleting from R2:", error.name);
     throw new Error("Failed to delete file");
   }
 }
@@ -190,7 +190,7 @@ export async function validateR2Connection() {
     console.log(`   Bucket: ${R2_BUCKET}`);
     return true;
   } catch (error) {
-    console.error("❌ R2 connection validation failed:", error.message);
+    console.error("❌ R2 connection validation failed:", error.name);
     console.error("   Please check your R2 credentials and bucket name");
     return false;
   }

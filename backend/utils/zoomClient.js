@@ -1,3 +1,4 @@
+import { downloadRecording } from './recording-download.js';
 // =====================================================
 // ZOOM SERVER-TO-SERVER OAUTH CLIENT
 // Handles token acquisition, 1-hour caching, and
@@ -116,14 +117,7 @@ export async function openZoomRecordingDownload(downloadUrl, signal) {
   if (url.protocol !== 'https:' || !(url.hostname === 'zoom.us' || url.hostname.endsWith('.zoom.us'))) {
     throw new Error('Unexpected recording download host');
   }
-  const token = await getZoomAccessToken();
-  const first = await fetch(url, { headers: { Authorization: `Bearer ${token}` }, redirect: 'manual', signal });
-  const location = first.status >= 300 && first.status < 400 ? first.headers.get('location') : null;
-  if (!location) return first;
-  await first.body?.cancel();
-  const storageUrl = new URL(location, url);
-  if (storageUrl.protocol !== 'https:') throw new Error('Unexpected recording storage protocol');
-  return fetch(storageUrl, { redirect: 'follow', signal });
+  return downloadRecording(downloadUrl, await getZoomAccessToken(), signal);
 }
 
 /**
@@ -144,4 +138,42 @@ export async function deleteZoomMeeting(meetingId) {
   // Zoom 3001 means the desired state was already reached, including after a retry.
   if (response.status === 404 && problem.code === 3001) return;
   throw new Error(`Zoom meeting cancellation failed (${response.status})`);
+}
+
+// Exact occurrence lookup: never substitute the reusable numeric meeting ID.
+export async function getZoomOccurrenceRecordings(uuid) {
+  checkZoomReadCooldown();
+  if(typeof uuid!=='string'||!uuid||uuid.length>512||/^\d+$/.test(uuid))throw new Error('Invalid occurrence UUID');
+  let encoded=encodeURIComponent(uuid);
+  if(uuid.startsWith('/')||uuid.includes('//'))encoded=encodeURIComponent(encoded);
+  const response=await fetch('https://api.zoom.us/v2/meetings/'+encoded+'/recordings',{
+    headers:{Authorization:'Bearer '+await getZoomAccessToken()},signal:AbortSignal.timeout(15000),redirect:'error'});
+  if(!response.ok)throw zoomReadError(response);
+  const data=await response.json();
+  if(data.uuid!==uuid)throw new Error('Zoom occurrence mismatch');
+  return data;
+}
+
+let zoomReadBlockedUntil=0;
+function zoomReadError(response){
+  const error=new Error('Zoom temporarily unavailable');error.status=response.status;
+  if(response.status===429){
+    const header=response.headers?.get('retry-after');
+    const seconds=Number(header);
+    const delay=header && Number.isFinite(seconds)?seconds*1000:Math.max(0,Date.parse(header)-Date.now())||60000;
+    zoomReadBlockedUntil=Date.now()+Math.max(1000,delay);
+  }
+  return error;
+}
+export async function getZoomPastInstances(meetingId){
+  if(!/^[A-Za-z0-9_-]{1,128}$/.test(String(meetingId)))throw new Error('Invalid meeting ID');
+  checkZoomReadCooldown();
+  const response=await fetch('https://api.zoom.us/v2/past_meetings/'+encodeURIComponent(meetingId)+'/instances',{
+    headers:{Authorization:'Bearer '+await getZoomAccessToken()},signal:AbortSignal.timeout(15000),redirect:'error'});
+  if(!response.ok)throw zoomReadError(response);
+  const data=await response.json();
+  return (Array.isArray(data.meetings)?data.meetings:[]).filter(item=>typeof item.uuid==='string' && Number.isFinite(Date.parse(item.start_time)));
+}
+function checkZoomReadCooldown(){
+  if(Date.now()<zoomReadBlockedUntil){const error=new Error('Zoom rate limited');error.status=429;throw error;}
 }

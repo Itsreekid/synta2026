@@ -1,3 +1,6 @@
+import { createRecordingDiscovery } from '../services/recording-discovery.js';
+import * as recordingJobs from '../services/recording-jobs.js';
+import * as recordingHelpers from '../services/zoom-recordings.js';
 import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
 import { execFile } from 'node:child_process';
@@ -54,9 +57,9 @@ test('OR session migration, API access and admin browser on disposable PostgreSQ
       await db.query('ROLLBACK');
       assert.equal((await db.query("SELECT COUNT(*)::int n FROM information_schema.columns WHERE table_name='live_sessions' AND column_name='access_policy'")).rows[0].n,0);
     });
-    for(const file of ['202611200002_extend_live_session_access.sql','202611200003_create_zoom_recording_imports.sql','202611200004_live_session_multi_audience.sql']) {
+    for(const file of ['202611200002_extend_live_session_access.sql','202611200003_create_zoom_recording_imports.sql','202611200004_live_session_multi_audience.sql','202611240001_zoom_recording_reliability.sql','202611240002_recording_trash_retention.sql']) {
       await db.query('BEGIN');
-      try { await db.query(await readFile(new URL('../../database/pending-migrations/'+file,import.meta.url),'utf8')); await db.query('COMMIT'); }
+      try { await db.query(await readFile(new URL('../../database/'+(['202611200002_extend_live_session_access.sql','202611200004_live_session_multi_audience.sql'].includes(file)?'pending-migrations':'migrations')+'/'+file,import.meta.url),'utf8')); await db.query('COMMIT'); }
       catch(error) { await db.query('ROLLBACK'); throw error; }
     }
     await features.detectLiveFeatures(db);
@@ -72,16 +75,19 @@ test('OR session migration, API access and admin browser on disposable PostgreSQ
     let zoomCalls=0, zoomDeletes=0;
     const storageDeletes=[];
     let failStorageDelete=false;
+    const previousImportFlag=process.env.ZOOM_RECORDING_IMPORT_ENABLED;process.env.ZOOM_RECORDING_IMPORT_ENABLED='true';t.after(()=>{if(previousImportFlag===undefined)delete process.env.ZOOM_RECORDING_IMPORT_ENABLED;else process.env.ZOOM_RECORDING_IMPORT_ENABLED=previousImportFlag;});
     const env={LIVE_MULTI_AUDIENCE_ENABLED:'true'};
+    let historicalMetadata=null;
     const dependencies={
+      '../services/recording-discovery.js':{createRecordingDiscovery},'../services/recording-jobs.js':recordingJobs,'../services/zoom-recordings.js':recordingHelpers,
       express:{default:express}, jsonwebtoken:{default:jwt}, '../config/db.js':{default:db}, '../utils/offerAccess.js':access,
       '../middleware/requireAuth.js':{authApiMiddleware,isAccessPayload}, '../middleware/requireAdmin.js':{requireAdmin},
       './requireAuth.js':{isAccessPayload},
       '../services/live-features.js':features, '../services/recording-worker.js':{recordingStorage:{
         delete:async key=>{if(failStorageDelete)throw new Error('Synthetic storage outage');storageDeletes.push(key);},
-        abortMultipart:async()=>{},
+        abortMultipart:async()=>{},head:async()=>({ContentLength:100}),
       },recordingWorker:{kick(){}}},
-      '../utils/zoomClient.js':{createZoomMeeting:async()=>{zoomCalls++;return {zoom_meeting_id:'synthetic-'+zoomCalls,zoom_join_url:'https://zoom.us/j/synthetic',zoom_start_url:'private-host',zoom_password:'synthetic'};},deleteZoomMeeting:async()=>{zoomDeletes++;}},
+      '../utils/zoomClient.js':{getZoomPastInstances:async()=>historicalMetadata?[{uuid:historicalMetadata.uuid,start_time:historicalMetadata.start_time}]:[],getZoomOccurrenceRecordings:async uuid=>{if(historicalMetadata?.uuid!==uuid)throw new Error('synthetic-unavailable');return structuredClone(historicalMetadata);},createZoomMeeting:async()=>{zoomCalls++;return {zoom_meeting_id:'synthetic-'+zoomCalls,zoom_join_url:'https://zoom.us/j/synthetic',zoom_start_url:'private-host',zoom_password:'synthetic'};},deleteZoomMeeting:async()=>{zoomDeletes++;}},
       '../utils/r2Utils.js':{createR2UploadUrl:async()=>'',generateSignedUrl:async key=>'https://storage.example.invalid/'+key},
       '@aws-sdk/client-s3':{GetObjectCommand:class{}},
       '../config/r2.js':{r2Client:{send:async()=>({Body:{transformToString:async()=> 'print(42)'}})},R2_BUCKET:'synthetic'},
@@ -232,6 +238,7 @@ test('OR session migration, API access and admin browser on disposable PostgreSQ
       assert.equal(imports.filter(row=>row.live_session_id===review).length,3);
       assert.ok(imports.find(row=>row.id===segments[0]).preview_url.startsWith('https://storage.example.invalid/'));
       assert.ok(!('object_key' in imports[0]));
+      await db.query(`INSERT INTO zoom_recording_occurrences(occurrence_uuid,meeting_id,live_session_id,resolution) SELECT zoom_meeting_uuid,MIN(zoom_meeting_id),MIN(live_session_id::text)::uuid,'matched' FROM zoom_recording_imports GROUP BY zoom_meeting_uuid ON CONFLICT DO NOTHING`);
       const published=await request('/api/live/admin/recordings/publish',admin,{sessionId:review,importIds:[segments[1],segments[0]]});
       assert.equal(published.status,200);
       assert.equal((await request('/api/live/admin/recordings/'+segments[0],admin,undefined,'DELETE')).status,409);
@@ -252,11 +259,52 @@ test('OR session migration, API access and admin browser on disposable PostgreSQ
       adminSession=(await(await request('/api/live/admin/sessions')).json()).find(row=>row.id===review);
       assert.equal(adminSession.replay_source,'external');
       assert.equal((await db.query('SELECT COUNT(*)::int n FROM zoom_recording_imports WHERE live_session_id=$1',[review])).rows[0].n,3);
+      await db.query(`INSERT INTO zoom_recording_occurrences(occurrence_uuid,meeting_id,live_session_id,resolution) SELECT zoom_meeting_uuid,MIN(zoom_meeting_id),MIN(live_session_id::text)::uuid,'matched' FROM zoom_recording_imports GROUP BY zoom_meeting_uuid ON CONFLICT DO NOTHING`);
       assert.equal((await request('/api/live/admin/recordings/publish',admin,{sessionId:review,importIds:segments.slice(0,2)})).status,200);
       assert.equal((await(await request('/api/live/session/'+review,guest)).json()).replay_parts.length,2,'automatic parts can be republished after manual sources');
       assert.equal((await request('/api/live/admin/recordings/'+segments[2]+'/retry',admin,{})).status,200);
       assert.equal((await db.query('SELECT status FROM zoom_recording_imports WHERE id=$1',[segments[2]])).rows[0].status,'pending');
       assert.deepEqual(storageDeletes,[],'publication, replacements and retry must not delete objects');
+    });
+    await t.test('exact UUID historical recovery, duplicate selection, review and occurrence isolation',async()=>{
+      const sid=await schedule({courseIds:[c2]});
+      const meeting=(await db.query('SELECT zoom_meeting_id FROM live_sessions WHERE id=$1',[sid])).rows[0].zoom_meeting_id;
+      historicalMetadata={id:meeting,uuid:'/historical//exact==',start_time:'2020-10-01T18:00:00Z',recording_files:[0,1].map(i=>({
+        id:'historical-'+sid+'-'+i,file_type:'MP4',status:'completed',recording_type:'speaker_view',recording_start:'2020-10-01T18:'+i+'0:00Z',file_size:100,download_url:'https://zoom.us/private-token-must-not-be-returned'}))};
+      const body={sessionId:sid,occurrenceUuid:historicalMetadata.uuid};
+      const automatic=await request('/api/live/admin/recordings/discover',admin,{sessionId:sid});
+      assert.equal(automatic.status,200);assert.equal((await automatic.json()).occurrenceUuid,historicalMetadata.uuid);
+      assert.equal((await request('/api/live/admin/recordings/discover',guest,body)).status,403);
+      assert.equal((await request('/api/live/admin/recordings/discover',admin,{...body,occurrenceUuid:meeting})).status,502);
+      const discovered=await request('/api/live/admin/recordings/discover',admin,body);assert.equal(discovered.status,200);
+      const metadata=await discovered.json();assert.equal(metadata.files.length,2);assert.ok(!JSON.stringify(metadata).includes('private-token'));
+      const recovery={...body,fileIds:metadata.files.map(file=>file.id)};
+      assert.equal((await request('/api/live/admin/recordings/recover',guest,recovery)).status,403);
+      assert.equal((await request('/api/live/admin/recordings/recover',admin,{...recovery,fileIds:['made-up']})).status,409);
+      const first=await request('/api/live/admin/recordings/recover',admin,recovery);assert.equal(first.status,200);assert.equal((await first.json()).queued,2);
+      assert.equal((await(await request('/api/live/admin/recordings/recover',admin,recovery)).json()).queued,0);
+      const ids=(await db.query('SELECT id FROM zoom_recording_imports WHERE live_session_id=$1 ORDER BY recording_start',[sid])).rows.map(row=>row.id);
+      assert.equal((await request('/api/live/admin/recordings/publish',admin,{sessionId:sid,importIds:ids})).status,400,'pending uploads cannot publish');
+      await db.query("UPDATE zoom_recording_imports SET status='needs_review',object_key='live-replays/historical/'||id||'.mp4' WHERE live_session_id=$1",[sid]);
+      assert.equal((await request('/api/live/admin/recordings/publish',admin,{sessionId:sid,importIds:ids})).status,200);
+      assert.equal((await request('/api/live/admin/recordings/trash?sessionId='+sid,guest)).status,403);
+      assert.equal((await request('/api/live/admin/recordings/'+ids[0]+'/restore',guest,{})).status,403);
+      assert.equal((await request('/api/live/admin/recordings/publish',admin,{sessionId:sid,importIds:[ids[0]]})).status,200);
+      assert.equal((await request('/api/live/admin/recordings/'+ids[1],admin,undefined,'DELETE')).status,202);
+      const trash=await(await request('/api/live/admin/recordings/trash?sessionId='+sid)).json();
+      assert.ok(trash.find(row=>row.id===ids[1]).restorable);
+      assert.equal((await request('/api/live/admin/recordings/recover',admin,{...recovery,fileIds:[metadata.files[1].id]})).status,409,'discovery cannot restore a deleted segment');
+      assert.equal((await request('/api/live/admin/recordings/'+ids[1]+'/restore',admin,{})).status,200);
+      assert.equal((await db.query('SELECT status,delete_requested_at FROM zoom_recording_imports WHERE id=$1',[ids[1]])).rows[0].delete_requested_at,null);
+      const other=(await db.query("INSERT INTO zoom_recording_imports(zoom_meeting_id,zoom_meeting_uuid,zoom_file_id,recording_start,download_url,live_session_id,status,object_key) VALUES($1,'other-occurrence',$2,NOW(),'https://zoom.us/file',$3,'needs_review','live-replays/other.mp4') RETURNING id",[meeting,randomUUID(),sid])).rows[0].id;
+      assert.equal((await request('/api/live/admin/recordings/publish',admin,{sessionId:sid,importIds:[ids[0],other]})).status,409);
+      process.env.ZOOM_RECORDING_IMPORT_ENABLED='false';
+      try{
+        assert.equal((await request('/api/live/admin/recordings/recover',admin,recovery)).status,409);
+        await db.query("UPDATE zoom_recording_imports SET status='failed' WHERE id=$1",[other]);
+        assert.equal((await request('/api/live/admin/recordings/'+other+'/retry',admin,{})).status,409);
+        assert.equal((await db.query('SELECT status FROM zoom_recording_imports WHERE id=$1',[other])).rows[0].status,'failed');
+      }finally{process.env.ZOOM_RECORDING_IMPORT_ENABLED='true';}
     });
     await t.test('recording deletion protects referenced files and rolls back storage failures',async()=>{
       const session=await schedule({courseIds:[c2]});
@@ -277,10 +325,14 @@ test('OR session migration, API access and admin browser on disposable PostgreSQ
       assert.equal((await request('/api/live/admin/recordings/'+used.id,admin,undefined,'DELETE')).status,409,'another import still owns the file');
       await db.query('UPDATE zoom_recording_imports SET object_key=$1 WHERE id=$2',[shared.key,shared.id]);
       failStorageDelete=true;
-      assert.equal((await request('/api/live/admin/recordings/'+used.id,admin,undefined,'DELETE')).status,500);
+      assert.equal((await request('/api/live/admin/recordings/'+used.id,admin,undefined,'DELETE')).status,202);
+      await db.query("UPDATE zoom_recording_deletions SET requested_at=NOW()-INTERVAL '49 hours',purge_after=NOW()-INTERVAL '1 hour' WHERE import_id=$1",[used.id]);
+      await assert.rejects(recordingJobs.processNextDeletion(db,dependencies['../services/recording-worker.js'].recordingStorage));
       assert.equal((await db.query('SELECT status FROM zoom_recording_imports WHERE id=$1',[used.id])).rows[0].status,'needs_review');
       failStorageDelete=false;
-      assert.equal((await request('/api/live/admin/recordings/'+used.id,admin,undefined,'DELETE')).status,200);
+      await db.query('UPDATE zoom_recording_deletions SET requested_at=NOW()-make_interval(hours=>49),purge_after=NOW()-make_interval(hours=>1),next_attempt_at=NOW() WHERE import_id=$1',[used.id]);
+      assert.equal((await request('/api/live/admin/recordings/'+used.id,admin,undefined,'DELETE')).status,202);
+      await recordingJobs.processNextDeletion(db,dependencies['../services/recording-worker.js'].recordingStorage);
       assert.deepEqual(storageDeletes,[used.key]);
       assert.equal((await request('/api/live/'+session+'/replay',admin,{replayKey:used.key},'PATCH')).status,409);
       const raced=await add('raced');
@@ -288,7 +340,7 @@ test('OR session migration, API access and admin browser on disposable PostgreSQ
         request('/api/live/'+session+'/replay',admin,{replayKey:raced.key},'PATCH'),
         request('/api/live/admin/recordings/'+raced.id,admin,undefined,'DELETE'),
       ]);
-      assert.deepEqual(results.map(result=>result.status).sort(),[200,409]);
+      assert.ok([[200,409],[202,409]].some(pair=>JSON.stringify(pair)===JSON.stringify(results.map(result=>result.status).sort())));
       const state=(await db.query('SELECT replay_url FROM live_sessions WHERE id=$1',[session])).rows[0];
       assert.ok(!state.replay_url || !storageDeletes.includes(state.replay_url));
     });

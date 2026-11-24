@@ -8,6 +8,7 @@ import pool from "../config/db.js";
 import { queueRecordingEvent, urlValidationResponse, verifyZoomSignature } from "../services/zoom-recordings.js";
 import { recordingImportsEnabled } from "../services/live-features.js";
 import { recordingWorker } from "../services/recording-worker.js";
+import { recordingLog } from '../services/recording-jobs.js';
 
 const router = express.Router();
 
@@ -22,6 +23,7 @@ router.post("/api/zoom/webhook", express.raw({ type: "*/*", limit: "1mb" }), asy
 
   let event;
   try {
+    recordingLog('webhook_received', { type:'recording.completed' });
     event = JSON.parse(rawBody);
   } catch {
     return res.status(400).json({ error: "Invalid payload" });

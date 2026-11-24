@@ -1,3 +1,19 @@
+## 2026-11-24 — Prepare Zoom recording deployment commit
+
+- Promoted only the three reviewed recording migrations, preserving SQL bytes/checksums. Updated regression paths and packaged existing runtime/admin recovery/retention implementation.
+- Refresh-token and audience migrations remain pending. No push, deployment, production database changes or activation.
+
+## 2026-11-24 — Event-driven recording search and retained Corbeille
+
+- Added Rechercher sur Zoom with automatic exact occurrence lookup, ambiguous selection, safe MP4 metadata and selected import; no provider polling. Actualiser stays local.
+- Added minimum 48-hour soft deletion, local restoration and deletion audit history through held additive migration 202611240002. No deployment or production changes.
+
+## 2026-11-24 — Fenced Zoom recording imports and explicit review
+
+- Added durable occurrence associations, per-claim fencing/keys, transactional multi-segment intake and admin review for every new import. Existing published replays and Zoom originals retained.
+- Added recoverable deletion intent, completed-transfer reconciliation, safe redirect/DNS handling, expired metadata refresh, accurate readiness diagnostics and exact-UUID selected historical recovery in the existing admin popup.
+- New additive migration 202611240001 remains held for review; no production migration, deployment or credential changes. Full-suite results and activation instructions: ZOOM_RECORDING_IMPLEMENTATION.md.
+
 ## 2026-11-23 — Restore 90% lesson completion tracking
 
 - Mark native lessons complete at 90%, coalesce repeated saves, retry failures and refresh course/sidebar checkmarks, chapter counts and progress only after success. Reuse existing authorized API; player design unchanged.

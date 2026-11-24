@@ -1,5 +1,32 @@
 # CURRENT_STATE.md — Synta Academy
 
+
+### Event-driven recovery and Corbeille revision — 2026-11-24
+
+- recording.completed remains the primary automatic trigger. No Zoom polling, scheduled recording scan or automatic historical import was added. The periodic worker processes local import/deletion queues only; download metadata refresh is bounded by the existing six import attempts.
+- Rechercher sur Zoom now searches on demand by selected Synta session, reuses known exact UUIDs, or calls Zoom past instances when unknown. Multiple occurrences require admin selection. No binding or import is committed by discovery alone. Missing webhooks before deployment are supported when Zoom still exposes that session's meeting history/recordings.
+- Search responses show safe MP4 timestamps, duration, size, import status and deleted status. Importer queues selected missing segments through the existing fenced queue. Actualiser reads local APIs only. Requests are coalesced/cached briefly, UI prevents concurrent searches and Zoom Retry-After is honored. Réessayer still targets one failed import.
+- Corbeille now soft-deletes, excludes segments from the normal list and prevents discovery/webhooks from restoring them. A separate held migration 202611240002_recording_trash_retention.sql follows 003 and 202611240001. It guarantees at least 48 hours before purge (including unfinished preexisting intents from migration time), stores restore metadata and append-only deletion events, and adds a database minimum-retention constraint. Restoring uses the same stored object, never republishes or re-downloads it. Purge attempts are bounded at six; failure keeps the object for admin intervention. Already physically purged files are not restorable.
+- Added admin trash list/restore APIs, authorization checks, mocked discovery/instance/rate-limit tests, minimum-retention/duplicate/restore/purge tests and 360/390/1440 browser checks, including Actualiser causing no Zoom requests. Latest results: see ZOOM_RECORDING_IMPLEMENTATION.md. No production migration, deployment, live Zoom/R2 call or credential change.
+
+### 2026-11-24 — Zoom recording reliability implementation (local only)
+
+- Implemented the accepted audit fixes in the existing pipeline: persistent occurrence bindings, atomic intake, claim-token fencing/attempt-specific keys and wall-clock lease checks, continuous renewal, explicit review for EVERY new segment, durable deletion with backoff, completed-object reconciliation, safe DNS-pinned redirects, exact-UUID download refresh and selected historical recovery.
+- Existing admin popup now shows accurate readiness/API errors, separates association from publication, and prevents mixed-occurrence selection. Preview, resources, manual MP4/external links, student OR authorization and existing replay pointers preserved. Structured logs omit secrets and media URLs. No new student pages or payment changes.
+- New additive migration database/pending-migrations/202611240001_zoom_recording_reliability.sql remains HELD for owner review, depends on 003 only (plus baseline users/live_sessions). It adds occurrence/transfer/deletion ledgers and nullable import fencing/deletion columns. Tested only in disposable PostgreSQL; no production migration, promotion, push, deployment or credential changes.
+- Final focused suite: 81 passed, zero failed/skipped; synthetic Chrome 360/390/1440. Full serial package test list: 115 total, 112 passed, three failures from the existing offer-card terms/monthlyTerms assertion and parent tests. Do not claim whole-suite green. Initial parallel full run hit local PostgreSQL recovery; serial rerun completed. Tests use mocked Zoom/R2, synthetic File/DataTransfer uploads; no live Zoom/R2 or native OS picker evidence.
+- TASK-009 completed locally. Next: review held migration and ZOOM_RECORDING_IMPLEMENTATION.md, approve designated real Zoom/R2 staging validation, separately address unrelated offer-card assertion, then decide production rollout. Stop all OLD workers before activating fencing; disabling flag and compatible build are required for rollback. Retain legacy conflict rows and orphan-attempt objects for explicit investigation; never sweep storage.
+
+
+### 2026-11-24 — Read-only Zoom import availability investigation
+
+- Owner reported LIVE | Cours cloud recordings exist in Zoom but manager shows migration-unavailable. Traced exact UI: session-manager.js renders this when liveFeatures.recordings is false. sessions.html also silently retains false if GET /api/live/admin/features fails. Therefore screenshot is not live-database proof.
+- Backend features response exposes liveFeatures.recordingsTable; startup detectLiveFeatures checks to_regclass('zoom_recording_imports'). Existing additive migration 202611200003_create_zoom_recording_imports.sql remains in pending-migrations, while Dockerfile and migration runner include only database/migrations. This explains the expected disabled state when the held migration has not been approved/applied. Migration003 references existing live_sessions; it does not directly require002 (which separately enables extra audience fields); 004 requires002. Do not promote unrelated pending migrations.
+- Import requires detected table + ZOOM_RECORDING_IMPORT_ENABLED=true, configured ZOOM_WEBHOOK_SECRET_TOKEN and signed recording.completed delivery to /api/zoom/webhook, appropriate Zoom recording-read scope, and working private R2 credentials. Startup logs distinguish worker started, migration pending, and feature detection failure. Feature detection runs on startup, so restart is needed after activation. Existing Zoom meeting-creation credentials working does not establish webhook/import activation.
+- Queue maps by stored zoom_meeting_id, not title; it deduplicates Zoom file IDs and worker processes queued segments. Existing cloud recordings are not proactively scanned: enabling later alone does not backfill older recordings. A valid recording.completed delivery/re-delivery or separately approved historical recovery is needed. Manual upload/link remains available.
+- Read-only source/schema/deployment audit only; no live Coolify/Zoom/database access, credentials, imports, tests or production changes were executed. Next: authenticated production features response and sanitized startup logs, then owner approval of a specific migration/activation rollout before changing production. Do not infer successful live import from local code.
+
+
 ### 2026-11-23 — Compact mobile lesson quiz button
 
 - Passer au quiz alone now uses a 50px pill radius and content-width mobile sizing (44px minimum touch height). Other lesson actions retain their sizing and behavior. Course script cache version v9.
@@ -1148,3 +1175,17 @@ Implemented locally behind TIMED_OFFER_UPGRADES_ENABLED, which defaults off. Sch
 - Installment suggestions now display a French recovery message for plain-text gateway failures.
 
 - Student offer cards now show a single checkout action. The scheduled checkout uses a centered responsive dialog and separates credit, due-now amount, and the remaining schedule.
+
+### 2026-11-24 — Focused Zoom recording code audit and local validation
+
+- See ZOOM_RECORDING_AUDIT.md for exact findings and safe activation plan. No application code/schema/production changes. Occurrence UUID is stored but matching uses meeting ID/time; lease ownership is not fenced; queue insertion is not atomic; activation diagnostics can misidentify request failures as missing migration; R2 deletion precedes DB commit.
+- Executed zoom-recordings, session-manager and live-multi-audience suites: 29 passed, 0 failed/skipped, disposable PostgreSQL and local Chrome synthetic fixtures (360/390/1440). Zoom/R2 mocked; no live recording or production verification. Disposable PostgreSQL stopped afterward.
+- Next: read-only Coolify/schema/webhook evidence; approve focused safeguards and any additive migration before implementation/activation. Existing preview/publish pipeline retained. Production readiness remains BLOCKED.
+
+2026-11-24 final recovery-extension validation: 84 focused tests passed, zero failed/skipped (18.7s), disposable PostgreSQL and mocked Zoom/R2; Chrome 360/390/1440 including no-Zoom local refresh, on-demand discovery and Corbeille restore. Held migration 202611240002 not promoted. Full suite not rerun for extension; previous unrelated offer assertion remains. Disposable server stopped after tests; no deployment/live calls.
+
+### 2026-11-24 — Local deployment commit prepared
+
+- Owner approved promotion of exactly 202611200003_create_zoom_recording_imports.sql, 202611240001_zoom_recording_reliability.sql and 202611240002_recording_trash_retention.sql to database/migrations. SQL contents retained unchanged; startup runner will apply them on the next deployment. Imports flag does NOT disable migrations.
+- Refresh-token migration 202611200001 and live-audience migrations 202611200002/202611200004 remain pending. Updated recording regression paths for promoted files; included all recording implementation/runtime/test files. No production access, migration execution, push or deployment.
+- Production gate: backup, stop all old backend workers, deploy initially with ZOOM_RECORDING_IMPORT_ENABLED=false, verify schema/replays and then separately activate. Existing real Zoom/R2 validation and the previously documented unrelated offer-card full-suite failure remain outstanding. See ZOOM_RECORDING_IMPLEMENTATION.md.

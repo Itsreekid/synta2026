@@ -473,14 +473,20 @@ function renderAudiencePicker(rootId, labelText, items, selected) {
 }
 let allRecordings = [];
 let recordingsLoadError = '';
+let featuresLoadError = '';
+const RECORDING_DIAGNOSTICS = {missing_migration:'Migration des enregistrements requise.',invalid_schema:'Schéma des enregistrements incomplet. Vérifiez la migration.',disabled:'Imports automatiques désactivés.',worker_not_running:'Le worker d’import n’est pas démarré.',missing_configuration:'Configuration de l’import incomplète.',ready:'Import Zoom → R2 prêt. Publication après validation.'};
 const grantedSelection = new Map();
 let grantedRequest = 0;
 
 async function loadFeatures() {
+    featuresLoadError = '';
     try {
         const res = await fetch(`${API}/api/live/admin/features`, { credentials: 'include' });
-        if (res.ok) liveFeatures = await res.json();
-    } catch { /* keep defaults */ }
+        if (!res.ok) throw new Error('État des imports indisponible (HTTP ' + res.status + ').');
+        const features = await res.json();
+        if(!features || typeof features.recordings !== 'boolean') throw new Error('Réponse API invalide.');
+        liveFeatures = features;
+    } catch { featuresLoadError = 'Impossible de vérifier les imports : erreur API ou réseau. Réessayez avec Actualiser.'; }
     document.getElementById('granted-group').hidden = !liveFeatures.extendedAccess;
     document.getElementById('multi-audience').hidden = !liveFeatures.multiAudience;
     for (const id of ['f-offer','f-course','f-audience']) {
@@ -570,6 +576,7 @@ async function loadRecordings() {
 }
 
 const RECORDING_REASONS = {
+    admin_approval_required: 'Prêt : validation administrateur requise.',
     multiple_segments: 'Plusieurs segments : choisissez ceux à publier.',
     replay_exists: 'Un replay existe déjà : publiez pour le remplacer.',
     no_matching_session: 'Séance non identifiée automatiquement.',
@@ -597,14 +604,15 @@ function segmentLine(rec, { selectable }) {
     else if (rec.status === 'published') state = '✅ Replay prêt';
     else if (rec.status === 'failed') state = `❌ Échec : ${escT(rec.last_error || 'erreur inconnue')}`;
     else state = `⚠️ ${escT(RECORDING_REASONS[rec.review_reason] || 'À vérifier')}`;
-    const stored = rec.status === 'needs_review' || rec.status === 'published';
+    const stored = !rec.delete_requested_at && (rec.status === 'needs_review' || rec.status === 'published');
+    if(rec.delete_requested_at) state = 'Suppression en attente';
     return `<div class="session-resource-item" data-recording="${rec.id}">
         <span>${selectable && stored ? `<input type="checkbox" class="recording-pick" value="${rec.id}" ${rec.status === 'published' ? 'checked' : ''} style="width:auto">` : ''}
         <i class="fas fa-film"></i> ${time}${duration !== null ? ' · ' + duration + ' min' : ''}${rec.file_size ? ' · ' + formatSize(rec.file_size) : ''} · ${state}</span>
         <span style="display:flex;gap:0.4rem">
             ${rec.preview_url ? `<a class="btn-secondary" href="${escT(rec.preview_url)}" target="_blank" rel="noopener noreferrer">Aperçu</a>` : ''}
             ${rec.status === 'failed' ? `<button class="btn-secondary" onclick="retryRecording('${rec.id}')">Réessayer</button>` : ''}
-            ${rec.status === 'needs_review' || rec.status === 'failed' ? `<button class="btn-danger" title="Supprimer ce segment de R2 (l’original reste sur Zoom)" onclick="deleteRecording('${rec.id}')"><i class="fas fa-trash"></i></button>` : ''}
+            ${!rec.delete_requested_at && (rec.status === 'needs_review' || rec.status === 'failed') ? `<button class="btn-danger" title="Placer dans la Corbeille (48 h minimum)" onclick="deleteRecording('${rec.id}')"><i class="fas fa-trash"></i></button>` : ''}
         </span>
     </div>`;
 }
@@ -619,7 +627,7 @@ function renderUnassignedRecordings() {
         return `<div class="session-card"><div>${segmentLine(rec, { selectable: false })}
             ${rec.status === 'needs_review' ? `<div style="display:flex;gap:0.5rem;margin-top:0.5rem;flex-wrap:wrap">
                 <select id="assign-${rec.id}" style="max-width:100%">${options || '<option value="">Aucune séance Zoom correspondante</option>'}</select>
-                <button class="btn-primary" onclick="assignRecording('${rec.id}')">Publier dans cette séance</button></div>` : ''}
+                <button class="btn-primary" onclick="assignRecording('${rec.id}')">Associer à cette séance</button></div>` : ''}
         </div></div>`;
     }).join('');
 }
@@ -644,12 +652,12 @@ function publishRecordings(sessionId) {
 }
 
 function assignRecording(importId) {
-    const sessionId = document.getElementById(`assign-${importId}`)?.value;
-    if (!sessionId) return showToast('Aucune séance à associer.', 'error');
-    if (allSessions.find(session => session.id === sessionId)?.replay_url && !confirm('Remplacer le replay publié par ce segment ?')) return;
-    recordingAction(`${API}/api/live/admin/recordings/publish`, {
-        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ sessionId, importIds: [importId] })
-    }, 'Replay publié dans la séance choisie.');
+    const sessionId = document.getElementById('assign-'+importId)?.value;
+    const record = allRecordings.find(item=>item.id===importId);
+    if(!sessionId||!record)return showToast('Choisissez la séance.', 'error');
+    recordingAction(API+'/api/live/admin/recordings/resolve',{
+        method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({sessionId,occurrenceUuid:record.zoom_meeting_uuid})
+    },'Occurrence associée. Ouvrez la séance pour prévisualiser et publier.');
 }
 
 function retryRecording(importId) {
@@ -657,12 +665,13 @@ function retryRecording(importId) {
 }
 
 function deleteRecording(importId) {
-    if (!confirm('Supprimer ce segment de R2 ? L’enregistrement original reste disponible sur Zoom.')) return;
-    recordingAction(`${API}/api/live/admin/recordings/${encodeURIComponent(importId)}`, { method: 'DELETE' }, 'Segment supprimé de R2.');
+    if (!confirm('Placer ce segment dans la Corbeille ? Il restera récupérable pendant au moins 48 heures. L’original reste sur Zoom.')) return;
+    recordingAction(`${API}/api/live/admin/recordings/${encodeURIComponent(importId)}`, { method: 'DELETE' }, 'Segment placé dans la Corbeille pendant au moins 48 heures.');
 }
 
 // ── Load Sessions ─────────────────────────────────────────────────────
 async function loadSessions() {
+    await loadFeatures();
     sessionsLoadError = '';
     try {
         const res = await fetch(`${API}/api/live/admin/sessions`, { 
@@ -1082,7 +1091,7 @@ function escT(str) {
     return d.innerHTML;
 }
 </script>
-<script src="/admin/js/session-manager.js?v=2"></script>
+<script src="/admin/js/session-manager.js?v=4"></script>
 <script src="/admin/js/historical-replay.js"></script>
 </body>
 </html>

@@ -84,11 +84,13 @@
         panel.innerHTML = `<div class="session-manager-source"><strong>${session.replay_url ? 'Replay publié · ' + source : 'Aucun replay publié'}</strong>
             ${preview ? `<a class="btn-secondary" href="${preview}" target="_blank" rel="noopener noreferrer">Voir le replay publié</a>` : '<p>Ajoutez un enregistrement ou un lien pour cette séance.</p>'}</div>
             <div class="session-manager-actions"><button type="button" class="btn-secondary" data-upload>Téléverser le replay</button><button type="button" class="btn-secondary" data-external>Lien externe</button></div>
-            <h3>Enregistrements Zoom</h3>
-            ${!liveFeatures.recordings ? '<p class="session-manager-empty">Les imports automatiques sont disponibles après activation de leur migration. Les actions manuelles sont accessibles ci-dessus.</p>' : recordingsLoadError ? '<p class="session-manager-empty">Impossible de charger les segments. Utilisez Actualiser pour réessayer.</p>' : !segments.length ? '<p class="session-manager-empty">Aucun segment importé pour cette séance.</p>' : `
+            <h3>Enregistrements Zoom</h3>${session.zoom_meeting_id && liveFeatures.recordingDiagnostics?.status === 'ready' ? '<button type="button" class="btn-secondary" data-recover>Rechercher sur Zoom</button>' : ''}${liveFeatures.recordingDiagnostics?.schema === 'ready' || ['ready','disabled'].includes(liveFeatures.recordingDiagnostics?.status) ? '<button type="button" class="btn-secondary" data-trash>Corbeille</button>' : ''}
+            ${featuresLoadError ? '<p class="session-manager-empty">'+escT(featuresLoadError)+'</p>' : '<p class="session-manager-empty">'+escT(RECORDING_DIAGNOSTICS[liveFeatures.recordingDiagnostics?.status] || (liveFeatures.recordings ? 'Enregistrements disponibles pour révision.' : RECORDING_DIAGNOSTICS.missing_migration))+'</p>'}
+            ${!liveFeatures.recordings || featuresLoadError ? '' : recordingsLoadError ? '<p class="session-manager-empty">Impossible de charger les segments. Utilisez Actualiser pour réessayer.</p>' : !segments.length ? '<p class="session-manager-empty">Aucun segment importé pour cette séance.</p>' : `
             <input class="session-manager-search" type="search" aria-label="Rechercher un segment" placeholder="Rechercher un segment…">
             <div class="session-manager-list" id="recordings-${session.id}">${segments.map(recording => `<article class="session-manager-item" data-search-row>
                 <span class="session-manager-state" data-state="${escT(recording.status)}">${escT(states[recording.status] || recording.status)}${recording.status === 'published' && session.replay_source === 'zoom' ? ' · Partie ' + (++part) : ''}</span>
+                ${recording.zoom_meeting_uuid ? `<small style="display:block;overflow-wrap:anywhere" dir="ltr">Occurrence Zoom : ${escT(recording.zoom_meeting_uuid)}</small>` : ''}
                 ${segmentLine(recording,{selectable:true})}</article>`).join('')}</div><p data-no-results hidden>Aucun segment correspondant.</p>
             ${segments.some(recording => ['needs_review','published'].includes(recording.status)) ? '<button type="button" class="btn-primary" data-publish>Publier la sélection</button>' : ''}`}`;
         panel.querySelector('[data-upload]').onclick = () => uploadReplay(session.id);
@@ -110,10 +112,80 @@
             panel.querySelector('.session-manager-actions').after(form);
             input.focus();
         };
+        const recover = panel.querySelector('[data-recover]');
+        if(recover) recover.onclick=()=>openRecovery(panel,session);
+        const trash=panel.querySelector('[data-trash]');if(trash)trash.onclick=()=>openTrash(panel,session);
         const publish = panel.querySelector('[data-publish]');
         if (publish) publish.onclick = () => publishRecordings(session.id);
-        panel.querySelectorAll('.recording-pick').forEach((checkbox,index) => checkbox.setAttribute('aria-label', 'Sélectionner le segment ' + (index+1)));
+        panel.querySelectorAll('.recording-pick').forEach((checkbox,index) => {
+            checkbox.setAttribute('aria-label', 'Sélectionner le segment ' + (index+1));
+            checkbox.onchange=()=>{
+                if(!checkbox.checked)return;
+                const occurrence=allRecordings.find(recording=>recording.id===checkbox.value)?.zoom_meeting_uuid;
+                for(const other of panel.querySelectorAll('.recording-pick')){
+                    if(allRecordings.find(recording=>recording.id===other.value)?.zoom_meeting_uuid!==occurrence)other.checked=false;
+                }
+            };
+        });
         searchList(panel);
+    }
+    async function recordingRequest(path,body,method='POST') {
+        const response=await fetch(API+'/api/live/admin/recordings/'+path,{method,credentials:'include',...(body?{headers:{'Content-Type':'application/json'},body:JSON.stringify(body)}:{})});
+        const data=await response.json().catch(()=>({}));if(!response.ok)throw new Error(data.error||'Impossible de contacter Zoom. Veuillez réessayer.');return data;
+    }
+    function openRecovery(panel,session) {
+        const existing=panel.querySelector('[data-recovery]');
+        if(existing){existing.requestSubmit();return;}
+        const form=document.createElement('form');form.dataset.recovery='';
+        form.innerHTML='<details><summary>UUID exact (facultatif)</summary><label>Occurrence Zoom<input class="session-manager-search" maxlength="512" aria-label="UUID exact de l’occurrence Zoom"></label><button class="btn-secondary" type="submit">Rechercher cet UUID</button></details><p role="status" aria-live="polite"></p><div data-results class="session-manager-list"></div>';
+        const input=form.querySelector('input'),results=form.querySelector('[data-results]'),status=form.querySelector('[role=status]');let busy=false;
+        const search=async uuid=>{
+            if(busy)return;busy=true;form.querySelectorAll('button').forEach(button=>button.disabled=true);
+            panel.querySelector('[data-recover]').disabled=true;results.replaceChildren();form.querySelectorAll('[data-import-selection]').forEach(button=>button.remove());status.textContent='Recherche des enregistrements…';
+            try{
+                const data=await recordingRequest('discover',{sessionId:session.id,...(uuid?{occurrenceUuid:uuid}:{})});
+                status.textContent=data.message||'Aucun enregistrement disponible sur Zoom.';
+                if(data.state==='choose_occurrence'){
+                    const label=document.createElement('label');label.textContent='Occurrence Zoom';
+                    const select=document.createElement('select');select.className='session-manager-search';select.setAttribute('aria-label','Occurrence Zoom');select.add(new Option('Sélectionnez la séance correspondante',''));
+                    for(const item of data.occurrences)select.add(new Option((item.start?new Date(item.start).toLocaleString('fr-FR',{timeZone:'Africa/Tunis'}):'Date inconnue')+' · '+item.uuid,item.uuid));
+                    const choose=document.createElement('button');choose.type='button';choose.className='btn-secondary';choose.textContent='Afficher les segments';choose.onclick=()=>{if(select.value)void search(select.value);else status.textContent='Veuillez sélectionner la séance correspondante.';};
+                    label.append(select);results.append(label,choose);return;
+                }
+                for(const file of data.files||[]){
+                    const label=document.createElement('label');label.className='session-manager-item';
+                    const check=document.createElement('input');check.type='checkbox';check.value=file.id;check.disabled=file.status!=='available';check.style.width='auto';
+                    const states={available:'Disponible',deleted:'Corbeille',pending:'En attente',importing:'Import en cours…',needs_review:'À vérifier',published:'Publié',failed:'Échec — utilisez Réessayer'};
+                    const duration=file.durationSeconds==null?'':(' · '+Math.floor(file.durationSeconds/60)+' min '+file.durationSeconds%60+' s');
+                    label.append(check,document.createTextNode(' '+new Date(file.start).toLocaleString('fr-FR',{timeZone:'Africa/Tunis'})+duration+' · '+formatSize(file.size)+' · '+(states[file.status]||'Déjà importé')));results.append(label);
+                }
+                if((data.files||[]).some(file=>file.status==='available')){
+                    const submit=document.createElement('button');submit.type='button';submit.dataset.importSelection='';submit.className='btn-primary';submit.textContent='Importer';results.after(submit);
+                    submit.onclick=async()=>{
+                        if(busy)return;const fileIds=Array.from(results.querySelectorAll('input:checked'),item=>item.value);
+                        if(!fileIds.length){status.textContent='Choisissez au moins un segment.';return;}
+                        busy=true;form.querySelectorAll('button').forEach(button=>button.disabled=true);status.textContent='Import en cours…';
+                        try{const result=await recordingRequest('recover',{sessionId:session.id,occurrenceUuid:data.occurrenceUuid,fileIds});status.textContent=result.queued+' segment(s) ajouté(s). Actualisez les statuts locaux. Publication manuelle requise.';submit.remove();}
+                        catch(error){status.textContent=error.message;}finally{busy=false;form.querySelectorAll('button').forEach(button=>button.disabled=false);}
+                    };
+                }
+            }catch(error){status.textContent=error.message;}finally{busy=false;form.querySelectorAll('button').forEach(button=>button.disabled=false);const button=panel.querySelector('[data-recover]');if(button)button.disabled=false;}
+        };
+        form.onsubmit=event=>{event.preventDefault();void search(input.value.trim());};
+        panel.querySelector('[data-recover]').after(form);void search('');
+    }
+    async function openTrash(panel,session){
+        panel.querySelector('[data-trash-list]')?.remove();const root=document.createElement('div');root.dataset.trashList='';root.className='session-manager-list';root.textContent='Chargement de la Corbeille…';panel.querySelector('[data-trash]').after(root);
+        try{
+            const rows=await recordingRequest('trash?sessionId='+encodeURIComponent(session.id),null,'GET');root.replaceChildren();
+            const note=document.createElement('p');note.textContent=rows.length?'Les fichiers restent récupérables pendant au moins 48 heures. Une restauration ne publie pas le replay.':'La Corbeille est vide.';root.append(note);
+            for(const row of rows){
+                const item=document.createElement('article');item.className='session-manager-item';
+                item.textContent=new Date(row.recording_start).toLocaleString('fr-FR',{timeZone:'Africa/Tunis'})+' · '+formatSize(row.file_size)+' · '+(row.restorable?'Conservé au moins jusqu’au '+new Date(row.purge_after).toLocaleString('fr-FR',{timeZone:'Africa/Tunis'}):'Fichier supprimé définitivement');
+                if(row.restorable){const restore=document.createElement('button');restore.type='button';restore.className='btn-secondary';restore.textContent='Restaurer';restore.onclick=async()=>{restore.disabled=true;try{await recordingRequest(row.id+'/restore',{});await loadSessions();window.sessionManagerNotice('Segment restauré. Vérifiez puis publiez manuellement.','success');}catch(error){note.textContent=error.message;restore.disabled=false;}};item.append(restore);}
+                root.append(item);
+            }
+        }catch(error){root.textContent=error.message;}
     }
     function renderResources(session) {
         const panel = document.getElementById('manager-resources');
@@ -188,6 +260,8 @@
     async function refresh() {
         const button = dialog.querySelector('[data-refresh]');
         button.disabled = true;
+        // Initial refresh replaces panel contents. Prevent actions against stale DOM/data.
+        dialog.querySelectorAll('.session-manager-panel button').forEach(control => { control.disabled=true; });
         notice.textContent = 'Chargement de la séance…';
         await loadSessions();
         if (dialog.open) {

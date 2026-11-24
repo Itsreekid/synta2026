@@ -1,6 +1,7 @@
 import pool from "../config/db.js";
 import { createRecordingWorker } from "./zoom-recordings.js";
-import { openZoomRecordingDownload } from "../utils/zoomClient.js";
+import { openZoomRecordingDownload, getZoomOccurrenceRecordings } from "../utils/zoomClient.js";
+import { recordingImportsEnabled } from './live-features.js';
 import {
   abortR2MultipartUpload, completeR2MultipartUpload, createR2MultipartUpload,
   deleteFromR2, readR2ObjectMetadata, uploadR2Part,
@@ -16,6 +17,6 @@ export const recordingStorage = {
 };
 
 export const recordingWorker = createRecordingWorker(pool, {
-  zoom: { download: openZoomRecordingDownload },
+  zoom: { download: openZoomRecordingDownload, recordings: getZoomOccurrenceRecordings },
   storage: recordingStorage,
-});
+}, { enabled: recordingImportsEnabled });

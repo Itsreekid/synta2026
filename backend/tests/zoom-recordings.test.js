@@ -67,7 +67,7 @@ test("recordings match the closest occurrence of a recurring meeting, or go to r
   assert.equal(matchSession(sessions, Date.parse("2030-01-04T18:00:00Z")).reason, "no_matching_session");
   const twins = [...sessions, { id: "twin", scheduled_at: "2030-01-08T18:00:00Z", duration_minutes: 60 }];
   assert.equal(matchSession(twins, Date.parse("2030-01-08T18:05:00Z")).reason, "ambiguous_session");
-  assert.equal(recordingObjectKey(null, "a/b"), "live-replays/unassigned/zoom-a_b.mp4");
+  assert.notEqual(recordingObjectKey(null,"a/b"),recordingObjectKey(null,"a_b"));
 });
 
 test("pre-migration live access SQL is unchanged and never references the new columns", () => {
@@ -147,8 +147,8 @@ test("live access and Zoom recording imports on disposable PostgreSQL", { skip: 
     await promisify(execFile)(process.execPath, [fileURLToPath(new URL("../scripts/migrate.js", import.meta.url))], {
       env: { ...process.env, DATABASE_URL: databaseUrl, DB_SSL: "false" }, timeout: 30000,
     });
-    for (const file of ["202611200002_extend_live_session_access.sql", "202611200003_create_zoom_recording_imports.sql"]) {
-      const sql = await readFile(new URL(`../../database/pending-migrations/${file}`, import.meta.url), "utf8");
+    for (const file of ["202611200002_extend_live_session_access.sql", "202611200003_create_zoom_recording_imports.sql", "202611240001_zoom_recording_reliability.sql", "202611240002_recording_trash_retention.sql"]) {
+      const sql = await readFile(new URL(`../../database/${file==='202611200002_extend_live_session_access.sql'?'pending-migrations':'migrations'}/${file}`, import.meta.url), "utf8");
       await db.query(sql);
       await db.query(sql);
     }
@@ -248,7 +248,7 @@ test("live access and Zoom recording imports on disposable PostgreSQL", { skip: 
     const replayOf = async id => (await db.query("SELECT replay_url FROM live_sessions WHERE id = $1", [id])).rows[0].replay_url;
     const drain = async () => { while (await processNextRecording(db, deps)); };
 
-    await t.test("single segment: streamed in equal parts, verified, published on the matching occurrence", async () => {
+    await t.test("single segment: streamed in equal parts, verified, reviewed on the matching occurrence", async () => {
       const week1 = await session({ meeting: "9001", at: "2030-01-01T17:00:00Z" });
       const week2 = await session({ meeting: "9001", at: "2030-01-08T17:00:00Z" });
       const data = addFile("rec-9001-a", PART_SIZE * 2 + 5_000_000);
@@ -256,13 +256,13 @@ test("live access and Zoom recording imports on disposable PostgreSQL", { skip: 
         [{ id: "rec-9001-a", start: "2030-01-08T17:05:00Z", end: "2030-01-08T18:30:00Z", data }]);
       assert.equal((await queueRecordingEvent(db, event)).queued, 1);
       assert.equal((await queueRecordingEvent(db, event)).queued, 0, "duplicate webhook delivery");
-      assert.equal((await processNextRecording(db, deps)).status, "published");
+      assert.equal((await processNextRecording(db, deps)).status, "needs_review");
       const [row] = await imports("9001");
       assert.equal(row.live_session_id, week2);
-      assert.equal(row.status, "published");
+      assert.equal(row.status, "needs_review");
       assert.equal(row.multipart_upload_id, null);
       assert.equal(Number(row.bytes_transferred), data.length);
-      assert.equal(await replayOf(week2), row.object_key);
+      assert.equal(await replayOf(week2), null, "admin approval required even for one segment");
       assert.equal(await replayOf(week1), null);
       assert.ok(storage.objects.get(row.object_key).equals(data), "stored bytes equal the Zoom MP4");
       assert.equal(await processNextRecording(db, deps), null, "nothing left to import");
@@ -304,7 +304,7 @@ test("live access and Zoom recording imports on disposable PostgreSQL", { skip: 
       const data = addFile("rec-9004", 4096);
       await queueRecordingEvent(db, recording("9004", "uuid-9004", "2030-04-01T17:00:00Z", [{ id: "rec-9004", start: "2030-04-01T17:00:00Z", data }]));
       await drain();
-      assert.equal((await imports("9004"))[0].review_reason, "replay_exists");
+      assert.equal((await imports("9004"))[0].review_reason, "admin_approval_required");
       assert.equal(await replayOf(manual), "live-replays/manual/upload.mp4");
     });
 
@@ -324,7 +324,7 @@ test("live access and Zoom recording imports on disposable PostgreSQL", { skip: 
       assert.equal(await replayOf(target), null);
       assert.equal(await processNextRecording(db, deps), null, "not retried before its time");
       await db.query("UPDATE zoom_recording_imports SET next_attempt_at = NOW() WHERE id = $1", [row.id]);
-      assert.equal((await processNextRecording(db, deps)).status, "published");
+      assert.equal((await processNextRecording(db, deps)).status, "needs_review");
       [row] = await imports("9005");
       assert.ok(storage.objects.get(row.object_key).equals(data));
     });
@@ -351,9 +351,9 @@ test("live access and Zoom recording imports on disposable PostgreSQL", { skip: 
       await db.query(`UPDATE zoom_recording_imports SET status = 'importing', attempts = 1,
         locked_until = NOW() - INTERVAL '1 minute', multipart_upload_id = 'upload-before-restart' WHERE zoom_meeting_id = '9008'`);
       const [first, second] = await Promise.all([processNextRecording(db, deps), processNextRecording(db, deps)]);
-      assert.deepEqual([first?.status, second?.status].filter(Boolean), ["published"], "claimed exactly once");
-      assert.ok(storage.aborted.includes("upload-before-restart"));
-      assert.equal(await replayOf(target), (await imports("9008"))[0].object_key);
+      assert.deepEqual([first?.status, second?.status].filter(Boolean), ["needs_review"], "claimed exactly once");
+      assert.ok((await imports("9008"))[0].object_key, "restart produced a stored review object");
+      assert.equal(await replayOf(target), null);
     });
 
     await t.test("webhook route: signature, URL validation, disabled mode and duplicate deliveries", async st => {

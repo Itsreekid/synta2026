@@ -6,14 +6,19 @@ import { GetObjectCommand } from "@aws-sdk/client-s3";
 import pool from "../config/db.js";
 import { authApiMiddleware } from "../middleware/requireAuth.js";
 import { requireAdmin } from "../middleware/requireAdmin.js";
-import { createZoomMeeting, deleteZoomMeeting } from "../utils/zoomClient.js";
+import { createZoomMeeting, deleteZoomMeeting, getZoomOccurrenceRecordings, getZoomPastInstances } from "../utils/zoomClient.js";
 import { createR2UploadUrl, generateSignedUrl } from "../utils/r2Utils.js";
 import { r2Client, R2_BUCKET } from "../config/r2.js";
 import { liveSessionAccess, offerEntitlement, enrollmentAccess, hasExtendedLiveAccess, sessionCourseMatch } from "../utils/offerAccess.js";
-import { liveFeatures } from "../services/live-features.js";
+import { liveFeatures, recordingImportsEnabled, recordingDiagnostics, recordingSchemaState } from "../services/live-features.js";
 import { recordingStorage, recordingWorker } from "../services/recording-worker.js";
 
+import { lockOccurrence, queueRecordingEvent, resolveOccurrence, requestRecordingDeletion, restoreRecording, recordingLog } from '../services/recording-jobs.js';
+import { createRecordingDiscovery } from '../services/recording-discovery.js';
+import { selectRecordingSegments } from '../services/zoom-recordings.js';
+
 const router = express.Router();
+const discovery=createRecordingDiscovery({pool,recordings:getZoomOccurrenceRecordings,instances:getZoomPastInstances});
 const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const JOIN_EARLY_MS = 10 * 60_000;
 
@@ -585,8 +590,8 @@ router.patch("/:sessionId/replay", requireAdmin, async (req, res) => {
         const target = await client.query('SELECT id FROM live_sessions WHERE id=$1 FOR UPDATE', [sessionId]);
         if (!target.rowCount) { await client.query('ROLLBACK'); return res.status(404).json({ error:'Session not found' }); }
         if (liveFeatures.recordingsTable) {
-          const imports = await client.query("SELECT status FROM zoom_recording_imports WHERE object_key=$1 FOR UPDATE", [replayKey]);
-          if (imports.rows.some(row => row.status === 'discarded')) {
+          const imports = await client.query(`SELECT status${recordingSchemaState === 'ready' ? ',delete_requested_at' : ''} FROM zoom_recording_imports WHERE object_key=$1 FOR UPDATE`, [replayKey]);
+          if (imports.rows.some(row => row.status === 'discarded' || row.delete_requested_at)) {
             await client.query('ROLLBACK');
             return res.status(409).json({ error:'Ce fichier a été supprimé. Téléversez une nouvelle vidéo.' });
           }
@@ -689,8 +694,11 @@ router.get("/admin/sessions", requireAdmin, async (req, res) => {
  * GET /api/live/admin/features — ADMIN ONLY
  */
 router.get("/admin/features", requireAdmin, (req, res) => {
+  if(recordingSchemaState==='unavailable')return res.status(503).json({error:'Vérification de la base indisponible.'});
+  res.set('Cache-Control','private, no-store');
   res.json({ extendedAccess: hasExtendedLiveAccess(), recordings: liveFeatures.recordingsTable,
-    multiAudience: liveFeatures.multiAudience && process.env.LIVE_MULTI_AUDIENCE_ENABLED === 'true' });
+    multiAudience: liveFeatures.multiAudience && process.env.LIVE_MULTI_AUDIENCE_ENABLED === 'true',
+    recordingDiagnostics: recordingDiagnostics(recordingWorker.isRunning?.() || false) });
 });
 
 /**
@@ -714,11 +722,89 @@ router.get("/admin/students", requireAdmin, async (req, res) => {
 });
 
 function requireRecordingsTable(req, res, next) {
-  if (!liveFeatures.recordingsTable) {
+  if (!liveFeatures.recordingsTable || recordingSchemaState !== 'ready') {
     return res.status(409).json({ error: "L’import automatique des enregistrements n’est pas encore activé." });
   }
   next();
 }
+
+const recoveryRequests = new Map();
+function allowRecordingRecovery(req,res,next) {
+  if(!recordingImportsEnabled())return res.status(409).json({error:'Les imports sont désactivés.'});
+  const now=Date.now();
+  for(const [id,item] of recoveryRequests)if(item.until<now)recoveryRequests.delete(id);
+  const item=recoveryRequests.get(req.user.id)||{until:now+60000,count:0};
+  if(++item.count>10)return res.status(429).json({error:'Trop de recherches. Réessayez dans une minute.'});
+  recoveryRequests.set(req.user.id,item);next();
+}
+const validOccurrence = value => typeof value==='string' && value.length>0 && value.length<=512 && !/^\d+$/.test(value);
+
+// Discovery is read-only. Only the explicitly selected file IDs are queued later.
+router.post('/admin/recordings/discover',requireAdmin,requireRecordingsTable,allowRecordingRecovery,async(req,res)=>{
+  const {occurrenceUuid,sessionId}=req.body||{};
+  if((occurrenceUuid && !validOccurrence(occurrenceUuid))||!uuidPattern.test(sessionId||''))return res.status(400).json({error:'Séance ou occurrence invalide.'});
+  try{
+    const {rows:[session]}=await pool.query("SELECT id,zoom_meeting_id,scheduled_at FROM live_sessions WHERE id=$1 AND status<>'cancelled'",[sessionId]);
+    if(!session||!session.zoom_meeting_id)return res.status(404).json({error:'Aucune réunion Zoom associée à cette séance.'});
+    const result=await discovery.search(session,occurrenceUuid);
+    res.json(result);recordingLog('historical_discovered',{sessionId,adminId:req.user.id,count:result.files.length,state:result.state});
+  }catch(error){recordingLog('historical_discovery_failed',{error:error.code||error.name});res.status(error.status===409?409:error.status===429?429:502).json({error:error.status===409?'Cette occurrence appartient à une autre réunion Zoom.':'Impossible de contacter Zoom. Veuillez réessayer.'});}
+});
+router.get('/admin/recordings/trash',requireAdmin,requireRecordingsTable,async(req,res)=>{
+  if(!uuidPattern.test(req.query.sessionId||''))return res.status(400).json({error:'Séance invalide.'});
+  try{
+    const {rows}=await pool.query(`SELECT r.id,r.recording_start,r.recording_end,r.file_size,r.status,d.requested_at,d.purge_after,d.completed_at,
+      (d.completed_at IS NULL AND r.status IN ('needs_review','failed')) AS restorable
+      FROM zoom_recording_imports r JOIN zoom_recording_deletions d ON d.import_id=r.id
+      WHERE r.live_session_id=$1 AND r.delete_requested_at IS NOT NULL AND d.restored_at IS NULL ORDER BY d.requested_at DESC`,[req.query.sessionId]);
+    res.set('Cache-Control','private, no-store');res.json(rows);
+  }catch{res.status(500).json({error:'Impossible de charger la Corbeille.'});}
+});
+router.post('/admin/recordings/:importId/restore',requireAdmin,requireRecordingsTable,async(req,res)=>{
+  if(!uuidPattern.test(req.params.importId))return res.status(400).json({error:'Segment invalide.'});
+  try{await restoreRecording(pool,req.params.importId,req.user.id);
+    const {rows:[row]}=await pool.query('SELECT live_session_id FROM zoom_recording_imports WHERE id=$1',[req.params.importId]);
+    if(row?.live_session_id)discovery.invalidate(row.live_session_id);
+    res.json({success:true});}
+  catch{res.status(409).json({error:'Ce segment a déjà été supprimé définitivement ou ne peut pas être restauré.'});}
+});
+router.post('/admin/recordings/recover',requireAdmin,requireRecordingsTable,allowRecordingRecovery,async(req,res)=>{
+  const {occurrenceUuid,sessionId,fileIds}=req.body||{};
+  if(!validOccurrence(occurrenceUuid)||!uuidPattern.test(sessionId||'')||!Array.isArray(fileIds)||!fileIds.length||fileIds.length>100||fileIds.some(id=>typeof id!=='string'))return res.status(400).json({error:'Sélectionnez les fichiers de l’occurrence.'});
+  try{
+    const {rows:[session]}=await pool.query("SELECT zoom_meeting_id FROM live_sessions WHERE id=$1 AND status<>'cancelled'",[sessionId]);
+    if(!session)return res.status(404).json({error:'Séance introuvable.'});
+    const data=await getZoomOccurrenceRecordings(occurrenceUuid);
+    if(String(data.id)!==session.zoom_meeting_id)return res.status(409).json({error:'Réunion incompatible.'});
+    const deleted=await pool.query("SELECT 1 FROM zoom_recording_imports WHERE zoom_file_id=ANY($1::text[]) AND (delete_requested_at IS NOT NULL OR status='discarded') LIMIT 1",[fileIds]);
+    if(deleted.rowCount)return res.status(409).json({error:'Ce segment est supprimé. Utilisez la Corbeille pour le restaurer.'});
+    const files=selectRecordingSegments(data.recording_files);
+    if(fileIds.some(id=>!files.some(file=>String(file.id)===id)))return res.status(409).json({error:'La sélection Zoom a changé. Relancez la recherche.'});
+    // Resolve BEFORE queueing, so an invalid target never leaves new jobs behind.
+    const client=await pool.connect();
+    try{
+      await client.query('BEGIN');await lockOccurrence(client,occurrenceUuid);
+      const existing=await client.query('SELECT * FROM zoom_recording_occurrences WHERE occurrence_uuid=$1 FOR UPDATE',[occurrenceUuid]);
+      const conflicts=await client.query('SELECT 1 FROM zoom_recording_imports WHERE zoom_meeting_uuid=$1 AND live_session_id IS NOT NULL AND live_session_id<>$2 LIMIT 1',[occurrenceUuid,sessionId]);
+      if(conflicts.rowCount||(existing.rows[0]?.live_session_id && existing.rows[0].live_session_id!==sessionId)||existing.rows[0]?.resolution==='legacy_conflict'){
+        await client.query('ROLLBACK');return res.status(409).json({error:'Cette occurrence possède une association existante à préserver.'});
+      }
+      await client.query(`INSERT INTO zoom_recording_occurrences(occurrence_uuid,meeting_id,live_session_id,resolution,resolved_by,resolved_at)
+        VALUES($1,$2,$3,'admin',$4,NOW()) ON CONFLICT(occurrence_uuid) DO NOTHING`,[occurrenceUuid,String(data.id),sessionId,req.user.id]);
+      await client.query('COMMIT');
+    }catch(error){await client.query('ROLLBACK').catch(()=>{});throw error;}finally{client.release();}
+    await resolveOccurrence(pool,occurrenceUuid,sessionId,req.user.id);
+    const result=await queueRecordingEvent(pool,{object:data},{selectedIds:fileIds});
+    discovery.invalidate(sessionId);
+    recordingWorker.kick();res.json({success:true,queued:result.queued});
+  }catch(error){recordingLog('historical_recovery_failed',{error:error.code||error.name});res.status(502).json({error:'Import impossible. Vérifiez l’occurrence et réessayez.'});}
+});
+router.post('/admin/recordings/resolve',requireAdmin,requireRecordingsTable,async(req,res)=>{
+  const {occurrenceUuid,sessionId}=req.body||{};
+  if(!validOccurrence(occurrenceUuid)||!uuidPattern.test(sessionId||''))return res.status(400).json({error:'Association invalide.'});
+  try{await resolveOccurrence(pool,occurrenceUuid,sessionId,req.user.id);res.json({success:true});}
+  catch(error){recordingLog('resolution_rejected',{error:error.code||error.name});res.status(409).json({error:'Association incompatible ou déjà attribuée à une autre séance.'});}
+});
 
 /**
  * GET /api/live/admin/recordings — ADMIN ONLY
@@ -728,15 +814,15 @@ router.get("/admin/recordings", requireAdmin, requireRecordingsTable, async (req
   try {
     const { rows } = await pool.query(
       `SELECT id, live_session_id, zoom_meeting_id, zoom_meeting_uuid, recording_type, recording_start, recording_end,
-              file_size, bytes_transferred, status, review_reason, attempts, last_error, object_key, created_at
+              file_size, bytes_transferred, status, review_reason, attempts, last_error, object_key, delete_requested_at, created_at
        FROM zoom_recording_imports
-       WHERE status <> 'discarded' AND created_at > NOW() - INTERVAL '120 days'
+       WHERE status <> 'discarded' AND delete_requested_at IS NULL
        ORDER BY recording_start DESC`
     );
     const stored = new Set(["needs_review", "published"]);
     res.json(await Promise.all(rows.map(async ({ object_key, ...row }) => ({
       ...row,
-      preview_url: stored.has(row.status) && object_key ? await generateSignedUrl(object_key, 3600) : null,
+      preview_url: stored.has(row.status) && !row.delete_requested_at && object_key ? await generateSignedUrl(object_key, 3600) : null,
     }))));
   } catch (error) {
     console.error("Error listing recording imports:", error.code ?? error.name);
@@ -749,14 +835,16 @@ router.get("/admin/recordings", requireAdmin, requireRecordingsTable, async (req
  */
 router.post("/admin/recordings/:importId/retry", requireAdmin, requireRecordingsTable, async (req, res) => {
   if (!uuidPattern.test(req.params.importId)) return res.status(400).json({ error: "Import invalide." });
+  if (!recordingImportsEnabled()) return res.status(409).json({ error:'Les imports sont désactivés.' });
   try {
     const result = await pool.query(
       `UPDATE zoom_recording_imports
        SET status = 'pending', attempts = 0, next_attempt_at = NOW(), last_error = NULL, updated_at = NOW()
-       WHERE id = $1 AND status = 'failed' RETURNING id`,
+       WHERE id = $1 AND status = 'failed' AND delete_requested_at IS NULL RETURNING id`,
       [req.params.importId]
     );
     if (!result.rowCount) return res.status(409).json({ error: "Seuls les imports en échec peuvent être relancés." });
+    recordingLog('retry_requested',{importId:req.params.importId,adminId:req.user.id});
     recordingWorker.kick();
     res.json({ success: true });
   } catch (error) {
@@ -779,6 +867,14 @@ router.post("/admin/recordings/publish", requireAdmin, requireRecordingsTable, a
   const client = await pool.connect();
   try {
     await client.query("BEGIN");
+    const identified=await client.query('SELECT DISTINCT zoom_meeting_uuid FROM zoom_recording_imports WHERE id=ANY($1::uuid[])',[importIds]);
+    if(identified.rows.length!==1){await client.query('ROLLBACK');return res.status(409).json({error:'Choisissez les segments d’une seule occurrence Zoom.'});}
+    const occurrence=identified.rows[0].zoom_meeting_uuid;
+    await lockOccurrence(client,occurrence);
+    const {rows:[binding]}=await client.query('SELECT * FROM zoom_recording_occurrences WHERE occurrence_uuid=$1 FOR UPDATE',[occurrence]);
+    if(!binding || binding.resolution==='legacy_conflict' || binding.live_session_id!==sessionId){
+      await client.query('ROLLBACK');return res.status(409).json({error:'Associez explicitement cette occurrence à la séance avant publication.'});
+    }
     const { rows: [session] } = await client.query(
       "SELECT id, zoom_meeting_id FROM live_sessions WHERE id = $1 AND status <> 'cancelled' FOR UPDATE", [sessionId]);
     if (!session) {
@@ -788,7 +884,7 @@ router.post("/admin/recordings/publish", requireAdmin, requireRecordingsTable, a
     const { rows: chosen } = await client.query(
       `SELECT id, object_key FROM zoom_recording_imports
        WHERE id = ANY($1::uuid[]) AND status IN ('needs_review', 'published') AND object_key IS NOT NULL
-         AND zoom_meeting_id = $2 AND (live_session_id IS NULL OR live_session_id = $3)
+         AND zoom_meeting_id = $2 AND live_session_id = $3 AND delete_requested_at IS NULL
        ORDER BY recording_start, id
        FOR UPDATE`,
       [importIds, session.zoom_meeting_id, sessionId]
@@ -797,6 +893,7 @@ router.post("/admin/recordings/publish", requireAdmin, requireRecordingsTable, a
       await client.query("ROLLBACK");
       return res.status(400).json({ error: "Un segment choisi n’est pas disponible pour cette séance." });
     }
+    for(const row of chosen) { const head=await recordingStorage.head(row.object_key); if(!Number(head?.ContentLength)) throw new Error('Stored recording unavailable'); }
     await client.query(
       `UPDATE zoom_recording_imports SET status = 'needs_review', review_reason = 'not_selected', updated_at = NOW()
        WHERE live_session_id = $1 AND status = 'published' AND NOT (id = ANY($2::uuid[]))`,
@@ -810,6 +907,7 @@ router.post("/admin/recordings/publish", requireAdmin, requireRecordingsTable, a
     );
     await client.query("UPDATE live_sessions SET replay_url = $2 WHERE id = $1", [sessionId, chosen[0].object_key]);
     await client.query("COMMIT");
+    recordingLog('published',{sessionId,adminId:req.user.id,count:chosen.length});
     res.json({ success: true, published: chosen.map(row => row.id) });
   } catch (error) {
     await client.query("ROLLBACK").catch(() => {});
@@ -827,37 +925,17 @@ router.post("/admin/recordings/publish", requireAdmin, requireRecordingsTable, a
  */
 router.delete("/admin/recordings/:importId", requireAdmin, requireRecordingsTable, async (req, res) => {
   if (!uuidPattern.test(req.params.importId)) return res.status(400).json({ error: "Import invalide." });
-  const client = await pool.connect();
+  if(!recordingImportsEnabled())return res.status(409).json({error:'Les imports sont désactivés.'});
   try {
-    await client.query('BEGIN');
-    const { rows: [row] } = await client.query(
-      `SELECT object_key, multipart_upload_id FROM zoom_recording_imports
-       WHERE id = $1 AND status IN ('needs_review', 'failed') FOR UPDATE`,
-      [req.params.importId]
-    );
-    if (!row) { await client.query('ROLLBACK'); return res.status(409).json({ error: "Seuls les segments non publiés peuvent être supprimés." }); }
-    if (row.object_key) {
-      const reference = await client.query(`SELECT EXISTS(SELECT 1 FROM live_sessions WHERE replay_url=$1)
-        OR EXISTS(SELECT 1 FROM zoom_recording_imports WHERE object_key=$1 AND id<>$2 AND status<>'discarded') AS used`, [row.object_key,req.params.importId]);
-      if (reference.rows[0].used) {
-        await client.query('ROLLBACK');
-        return res.status(409).json({ error:'Ce fichier est encore utilisé par un replay publié.' });
-      }
-    }
-    if (row.object_key && row.multipart_upload_id) {
-      await recordingStorage.abortMultipart(row.object_key, row.multipart_upload_id);
-    }
-    if (row.object_key?.startsWith("live-replays/")) await recordingStorage.delete(row.object_key);
-    await client.query(
-      // Keep the key as a tombstone so concurrent/manual attachment cannot revive a deleted file.
-      "UPDATE zoom_recording_imports SET status='discarded',multipart_upload_id = NULL,updated_at=NOW() WHERE id = $1", [req.params.importId]);
-    await client.query('COMMIT');
-    res.json({ success: true });
-  } catch (error) {
-    await client.query('ROLLBACK').catch(() => {});
-    console.error("Error deleting recording segment:", error.code ?? error.name);
-    res.status(500).json({ error: "Impossible de supprimer le segment." });
-  } finally { client.release(); }
+    await requestRecordingDeletion(pool,req.params.importId,req.user.id);
+    const {rows:[row]}=await pool.query('SELECT live_session_id FROM zoom_recording_imports WHERE id=$1',[req.params.importId]);
+    if(row?.live_session_id)discovery.invalidate(row.live_session_id);
+    recordingWorker.kick();
+    res.status(202).json({success:true,pendingDeletion:true});
+  } catch(error) {
+    recordingLog('deletion_rejected',{error:error.code||error.name});
+    res.status(409).json({error:'Suppression impossible : segment publié, utilisé ou indisponible.'});
+  }
 });
 
 export default router;

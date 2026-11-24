@@ -33,7 +33,7 @@ import sessionRoutes from "./routes/session.js";
 import adminApiRoutes from "./routes/admin-api.js";
 import aiApiRoutes from "./routes/ai-api.js";
 import zoomWebhookRoutes from "./routes/zoom-webhook.js";
-import { detectLiveFeatures, liveFeatures, recordingImportsEnabled } from "./services/live-features.js";
+import { detectLiveFeatures, liveFeatures, recordingImportsEnabled, recordingDiagnostics } from "./services/live-features.js";
 import { recordingWorker } from "./services/recording-worker.js";
 import { sessionRenewalReady } from "./services/sessions.js";
 
@@ -226,6 +226,7 @@ app.listen(PORT, '0.0.0.0', () => {
 // Handle graceful shutdown
 process.on("SIGTERM", () => {
   console.log("SIGTERM received, shutting down gracefully...");
+  recordingWorker.stop();
   process.exit(0);
 });
 
@@ -236,12 +237,12 @@ sessionRenewalReady(pool).then(ready => {
 
 detectLiveFeatures(pool).then(features => {
   console.log(`[Live] Extended session access: ${features.extendedAccess ? "on" : "off (migration pending)"}`);
-  if (recordingImportsEnabled()) {
+  const diagnostics=recordingDiagnostics(true);
+  if (recordingImportsEnabled() && diagnostics.status==='ready') {
     recordingWorker.start();
     console.log("[Recordings] Zoom recording import worker started");
-  } else if (process.env.ZOOM_RECORDING_IMPORT_ENABLED === "true" && !liveFeatures.recordingsTable) {
-    console.log("[Recordings] Import disabled: zoom_recording_imports migration pending");
   }
+  console.log(JSON.stringify({service:'zoom-recordings',event:'readiness',...recordingDiagnostics(recordingWorker.isRunning())}));
 }).catch(error => console.error("[Live] Feature detection failed:", error.code ?? error.name));
 
 if (process.env.TIMED_OFFER_REMINDERS_ENABLED === "true") {

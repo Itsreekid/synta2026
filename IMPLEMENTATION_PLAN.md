@@ -135,20 +135,12 @@
 
 ---
 
-### TASK-009: Implement Zoom Webhook for Auto-Replay
-- **Status:** COMPLETED IN CODE 2026-11-20 (uncommitted). It delivers more than the original steps: the MP4 is copied to private R2, multi-segment recordings are reviewed by the admin, and failed imports retry. The actual endpoint is `POST /api/zoom/webhook` and the variable is `ZOOM_WEBHOOK_SECRET_TOKEN`. Not live until held migrations `202611200002` and `202611200003` are approved and `ZOOM_RECORDING_IMPORT_ENABLED=true`. See `ARCHITECTURE.md` §10 and BR-19.
-- **Priority:** MEDIUM
-- **Status:** NOT STARTED
-- **Objective:** Automatically set `replay_url` after Zoom cloud recordings complete
-- **Current situation:** Zoom auto-records to cloud but `replay_url` in `live_sessions` must be manually set via DB.
-- **Required changes:**
-  1. Create `POST /api/live/zoom-webhook` endpoint
-  2. Verify Zoom webhook signature
-  3. On `recording.completed` event, update `live_sessions.replay_url` by matching `zoom_meeting_id`
-  4. Add `ZOOM_WEBHOOK_SECRET` to env vars
-- **Dependencies:** Zoom Marketplace app webhook configuration
-- **Risks:** Zoom meeting ID matching requires 1-to-1 or careful many-to-1 mapping
-- **Acceptance criteria:** `replay_url` is auto-populated within minutes of session end
+### TASK-009: Zoom cloud recording imports and reviewed publication
+- **Status:** COMPLETED LOCALLY 2026-11-24; production/staging activation NOT verified.
+- Preserved webhook, private R2 transfer, existing admin preview/selection and student permissions.
+- Added persistent occurrence bindings, fenced claims, atomic segment intake, manual approval for every new segment, durable deletion/reconciliation, diagnostics and selected exact-UUID historical recovery.
+- Held dependency: existing live_sessions/users + 202611200003, then 202611240001_zoom_recording_reliability.sql. Do not promote unrelated migrations.
+- Next operational step: owner review of the additive migration, then separately approved real Zoom/R2 staging validation. Production approval is still required. See ZOOM_RECORDING_IMPLEMENTATION.md; unrelated offer-card regression remains outside this task.
 
 ---
 
@@ -405,3 +397,11 @@
 
 **Recommended remaining start order:** TASK-004 → TASK-003 → TASK-005
 
+
+TASK-009 follow-up completed locally 2026-11-24: automatic occurrence discovery on explicit search, selected historical recovery and 48-hour Corbeille restoration. New held dependency 202611240002; real deployment validation remains pending owner approval.
+
+### 2026-11-24 — Local deployment commit prepared
+
+- Owner approved promotion of exactly 202611200003_create_zoom_recording_imports.sql, 202611240001_zoom_recording_reliability.sql and 202611240002_recording_trash_retention.sql to database/migrations. SQL contents retained unchanged; startup runner will apply them on the next deployment. Imports flag does NOT disable migrations.
+- Refresh-token migration 202611200001 and live-audience migrations 202611200002/202611200004 remain pending. Updated recording regression paths for promoted files; included all recording implementation/runtime/test files. No production access, migration execution, push or deployment.
+- Production gate: backup, stop all old backend workers, deploy initially with ZOOM_RECORDING_IMPORT_ENABLED=false, verify schema/replays and then separately activate. Existing real Zoom/R2 validation and the previously documented unrelated offer-card full-suite failure remain outstanding. See ZOOM_RECORDING_IMPLEMENTATION.md.
