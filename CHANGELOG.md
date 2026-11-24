@@ -1,3 +1,8 @@
+## 2026-11-24 — Edit imported replay details and remove finished sessions
+
+- Enabled the existing replay metadata editor for finished Zoom sessions, including multiple associated courses. Preserved recording identity, selected offers and invitations.
+- Finished-session removal now hides the session/replay locally without depending on Zoom availability or deleting original video files. No database migration.
+
 ## 2026-11-24 — Refine admin Zoom recording UX
 
 - Replaced raw UUID selection with chronological occurrence cards and collapsed technical details. Added shared safe segment rendering, HH:MM:SS duration/size summaries, selection counts and measured/indeterminate progress.

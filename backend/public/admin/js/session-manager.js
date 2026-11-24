@@ -241,27 +241,32 @@
             ['Zoom Meeting ID',session.zoom_meeting_id || 'Non associé'],['Description',session.description || 'Aucune description'],
         ];
         document.getElementById('manager-details').innerHTML = `<dl>${rows.map(([label,value])=>`<dt>${escT(label)}</dt><dd dir="auto">${escT(value)}</dd>`).join('')}</dl>
-            ${!session.zoom_meeting_id && session.course_id && !session.offer_id ? '<div class="session-manager-actions"><button type="button" class="btn-primary" data-edit-details>Modifier</button></div>' : ''}
+            ${session.status!=='cancelled' && Date.now()>=end ? '<div class="session-manager-actions"><button type="button" class="btn-primary" data-edit-details>Modifier</button></div>' : ''}
             ${session.has_host_link ? `<div class="session-manager-actions"><a class="btn-host" href="/admin/sessions/${encodeURIComponent(session.id)}/host" target="_blank" rel="noopener noreferrer">Lancer (Hôte)</a></div>` : ''}`;
         document.querySelector('#manager-details [data-edit-details]')?.addEventListener('click',()=>editDetails(session));
     }
     function editDetails(session){
         const panel=document.getElementById('manager-details');
+        const multi=session.access_policy==='any_selected';
+        const selectedCourses=new Set(session.course_ids?.length?session.course_ids:session.course_id?[session.course_id]:[]);
         panel.innerHTML=`<form class="session-details-form"><div class="form-group"><label for="session-edit-title">Titre *</label><input id="session-edit-title" required maxlength="500"></div>
             <div class="form-row"><div class="form-group"><label for="session-edit-date">Date et heure (Tunis) *</label><input id="session-edit-date" type="datetime-local" required></div><div class="form-group"><label for="session-edit-duration">Durée (minutes) *</label><input id="session-edit-duration" type="number" min="1" max="1440" required></div></div>
-            <div class="form-group"><label for="session-edit-course">Cours associé *</label><select id="session-edit-course" required></select><small>Changer de cours déplace ce replay et ses ressources vers ce cours.</small></div>
+            ${multi?'<div class="form-group" id="session-edit-courses"></div>':'<div class="form-group"><label for="session-edit-course">Cours associé *</label><select id="session-edit-course" required></select></div>'}<p class="session-edit-note">Le titre, la date et la description sont affichés sur la plateforme. Les fichiers et identifiants Zoom restent inchangés. Changer les cours déplace le replay et ses ressources ; les offres et invitations sont conservées.</p>
             <div class="form-group"><label for="session-edit-description">Description</label><textarea id="session-edit-description" rows="4" maxlength="10000"></textarea></div>
             <div class="session-manager-actions"><button class="btn-primary" type="submit">Enregistrer les modifications</button><button class="btn-secondary" type="button" data-cancel-edit>Annuler</button></div><p data-edit-error role="alert"></p></form>`;
         const input=name=>panel.querySelector('#session-edit-'+name);
         input('title').value=session.title||'';
         input('date').value=new Date(new Date(session.scheduled_at).getTime()+3600000).toISOString().slice(0,16);
         input('duration').value=session.duration_minutes;input('description').value=session.description||'';
-        input('course').replaceChildren(...allCourses.map(course=>new Option(course.title,course.id)));
-        input('course').value=session.course_id;
+        if(multi)renderAudiencePicker('session-edit-courses','Cours associés',allCourses,selectedCourses);
+        else {
+            input('course').replaceChildren(...allCourses.map(course=>new Option(course.title,course.id)));
+            input('course').value=session.course_id;
+        }
         panel.querySelector('[data-cancel-edit]').onclick=()=>renderDetails(session);
         panel.querySelector('form').onsubmit=async event=>{
             event.preventDefault();const controls=[...panel.querySelectorAll('input,select,textarea,button')];
-            const body={title:input('title').value.trim(),startTime:input('date').value+':00+01:00',durationMinutes:Number(input('duration').value),courseId:input('course').value,description:input('description').value};
+            const body={title:input('title').value.trim(),startTime:input('date').value+':00+01:00',durationMinutes:Number(input('duration').value),...(multi?{courseIds:[...selectedCourses]}:{courseId:input('course').value}),description:input('description').value};
             controls.forEach(control=>control.disabled=true);
             try{
                 const response=await fetch(`${API}/api/live/${encodeURIComponent(session.id)}/details`,{method:'PATCH',credentials:'include',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});

@@ -1,3 +1,9 @@
+### 2026-11-24 — Edit finished Zoom replays and remove sessions locally
+
+- Finished Zoom-linked sessions now expose the existing Modifier form (title, past date/time in Tunis, duration, description and course associations), matching manual historical replays. Multi-audience edits update link tables transactionally and retain NULL legacy fields; selected offers, invitations, occurrence bindings, recording imports, replay pointers and files remain unchanged. Upcoming/in-progress sessions cannot be edited through this replay form. Local presentation edits do not modify the original Zoom topic.
+- Deleting a finished individual session soft-cancels it locally without requiring Zoom meeting deletion. Existing shared authorization excludes cancelled sessions from student calendar, replay/course listings and protected resources. R2 objects and Zoom cloud originals are preserved. Upcoming/live cancellation and explicit whole-series behavior retain existing Zoom checks.
+- Validation: 88/88 focused tests passed with disposable PostgreSQL and mocked Zoom/R2, including metadata authorization, invalid inputs, course reassignment, preserved recording identity, idempotent local cancellation, recording reliability and student permissions. Chrome checks at 360, 390 and 1440px passed; an additional multi-course mobile selector check follows below. No migrations, production calls, push or deployment.
+
 # CURRENT_STATE.md — Synta Academy
 
 

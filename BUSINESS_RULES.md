@@ -1,3 +1,8 @@
+### Finished replay administration — 2026-11-24
+
+- Administrators may correct finished manual or Zoom-linked session title, past scheduled date/time, duration, description and associated courses through the existing popup. This changes platform presentation; Zoom occurrence identity and cloud originals remain unchanged. Multi-audience offer and invitation rules remain intact.
+- Removing one finished session marks it cancelled locally, removing its student calendar/replay visibility and authorization while preserving storage and recording history. Upcoming/live and whole-series cancellations retain their existing provider confirmation behavior.
+
 # BUSINESS_RULES.md — Synta Academy
 
 > **Last audited:** 2026-11-05  

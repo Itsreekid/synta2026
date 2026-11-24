@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Gestion des Séances — Admin</title>
-    <link rel="stylesheet" href="/admin/css/session-manager.css?v=3">
+    <link rel="stylesheet" href="/admin/css/session-manager.css?v=4">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
@@ -1043,7 +1043,7 @@ async function deleteSession(sessionId, series = false) {
             credentials: 'include',
         });
         if (!res.ok) { const d = await res.json(); throw new Error(d.error); }
-        showToast(series ? 'Série annulée.' : 'Séance annulée.', 'success');
+        showToast(series ? 'Série annulée.' : 'Séance et replay retirés du calendrier et des cours.', 'success');
         await loadSessions();
     } catch (e) {
         showToast(`Erreur: ${e.message}`, 'error');
@@ -1077,7 +1077,7 @@ function escT(str) {
 }
 </script>
 <script src="/admin/js/recording-ui.js?v=1"></script>
-<script src="/admin/js/session-manager.js?v=5"></script>
+<script src="/admin/js/session-manager.js?v=6"></script>
 <script src="/admin/js/historical-replay.js"></script>
 </body>
 </html>

@@ -379,6 +379,29 @@ test('OR session migration, API access and admin browser on disposable PostgreSQ
       assert.ok(!(await(await request('/api/live/course/'+c2,enrolled)).json()).some(row=>row.id===id));
       assert.equal((await request('/api/live/'+mixed+'/details',admin,edit,'PATCH')).status,409,'Zoom metadata cannot be silently desynchronized');
     });
+    await t.test('finished Zoom replay metadata and local removal preserve recording identity',async()=>{
+      const id=await schedule({courseIds:[c1,c2],offerIds:[o1],grantedStudentIds:[guest]});
+      await db.query("UPDATE live_sessions SET scheduled_at=NOW()-interval '2 days',status='completed',replay_url='live-replays/preserved.mp4' WHERE id=$1",[id]);
+      const original=(await db.query('SELECT * FROM live_sessions WHERE id=$1',[id])).rows[0];
+      const edit={title:'Replay corrigé',courseIds:[c2],startTime:'2025-10-01T18:30:00+01:00',durationMinutes:75,description:'Description corrigée'};
+      assert.equal((await request('/api/live/'+id+'/details',guest,edit,'PATCH')).status,403);
+      assert.equal((await request('/api/live/'+id+'/details',admin,{...edit,zoom_meeting_id:'changed'},'PATCH')).status,400);
+      assert.equal((await request('/api/live/'+id+'/details',admin,{...edit,courseIds:[randomUUID()]},'PATCH')).status,400);
+      assert.equal((await request('/api/live/'+id+'/details',admin,edit,'PATCH')).status,200);
+      const saved=(await db.query('SELECT * FROM live_sessions WHERE id=$1',[id])).rows[0];
+      assert.equal(saved.title,edit.title);assert.equal(saved.course_id,null);assert.equal(saved.zoom_meeting_id,original.zoom_meeting_id);assert.equal(saved.replay_url,original.replay_url);
+      assert.deepEqual((await db.query('SELECT course_id FROM live_session_courses WHERE session_id=$1',[id])).rows.map(r=>r.course_id),[c2]);
+      assert.equal((await request('/api/live/session/'+id,guest)).status,200);
+      assert.ok((await(await request('/api/live/course/'+c2,enrolled)).json()).some(r=>r.id===id));
+      const beforeDeletes=zoomDeletes,beforeStorage=storageDeletes.length;
+      assert.equal((await request('/api/live/'+id,admin,undefined,'DELETE')).status,200);
+      assert.equal(zoomDeletes,beforeDeletes);assert.equal(storageDeletes.length,beforeStorage);
+      assert.equal((await request('/api/live/session/'+id,guest)).status,404);
+      assert.ok(!(await(await request('/api/live/course/'+c2,enrolled)).json()).some(r=>r.id===id));
+      assert.ok(!(await(await request('/api/live/replays',enrolled)).json()).some(r=>r.id===id));
+      assert.equal((await db.query('SELECT replay_url FROM live_sessions WHERE id=$1',[id])).rows[0].replay_url,original.replay_url);
+      assert.equal((await request('/api/live/'+id,admin,undefined,'DELETE')).status,200);
+    });
     if(process.env.TIMED_QA_CHROME) await t.test('desktop and mobile searchable selectors create one session',async()=>{
       await db.query("UPDATE live_sessions SET status='completed' WHERE id=$1",[mixed]);
       await withTimedOfferBrowser(process.env.TIMED_QA_CHROME,origin,async({open,evaluate,until,errors,screenshot})=>{

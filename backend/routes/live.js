@@ -60,32 +60,46 @@ router.post('/replays', requireAdmin, async (req, res) => {
   }
 });
 
-// Correct historical replay metadata without touching media, files or Zoom.
+// Edit completed replay/session presentation without changing Zoom or recording identity.
 router.patch('/:sessionId/details', requireAdmin, async (req,res)=>{
-  const {title,courseId,startTime,durationMinutes,description=''}=req.body || {};
-  if(!uuidPattern.test(req.params.sessionId)||!uuidPattern.test(courseId||'')||
+  const {title,courseId,courseIds,startTime,durationMinutes,description=''}=req.body || {};
+  const hasCourses=courseId!==undefined||courseIds!==undefined;
+  const selectedCourses=courseIds!==undefined?uuidList(courseIds):courseId?uuidList([courseId]):[];
+  if(!uuidPattern.test(req.params.sessionId)||(courseIds!==undefined&&!Array.isArray(courseIds))||!selectedCourses||selectedCourses.length>100||(courseId!==undefined&&courseIds!==undefined)||
       typeof title!=='string'||!title.trim()||title.length>500||typeof description!=='string'||description.length>10000||
       typeof startTime!=='string'||!Number.isFinite(Date.parse(startTime))||!Number.isInteger(durationMinutes)||
       durationMinutes<1||durationMinutes>1440||Date.parse(startTime)+durationMinutes*60000>Date.now()||
-      Object.keys(req.body).some(key=>!['title','courseId','startTime','durationMinutes','description'].includes(key))) {
-    return res.status(400).json({error:'Vérifiez le titre, le cours, la date passée et la durée.'});
+      Object.keys(req.body).some(key=>!['title','courseId','courseIds','startTime','durationMinutes','description'].includes(key))) {
+    return res.status(400).json({error:'Vérifiez le titre, les cours, la date passée et la durée.'});
   }
   let client;
   try{
-    client=await pool.connect();
-    await client.query('BEGIN');
-    const result=await client.query('SELECT course_id,offer_id,zoom_meeting_id,status FROM live_sessions WHERE id=$1 FOR UPDATE',[req.params.sessionId]);
+    client=await pool.connect();await client.query('BEGIN');
+    const result=await client.query('SELECT course_id,offer_id,zoom_meeting_id,status,scheduled_at,duration_minutes'+(liveFeatures.multiAudience?',access_policy':'')+' FROM live_sessions WHERE id=$1 FOR UPDATE',[req.params.sessionId]);
     const session=result.rows[0];
     if(!session){await client.query('ROLLBACK');return res.status(404).json({error:'Séance introuvable.'});}
-    if(session.zoom_meeting_id||session.offer_id||!session.course_id||session.status!=='completed'){
-      await client.query('ROLLBACK');return res.status(409).json({error:'Cette modification concerne les replays importés sans réunion Zoom.'});
+    if(session.status==='cancelled'||new Date(session.scheduled_at).getTime()+session.duration_minutes*60000>Date.now()){
+      await client.query('ROLLBACK');return res.status(409).json({error:'Seules les séances terminées peuvent être modifiées ici.'});
     }
-    const course=await client.query('SELECT id FROM courses WHERE id=$1 FOR SHARE',[courseId]);
-    if(!course.rowCount){await client.query('ROLLBACK');return res.status(400).json({error:'Cours introuvable.'});}
-    await client.query(`UPDATE live_sessions SET title=$2,course_id=$3,scheduled_at=$4,duration_minutes=$5,description=$6
-      WHERE id=$1`,[req.params.sessionId,title.trim(),courseId,startTime,durationMinutes,description.trim()||null]);
+    const multi=liveFeatures.multiAudience&&session.access_policy==='any_selected';
+    if(hasCourses && !multi && selectedCourses.length!==1){await client.query('ROLLBACK');return res.status(400).json({error:'Choisissez un seul cours pour cette séance.'});}
+    if(hasCourses){
+      const courses=await client.query('SELECT id FROM courses WHERE id=ANY($1::uuid[]) FOR SHARE',[selectedCourses]);
+      if(courses.rowCount!==selectedCourses.length){await client.query('ROLLBACK');return res.status(400).json({error:'Cours introuvable.'});}
+      if(multi && !selectedCourses.length){
+        const offers=await client.query('SELECT 1 FROM live_session_offers WHERE session_id=$1 LIMIT 1',[req.params.sessionId]);
+        if(!offers.rowCount){await client.query('ROLLBACK');return res.status(400).json({error:'Conservez au moins un cours ou une offre.'});}
+      }
+      if(multi){
+        await client.query('DELETE FROM live_session_courses WHERE session_id=$1',[req.params.sessionId]);
+        await client.query('INSERT INTO live_session_courses(session_id,course_id) SELECT $1,unnest($2::uuid[])',[req.params.sessionId,selectedCourses]);
+      }
+    }
+    const primary=multi?null:hasCourses?(selectedCourses.includes(session.course_id)?session.course_id:selectedCourses[0]||null):session.course_id;
+    await client.query('UPDATE live_sessions SET title=$2,course_id=$3,scheduled_at=$4,duration_minutes=$5,description=$6 WHERE id=$1',
+      [req.params.sessionId,title.trim(),primary,startTime,durationMinutes,description.trim()||null]);
     await client.query('COMMIT');return res.json({success:true});
-  }catch(error){if(client)await client.query('ROLLBACK').catch(()=>{});console.error('Error editing historical replay:',error.code??error.name);return res.status(500).json({error:'Impossible de modifier la séance.'});}
+  }catch(error){if(client)await client.query('ROLLBACK').catch(()=>{});console.error('Error editing replay details:',error.code??error.name);return res.status(500).json({error:'Impossible de modifier la séance.'});}
   finally{client?.release();}
 });
 
@@ -526,7 +540,7 @@ router.delete("/:sessionId", requireAdmin, async (req, res) => {
     client = await pool.connect();
     await client.query("BEGIN");
     const result = await client.query(
-      "SELECT zoom_meeting_id FROM live_sessions WHERE id = $1",
+      "SELECT zoom_meeting_id,scheduled_at,duration_minutes FROM live_sessions WHERE id = $1",
       [sessionId]
     );
     if (!result.rowCount) {
@@ -547,7 +561,9 @@ router.delete("/:sessionId", requireAdmin, async (req, res) => {
       [meetingId, sessionId]
     ) : { rows: [] };
 
-    if (meetingId && (wholeSeries || !siblings.rows.length)) {
+    const ended=new Date(result.rows[0].scheduled_at).getTime()+Number(result.rows[0].duration_minutes)*60000<=Date.now();
+    // Hiding an old replay must not depend on Zoom or delete its original cloud meeting.
+    if (meetingId && (wholeSeries || !siblings.rows.length) && (!ended || wholeSeries)) {
       try {
         await deleteZoomMeeting(meetingId);
       } catch {

@@ -50,7 +50,7 @@ export async function createSessionManagerFixture() {
     });
     app.patch('/api/live/:id/details',(req,res)=>{
         const session=sessions.find(item=>item.id===req.params.id);
-        Object.assign(session,{title:req.body.title,scheduled_at:req.body.startTime,duration_minutes:req.body.durationMinutes,course_id:req.body.courseId,description:req.body.description});
+        Object.assign(session,{title:req.body.title,scheduled_at:req.body.startTime,duration_minutes:req.body.durationMinutes,...(req.body.courseIds?{course_id:null,course_ids:req.body.courseIds}:{course_id:req.body.courseId}),description:req.body.description});
         res.json({success:true});
     });
     app.post('/api/live/admin/recordings/publish',(req,res)=>{
