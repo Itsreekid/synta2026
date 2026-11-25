@@ -237,6 +237,7 @@ sessionRenewalReady(pool).then(ready => {
 
 detectLiveFeatures(pool).then(features => {
   console.log(`[Live] Extended session access: ${features.extendedAccess ? "on" : "off (migration pending)"}`);
+  console.log(`[Live] Free-session campaigns: ${features.freeSessions ? "on" : "off (migration 202611250002 pending)"}`);
   const diagnostics=recordingDiagnostics(true);
   if (recordingImportsEnabled() && diagnostics.status==='ready') {
     recordingWorker.start();

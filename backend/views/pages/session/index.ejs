@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Synta Academy - الحصة المجانية</title>
+    <title>Synta Academy - <%= campaign ? campaign.title : 'الحصة المجانية' %></title>
     <meta name="description" content="سجّل في الحصة المجانية لـ Synta Academy واكتشف مستواك في الإعلامية">
     <!-- Cairo Font -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -124,8 +124,17 @@
             <div class="logo-container">
                 <img src="/source/logo.png" alt="Synta Academy" width="150" style="filter: drop-shadow(0 4px 10px rgba(240, 126, 21, 0.4));">
             </div>
-            <div class="session-badge">🎓 حصة مجانية · <%= sessionConfig.session_matiere %></div>
+            <div class="session-badge">🎓 حصة مجانية<% if (campaign) { %> · <%= campaign.subject %><% } %></div>
         </div>
+
+<% if (!campaign) { %>
+        <div class="w-full max-w-md relative glass-card wizard-container fade-in text-center">
+            <div class="emoji-icon">📅</div>
+            <h1 class="step-title">هذه الحصة المجانية غير متاحة حالياً</h1>
+            <p class="step-desc">Cette séance gratuite n’est pas disponible pour le moment.</p>
+            <a class="btn-primary block w-full" href="/">Retour à l’accueil</a>
+        </div>
+<% } else { %>
 
         <!-- Step Indicator -->
         <div id="step-indicator" class="step-indicator fade-in">
@@ -141,9 +150,21 @@
             <div id="step-1" class="wizard-step active">
                 <div class="text-center mb-8">
                     <div class="emoji-icon">🎓</div>
-                    <h1 class="step-title">حصة <%= sessionConfig.session_matiere %> المجانية</h1>
-                    <p class="step-desc">📅 <%= sessionConfig.session_date %> — سجّل الآن واكتشف مستواك!</p>
+                    <h1 class="step-title"><%= campaign.title %></h1>
+                    <p class="step-desc"><% if (campaign.date) { %>📅 <%= campaign.date %> — <% } %>سجّل الآن واكتشف مستواك!</p>
+                    <% if (campaign.description) { %><p class="step-desc" style="white-space:pre-line"><%= campaign.description %></p><% } %>
                 </div>
+                <% if (viewer) { %>
+                <div id="member-panel" class="space-y-4">
+                    <% if (viewer.isStudent) { %>
+                    <p class="step-desc">👋 مرحباً <%= viewer.name %>! أنت متصل بحسابك. أجب على الاختبار لتحجز مكانك في الحصة.</p>
+                    <div id="member-error" class="error-box hidden"></div>
+                    <button type="button" id="member-start" class="btn-primary">ابدأ الاختبار ←</button>
+                    <% } else { %>
+                    <p class="step-desc">Aperçu administrateur : les étudiants voient ici le formulaire ou le quiz.</p>
+                    <% } %>
+                </div>
+                <% } else { %>
                 <form id="identity-form" class="space-y-4">
                     <div class="input-group">
                         <label for="full_name">👤 الاسم الكامل</label>
@@ -165,6 +186,7 @@
                     </div>
                     <p class="secure-text">🔒 بياناتك في أمان تام. لا رسائل مزعجة.</p>
                 </form>
+                <% } %>
             </div>
 
             <!-- ============================
@@ -319,15 +341,23 @@
                 </div>
 
                 <!-- CTA -->
+                <% if (!viewer) { %>
                 <button id="btn-activate" class="btn-primary block w-full mb-3" onclick="openPasswordModal()">
                     جرّب الكود ←
                 </button>
                 <p class="text-xs" style="color: rgba(255,255,255,0.4)">
                     أنشئ حسابك للوصول إلى فضائك الخاص.
                 </p>
+                <% } else { %>
+                <a id="member-session-link" class="btn-primary block w-full mb-3" href="/dashboard">شاهد حصتي ←</a>
+                <p id="member-session-note" class="text-xs" style="color: rgba(255,255,255,0.6)">
+                    ستجد الحصة في لوحة التحكم والتقويم مع زر الانضمام (يُفتح قبل 5 دقائق من البداية).
+                </p>
+                <% } %>
             </div>
 
         </div><!-- end wizard-container -->
+<% } %>
     </main>
 
     <!-- ============================
@@ -384,9 +414,12 @@
 
     <!-- Backend config passed to JS -->
     <script>
-        window.__SESSION_DATE__ = '<%= sessionConfig.session_date_raw || "" %>';
+        window.__SESSION__ = <%- JSON.stringify(campaign ? {
+            slug: campaign.slug, dateRaw: campaign.dateRaw, hasTarget: campaign.hasTarget,
+            hasBranch: campaign.hasBranch, member: Boolean(viewer && viewer.isStudent), preview: Boolean(viewer && !viewer.isStudent)
+        } : null).replace(/</g, '\\u003c').replace(/\u2028/g, '\\u2028').replace(/\u2029/g, '\\u2029') %>;
     </script>
-    <script src="/js/session.js?v=2"></script>
+    <% if (campaign) { %><script src="/js/session.js?v=3"></script><% } %>
     <script>
         // ── Particle cursor effect ──────────────────────────────────────
         const particlesContainer = document.getElementById('particles-container');

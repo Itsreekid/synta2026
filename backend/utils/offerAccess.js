@@ -74,7 +74,26 @@ export function activeOfferAccess(user, offer) {
   ))`;
 }
 
+let freeSessionAccess = false;
+
+/** Enabled at startup only when the free-session campaign migration (202611250002) is applied. */
+export function setFreeSessionAccess(enabled) { freeSessionAccess = Boolean(enabled); }
+export function hasFreeSessionAccess() { return freeSessionAccess; }
+
+/** Campaign Zoom sessions: only students who completed that campaign's quiz may see and join them. */
+function freeSessionParticipantAccess(user) {
+  return `(ls.status <> 'cancelled' AND ls.free_session_id IS NOT NULL AND EXISTS (
+    SELECT 1 FROM free_session_participants fp
+    WHERE fp.free_session_id = ls.free_session_id AND fp.user_id = ${user}
+  ))`;
+}
+
 export function liveSessionAccess(user) {
+  const standard = standardLiveSessionAccess(user);
+  return freeSessionAccess ? `(${freeSessionParticipantAccess(user)} OR (${standard}))` : standard;
+}
+
+function standardLiveSessionAccess(user) {
   if (multiLiveAccess) {
     return `ls.status <> 'cancelled' AND (
       (ls.access_policy='legacy' AND ${legacyLiveSessionAccess(user)}) OR

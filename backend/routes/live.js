@@ -28,6 +28,17 @@ function sessionTiming(session,hasJoinLink){
  const available=!['cancelled','completed'].includes(session.status)&&now>=start-JOIN_EARLY_MS&&now<end;
  return {has_join_link:Boolean(hasJoinLink),server_now:new Date(now).toISOString(),join_opens_at:new Date(start-JOIN_EARLY_MS).toISOString(),ends_at:new Date(end).toISOString(),join_url:hasJoinLink&&available?joinPath(session.id):null};
 }
+// Free-session campaign meetings are managed from "Configuration de la Session" only.
+async function rejectFreeSession(req, res, next) {
+  if (!liveFeatures.freeSessions || !uuidPattern.test(req.params.sessionId || "")) return next();
+  try {
+    const found = await pool.query("SELECT 1 FROM live_sessions WHERE id = $1 AND free_session_id IS NOT NULL", [req.params.sessionId]);
+    if (found.rowCount) return res.status(409).json({ error: "Cette séance gratuite se gère depuis « Configuration de la Session »." });
+    return next();
+  } catch (error) {
+    return next(error);
+  }
+}
 const signReplay = async url => url && !/^https?:\/\//i.test(url) ? generateSignedUrl(url, 3600) : url;
 
 // Historical recordings reuse course enrollment permissions; never schedule Zoom.
@@ -81,7 +92,7 @@ router.patch('/:sessionId/finish',requireAdmin,async(req,res)=>{
 });
 
 // Reschedule one upcoming session and notify each currently entitled student once.
-router.patch('/:sessionId/reschedule',requireAdmin,async(req,res)=>{
+router.patch('/:sessionId/reschedule',requireAdmin,rejectFreeSession,async(req,res)=>{
   const {startTime,expectedStartTime}=req.body||{};
   if(!uuidPattern.test(req.params.sessionId)||typeof startTime!=='string'||!Number.isFinite(Date.parse(startTime))||Date.parse(startTime)<=Date.now()||!Number.isFinite(Date.parse(expectedStartTime))||Object.keys(req.body||{}).some(key=>!['startTime','expectedStartTime'].includes(key)))return res.status(400).json({error:'Choisissez une date future valide.'});
   let client;
@@ -126,7 +137,7 @@ router.patch('/:sessionId/reschedule',requireAdmin,async(req,res)=>{
 });
 
 // Edit completed replay/session presentation without changing Zoom or recording identity.
-router.patch('/:sessionId/details', requireAdmin, async (req,res)=>{
+router.patch('/:sessionId/details', requireAdmin, rejectFreeSession, async (req,res)=>{
   const {title,courseId,courseIds,startTime,durationMinutes,description=''}=req.body || {};
   const hasCourses=courseId!==undefined||courseIds!==undefined;
   const selectedCourses=courseIds!==undefined?uuidList(courseIds):courseId?uuidList([courseId]):[];
@@ -351,7 +362,8 @@ router.get("/upcoming", authApiMiddleware, async (req, res) => {
     const sessionResult = await pool.query(
       `SELECT ls.id, ls.title, ls.description, ls.scheduled_at, ls.duration_minutes,
               ls.status, ls.zoom_join_url IS NOT NULL AS has_join_link, ls.replay_url,
-              c.title AS course_title, c.thumbnail_url AS course_thumbnail
+              ${liveFeatures.freeSessions ? "COALESCE(c.title, CASE WHEN ls.free_session_id IS NOT NULL THEN 'Séance gratuite' END)" : "c.title"} AS course_title,
+              c.thumbnail_url AS course_thumbnail
        FROM live_sessions ls
        LEFT JOIN courses c ON c.id = ls.course_id
        WHERE ${liveSessionAccess("$1")}
@@ -603,7 +615,7 @@ async function scheduleMultipleAudiences(req, res) {
 /**
  * DELETE /api/live/:sessionId — ADMIN ONLY
  */
-router.delete("/:sessionId", requireAdmin, async (req, res) => {
+router.delete("/:sessionId", requireAdmin, rejectFreeSession, async (req, res) => {
   const { sessionId } = req.params;
   const wholeSeries = req.query.series === "true";
   if (!uuidPattern.test(sessionId)) return res.status(400).json({ error: "Séance invalide." });
@@ -759,7 +771,7 @@ router.get("/admin/sessions", requireAdmin, async (req, res) => {
               ls.zoom_start_url IS NOT NULL AS has_host_link, c.title AS course_title
        FROM live_sessions ls
        LEFT JOIN courses c ON c.id = ls.course_id
-       WHERE ls.status <> 'cancelled'
+       WHERE ls.status <> 'cancelled'${liveFeatures.freeSessions ? " AND ls.free_session_id IS NULL" : ""}
        ORDER BY ls.scheduled_at DESC`
     );
 

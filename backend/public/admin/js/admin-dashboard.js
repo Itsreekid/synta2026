@@ -32,7 +32,7 @@ const AdminDashboard = {
         }
     },
 
-    async loadStudents(page = 1, pageSize = 10, searchTerm = '', classFilter = '', branchFilter = '') {
+    async loadStudents(page = 1, pageSize = 10, searchTerm = '', classFilter = '', branchFilter = '', sourceFilter = '') {
         try {
             const params = new URLSearchParams({
                 page,
@@ -41,6 +41,7 @@ const AdminDashboard = {
                 classFilter,
                 branchFilter
             });
+            if (sourceFilter) params.set('sourceFilter', sourceFilter);
             const response = await fetch(`/api/admin/students?${params.toString()}`);
             if (!response.ok) throw new Error('Failed to fetch students');
             const result = await response.json();

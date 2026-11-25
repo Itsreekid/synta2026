@@ -127,8 +127,10 @@ export async function sendVerificationEmail(to, name, token) {
   console.log("[email] Verification email sent to:", to);
 }
 
-export async function sendPlacementVerificationEmail(to, token) {
-  const url = new URL("/session", BASE_URL);
+export async function sendPlacementVerificationEmail(to, token, pagePath = "/session") {
+  // Only same-site free-session pages may receive the confirmation token.
+  const safePath = /^\/session(\/[a-z0-9]+(-[a-z0-9]+)*)?$/.test(pagePath) ? pagePath : "/session";
+  const url = new URL(safePath, BASE_URL);
   url.hash = new URLSearchParams({ placement: token }).toString();
   const { error } = await resend.emails.send({
     from: FROM_ADDRESS,

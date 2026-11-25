@@ -1,4 +1,8 @@
 document.addEventListener('DOMContentLoaded', () => {
+    // Campaign rendered by the server (slug, schedule, fixed class/branch, logged-in student).
+    const config = window.__SESSION__ || {};
+    const slug = config.slug || '';
+    const member = config.member === true;
     // State
     let currentStep = 1;
     let track = null;
@@ -37,6 +41,37 @@ document.addEventListener('DOMContentLoaded', () => {
     const successScore = document.getElementById('success-score');
     const successPerks = document.getElementById('success-perks');
 
+    // Campaigns with a fixed class (and section) skip the matching choice steps.
+    function startQuizFlow() {
+        if (!config.hasTarget) return goToStep(2);
+        if (!config.hasBranch) return goToStep(3);
+        return loadQuestions();
+    }
+
+    // --- Logged-in students: quiz only, account details unchanged ---
+    async function restoreMember() {
+        const memberError = document.getElementById('member-error');
+        const start = document.getElementById('member-start');
+        try {
+            const response = await fetch('/api/session/member/status?slug=' + encodeURIComponent(slug), { credentials: 'include', cache: 'no-store' });
+            if (response.status === 401) { window.location.href = '/login?next=' + encodeURIComponent('/dashboard'); return; }
+            const data = await response.json();
+            if (!response.ok) throw new Error(data.error || 'Séance indisponible.');
+            if (data.participant) { showMemberResult(data.participant, data.session, true); return; }
+            start?.addEventListener('click', () => loadQuestions());
+        } catch (err) {
+            if (memberError) showError(memberError, err.message);
+        }
+    }
+
+    function showMemberResult(participant, session, isReturning) {
+        showSuccess(participant.score, participant.tier, isReturning, participant.group, participant.total);
+        const link = document.getElementById('member-session-link');
+        const note = document.getElementById('member-session-note');
+        if (link && session?.calendar_link) link.href = session.calendar_link;
+        if (note && !session) note.textContent = 'سيتم الإعلان عن موعد الحصة قريباً في لوحة التحكم.';
+    }
+
     async function restorePlacement() {
         const params = new URLSearchParams(window.location.hash.slice(1));
         const token = params.get('placement');
@@ -51,16 +86,22 @@ document.addEventListener('DOMContentLoaded', () => {
             const data = await response.json();
             if (!response.ok) throw new Error(data.error || 'Impossible de reprendre le quiz.');
             const registration = data.registration;
-            if (registration.completed) showSuccess(registration.score, registration.tier, true, registration.group);
-            else goToStep(2);
+            // The confirmation belongs to another campaign link: continue there (the cookie follows).
+            if (registration.slug && registration.slug !== slug) {
+                window.location.replace('/session/' + encodeURIComponent(registration.slug));
+                return;
+            }
+            if (registration.completed) showSuccess(registration.score, registration.tier, true, registration.group, registration.quiz_total);
+            else startQuizFlow();
         } catch (err) {
             showError(identityError, err.message);
         }
     }
-    restorePlacement();
+    if (member) restoreMember();
+    else if (!config.preview) restorePlacement();
 
     // --- STEP 1: Registration ---
-    identityForm.addEventListener('submit', async (e) => {
+    identityForm?.addEventListener('submit', async (e) => {
         e.preventDefault();
         identityError.classList.add('hidden');
         
@@ -81,7 +122,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const response = await fetch('/api/session/register', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ full_name: fullName, email, phone })
+                body: JSON.stringify({ full_name: fullName, email, phone, slug })
             });
 
             const data = await response.json();
@@ -104,7 +145,8 @@ document.addEventListener('DOMContentLoaded', () => {
         btn.addEventListener('click', () => {
             track = btn.getAttribute('data-track');
             quizTrackBadge.textContent = track.toUpperCase();
-            goToStep(3); // Go to Filiere selection
+            if (config.hasBranch) loadQuestions();
+            else goToStep(3); // Go to Filiere selection
         });
     });
 
@@ -122,7 +164,7 @@ document.addEventListener('DOMContentLoaded', () => {
         questionContainer.innerHTML = '<div class="text-center py-8"><span class="loader"></span><p>Chargement des questions...</p></div>';
         
         try {
-            const response = await fetch('/api/session/questions');
+            const response = await fetch('/api/session/questions?slug=' + encodeURIComponent(slug));
             const data = await response.json();
 
             if (!response.ok) throw new Error(data.error || 'Erreur lors du chargement des questions');
@@ -284,6 +326,19 @@ document.addEventListener('DOMContentLoaded', () => {
         btnSubmit.disabled = true;
 
         try {
+            if (member) {
+                const response = await fetch('/api/session/member/submit', {
+                    method: 'POST',
+                    credentials: 'include',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ slug, answers })
+                });
+                const data = await response.json();
+                if (response.status === 409 && data.participant) { showMemberResult(data.participant, data.session, true); return; }
+                if (!response.ok) throw new Error(data.error || 'خطأ في الإرسال');
+                showMemberResult(data.participant, data.session, false);
+                return;
+            }
             const response = await fetch('/api/session/submit', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -293,7 +348,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const data = await response.json();
             if (!response.ok) throw new Error(data.error || 'خطأ في الإرسال');
 
-            showSuccess(data.score, data.tier, false, data.group);
+            showSuccess(data.score, data.tier, false, data.group, data.total);
         } catch (err) {
             showError(quizError, err.message);
             btnSubmit.textContent = '🚀 إنهاء الاختبار';
@@ -302,7 +357,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // --- STEP 5: Success ---
-    function showSuccess(score, tier, isReturning = false, group = null) {
+    function showSuccess(score, tier, isReturning = false, group = null, total = null) {
         goToStep(5);
 
         group ||= "beginner";
@@ -317,7 +372,7 @@ document.addEventListener('DOMContentLoaded', () => {
             });
         }
 
-        successScore.textContent = `${score} / ${questions.length || '?'}`;
+        successScore.textContent = `${score ?? 0} / ${total ?? (questions.length || '?')}`;
         
         const tiers = {
             elite:      { name: 'النخبة',       icon: '💎', perks: ['أولوية الوصول إلى الدروس', 'حصة كوتش فردية', 'شارة النخبة على Discord'] },
@@ -334,13 +389,13 @@ document.addEventListener('DOMContentLoaded', () => {
         if (groupMsgEl) {
             if (group === 'advanced') {
                 groupMsgEl.innerHTML = `<div style="background:rgba(240,126,21,0.15);border:1px solid rgba(240,126,21,0.4);border-radius:12px;padding:1rem;margin-bottom:1rem;">
-                    <p style="color:#f07e15;font-weight:800;margin:0 0 0.25rem;">🏆 حصة المتقدمين الحصرية!</p>
-                    <p style="color:rgba(255,255,255,0.7);font-size:0.875rem;margin:0;">أحسنت! أنت في الفئة المتقدمة. ستحضر حصة تمارين مكثفة حصرية.</p>
+                    <p style="color:#f07e15;font-weight:800;margin:0 0 0.25rem;">🏆 مستوى متقدم!</p>
+                    <p style="color:rgba(255,255,255,0.7);font-size:0.875rem;margin:0;">أحسنت! أجبت على كل الأسئلة بشكل صحيح. مكانك محجوز في الحصة المجانية.</p>
                 </div>`;
             } else {
                 groupMsgEl.innerHTML = `<div style="background:rgba(33,158,188,0.1);border:1px solid rgba(33,158,188,0.3);border-radius:12px;padding:1rem;margin-bottom:1rem;">
-                    <p style="color:#38bdf8;font-weight:800;margin:0 0 0.25rem;">📅 حصة الأحد الكبرى!</p>
-                    <p style="color:rgba(255,255,255,0.7);font-size:0.875rem;margin:0;">ستحضر الحصة المجانية يوم الأحد مع مئات الطلاب.</p>
+                    <p style="color:#38bdf8;font-weight:800;margin:0 0 0.25rem;">📅 مكانك محجوز!</p>
+                    <p style="color:rgba(255,255,255,0.7);font-size:0.875rem;margin:0;">ستحضر الحصة المجانية مع باقي الطلاب. سنساعدك على التقدّم خطوة بخطوة.</p>
                 </div>`;
             }
         }
@@ -353,7 +408,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // --- Countdown Timer ---
     function startCountdown() {
-        const rawDate = window.__SESSION_DATE__;
+        const rawDate = config.dateRaw;
         if (!rawDate) return;
 
         const targetDate = new Date(rawDate);

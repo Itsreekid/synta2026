@@ -45,77 +45,165 @@
         .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
     </style>
     <link rel="stylesheet" href="/admin/admin.css">
+    <style>
+        .campaign-list { display: flex; flex-direction: column; gap: 1rem; }
+        .campaign { border: 1px solid #e2e8f0; border-radius: 10px; padding: 1rem 1.25rem; cursor: pointer; transition: border 0.2s, box-shadow 0.2s; }
+        .campaign:hover { border-color: #fdba74; }
+        .campaign.selected { border-color: #f07e15; box-shadow: 0 0 0 3px rgba(240,126,21,0.12); }
+        .campaign-top { display: flex; justify-content: space-between; gap: 1rem; flex-wrap: wrap; align-items: flex-start; }
+        .campaign h3 { margin: 0 0 0.35rem; font-size: 1.05rem; }
+        .pill { display: inline-block; padding: 2px 8px; border-radius: 999px; font-size: 0.75rem; font-weight: 700; margin-right: 0.35rem; }
+        .pill-default { background: #ffedd5; color: #c2410c; }
+        .pill-on { background: #dcfce7; color: #15803d; }
+        .pill-off { background: #f1f5f9; color: #64748b; }
+        .pill-target { background: #e0f2fe; color: #0369a1; }
+        .pill-warn { background: #fef3c7; color: #b45309; }
+        .campaign-meta { color: #64748b; font-size: 0.85rem; display: flex; gap: 1rem; flex-wrap: wrap; margin-top: 0.5rem; }
+        .campaign-link { font-family: monospace; font-size: 0.85rem; color: #0f172a; background: #f8fafc; padding: 2px 6px; border-radius: 4px; }
+        .campaign-actions { display: flex; gap: 0.5rem; flex-wrap: wrap; }
+        .campaign-actions .btn, .campaign-actions a.btn { padding: 0.4rem 0.7rem; font-size: 0.85rem; text-decoration: none; }
+        .zoom-error { color: #b91c1c; font-size: 0.85rem; margin-top: 0.5rem; }
+        .slug-field { display: flex; align-items: center; border: 1px solid #cbd5e1; border-radius: 8px; overflow: hidden; }
+        .slug-field span { padding: 0.625rem 0.5rem 0.625rem 0.75rem; background: #f8fafc; color: #64748b; font-size: 0.85rem; white-space: nowrap; }
+        .slug-field input { border: none !important; box-shadow: none !important; }
+        .check-row { display: flex; gap: 1.5rem; flex-wrap: wrap; margin: 0.5rem 0 1rem; }
+        .check-row label { display: flex; align-items: center; gap: 0.5rem; font-weight: 600; font-size: 0.9rem; color: #475569; }
+        .form-error { color: #b91c1c; font-size: 0.9rem; margin-bottom: 0.75rem; display: none; }
+        .section-hint { color: #64748b; font-size: 0.85rem; margin: 0 0 1rem; }
+        .modal.wide { max-width: 640px; }
+        .students-table { width: 100%; text-align: left; border-collapse: collapse; }
+        .students-table th { padding: 0.75rem 0.5rem; color: #475569; border-bottom: 2px solid #e2e8f0; font-size: 0.85rem; }
+        .students-table td { padding: 0.75rem 0.5rem; border-bottom: 1px solid #f1f5f9; font-size: 0.9rem; vertical-align: top; }
+        .muted { color: #64748b; font-size: 0.8rem; }
+    </style>
 </head>
 <body class="admin-page admin-free-session">
 
-    <!-- Config Section -->
+    <!-- Campaigns -->
     <div class="card expanded">
         <div class="card-header" onclick="this.parentElement.classList.toggle('expanded')">
             <h2 class="card-title"><i class="fas fa-rocket"></i> &nbsp;Configuration de la Session</h2>
             <div>
-                <button class="btn btn-primary" onclick="event.stopPropagation(); saveConfig()" id="btnSaveConfig"><i class="fas fa-save"></i> Enregistrer</button>
+                <button class="btn btn-primary" onclick="event.stopPropagation(); openCampaignModal()"><i class="fas fa-plus"></i> Nouvelle séance gratuite</button>
                 <i class="fas fa-chevron-down toggle-icon" style="margin-left: 1rem; font-size: 1.25rem;"></i>
             </div>
         </div>
         <div class="card-body">
-            <div class="grid-2">
-                <div class="input-group">
-                    <label><i class="fas fa-calendar-alt" style="color:#f07e15"></i> Date &amp; Heure de la session</label>
-                    <input type="datetime-local" id="config-date" placeholder="Choisir une date et heure">
-                    <small style="color:#94a3b8; margin-top:0.25rem; display:block;">Sélectionne la date et l'heure sur le calendrier</small>
-                </div>
-                <div class="input-group">
-                    <label><i class="fas fa-book" style="color:#f07e15"></i> Matière</label>
-                    <input type="text" id="config-matiere" placeholder="Ex: Mathématiques, Physique...">
-                </div>
-            </div>
+            <p class="section-hint">Chaque séance gratuite a son propre lien, son quiz, sa classe et sa réunion Zoom. La séance « par défaut » est aussi accessible via <span class="campaign-link">/session</span>. Clique sur une séance pour gérer son quiz et ses étudiants.</p>
+            <div id="campaign-list" class="campaign-list"><p>Chargement...</p></div>
         </div>
     </div>
 
-    <!-- Questions Section -->
-    <!-- Questions Section -->
-    <div class="card">
-        <div class="card-header" onclick="this.parentElement.classList.toggle('expanded')">
-            <h2 class="card-title"><i class="fas fa-list-check"></i> Questions du Quiz</h2>
-            <div>
-                <button class="btn btn-primary" onclick="event.stopPropagation(); openModal()"><i class="fas fa-plus"></i> Nouvelle Question</button>
-                <i class="fas fa-chevron-down toggle-icon" style="margin-left: 1rem; font-size: 1.25rem;"></i>
-            </div>
-        </div>
-        <div class="card-body">
-            <div id="questions-list">
-                <p>Chargement des questions...</p>
-            </div>
-        </div>
-    </div>
-
-    <!-- Registered Students Section -->
+    <!-- Questions of the selected campaign -->
     <div class="card expanded">
         <div class="card-header" onclick="this.parentElement.classList.toggle('expanded')">
-            <h2 class="card-title"><i class="fas fa-users"></i> Étudiants Inscrits (Session Gratuite)</h2>
+            <h2 class="card-title"><i class="fas fa-list-check"></i> Questions du Quiz <span id="questions-campaign" class="muted"></span></h2>
+            <div>
+                <button class="btn btn-primary" id="btnNewQuestion" onclick="event.stopPropagation(); openModal()" disabled><i class="fas fa-plus"></i> Nouvelle Question</button>
+                <i class="fas fa-chevron-down toggle-icon" style="margin-left: 1rem; font-size: 1.25rem;"></i>
+            </div>
+        </div>
+        <div class="card-body">
+            <div id="questions-list"><p>Sélectionne une séance gratuite.</p></div>
+        </div>
+    </div>
+
+    <!-- Students of the selected campaign -->
+    <div class="card expanded">
+        <div class="card-header" onclick="this.parentElement.classList.toggle('expanded')">
+            <h2 class="card-title"><i class="fas fa-users"></i> Étudiants Inscrits <span id="students-campaign" class="muted"></span></h2>
             <div>
                 <button class="btn btn-outline" onclick="event.stopPropagation(); fetchStudents()"><i class="fas fa-sync-alt"></i> Rafraîchir</button>
                 <i class="fas fa-chevron-down toggle-icon" style="margin-left: 1rem; font-size: 1.25rem;"></i>
             </div>
         </div>
         <div class="card-body">
-            <div class="admin-table-scroll" tabindex="0" role="region" aria-label="Étudiants inscrits" style="overflow-x: auto;">
-                <table style="width: 100%; text-align: left; border-collapse: collapse;">
-                    <thead>
-                        <tr style="border-bottom: 2px solid #e2e8f0;">
-                            <th style="padding: 1rem 0.5rem; color:#475569;">Nom & Prénom</th>
-                            <th style="padding: 1rem 0.5rem; color:#475569;">Contact</th>
-                            <th style="padding: 1rem 0.5rem; color:#475569;">Filière</th>
-                            <th style="padding: 1rem 0.5rem; color:#475569;">Niveau</th>
-                            <th style="padding: 1rem 0.5rem; color:#475569;">Groupe Assigné</th>
-                            <th style="padding: 1rem 0.5rem; color:#475569;">Score</th>
-                            <th style="padding: 1rem 0.5rem; color:#475569;">Actions</th>
-                        </tr>
-                    </thead>
-                    <tbody id="students-list">
-                        <tr><td colspan="6" style="padding: 1rem; text-align: center;">Chargement...</td></tr>
-                    </tbody>
+            <h3 style="font-size:1rem; margin:0 0 0.5rem;">Participants (compte créé ou étudiant existant)</h3>
+            <div class="admin-table-scroll" tabindex="0" role="region" aria-label="Participants" style="overflow-x: auto; margin-bottom: 1.5rem;">
+                <table class="students-table">
+                    <thead><tr><th>Étudiant</th><th>Contact</th><th>Classe</th><th>Origine</th><th>Score</th><th>Groupe</th><th>Date</th><th></th></tr></thead>
+                    <tbody id="participants-list"><tr><td colspan="8">Sélectionne une séance gratuite.</td></tr></tbody>
                 </table>
+            </div>
+            <h3 style="font-size:1rem; margin:0 0 0.5rem;">Inscriptions en attente (compte pas encore créé)</h3>
+            <div class="admin-table-scroll" tabindex="0" role="region" aria-label="Inscriptions en attente" style="overflow-x: auto;">
+                <table class="students-table">
+                    <thead><tr><th>Nom</th><th>Contact</th><th>Quiz</th><th>Score</th><th>Date</th><th></th></tr></thead>
+                    <tbody id="pending-list"><tr><td colspan="6">Sélectionne une séance gratuite.</td></tr></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Campaign Modal -->
+    <div class="modal-overlay" id="campaignModalOverlay">
+        <div class="modal wide">
+            <h2 class="card-title" id="campaignModalTitle" style="margin-bottom: 1rem;">Nouvelle séance gratuite</h2>
+            <input type="hidden" id="c-id">
+            <div class="form-error" id="c-error" role="alert"></div>
+            <div class="input-group">
+                <label for="c-title">Titre</label>
+                <input type="text" id="c-title" maxlength="150" placeholder="Ex: Séance gratuite Informatique 3ème">
+            </div>
+            <div class="input-group">
+                <label for="c-description">Description (optionnelle)</label>
+                <textarea id="c-description" rows="2" maxlength="2000" placeholder="Ce que l’étudiant va découvrir pendant la séance"></textarea>
+            </div>
+            <div class="grid-2">
+                <div class="input-group">
+                    <label for="c-subject">Matière</label>
+                    <input type="text" id="c-subject" maxlength="100" placeholder="Informatique">
+                </div>
+                <div class="input-group">
+                    <label for="c-slug">Lien public</label>
+                    <div class="slug-field"><span>/session/</span><input type="text" id="c-slug" maxlength="60" placeholder="3eme-info" autocomplete="off"></div>
+                </div>
+            </div>
+            <div class="grid-2">
+                <div class="input-group">
+                    <label for="c-class">Classe</label>
+                    <select id="c-class">
+                        <option value="">Toutes (l’étudiant choisit)</option>
+                        <option value="1ere">1ère</option>
+                        <option value="2eme">2ème</option>
+                        <option value="3eme">3ème</option>
+                        <option value="bac">Bac</option>
+                        <option value="other">Autre</option>
+                    </select>
+                </div>
+                <div class="input-group">
+                    <label for="c-branch">Section</label>
+                    <select id="c-branch">
+                        <option value="">Toutes (l’étudiant choisit)</option>
+                        <option value="informatique">Informatique</option>
+                        <option value="sciences">Sciences</option>
+                        <option value="mathematiques">Mathématiques</option>
+                        <option value="technique">Technique</option>
+                        <option value="economie">Économie</option>
+                        <option value="lettres">Lettres</option>
+                        <option value="other">Autre</option>
+                    </select>
+                </div>
+            </div>
+            <div class="grid-2">
+                <div class="input-group">
+                    <label for="c-date">Date &amp; heure (heure de Tunis)</label>
+                    <input type="datetime-local" id="c-date">
+                    <small class="muted">Laisse vide pour ne pas encore créer de réunion Zoom. Vider la date annule la réunion.</small>
+                </div>
+                <div class="input-group">
+                    <label for="c-duration">Durée (minutes)</label>
+                    <input type="number" id="c-duration" min="15" max="480" step="5" value="60">
+                </div>
+            </div>
+            <div class="check-row">
+                <label><input type="checkbox" id="c-active" checked> Active (lien ouvert aux étudiants)</label>
+                <label><input type="checkbox" id="c-default"> Séance par défaut (/session)</label>
+            </div>
+            <p class="muted">Classe et section sont appliquées aux nouveaux comptes créés via ce lien. Les étudiants qui ont déjà un compte gardent leurs informations.</p>
+            <div style="display: flex; gap: 1rem; margin-top: 1rem;">
+                <button class="btn btn-outline" style="flex:1;" onclick="closeCampaignModal()">Annuler</button>
+                <button class="btn btn-primary" style="flex:1;" onclick="saveCampaign()" id="btnSaveCampaign">Enregistrer</button>
             </div>
         </div>
     </div>
@@ -131,12 +219,11 @@
         </div>
     </div>
 
-    <!-- Modal -->
+    <!-- Question Modal -->
     <div class="modal-overlay" id="questionModalOverlay">
         <div class="modal">
             <h2 class="card-title mb-4" id="modalTitle">Nouvelle Question</h2>
             <input type="hidden" id="q-id">
-            
             <div class="input-group">
                 <label>Type de question</label>
                 <select id="q-type" onchange="toggleTypeHelp()">
@@ -144,27 +231,22 @@
                     <option value="drag_drop">Drag & Drop (Ordonner)</option>
                 </select>
             </div>
-            
             <div class="input-group">
                 <label>Texte de la question</label>
                 <textarea id="q-text" rows="3" placeholder="Ex: Quel est le résultat de..."></textarea>
             </div>
-            
             <div class="input-group">
                 <label>Options (Format JSON: [{"id":"a", "label":"Option 1"}, ...])</label>
                 <textarea id="q-options" rows="4"></textarea>
             </div>
-            
             <div class="input-group">
                 <label>Réponse Correcte <span id="q-help" style="font-weight:normal; color:#64748b;">(ex: "b")</span></label>
                 <input type="text" id="q-correct">
             </div>
-            
             <div class="input-group">
                 <label>Ordre (Position)</label>
                 <input type="number" id="q-order" value="0">
             </div>
-            
             <div style="display: flex; gap: 1rem; margin-top: 1.5rem;">
                 <button class="btn btn-outline" style="flex:1;" onclick="closeModal()">Annuler</button>
                 <button class="btn btn-primary" style="flex:1;" onclick="saveQuestion()" id="btnSaveQuestion">Enregistrer</button>
@@ -172,76 +254,248 @@
         </div>
     </div>
 
+    <div class="toast" id="toast" role="status"></div>
+
     <script src="../js/admin-render.js"></script>
     <script>
-        // --- API Helpers ---
-        async function fetchConfig() {
-            try {
-                const res = await fetch('/api/session/admin/config');
-                const data = await res.json();
-                if(data.config) {
-                    document.getElementById('config-date').value = data.config.session_date || '';
-                    document.getElementById('config-matiere').value = data.config.session_matiere || '';
-                }
-            } catch(e) { console.error(e); }
-        }
-
-        async function saveConfig() {
-            const btn = document.getElementById('btnSaveConfig');
-            btn.textContent = "Enregistrement...";
-            const date = document.getElementById('config-date').value;
-            const matiere = document.getElementById('config-matiere').value;
-            
-            try {
-                const res = await fetch('/api/session/admin/config', {
-                    method: 'POST',
-                    headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify({ session_date: date, session_matiere: matiere })
-                });
-                if(res.ok) alert("Configuration enregistrée !");
-                else alert("Erreur lors de l'enregistrement.");
-            } catch(e) { alert("Erreur réseau"); }
-            btn.textContent = "Enregistrer";
-        }
-
+        const CLASS_LABELS = { '1ere': '1ère', '2eme': '2ème', '3eme': '3ème', bac: 'Bac', other: 'Autre' };
+        const BRANCH_LABELS = { informatique: 'Informatique', sciences: 'Sciences', mathematiques: 'Mathématiques', technique: 'Technique', economie: 'Économie', lettres: 'Lettres', other: 'Autre' };
+        let campaigns = [];
+        let selectedId = null;
         let questions = [];
+        let studentsData = { participants: [], pending: [] };
 
-        async function fetchQuestions() {
+        function showToast(message, isError = false) {
+            const toast = document.getElementById('toast');
+            toast.textContent = message;
+            toast.style.background = isError ? '#ef4444' : '#10b981';
+            toast.style.display = 'block';
+            clearTimeout(showToast.timer);
+            showToast.timer = setTimeout(() => { toast.style.display = 'none'; }, isError ? 6000 : 3000);
+        }
+
+        async function api(url, options = {}) {
+            const res = await fetch(url, { credentials: 'include', cache: 'no-store', ...options,
+                headers: options.body ? { 'Content-Type': 'application/json' } : undefined });
+            const data = await res.json().catch(() => ({}));
+            if (!res.ok) throw Object.assign(new Error(data.error || 'Erreur serveur.'), { status: res.status, data });
+            return data;
+        }
+
+        // Tunisia uses UTC+1 all year: convert explicitly so the admin's computer clock does not matter.
+        function toTunisInput(iso) {
+            if (!iso) return '';
+            return new Date(new Date(iso).getTime() + 3600000).toISOString().slice(0, 16);
+        }
+        function fromTunisInput(value) {
+            return value ? new Date(value + ':00+01:00').toISOString() : null;
+        }
+        function formatTunis(iso) {
+            if (!iso) return 'Date non définie';
+            return new Date(iso).toLocaleString('fr-FR', { timeZone: 'Africa/Tunis', dateStyle: 'full', timeStyle: 'short' });
+        }
+        function publicUrl(campaign) {
+            return location.origin + campaign.path;
+        }
+
+        // --- Campaigns ---
+        async function fetchCampaigns() {
             try {
-                const res = await fetch('/api/session/admin/questions');
-                const data = await res.json();
+                const data = await api('/api/session/admin/campaigns');
+                campaigns = data.campaigns || [];
+                if (!campaigns.some(c => c.id === selectedId)) selectedId = campaigns[0]?.id || null;
+                renderCampaigns();
+                await selectCampaign(selectedId);
+            } catch (e) {
+                document.getElementById('campaign-list').innerHTML = '<p>Erreur lors du chargement.</p>';
+            }
+        }
+
+        function isPastWithoutMeeting(c) {
+            return c.scheduled_at && !c.live_session_id && new Date(c.scheduled_at).getTime() <= Date.now();
+        }
+
+        function zoomStatus(c) {
+            if (!c.scheduled_at) return '<span class="pill pill-off">Pas de date</span>';
+            if (isPastWithoutMeeting(c)) return '<span class="pill pill-off">Date passée · choisis une nouvelle date</span>';
+            if (c.zoom_in_sync && c.has_zoom) return '<span class="pill pill-on"><i class="fas fa-video"></i> Zoom prêt</span>';
+            return '<span class="pill pill-warn"><i class="fas fa-triangle-exclamation"></i> Zoom à synchroniser</span>';
+        }
+
+        function renderCampaigns() {
+            const list = document.getElementById('campaign-list');
+            if (!campaigns.length) {
+                list.innerHTML = '<p>Aucune séance gratuite. Crée la première avec « Nouvelle séance gratuite ».</p>';
+                return;
+            }
+            list.innerHTML = campaigns.map(c => `
+                <div class="campaign ${c.id === selectedId ? 'selected' : ''}" data-id="${adminText(c.id)}">
+                    <div class="campaign-top">
+                        <div>
+                            <h3>${adminText(c.title)}</h3>
+                            ${c.is_default ? '<span class="pill pill-default">Par défaut · /session</span>' : ''}
+                            ${c.is_active ? '<span class="pill pill-on">Active</span>' : '<span class="pill pill-off">Désactivée</span>'}
+                            <span class="pill pill-target">${adminText(c.subject)}</span>
+                            ${c.target_class ? `<span class="pill pill-target">${adminText(CLASS_LABELS[c.target_class] || c.target_class)}</span>` : ''}
+                            ${c.target_branch ? `<span class="pill pill-target">${adminText(BRANCH_LABELS[c.target_branch] || c.target_branch)}</span>` : ''}
+                            ${zoomStatus(c)}
+                        </div>
+                        <div class="campaign-actions">
+                            <button class="btn btn-outline" data-copy title="Copier le lien"><i class="fas fa-link"></i> Copier le lien</button>
+                            ${c.live_session_id && c.has_zoom ? `<a class="btn btn-success" href="/admin/sessions/${encodeURIComponent(c.live_session_id)}/host" target="_blank" rel="noopener noreferrer" data-stop title="Démarrer la réunion en tant qu’hôte"><i class="fas fa-play"></i> Démarrer Zoom</a>` : ''}
+                            ${c.scheduled_at && !c.zoom_in_sync && !isPastWithoutMeeting(c) ? '<button class="btn btn-outline" data-zoom><i class="fas fa-rotate"></i> Réessayer Zoom</button>' : ''}
+                            <button class="btn btn-outline" data-edit><i class="fas fa-edit"></i> Modifier</button>
+                        </div>
+                    </div>
+                    <div class="campaign-meta">
+                        <span class="campaign-link">${adminText(c.path)}</span>
+                        <span><i class="far fa-calendar"></i> ${adminText(formatTunis(c.scheduled_at))} · ${adminText(c.duration_minutes)} min</span>
+                        <span><i class="fas fa-list-check"></i> ${adminText(c.question_count)} questions</span>
+                        <span><i class="fas fa-user-check"></i> ${adminText(c.participant_count)} participants</span>
+                        <span><i class="far fa-clock"></i> ${adminText(c.pending_count)} en attente</span>
+                    </div>
+                    <div class="zoom-error" data-zoom-error hidden></div>
+                </div>`).join('');
+            [...list.querySelectorAll('.campaign')].forEach(card => {
+                const campaign = campaigns.find(c => c.id === card.dataset.id);
+                card.addEventListener('click', () => selectCampaign(campaign.id));
+                card.querySelector('[data-copy]').addEventListener('click', event => { event.stopPropagation(); copyLink(campaign); });
+                card.querySelector('[data-edit]').addEventListener('click', event => { event.stopPropagation(); openCampaignModal(campaign); });
+                card.querySelector('[data-zoom]')?.addEventListener('click', event => { event.stopPropagation(); retryZoom(campaign); });
+                card.querySelector('[data-stop]')?.addEventListener('click', event => event.stopPropagation());
+            });
+        }
+
+        async function copyLink(campaign) {
+            const url = publicUrl(campaign);
+            try { await navigator.clipboard.writeText(url); showToast('Lien copié : ' + url); }
+            catch { prompt('Copie ce lien :', url); }
+        }
+
+        async function selectCampaign(id) {
+            selectedId = id;
+            document.querySelectorAll('.campaign').forEach(card => card.classList.toggle('selected', card.dataset.id === id));
+            const campaign = campaigns.find(c => c.id === id);
+            const label = campaign ? '· ' + campaign.title : '';
+            document.getElementById('questions-campaign').textContent = label;
+            document.getElementById('students-campaign').textContent = label;
+            document.getElementById('btnNewQuestion').disabled = !campaign;
+            if (!campaign) return;
+            await Promise.all([fetchQuestions(), fetchStudents()]);
+        }
+
+        function openCampaignModal(campaign = null) {
+            document.getElementById('c-error').style.display = 'none';
+            document.getElementById('campaignModalTitle').textContent = campaign ? 'Modifier la séance gratuite' : 'Nouvelle séance gratuite';
+            document.getElementById('c-id').value = campaign?.id || '';
+            document.getElementById('c-title').value = campaign?.title || '';
+            document.getElementById('c-description').value = campaign?.description || '';
+            document.getElementById('c-subject').value = campaign?.subject || 'Informatique';
+            document.getElementById('c-slug').value = campaign?.slug || '';
+            document.getElementById('c-class').value = campaign?.target_class || '';
+            document.getElementById('c-branch').value = campaign?.target_branch || '';
+            document.getElementById('c-date').value = toTunisInput(campaign?.scheduled_at);
+            document.getElementById('c-duration').value = campaign?.duration_minutes || 60;
+            document.getElementById('c-active').checked = campaign ? campaign.is_active : true;
+            document.getElementById('c-default').checked = campaign ? campaign.is_default : !campaigns.length;
+            document.getElementById('c-default').disabled = Boolean(campaign?.is_default);
+            document.getElementById('campaignModalOverlay').classList.add('active');
+        }
+
+        function closeCampaignModal() {
+            document.getElementById('campaignModalOverlay').classList.remove('active');
+        }
+
+        async function saveCampaign() {
+            const btn = document.getElementById('btnSaveCampaign');
+            const errorBox = document.getElementById('c-error');
+            errorBox.style.display = 'none';
+            const id = document.getElementById('c-id').value;
+            const payload = {
+                title: document.getElementById('c-title').value,
+                description: document.getElementById('c-description').value,
+                subject: document.getElementById('c-subject').value,
+                slug: document.getElementById('c-slug').value.trim().toLowerCase(),
+                target_class: document.getElementById('c-class').value || null,
+                target_branch: document.getElementById('c-branch').value || null,
+                scheduled_at: fromTunisInput(document.getElementById('c-date').value),
+                duration_minutes: parseInt(document.getElementById('c-duration').value, 10),
+                is_active: document.getElementById('c-active').checked,
+                is_default: document.getElementById('c-default').checked,
+            };
+            btn.disabled = true;
+            btn.textContent = 'Enregistrement...';
+            try {
+                const data = await api(id ? '/api/session/admin/campaigns/' + encodeURIComponent(id) : '/api/session/admin/campaigns',
+                    { method: id ? 'PUT' : 'POST', body: JSON.stringify(payload) });
+                closeCampaignModal();
+                selectedId = data.campaign?.id || selectedId;
+                await fetchCampaigns();
+                reportZoom(data.zoom);
+            } catch (e) {
+                errorBox.textContent = e.message;
+                errorBox.style.display = 'block';
+            } finally {
+                btn.disabled = false;
+                btn.textContent = 'Enregistrer';
+            }
+        }
+
+        function reportZoom(zoom) {
+            const messages = {
+                created: 'Séance enregistrée. Réunion Zoom créée.',
+                rescheduled: 'Séance enregistrée. Réunion Zoom reportée' + (zoom?.notified ? ` (${zoom.notified} étudiant(s) prévenu(s))` : '') + '.',
+                cancelled: 'Séance enregistrée. Réunion Zoom annulée.',
+            };
+            if (zoom?.error) {
+                showToast(zoom.error, true);
+                const card = document.querySelector(`.campaign[data-id="${CSS.escape(selectedId || '')}"] [data-zoom-error]`);
+                if (card) { card.textContent = zoom.error; card.hidden = false; }
+            } else {
+                showToast(messages[zoom?.status] || 'Séance enregistrée.');
+            }
+        }
+
+        async function retryZoom(campaign) {
+            try {
+                const data = await api('/api/session/admin/campaigns/' + encodeURIComponent(campaign.id) + '/zoom', { method: 'POST' });
+                selectedId = campaign.id;
+                await fetchCampaigns();
+                reportZoom(data.zoom);
+            } catch (e) { showToast(e.message, true); }
+        }
+
+        // --- Questions (selected campaign) ---
+        async function fetchQuestions() {
+            if (!selectedId) return;
+            try {
+                const data = await api('/api/session/admin/questions?campaignId=' + encodeURIComponent(selectedId));
                 questions = data.questions || [];
                 renderQuestions();
-            } catch(e) { 
-                document.getElementById('questions-list').innerHTML = "<p>Erreur lors du chargement.</p>";
+            } catch (e) {
+                document.getElementById('questions-list').innerHTML = '<p>Erreur lors du chargement.</p>';
             }
         }
 
         function renderQuestions() {
             const container = document.getElementById('questions-list');
-            if(questions.length === 0) {
-                container.innerHTML = "<p>Aucune question trouvée.</p>";
+            if (questions.length === 0) {
+                container.innerHTML = '<p>Aucune question pour cette séance. Ajoute la première avec « Nouvelle Question ».</p>';
                 return;
             }
-            
-            let html = '';
-            questions.forEach(q => {
-                html += `
+            container.innerHTML = questions.map(q => `
                 <div class="question-item" style="opacity: ${q.is_active ? '1' : '0.5'}">
                     <div style="flex: 1; padding-right: 1rem;">
-                        <span class="question-type ${q.type === "drag_drop" ? "drag_drop" : "multiple_choice"}">${q.type === 'multiple_choice' ? 'QCM' : 'Drag & Drop'} (Ordre: ${adminText(q.order_index)})</span>
+                        <span class="question-type ${q.type === 'drag_drop' ? 'drag_drop' : 'multiple_choice'}">${q.type === 'multiple_choice' ? 'QCM' : 'Drag & Drop'} (Ordre: ${adminText(q.order_index)})</span>
                         <h3 style="margin: 0.25rem 0; font-size: 1rem;">${adminText(q.text)}</h3>
                         <p style="margin:0; font-size: 0.8rem; color:#64748b;">Réponse: ${adminText(JSON.stringify(q.correct_answer))}</p>
                     </div>
                     <div class="question-actions">
-                        <button class="btn ${q.is_active ? 'btn-outline' : 'btn-success'}" data-toggle-question><i class="fas fa-eye${q.is_active ? '-slash' : ''}"></i></button>
-                        <button class="btn btn-outline" data-edit-question><i class="fas fa-edit"></i></button>
-                        <button class="btn btn-danger" data-delete-question><i class="fas fa-trash"></i></button>
+                        <button class="btn ${q.is_active ? 'btn-outline' : 'btn-success'}" data-toggle-question title="${q.is_active ? 'Masquer' : 'Afficher'}"><i class="fas fa-eye${q.is_active ? '-slash' : ''}"></i></button>
+                        <button class="btn btn-outline" data-edit-question title="Modifier"><i class="fas fa-edit"></i></button>
+                        <button class="btn btn-danger" data-delete-question title="Supprimer"><i class="fas fa-trash"></i></button>
                     </div>
-                </div>
-                `;
-            });
-            container.innerHTML = html;
+                </div>`).join('');
             [...container.children].forEach((item, index) => {
                 const question = questions[index];
                 item.querySelector('[data-toggle-question]').addEventListener('click', () => toggleQuestion(question.id, question.is_active));
@@ -250,29 +504,29 @@
             });
         }
 
-        // --- Modals & Actions ---
         function openModal() {
+            if (!selectedId) return;
             document.getElementById('q-id').value = '';
             document.getElementById('q-text').value = '';
             document.getElementById('q-options').value = '[\n  {"id": "a", "label": "Option 1"},\n  {"id": "b", "label": "Option 2"}\n]';
             document.getElementById('q-correct').value = '"a"';
-            document.getElementById('q-order').value = '0';
+            document.getElementById('q-order').value = String(questions.length + 1);
             document.getElementById('q-type').value = 'multiple_choice';
-            document.getElementById('modalTitle').textContent = "Nouvelle Question";
+            document.getElementById('modalTitle').textContent = 'Nouvelle Question';
             toggleTypeHelp();
             document.getElementById('questionModalOverlay').classList.add('active');
         }
 
         function editQuestion(id) {
             const q = questions.find(x => x.id === id);
-            if(!q) return;
+            if (!q) return;
             document.getElementById('q-id').value = q.id;
             document.getElementById('q-text').value = q.text;
             document.getElementById('q-options').value = JSON.stringify(q.options, null, 2);
             document.getElementById('q-correct').value = JSON.stringify(q.correct_answer);
             document.getElementById('q-order').value = q.order_index;
             document.getElementById('q-type').value = q.type;
-            document.getElementById('modalTitle').textContent = "Modifier Question";
+            document.getElementById('modalTitle').textContent = 'Modifier Question';
             toggleTypeHelp();
             document.getElementById('questionModalOverlay').classList.add('active');
         }
@@ -283,166 +537,146 @@
 
         function toggleTypeHelp() {
             const type = document.getElementById('q-type').value;
-            const help = document.getElementById('q-help');
-            if(type === 'multiple_choice') {
-                help.textContent = '(ex: "a")';
-            } else {
-                help.textContent = '(ex: ["2", "1", "3"])';
-            }
+            document.getElementById('q-help').textContent = type === 'multiple_choice' ? '(ex: "a")' : '(ex: ["2", "1", "3"])';
         }
 
         async function saveQuestion() {
             const btn = document.getElementById('btnSaveQuestion');
-            btn.textContent = "Enregistrement...";
-            
             const id = document.getElementById('q-id').value;
-            
+            let options, correct_answer;
             try {
-                let options = JSON.parse(document.getElementById('q-options').value);
-                let correct_answer = JSON.parse(document.getElementById('q-correct').value);
-                
-                const payload = {
-                    text: document.getElementById('q-text').value,
-                    type: document.getElementById('q-type').value,
-                    options: options,
-                    correct_answer: correct_answer,
-                    order_index: parseInt(document.getElementById('q-order').value) || 0
-                };
-
-                let url = '/api/session/admin/questions';
-                let method = 'POST';
-                if(id) {
-                    payload.id = id;
-                    method = 'PATCH';
-                }
-
-                const res = await fetch(url, {
-                    method: method,
-                    headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify(payload)
-                });
-                
-                if(res.ok) {
-                    closeModal();
-                    fetchQuestions();
-                } else {
-                    const err = await res.json();
-                    alert("Erreur: " + err.error);
-                }
-            } catch(e) {
-                alert("Format JSON invalide dans Options ou Réponse.");
+                options = JSON.parse(document.getElementById('q-options').value);
+                correct_answer = JSON.parse(document.getElementById('q-correct').value);
+            } catch {
+                showToast('Format JSON invalide dans Options ou Réponse.', true);
+                return;
             }
-            btn.textContent = "Enregistrer";
+            const payload = {
+                text: document.getElementById('q-text').value,
+                type: document.getElementById('q-type').value,
+                options,
+                correct_answer,
+                order_index: parseInt(document.getElementById('q-order').value, 10) || 0,
+            };
+            if (id) payload.id = id; else payload.campaignId = selectedId;
+            btn.textContent = 'Enregistrement...';
+            try {
+                await api('/api/session/admin/questions', { method: id ? 'PATCH' : 'POST', body: JSON.stringify(payload) });
+                closeModal();
+                await fetchQuestions();
+                await refreshCounts();
+            } catch (e) { showToast(e.message, true); }
+            btn.textContent = 'Enregistrer';
         }
 
         async function deleteQuestion(id) {
-            if(!confirm("Supprimer cette question ?")) return;
-            const res = await fetch('/api/session/admin/questions', {
-                method: 'DELETE',
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({ id })
-            });
-            if(res.ok) fetchQuestions();
+            if (!confirm('Supprimer cette question ? Si des étudiants y ont déjà répondu, elle sera masquée pour garder leurs résultats.')) return;
+            try {
+                const data = await api('/api/session/admin/questions', { method: 'DELETE', body: JSON.stringify({ id }) });
+                if (data.hidden) showToast('Question masquée (déjà utilisée dans des résultats).');
+                await fetchQuestions();
+                await refreshCounts();
+            } catch (e) { showToast(e.message, true); }
         }
 
         async function toggleQuestion(id, currentState) {
-            const res = await fetch('/api/session/admin/questions', {
-                method: 'PATCH',
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({ id, is_active: !currentState })
-            });
-            if(res.ok) fetchQuestions();
+            try {
+                await api('/api/session/admin/questions', { method: 'PATCH', body: JSON.stringify({ id, is_active: !currentState }) });
+                await fetchQuestions();
+                await refreshCounts();
+            } catch (e) { showToast(e.message, true); }
         }
 
-        let studentsData = [];
-
-        async function fetchStudents() {
+        async function refreshCounts() {
             try {
-                const res = await fetch('/api/session/admin/students');
-                const data = await res.json();
-                studentsData = data.students || [];
+                campaigns = (await api('/api/session/admin/campaigns')).campaigns || campaigns;
+                renderCampaigns();
+            } catch {}
+        }
+
+        // --- Students (selected campaign) ---
+        async function fetchStudents() {
+            if (!selectedId) return;
+            try {
+                studentsData = await api('/api/session/admin/campaigns/' + encodeURIComponent(selectedId) + '/students');
                 renderStudents();
-            } catch(e) {
-                document.getElementById('students-list').innerHTML = "<tr><td colspan='6' style='text-align:center;'>Erreur de chargement.</td></tr>";
+            } catch (e) {
+                document.getElementById('participants-list').innerHTML = '<tr><td colspan="8">Erreur de chargement.</td></tr>';
+                document.getElementById('pending-list').innerHTML = '<tr><td colspan="6">Erreur de chargement.</td></tr>';
             }
+        }
+
+        function groupBadge(group) {
+            if (!group) return '-';
+            return group === 'advanced'
+                ? '<span class="pill pill-default">Avancé</span>'
+                : '<span class="pill pill-target">Débutant/Moyen</span>';
+        }
+        function scoreText(row) {
+            if (row.score == null) return '-';
+            return row.total != null ? `${row.score} / ${row.total}` : String(row.score);
+        }
+        function shortDate(value) {
+            return value ? new Date(value).toLocaleDateString('fr-FR', { timeZone: 'Africa/Tunis' }) : '-';
         }
 
         function renderStudents() {
-            const tbody = document.getElementById('students-list');
-            if (studentsData.length === 0) {
-                tbody.innerHTML = "<tr><td colspan='6' style='text-align:center; padding:1rem;'>Aucun étudiant inscrit.</td></tr>";
-                return;
-            }
+            const participants = studentsData.participants || [];
+            const pending = studentsData.pending || [];
+            const pBody = document.getElementById('participants-list');
+            pBody.innerHTML = participants.length ? participants.map(s => `
+                <tr>
+                    <td><strong>${adminText(s.full_name || 'Étudiant')}</strong>
+                        ${s.signup_source === 'free_session' ? '<br><span class="pill pill-default">Séance gratuite</span>' : ''}
+                        ${s.campaign_count > 1 ? `<br><span class="muted">${adminText(s.campaign_count)} séances gratuites</span>` : ''}</td>
+                    <td class="muted">${adminText(s.email)}<br>${adminText(s.phone || '')}</td>
+                    <td>${adminText(CLASS_LABELS[s.class] || s.class || '-')}<br><span class="muted">${adminText(BRANCH_LABELS[s.branch] || s.branch || '')}</span></td>
+                    <td>${s.source === 'new_signup' ? '<span class="pill pill-on">Nouveau compte</span>' : '<span class="pill pill-target">Étudiant existant</span>'}</td>
+                    <td><strong>${adminText(scoreText(s))}</strong></td>
+                    <td>${groupBadge(s.group)}</td>
+                    <td class="muted">${adminText(shortDate(s.joined_at))}</td>
+                    <td><button class="btn btn-outline" style="padding:0.25rem 0.5rem;" data-view title="Détails du quiz"><i class="fas fa-search"></i></button></td>
+                </tr>`).join('') : '<tr><td colspan="8">Aucun participant pour le moment.</td></tr>';
+            [...pBody.querySelectorAll('[data-view]')].forEach((button, index) =>
+                button.addEventListener('click', () => viewStudentDetails(participants[index])));
 
-            let html = '';
-            studentsData.forEach(s => {
-                const name = s.full_name || 'N/A';
-                const email = s.email || 'N/A';
-                const phone = s.phone || 'N/A';
-                const groupBadge = s.group === 'advanced' 
-                    ? '<span style="background:#fef3c7; color:#d97706; padding:2px 8px; border-radius:12px; font-size:0.8rem; font-weight:bold;">Avancé</span>'
-                    : '<span style="background:#e0f2fe; color:#0369a1; padding:2px 8px; border-radius:12px; font-size:0.8rem; font-weight:bold;">Débutant/Moyen</span>';
-
-                html += `
-                <tr style="border-bottom: 1px solid #f1f5f9;">
-                    <td style="padding: 1rem 0.5rem; font-weight:600;">${adminText(name)}</td>
-                    <td style="padding: 1rem 0.5rem; font-size:0.85rem; color:#64748b;">${adminText(email)}<br>${adminText(phone)}</td>
-                    <td style="padding: 1rem 0.5rem; font-size:0.85rem;">${adminText(s.filier || '-')}</td>
-                    <td style="padding: 1rem 0.5rem;">${adminText(s.track || '-')}</td>
-                    <td style="padding: 1rem 0.5rem;">${groupBadge}</td>
-                    <td style="padding: 1rem 0.5rem; font-weight:bold; color:#10b981;">${adminText(s.score != null ? s.score : '-')}</td>
-                    <td style="padding: 1rem 0.5rem;">
-                        <button class="btn btn-outline" style="padding:0.25rem 0.5rem; font-size:0.85rem;" data-view-placement>
-                            <i class="fas fa-search"></i>
-                        </button>
-                    </td>
-                </tr>
-                `;
-            });
-            tbody.innerHTML = html;
-            [...tbody.rows].forEach((row, index) => {
-                row.querySelector('[data-view-placement]').addEventListener('click', () => viewStudentDetails(studentsData[index].id));
-            });
+            const rBody = document.getElementById('pending-list');
+            rBody.innerHTML = pending.length ? pending.map(s => `
+                <tr>
+                    <td><strong>${adminText(s.full_name)}</strong></td>
+                    <td class="muted">${adminText(s.email)}<br>${adminText(s.phone || '')}</td>
+                    <td>${s.completed ? '<span class="pill pill-on">Terminé</span>' : '<span class="pill pill-off">Pas encore</span>'}</td>
+                    <td><strong>${adminText(scoreText(s))}</strong></td>
+                    <td class="muted">${adminText(shortDate(s.created_at))}</td>
+                    <td>${s.completed ? '<button class="btn btn-outline" style="padding:0.25rem 0.5rem;" data-view title="Détails du quiz"><i class="fas fa-search"></i></button>' : ''}</td>
+                </tr>`).join('') : '<tr><td colspan="6">Aucune inscription en attente.</td></tr>';
+            [...rBody.querySelectorAll('tr')].forEach((row, index) =>
+                row.querySelector('[data-view]')?.addEventListener('click', () => viewStudentDetails(pending[index])));
         }
 
-        function viewStudentDetails(id) {
-            const student = studentsData.find(x => x.id === id);
+        function viewStudentDetails(student) {
             if (!student) return;
-
             document.getElementById('studentModalTitle').textContent = `Détails Quiz - ${student.full_name || 'Étudiant'}`;
-            
             const content = document.getElementById('studentModalContent');
-            if (!student.quiz_details || Object.keys(student.quiz_details).length === 0) {
-                content.innerHTML = "<p>Aucun détail de quiz disponible.</p>";
+            const answers = student.answers || {};
+            if (!Object.keys(answers).length) {
+                content.innerHTML = '<p>Aucun détail de quiz disponible.</p>';
             } else {
-                let detailsHtml = '';
-                // Since we don't have the question text directly in the details JSON, 
-                // we'll try to match it with our questions list
-                for (const [qId, ansData] of Object.entries(student.quiz_details)) {
+                content.innerHTML = Object.entries(answers).map(([qId, ans]) => {
                     const q = questions.find(x => x.id === qId);
-                    const qText = q ? q.text : `Question ID: ${qId}`;
-                    
-                    const isCorrect = ansData.is_correct;
-                    const icon = isCorrect 
-                        ? '<i class="fas fa-check-circle" style="color:#10b981;"></i>' 
-                        : '<i class="fas fa-times-circle" style="color:#ef4444;"></i>';
-                    
-                    detailsHtml += `
+                    return `
                     <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:8px; padding:1rem;">
-                        <div style="display:flex; justify-content:space-between; margin-bottom:0.5rem;">
-                            <strong style="color:#334155;">${adminText(qText)}</strong>
-                            <span>${icon}</span>
+                        <div style="display:flex; justify-content:space-between; margin-bottom:0.5rem; gap:1rem;">
+                            <strong style="color:#334155;">${adminText(q ? q.text : 'Question ' + qId)}</strong>
+                            <span>${ans.is_correct ? '<i class="fas fa-check-circle" style="color:#10b981;"></i>' : '<i class="fas fa-times-circle" style="color:#ef4444;"></i>'}</span>
                         </div>
                         <div style="font-size:0.9rem; color:#64748b;">
-                            <div><span style="font-weight:600;">Réponse de l'étudiant:</span> ${adminText(JSON.stringify(ansData.user_answer))}</div>
-                            <div><span style="font-weight:600;">Réponse correcte:</span> ${adminText(JSON.stringify(ansData.correct_answer))}</div>
+                            <div><span style="font-weight:600;">Réponse de l'étudiant:</span> ${adminText(JSON.stringify(ans.answer))}</div>
+                            ${q ? `<div><span style="font-weight:600;">Réponse correcte:</span> ${adminText(JSON.stringify(q.correct_answer))}</div>` : ''}
                         </div>
-                    </div>
-                    `;
-                }
-                content.innerHTML = detailsHtml;
+                    </div>`;
+                }).join('');
             }
-
             document.getElementById('studentModalOverlay').classList.add('active');
         }
 
@@ -450,12 +684,7 @@
             document.getElementById('studentModalOverlay').classList.remove('active');
         }
 
-        // Init
-        document.addEventListener('DOMContentLoaded', () => {
-            fetchConfig();
-            fetchQuestions();
-            fetchStudents();
-        });
+        document.addEventListener('DOMContentLoaded', fetchCampaigns);
     </script>
 </body>
 </html>

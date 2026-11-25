@@ -18,6 +18,7 @@ import { requireAuth, verifyToken } from "../middleware/requireAuth.js";
 import { safeReturnPath } from "../utils/returnPath.js";
 import { requireAdmin } from "../middleware/requireAdmin.js";
 import { attachUserProfile } from "../middleware/attachUserProfile.js";
+import { findActiveCampaign, SLUG_PATTERN } from "./session.js";
 
 const router = express.Router();
 const __filename = fileURLToPath(import.meta.url);
@@ -82,40 +83,48 @@ router.get("/accueil", (req, res) => {
   res.sendFile(path.join(__dirname, "../public/Accueil.html"));
 });
 
-router.get("/session", async (req, res) => {
-  let sessionConfig = { session_date: "", session_matiere: "Mathématiques" };
+// Free-session campaigns: /session serves the default campaign, /session/<slug> the others.
+function formatTunisDate(value) {
+  if (!value) return "";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "";
+  const text = date.toLocaleDateString("fr-FR", { timeZone: "Africa/Tunis", weekday: "long", year: "numeric", month: "long", day: "numeric" })
+    + " à " + date.toLocaleTimeString("fr-FR", { timeZone: "Africa/Tunis", hour: "2-digit", minute: "2-digit" });
+  return text.charAt(0).toUpperCase() + text.slice(1);
+}
+
+async function renderCampaignPage(req, res, next, slug) {
   try {
-    const result = await pool.query(
-      `SELECT session_date, session_matiere FROM session_config WHERE id = 1`
-    );
-    if (result.rowCount > 0) sessionConfig = result.rows[0];
+    const campaign = await findActiveCampaign(pool, slug);
+    const viewer = verifyToken(req.cookies?.synta_access);
+    res.set("Cache-Control", "private, no-store");
+    if (!campaign) res.status(404);
+    return renderPage(res, "pages/session/index", {
+      campaign: campaign && {
+        slug: campaign.slug,
+        title: campaign.title,
+        description: campaign.description || "",
+        subject: campaign.subject,
+        hasTarget: Boolean(campaign.target_class),
+        hasBranch: Boolean(campaign.target_branch),
+        date: formatTunisDate(campaign.scheduled_at),
+        dateRaw: campaign.scheduled_at ? new Date(campaign.scheduled_at).toISOString() : "",
+      },
+      viewer: viewer ? { name: viewer.name || "", isStudent: viewer.role !== "admin" } : null,
+    });
   } catch (err) {
-    console.error("Error fetching session config:", err);
+    return next(err);
   }
+}
 
-  let formattedDate = sessionConfig.session_date || "";
-  if (formattedDate) {
-    try {
-      const d = new Date(formattedDate);
-      formattedDate =
-        d.toLocaleDateString("fr-FR", { weekday: "long", year: "numeric", month: "long", day: "numeric" }) +
-        " à " +
-        d.toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" });
-      formattedDate = formattedDate.charAt(0).toUpperCase() + formattedDate.slice(1);
-    } catch (e) { /* keep raw */ }
-  }
+router.get("/session", (req, res, next) => renderCampaignPage(req, res, next, null));
 
-  renderPage(res, "pages/session/index", {
-    sessionConfig: {
-      session_date: formattedDate,
-      session_date_raw: sessionConfig.session_date || "",
-      session_matiere: sessionConfig.session_matiere || "Mathématiques",
-    },
-  });
-});
+// The previous admin URL rendered a missing template; the campaigns are managed in the admin dashboard.
+router.get("/session/admin", (req, res) => res.redirect(302, "/admin/dashboard.html"));
 
-router.get("/session/admin", (req, res) => {
-  renderPage(res, "pages/session/admin");
+router.get("/session/:slug", (req, res, next) => {
+  if (!SLUG_PATTERN.test(req.params.slug)) return next();
+  return renderCampaignPage(req, res, next, req.params.slug);
 });
 
 // --------------------------------------------------

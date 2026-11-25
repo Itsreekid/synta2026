@@ -727,3 +727,26 @@ After 202611240001, zoom_recording_deletions gains purge_after TIMESTAMPTZ (mini
 ### Approved — Important notification popup (2026-11-25)
 
 Approved and verified on disposable PostgreSQL only; production execution not verified. See NOTIFICATION_POPUP_PLAN.md and database/migrations/202611250001_notification_popup_acknowledgment.sql. Additive notifications columns: popup_session_id UUID nullable FK live_sessions ON DELETE SET NULL; popup_scheduled_at TIMESTAMPTZ nullable; popup_acknowledged_at TIMESTAMPTZ nullable. Pending popup partial index on user_id/created_at/id. Existing notification IDs are per-student event IDs; is_read remains independent. Existing rows are not backfilled.
+
+
+### Free-session campaigns — migration 202611250002 (owner-approved 2026-11-25)
+
+Auto-applied by `scripts/migrate.js` on the next deployment (file is in `database/migrations/`). Additive; validated on disposable PostgreSQL 16 only (fresh runner run with legacy data, and both orders with held 202611200002/202611200004). Production execution not verified.
+
+**`free_sessions`** — one public link each: `/session/<slug>`; the `is_default` campaign is also served at `/session`.
+| Column | Type | Constraints / notes |
+|--------|------|---------------------|
+| `id` | UUID | PK |
+| `slug` | TEXT | UNIQUE NOT NULL; `^[a-z0-9]+(-[a-z0-9]+)*$`, 2–60 chars, not `admin`/`api`/`verify`/`status`/`questions`/`submit`/`register` |
+| `title`, `description`, `subject` | TEXT | title ≤150, description ≤2000, subject ≤100 (default `Informatique`) |
+| `target_class`, `target_branch` | TEXT | NULL = student chooses; otherwise same vocabulary as `users.class` / `users.branch`; applied to accounts created through the link |
+| `scheduled_at`, `duration_minutes` | TIMESTAMPTZ, INTEGER | Zoom schedule; duration 15–480 |
+| `is_active`, `is_default` | BOOLEAN | partial unique index: at most one default |
+
+**`free_session_participants`** — PK (`free_session_id`, `user_id`); `source` `new_signup` \| `existing_student`; `score`, `total`, `tier`, `group`, `answers` JSONB (existing students), `registration_id` (new sign-ups, answers stay in `session_submissions`), `joined_at`. Only participants may see/join the campaign's live session.
+
+**New columns:** `session_questions.free_session_id`, `session_registrations.free_session_id` + `quiz_total`, `users.signup_source` (`'free_session'` or NULL = standard) + `users.signup_free_session_id` (set once at account creation, never changed when an existing student joins), `live_sessions.free_session_id`.
+
+**`live_sessions.course_id` is now nullable** with CHECK `course_id IS NOT NULL OR free_session_id IS NOT NULL`; free-session rows have no course, offer or audience (CHECK `live_sessions_free_session_shape`). Unique index: one `scheduled`/`live` row per campaign. Course-based access never matches a NULL course, so free sessions are visible only through `free_session_participants` (`liveSessionAccess`, enabled by startup detection `liveFeatures.freeSessions`). Held 202611200004 was edited so its `live_session_policy_shape` accepts free-session rows; 202611250002 widens that constraint itself when 004 is already applied.
+
+**Backfill:** campaign `decouverte` (default, from `session_config` id 1) receives all existing questions and registrations; activated registrations become `new_signup` participants and their users get `signup_source = 'free_session'`. `session_config` is kept but no longer read.

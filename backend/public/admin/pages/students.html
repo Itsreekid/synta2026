@@ -321,6 +321,14 @@
             <option value="economie">Economie</option>
             <option value="other">Autres</option>
         </select>
+
+        <select id="sourceFilter" onchange="filterStudents()" aria-label="Séance gratuite">
+            <option value="">Toutes les origines</option>
+            <option value="free_any">Séance gratuite (tous)</option>
+            <option value="free_signup">Inscrits via séance gratuite</option>
+            <option value="free_joined">Étudiants existants ayant participé</option>
+            <option value="free_multiple">Plusieurs séances gratuites</option>
+        </select>
     </div>
 
     <div class="students-table-container" tabindex="0" role="region" aria-label="Tableau de gestion">
@@ -427,13 +435,15 @@
             const searchTerm = document.getElementById('searchInput').value;
             const classFilter = document.getElementById('classFilter').value;
             const branchFilter = document.getElementById('branchFilter').value;
+            const sourceFilter = document.getElementById('sourceFilter').value;
 
             const result = await window.AdminDashboard.loadStudents(
                 currentPage,
                 pageSize,
                 searchTerm,
                 classFilter,
-                branchFilter
+                branchFilter,
+                sourceFilter
             );
 
             totalCount = result.count;
@@ -458,6 +468,18 @@
             window.scrollTo({ top: 0, behavior: 'smooth' });
         }
 
+        // Original signup source and every free-session campaign joined (repeated participation).
+        function freeSessionBadge(student) {
+            const joined = Array.isArray(student.free_sessions) ? student.free_sessions : [];
+            if (student.signup_source !== 'free_session' && !joined.length) return '';
+            const titles = joined.map(item => item.title).filter(Boolean);
+            const origin = student.signup_source === 'free_session'
+                ? 'Inscrit via « ' + (student.signup_campaign_title || 'séance gratuite') + ' »'
+                : 'Étudiant existant';
+            const detail = origin + (titles.length ? ' · Séances : ' + titles.join(', ') : '');
+            return `<div style="margin-top:0.25rem;"><span title="${adminText(detail)}" style="background:#ffedd5;color:#c2410c;padding:2px 8px;border-radius:999px;font-size:0.72rem;font-weight:700;white-space:nowrap;">Séance gratuite${titles.length ? ' · ' + adminText(titles.length > 1 ? titles.length + ' séances' : titles[0]) : ''}</span>${student.signup_source === 'free_session' ? '' : '<span style="color:#64748b;font-size:0.72rem;margin-left:0.35rem;">(compte existant)</span>'}</div>`;
+        }
+
         function renderStudents(students) {
             const body = document.getElementById('studentsBody');
             if (!students || students.length === 0) {
@@ -470,7 +492,10 @@
                     <td>
                         <div class="student-name">
                             <div class="avatar">${adminText(student.fullname?.charAt(0) || 'S')}</div>
-                            ${adminText(student.fullname || 'Étudiant')}
+                            <div>
+                                ${adminText(student.fullname || 'Étudiant')}
+                                ${freeSessionBadge(student)}
+                            </div>
                         </div>
                     </td>
                     <td>${adminText(student.email)}</td>

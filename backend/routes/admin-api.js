@@ -7,6 +7,7 @@ import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
 import { createR2UploadUrl, deleteFromR2, listRecentR2Objects, readR2ObjectMetadata, uploadToR2 } from "../utils/r2Utils.js";
 import { offerEntitlement, legacyOfferEntitlement, matchesOfferTarget } from "../utils/offerAccess.js";
+import { liveFeatures } from "../services/live-features.js";
 
 import { COURSE_IMAGE_PREFIX, courseImagePath, decodeCourseImage, decodeReceiptDataUrl, isCourseImageKey } from "../utils/courseImages.js";
 
@@ -155,31 +156,52 @@ router.post("/api/admin/offers", requireAdmin, async (req, res) => {
  */
 router.get("/api/admin/students", requireAdmin, async (req, res) => {
   try {
-    const { page = 1, pageSize = 10, searchTerm = "", classFilter = "", branchFilter = "" } = req.query;
+    const { page = 1, pageSize = 10, searchTerm = "", classFilter = "", branchFilter = "", sourceFilter = "" } = req.query;
+    const freeSessions = liveFeatures.freeSessions;
+    // Free-session badge data: original signup campaign plus every campaign the student joined.
+    const freeColumns = freeSessions ? `, u.signup_source,
+      (SELECT f.title FROM free_sessions f WHERE f.id = u.signup_free_session_id) AS signup_campaign_title,
+      COALESCE((SELECT json_agg(json_build_object('title', f.title, 'slug', f.slug, 'source', p.source,
+                  'score', p.score, 'total', p.total, 'joined_at', p.joined_at) ORDER BY p.joined_at)
+                FROM free_session_participants p JOIN free_sessions f ON f.id = p.free_session_id
+                WHERE p.user_id = u.id), '[]'::json) AS free_sessions` : "";
     
-    let queryStr = `SELECT id, name as fullname, email, phone as number, class, branch, balance, created_at FROM users WHERE role = 'user'`;
-    let countStr = `SELECT count(*) FROM users WHERE role = 'user'`;
+    let queryStr = `SELECT u.id, u.name as fullname, u.email, u.phone as number, u.class, u.branch, u.balance, u.created_at${freeColumns}
+      FROM users u WHERE u.role = 'user'`;
+    let countStr = `SELECT count(*) FROM users u WHERE u.role = 'user'`;
     let params = [];
     let paramIndex = 1;
+
+    if (freeSessions && sourceFilter) {
+      const sourceConditions = {
+        free_signup: ` AND u.signup_source = 'free_session'`,
+        free_joined: ` AND EXISTS (SELECT 1 FROM free_session_participants p WHERE p.user_id = u.id AND p.source = 'existing_student')`,
+        free_any: ` AND EXISTS (SELECT 1 FROM free_session_participants p WHERE p.user_id = u.id)`,
+        free_multiple: ` AND (SELECT COUNT(*) FROM free_session_participants p WHERE p.user_id = u.id) > 1`,
+      };
+      if (!Object.hasOwn(sourceConditions, sourceFilter)) return res.status(400).json({ success: false, error: "Filtre invalide" });
+      queryStr += sourceConditions[sourceFilter];
+      countStr += sourceConditions[sourceFilter];
+    }
     
     if (searchTerm) {
       const term = `%${searchTerm}%`;
-      queryStr += ` AND (name ILIKE $${paramIndex} OR email ILIKE $${paramIndex})`;
-      countStr += ` AND (name ILIKE $${paramIndex} OR email ILIKE $${paramIndex})`;
+      queryStr += ` AND (u.name ILIKE $${paramIndex} OR u.email ILIKE $${paramIndex})`;
+      countStr += ` AND (u.name ILIKE $${paramIndex} OR u.email ILIKE $${paramIndex})`;
       params.push(term);
       paramIndex++;
     }
     
     if (classFilter) {
-      queryStr += ` AND class = $${paramIndex}`;
-      countStr += ` AND class = $${paramIndex}`;
+      queryStr += ` AND u.class = $${paramIndex}`;
+      countStr += ` AND u.class = $${paramIndex}`;
       params.push(classFilter);
       paramIndex++;
     }
     
     if (branchFilter) {
-      queryStr += ` AND branch = $${paramIndex}`;
-      countStr += ` AND branch = $${paramIndex}`;
+      queryStr += ` AND u.branch = $${paramIndex}`;
+      countStr += ` AND u.branch = $${paramIndex}`;
       params.push(branchFilter);
       paramIndex++;
     }
@@ -192,7 +214,7 @@ router.get("/api/admin/students", requireAdmin, async (req, res) => {
     const limit = Math.min(Math.max(parseInt(pageSize, 10) || 20, 1), 100);
     const offset = (Math.max(parseInt(page, 10) || 1, 1) - 1) * limit;
     
-    queryStr += ` ORDER BY created_at DESC LIMIT $${paramIndex} OFFSET $${paramIndex + 1}`;
+    queryStr += ` ORDER BY u.created_at DESC LIMIT $${paramIndex} OFFSET $${paramIndex + 1}`;
     params.push(limit, offset);
     
     const result = await pool.query(queryStr, params);

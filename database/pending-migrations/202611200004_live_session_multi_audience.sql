@@ -6,11 +6,27 @@ ALTER TABLE live_sessions
     CHECK (access_policy IN ('legacy', 'any_selected')),
   ALTER COLUMN course_id DROP NOT NULL;
 
-ALTER TABLE live_sessions ADD CONSTRAINT live_session_policy_shape CHECK (
-  (access_policy = 'legacy' AND course_id IS NOT NULL)
-  OR (access_policy = 'any_selected' AND course_id IS NULL AND offer_id IS NULL
-      AND additional_offer_ids IS NULL AND audience_student_ids IS NULL)
-);
+-- Free-session campaign rows (202611250002) have no course; they keep the legacy policy.
+-- The column may not exist yet on a database that applies this file first; 202611250002
+-- then widens this rule itself.
+DO $$
+BEGIN
+  IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema = current_schema()
+             AND table_name = 'live_sessions' AND column_name = 'free_session_id') THEN
+    ALTER TABLE live_sessions ADD CONSTRAINT live_session_policy_shape CHECK (
+      (free_session_id IS NOT NULL AND access_policy = 'legacy')
+      OR (access_policy = 'legacy' AND course_id IS NOT NULL)
+      OR (access_policy = 'any_selected' AND course_id IS NULL AND offer_id IS NULL
+          AND additional_offer_ids IS NULL AND audience_student_ids IS NULL)
+    );
+  ELSE
+    ALTER TABLE live_sessions ADD CONSTRAINT live_session_policy_shape CHECK (
+      (access_policy = 'legacy' AND course_id IS NOT NULL)
+      OR (access_policy = 'any_selected' AND course_id IS NULL AND offer_id IS NULL
+          AND additional_offer_ids IS NULL AND audience_student_ids IS NULL)
+    );
+  END IF;
+END $$;
 
 CREATE TABLE live_session_courses (
   session_id UUID NOT NULL REFERENCES live_sessions(id) ON DELETE CASCADE,

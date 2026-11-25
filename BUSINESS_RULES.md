@@ -135,6 +135,19 @@ Two roles exist: `user` (student) and `admin`.
 | Student sets password to activate account | ✅ | Requires email verification, completed quiz and a single activation. Existing user credentials are never overwritten. |
 | Session registrations are linked to `users` table via `auth_user_id` | ✅ | Activation sets the link and creates the verified account in one transaction. |
 
+### BR-04b: Free-session campaigns (owner-approved 2026-11-25)
+| Behavior | Status | Evidence |
+|----------|--------|----------|
+| Several campaigns, each with its own link, title, description, subject, class/branch, quiz, schedule, Zoom meeting and on/off switch | ✅ | `free_sessions`; admin page `admin/pages/free-session.html` (« Configuration de la Session ») |
+| `/session` keeps working and serves the default campaign; others are `/session/<slug>`; slugs are unique and reserved words are refused | ✅ | `routes/pages.js`, `validateCampaign()` |
+| New students use the existing e-mail-verified flow; the account is created in `users` with the campaign class/branch and `signup_source = 'free_session'` | ✅ | `POST /api/session/set-password` |
+| Logged-in students take the quiz only; class, branch and signup source are never changed; one result per campaign | ✅ | `POST /api/session/member/submit` |
+| Students can take part in several campaigns; each participation keeps its score and level | ✅ | `free_session_participants` |
+| Zoom is created/rescheduled/cancelled from the campaign page through the existing Zoom client; free sessions are hidden from and locked in Gestion des Séances Live | ✅ | `syncCampaignZoom()`, `rejectFreeSession` in `live.js` |
+| Only participants see and join the session; the existing dashboard card, calendar popup, join endpoint and 5-minute unlock apply; reschedules send the existing « Séance reportée » notice to participants only | ✅ | `liveSessionAccess()` |
+| Admin student list shows a « Séance gratuite » badge (original source + campaigns joined) and filters: via free session, existing students who joined, several campaigns | ✅ | `GET /api/admin/students?sourceFilter=` |
+| Questions with answers are hidden instead of deleted, so past results stay readable | ✅ | `DELETE /api/session/admin/questions` |
+
 > ❓ **NEEDS CLARIFICATION:** The `beginner`/`advanced` group assignment from the placement quiz currently has no effect on course access or live session access. Is this intentional?
 
 ---
