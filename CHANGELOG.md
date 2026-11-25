@@ -841,3 +841,7 @@
 ## 2026-11-25 — Final installment production-readiness review (local only)
 
 Added disposable audit tests and detailed NO-GO report. Confirmed free/multi-audience schema conflict and open-campaign class/branch loss; verified financial preservation and runner failure/concurrency safety. Original security assertions and application/migration files unchanged during review. See INSTALLMENT_PRODUCTION_READINESS_REVIEW.md.
+
+## 2026-11-25 — Annual/monthly shared-course live access
+
+Fixed older sessions rejecting active annual buyers because their primary offer was monthly. Reused server-side course entitlement predicates; kept audience, expiry/revocation, cancellation and unrelated-course restrictions. Added disposable PostgreSQL/API regression coverage and npm test entry. No schema or production changes.

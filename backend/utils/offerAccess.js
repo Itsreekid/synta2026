@@ -111,20 +111,26 @@ function standardLiveSessionAccess(user) {
 
 function legacyLiveSessionAccess(user) {
   const audience = `(ls.audience_student_ids IS NULL OR ${user} = ANY(ls.audience_student_ids))`;
+  // Any paid offer granting this same course qualifies; the session audience still applies.
   const courseAndPrimaryOffer = `EXISTS (
       SELECT 1 FROM enrollments e WHERE e.user_id = ${user} AND e.course_id = ls.course_id
         AND ${enrollmentAccess("e")}
     )
-    AND (ls.offer_id IS NULL OR ${offerEntitlement(user, "ls.offer_id", "ls.course_id")})`;
+    AND (ls.offer_id IS NULL OR ${offerEntitlement(user, "ls.offer_id", "ls.course_id")}
+      OR EXISTS (
+        SELECT 1 FROM offer_courses shared_course_offer
+        WHERE shared_course_offer.course_id=ls.course_id
+          AND ${offerEntitlement(user, "shared_course_offer.offer_id", "ls.course_id")}
+      ))`;
   if (!extendedLiveAccess) {
     return `ls.status <> 'cancelled'
     AND ${audience}
-    AND ${courseAndPrimaryOffer}`;
+    AND (${courseAndPrimaryOffer} OR ${timedCourseGrant(user, "ls.course_id")})`;
   }
   return `ls.status <> 'cancelled' AND (
     ${user} = ANY(COALESCE(ls.granted_student_ids, '{}'::uuid[]))
     OR (${audience} AND (
-      (${courseAndPrimaryOffer})
+      (${courseAndPrimaryOffer} OR ${timedCourseGrant(user, "ls.course_id")})
       OR EXISTS (
         SELECT 1 FROM unnest(COALESCE(ls.additional_offer_ids, '{}'::uuid[])) AS extra(offer_id)
         WHERE ${activeOfferAccess(user, "extra.offer_id")}

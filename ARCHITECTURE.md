@@ -605,3 +605,7 @@ public/admin/js/recording-ui.js provides escaped, shared presentation helpers fo
 ### Custom installments — local implementation 2026-11-25
 
 Existing offer-upgrades service owns exact amount validation and Tunis civil-date scheduling. Existing admin metadata POST can receive payment_policy and use the same client transaction as saveUpgradePolicy, locking offers in sorted order. The database validates custom amounts against price/minimum/max in the same UPDATE. Existing quote fingerprints and confirmation snapshots preserve historical terms. Additive migration 202611250003 is included in the established deployment runner; no new page, worker or financial ledger.
+
+### Shared-course live authorization — 2026-11-25
+
+The existing liveSessionAccess SQL helper is reused across live lists, calendar events, join, replay/resources and notification eligibility. Legacy course sessions now accept active same-course paid rights via other linked offers or an independently valid timed course snapshot, inside the original audience/status guards. No new route or schema.

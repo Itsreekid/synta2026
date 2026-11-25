@@ -1,3 +1,7 @@
+### Shared-course session eligibility — owner requested 2026-11-25
+
+For an older course-linked session, active paid access to that same course through another linked offer (annual or monthly) qualifies even if the session names a different primary offer. Active timed course snapshots qualify independently of later offer edits. This supersedes the legacy exact-primary-offer restriction for these shared-course students. Explicit selected-student audiences still restrict access; cancelled sessions and expired, revoked or not-yet-started grants remain unavailable. Course/offer associations alone never grant access. Offer-only multi-audience sessions and free-campaign participant rules are unchanged. No purchase, enrollment or expiry is modified.
+
 ### Custom installment amounts and deadline buffer — approved and implemented locally 2026-11-25
 
 - Optional independent custom amounts for 2/3 payments must be positive and sum exactly to the offer price. The first custom amount must meet the configured minimum; conflicting plans are rejected, never silently changed. Missing plans retain equal splitting; one-payment checkout remains full remaining price.

@@ -1,3 +1,10 @@
+### 2026-11-25 — Shared-course annual/monthly live access fixed locally
+
+- User reported an active annual buyer cannot see lives on Info Progress when an older session names the monthly offer. Root cause: legacy live authorization required the exact primary offer, despite legitimate access to the same course through another offer.
+- backend/utils/offerAccess.js now accepts an entitled linked offer for the same actively enrolled course, or an independent active timed course grant. Explicit audience restrictions, cancellation, grant start/expiry/revocation and unrelated-course denial remain enforced. Existing new multi-audience OR rules and free-campaign membership are unchanged. No payment, enrollment, schema or expiry write.
+- Shared predicate already protects Dashboard, Calendar, join, replay and resource APIs. Added shared-course-live-access.test.js to npm test. Disposable API checks cover annual/monthly/legacy annual buyers, no duplicates, private resource links, no host URL, unrelated/anonymous access, spoofed userId, future/expired/revoked grants, restricted audiences, cancelled sessions, preserved snapshotted course access after offer edits, and extended-schema behavior.
+- Validation: focused shared access + installment/browser + readiness probes 21/21; original shared security predicate assertion 1/1. Full regression 102 pass / same 20 known failures /14 skipped (136 total); existing NO-GO blockers remain as documented in INSTALLMENT_PRODUCTION_READINESS_REVIEW.md. No production account (including Linda) was queried or changed. No migration, new flag, push or deployment.
+
 ### 2026-11-25 — Final installment readiness audit: NO-GO
 
 - Reviewed all 20 original failures: 13 live leaf cases + parent trace to genuine free-session/multi-audience CHECK conflict; four security fixtures are obsolete; Zoom exact-feature expectation + parent is obsolete. Candidate constraint in disposable DB makes unchanged live suite 17/17 pass; feature-field-only temporary test adjustment makes Zoom suite 15/15 pass.
