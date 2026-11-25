@@ -1,19 +1,59 @@
 import { createHash, randomUUID } from "node:crypto";
 import { matchesOfferTarget } from "../utils/offerAccess.js";
 import { UUID, amount, fail, timedSalesEnabled, transaction, student, offer, windowFor,
-  charge, writeGrant, recordPayment, externalDetails, signature, readQuote, syncScheduledDeadline } from "./timed-offers.js";
+  validDate, charge, writeGrant, recordPayment, externalDetails, signature, readQuote, syncScheduledDeadline } from "./timed-offers.js";
 
 export const upgradesEnabled = () => timedSalesEnabled() && process.env.TIMED_OFFER_UPGRADES_ENABLED === "true";
 const cents = value => Number(amount(value).replace(".", ""));
 const decimal = value => Math.floor(value / 100) + "." + String(value % 100).padStart(2, "0");
 const digest = value => createHash("sha256").update(JSON.stringify(value)).digest("hex");
 
-export function installmentBreakdown(price, count, minimum, credit) {
+export function customInstallmentPlans(value,price,minimum,maximum){
+ if(value==null)return null;
+ if(typeof value!=='object'||Array.isArray(value))fail(400,'Montants personnalisés invalides.');
+ const total=cents(price),floor=minimum?cents(minimum):0,result={};
+ for(const [key,rows]of Object.entries(value)){
+  if(!['2','3'].includes(key)||Number(key)>maximum||!Array.isArray(rows)||rows.length!==Number(key))fail(400,'Plan de paiements invalide.');
+  const normalized=rows.map(amount),values=normalized.map(cents);
+  if(values.some(v=>v<=0)||values.reduce((a,b)=>a+b,0)!==total)fail(400,'Le total des tranches doit correspondre exactement au prix de l’offre.');
+  if(values[0]<floor)fail(400,'La première tranche personnalisée est inférieure au minimum initial.');
+  result[key]=normalized;
+ }
+ return Object.keys(result).length?result:null;
+}
+const dayMs=86400000;
+function addMonths(date,months){
+ const [y,m,d]=date.split('-').map(Number),first=new Date(Date.UTC(y,m-1+months,1));
+ const last=new Date(Date.UTC(first.getUTCFullYear(),first.getUTCMonth()+1,0)).getUTCDate();
+ return new Date(Date.UTC(first.getUTCFullYear(),first.getUTCMonth(),Math.min(d,last))).toISOString().slice(0,10);
+}
+export function installmentDates(start,cutoff,count,mode='automatic',offsets=[]){
+ if(!validDate(start)||!validDate(cutoff)||![1,2,3].includes(count)||!['automatic','manual'].includes(mode))fail(400,'Dates de paiement invalides.');
+ if(count===1)return [start];
+ const base=Date.parse(start+'T00:00:00Z'),last=Date.parse(addMonths(cutoff,-1)+'T00:00:00Z');
+ const full=()=>{throw Object.assign(new Error('Paiement intégral requis : les tranches doivent être réglées au moins un mois avant la fin de l’accès.'),{status:409,code:'FULL_PAYMENT_REQUIRED'});};
+ if(last<=base)full();
+ const iso=days=>new Date(base+days*dayMs).toISOString().slice(0,10);
+ if(mode==='manual'){
+  const selected=offsets.slice(0,count-1);
+  if(selected.length!==count-1||selected.some((v,i)=>!Number.isInteger(v)||v<=0||(i&&v<=selected[i-1])||base+v*dayMs>last))fail(409,'Définissez des délais croissants, au plus tard un mois avant la fin de l’accès.');
+  return [start,...selected.map(iso)];
+ }
+ const end=new Date(Date.parse(cutoff+'T00:00:00Z')+dayMs).toISOString().slice(0,10);
+ const [sy,sm]=start.split('-').map(Number),[ey,em]=end.split('-').map(Number),months=(ey-sy)*12+em-sm;
+ if(months>0&&months%count===0&&addMonths(start,months)===end){
+  const dates=Array.from({length:count},(_,i)=>addMonths(start,i*months/count));if(Date.parse(dates.at(-1)+'T00:00:00Z')<=last)return dates;
+ }
+ const step=Math.floor(Math.min((Date.parse(end+'T00:00:00Z')-base)/dayMs/count,(last-base)/dayMs/(count-1)));
+ if(step<1)full();return Array.from({length:count},(_,i)=>iso(i*step));
+}
+
+export function installmentBreakdown(price, count, minimum, credit, custom = null) {
   const total = cents(price);
   const applied = cents(credit);
   if (!Number.isInteger(count) || count < 1 || count > 3 || total < count) fail(400, "Nombre de tranches invalide.");
   if (applied > total) fail(409, "Crédit supérieur au prix. Vérification administrative requise.");
-  const schedule = Array.from({ length: count }, (_, i) =>
+  const schedule = custom ? customInstallmentPlans({[count]:custom},price,minimum,count)[count].map(cents) : Array.from({ length: count }, (_, i) =>
     Math.floor(total / count) + Number(i < total % count));
   const dueNow = Math.max(0, Math.max(schedule[0], minimum ? cents(minimum) : 0) - applied);
   let available = applied + dueNow;
@@ -80,19 +120,15 @@ async function calculate(db, user, targetId, sourceId, count) {
   if (!Number.isInteger(count) || count < 1 || count > (selected.installment_max ?? 1)) fail(400, "Nombre de tranches invalide.");
   const period = await windowFor(db, user.id, selected, false);
   const evidence = sourceId ? await sourceEvidence(db, user.id, sourceId, targetId) : { credit: "0.00", debt: "0.00", rows: [] };
-  const breakdown = installmentBreakdown(selected.fixed_price, count, selected.minimum_initial_payment, evidence.credit);
+  const breakdown = installmentBreakdown(selected.fixed_price, count, selected.minimum_initial_payment, evidence.credit, selected.installment_custom_amounts?.[count]);
   const { rows: [clock] } = await db.query(
     "SELECT ($1::timestamptz AT TIME ZONE 'Africa/Tunis')::date::text AS today", [period.starts_at]);
-  const schedule = breakdown.schedule.map((entry, index) => {
-    const offset = index === 0 ? 0 : selected.installment_due_offsets[index - 1];
-    const dueDate = offset == null ? null : new Date(Date.parse(clock.today + "T00:00:00Z") + offset * 86400000).toISOString().slice(0, 10);
-    if (dueDate && dueDate > selected.access_cutoff_date) fail(409, "Une échéance dépasse la fin de l’année scolaire.");
-    return { ...entry, dueDate };
-  });
+  const dates=installmentDates(clock.today,selected.access_cutoff_date,count,selected.installment_deadline_mode||'automatic',selected.installment_due_offsets);
+  const schedule=breakdown.schedule.map((entry,index)=>({...entry,dueDate:dates[index]}));
   const details = { ...breakdown, schedule, price: selected.fixed_price, credit: evidence.credit,
     sourceDebt: evidence.debt, academicYear: selected.academic_year_start, cutoff: selected.access_cutoff_date,
     expires_at: period.expires_at.toISOString() };
-  const fingerprint = digest([details, selected.courses, evidence.grantId, evidence.rows]);
+  const fingerprint = digest([details, selected.courses, evidence.grantId, evidence.rows,selected.installment_custom_amounts,selected.installment_deadline_mode,selected.installment_due_offsets,selected.minimum_initial_payment]);
   return { selected, period, evidence, details, fingerprint };
 }
 
@@ -172,9 +208,11 @@ export async function confirmOfferUpgrade(db, userId, input, adminId = null) {
   });
 }
 
-export async function saveUpgradePolicy(db, targetId, body) {
+export async function saveUpgradePolicy(db, targetId, body, existingClient=null) {
   if (!UUID.test(targetId)) fail(400, "Offre invalide.");
+  if(!body || typeof body!=='object' || Object.keys(body).some(key=>!['maximum','offsets','enabled','rules','customAmounts','deadlineMode'].includes(key)))fail(400,'Règles de paiement invalides.');
   const { maximum, offsets, enabled, rules } = body;
+  if(body.deadlineMode!==undefined&&!['automatic','manual'].includes(body.deadlineMode))fail(400,'Mode de dates invalide.');
   if (![1, 2, 3].includes(maximum) || typeof enabled !== "boolean" ||
       !Array.isArray(offsets) || offsets.length !== maximum - 1 ||
       offsets.some((value, index) => value !== null && (!Number.isInteger(value) || value < 1 || value > 366 ||
@@ -182,8 +220,8 @@ export async function saveUpgradePolicy(db, targetId, body) {
       !Array.isArray(rules) || rules.length > 100 || (!enabled && rules.length) ||
       rules.some(rule => !rule || !UUID.test(rule.sourceId) || rule.sourceId === targetId || typeof rule.allowPartial !== "boolean") ||
       new Set(rules.map(rule => rule.sourceId)).size !== rules.length) fail(400, "Règles de surclassement invalides.");
-  return transaction(db, async client => {
-    const { rows } = await client.query("SELECT id,access_mode FROM offers WHERE id=ANY($1::uuid[]) ORDER BY id FOR UPDATE",
+  const work=async client => {
+    const { rows } = await client.query("SELECT id,access_mode,fixed_price,minimum_initial_payment,installment_custom_amounts,installment_deadline_mode FROM offers WHERE id=ANY($1::uuid[]) ORDER BY id FOR UPDATE",
       [[targetId, ...rules.map(rule => rule.sourceId)]]);
     const target = rows.find(row => row.id === targetId);
     if (!target) fail(404, "Offre introuvable.");
@@ -191,15 +229,17 @@ export async function saveUpgradePolicy(db, targetId, body) {
     if (rules.some(rule => !rows.some(row => row.id === rule.sourceId && row.access_mode !== "monthly"))) {
       fail(400, "Une offre mensuelle ne peut fournir aucun crédit.");
     }
+    const custom=customInstallmentPlans(body.customAmounts===undefined?target.installment_custom_amounts:body.customAmounts,target.fixed_price,target.minimum_initial_payment,maximum);
     await client.query("DELETE FROM offer_upgrade_rules WHERE target_offer_id=$1", [targetId]);
-    await client.query("UPDATE offers SET installment_max=$2,installment_due_offsets=$3,upgrades_enabled=$4 WHERE id=$1",
-      [targetId, maximum, offsets, enabled]);
+    await client.query("UPDATE offers SET installment_max=$2,installment_due_offsets=$3,upgrades_enabled=$4,installment_custom_amounts=$5::jsonb,installment_deadline_mode=$6 WHERE id=$1",
+      [targetId, maximum, offsets, enabled,custom?JSON.stringify(custom):null,body.deadlineMode||target.installment_deadline_mode||'automatic']);
     for (const rule of rules) {
       await client.query("INSERT INTO offer_upgrade_rules(source_offer_id,target_offer_id,allow_partial) VALUES($1,$2,$3)",
         [rule.sourceId, targetId, rule.allowPartial]);
     }
     return {};
-  });
+  };
+  return existingClient?work(existingClient):transaction(db,work);
 }
 
 export async function correctUpgradeClaim(db, userId, claimId, actor, input) {

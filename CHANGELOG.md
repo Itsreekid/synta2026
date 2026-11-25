@@ -1,3 +1,10 @@
+## 2026-11-25 — Custom installment amounts and automatic deadline buffer (local only)
+
+- Existing offer editor gains independent custom 2/3-payment plans and automatic/manual dates.
+- Exact totals/minimums constrained in PostgreSQL; price and rules can save atomically. New quotes fingerprint policies; existing financial schedules stay unchanged.
+- Automatic annual deadlines respect a one-calendar-month collection buffer; late purchases require full payment with explicit reconfirmation.
+- Additive migration 202611250003 validated on disposable PostgreSQL. No deployment or production data changes. See CUSTOM_INSTALLMENT_VALIDATION.md for results and baseline failures.
+
 ## 2026-11-25 — Premium calendar refinement
 
 - Refined desktop weekly timetable, header, event cards and scrolling; preserved and polished mobile date selector/daily agenda. Added keyboard date controls and data-driven lifecycle labels.
@@ -830,3 +837,7 @@
 
 - Protected recording deletion against active/shared replay references and concurrent manual attachment; failed storage deletion leaves the import available for retry.
 - Added PostgreSQL race/republication checks, actual browser file-picker verification and multi-audience manager integration checks. Full suite: 85 passing, no skips; hosted Zoom/R2 checks still required.
+
+## 2026-11-25 — Final installment production-readiness review (local only)
+
+Added disposable audit tests and detailed NO-GO report. Confirmed free/multi-audience schema conflict and open-campaign class/branch loss; verified financial preservation and runner failure/concurrency safety. Original security assertions and application/migration files unchanged during review. See INSTALLMENT_PRODUCTION_READINESS_REVIEW.md.

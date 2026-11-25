@@ -409,3 +409,7 @@ TASK-009 follow-up completed locally 2026-11-24: automatic occurrence discovery 
 TASK-009 presentation follow-up implemented locally 2026-11-24: mobile-first occurrence/segment cards, metadata summaries, byte-progress UI and compact Corbeille. Import pipeline and schema unchanged. Production rollout not performed.
 
 TASK-015 student-status follow-up completed locally 2026-11-25: existing manual finish status enforced in shared LIVE reminders, five-minute join metadata and server join gate. Shared popup styling/reminders delivered without new schema; automatic database status-transition jobs remain outside this follow-up. See UNIFIED_POPUPS_IMPLEMENTATION.md; staging/physical-device validation remains.
+
+### Custom-installment follow-up — COMPLETED locally 2026-11-25
+
+Owner-approved independent amounts, automatic/manual dates and one-month cutoff buffer implemented in existing offer editor/checkout. Additive 202611250003 migration validated on disposable PostgreSQL. Production/staging activation remains gated; full-suite baseline failures documented in CUSTOM_INSTALLMENT_VALIDATION.md.

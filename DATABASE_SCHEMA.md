@@ -750,3 +750,11 @@ Auto-applied by `scripts/migrate.js` on the next deployment (file is in `databas
 **`live_sessions.course_id` is now nullable** with CHECK `course_id IS NOT NULL OR free_session_id IS NOT NULL`; free-session rows have no course, offer or audience (CHECK `live_sessions_free_session_shape`). Unique index: one `scheduled`/`live` row per campaign. Course-based access never matches a NULL course, so free sessions are visible only through `free_session_participants` (`liveSessionAccess`, enabled by startup detection `liveFeatures.freeSessions`). Held 202611200004 was edited so its `live_session_policy_shape` accepts free-session rows; 202611250002 widens that constraint itself when 004 is already applied.
 
 **Backfill:** campaign `decouverte` (default, from `session_config` id 1) receives all existing questions and registrations; activated registrations become `new_signup` participants and their users get `signup_source = 'free_session'`. `session_config` is kept but no longer read.
+
+### Approved / implemented locally — Custom offer installment amounts (2026-11-25)
+
+Migration: database/migrations/202611250003_custom_installment_amounts.sql; depends on 202611120002 and its access/reconciliation dependencies. Disposable PostgreSQL validated; production not executed.
+
+- offers.installment_custom_amounts JSONB nullable. Keys "2"/"3" map to exact two-decimal positive string arrays. NULL/missing count retains equal splitting. CHECK with immutable valid_offer_custom_installments validates count, length, sum=fixed_price and first amount >= minimum_initial_payment. Price/minimum/max changes are constrained too.
+- offers.installment_deadline_mode TEXT NOT NULL DEFAULT 'automatic', CHECK automatic/manual. Existing offset arrays retained. Future automatic annual quotes spread payments over remaining coverage, bounded by inclusive cutoff minus one calendar month. Manual quotes validate offsets against the same buffer. Too late => full payment only.
+- Existing financial rows, confirmed schedules, access expiry and progress remain untouched. Existing NULL deadlines remain valid historical data. No new schedule/grant/payment columns. See CUSTOM_INSTALLMENT_AMOUNTS_PLAN.md.

@@ -1,3 +1,10 @@
+### Custom installment amounts and deadline buffer — approved and implemented locally 2026-11-25
+
+- Optional independent custom amounts for 2/3 payments must be positive and sum exactly to the offer price. The first custom amount must meet the configured minimum; conflicting plans are rejected, never silently changed. Missing plans retain equal splitting; one-payment checkout remains full remaining price.
+- Automatic dates default to evenly spaced coverage-based installments; final later installment is due at least one calendar month before the inclusive annual cutoff. Month-end clamps safely. Admin may choose explicit day offsets, checked against the same buffer for each new quote. Insufficient time requires full payment and a new explicit quote.
+- Approved example: 1 December to 31 May inclusive => Dec 1 / Feb 1 / Apr 1 for 3 payments, Dec 1 / Mar 1 for 2. Eligible credit still applies earliest first. Monthly source exclusion and original source debt remain unchanged.
+- Confirmed schedules, historical NULL deadlines, grants and debts are immutable under offer-policy edits. No automatic suspension, wallet debit or debt cancellation. Details: CUSTOM_INSTALLMENT_AMOUNTS_PLAN.md.
+
 ### Unified LIVE reminders — owner approved 2026-11-25
 
 - Join window is FIVE minutes before scheduled start until scheduled end, excluding completed/cancelled sessions. This supersedes the former ten-minute rule. Backend metadata is the frontend timing source.

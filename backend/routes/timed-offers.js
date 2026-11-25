@@ -21,7 +21,7 @@ const reply = work => async (req, res) => {
     const result = await work(req);
     return res.json({ success: true, ...result });
   } catch (error) {
-    if (error.status) return res.status(error.status).json({ success: false, error: error.message });
+    if (error.status) return res.status(error.status).json({ success: false, error: error.message,...(error.code==='FULL_PAYMENT_REQUIRED'?{code:error.code}:{}) });
     console.error("Timed offer operation failed:", error.code ?? error.name);
     return res.status(500).json({ success: false, error: "Opération indisponible." });
   }
@@ -59,7 +59,7 @@ router.post("/api/purchase/offer-installments/:arrangementId/pay", authApiMiddle
 router.get("/api/admin/offers/:offerId/upgrade-policy", requireAdmin, reply(async req => {
   if (!UUID.test(req.params.offerId)) return { policy: null, sources: [] };
   const [policy, sources] = await Promise.all([
-    pool.query("SELECT installment_max,installment_due_offsets,upgrades_enabled,access_mode FROM offers WHERE id=$1", [req.params.offerId]),
+    pool.query("SELECT installment_max,installment_due_offsets,upgrades_enabled,access_mode,fixed_price,minimum_initial_payment,installment_custom_amounts,installment_deadline_mode FROM offers WHERE id=$1", [req.params.offerId]),
     pool.query(`SELECT o.id,o.title,r.allow_partial FROM offers o LEFT JOIN offer_upgrade_rules r
       ON r.source_offer_id=o.id AND r.target_offer_id=$1
       WHERE o.id<>$1 AND o.access_mode IS DISTINCT FROM 'monthly' ORDER BY o.title`, [req.params.offerId])

@@ -10,6 +10,7 @@ import { authRateLimit } from "../middleware/authRateLimit.js";
 import * as offerAccess from "../utils/offerAccess.js";
 import * as learnerProfile from "../utils/learnerProfile.js";
 import * as courseImages from "../utils/courseImages.js";
+import * as offerUpgrades from "../services/offer-upgrades.js";
 import * as timedOffers from "../services/timed-offers.js";
 import * as returnPath from "../utils/returnPath.js";
 import * as sessions from "../services/sessions.js";
@@ -44,6 +45,7 @@ async function loadRoute(name, doubles, env = {}) {
     "node:crypto": { randomUUID: crypto.randomUUID },
     "../utils/courseImages.js": courseImages,
     "../services/timed-offers.js": timedOffers,
+    "../services/offer-upgrades.js": offerUpgrades,
     "../middleware/requireAdmin.js": { requireAdmin: admin },
     "../middleware/requireAuth.js": { authApiMiddleware: guard },
     "../services/sessions.js": {

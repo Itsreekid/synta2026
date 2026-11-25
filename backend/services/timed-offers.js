@@ -72,7 +72,7 @@ export async function student(db, id) {
 export async function offer(db, id) {
   const { rows } = await db.query(
     `SELECT o.id,o.title,o.fixed_price,o.minimum_initial_payment,o.target_classes,o.target_branches,
-       o.access_mode,o.academic_year_start,o.access_cutoff_date::text, o.installment_max,o.installment_due_offsets,o.upgrades_enabled,
+       o.access_mode,o.academic_year_start,o.access_cutoff_date::text, o.installment_max,o.installment_due_offsets,o.upgrades_enabled,o.installment_custom_amounts,o.installment_deadline_mode,
        o.is_active AND (o.valid_from IS NULL OR o.valid_from<=clock_timestamp())
        AND (o.valid_until IS NULL OR o.valid_until>clock_timestamp()) AS available,
        ARRAY(SELECT oc.course_id FROM offer_courses oc WHERE oc.offer_id=o.id ORDER BY oc.course_id) AS courses

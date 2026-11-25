@@ -1,4 +1,5 @@
-import { offerTerms } from "../services/timed-offers.js";
+import { saveUpgradePolicy, customInstallmentPlans } from "../services/offer-upgrades.js";
+import { offerTerms, UUID } from "../services/timed-offers.js";
 import { randomUUID } from "node:crypto";
 import express from "express";
 import pool from "../config/db.js";
@@ -103,6 +104,7 @@ async function ensureOffersSchema() {
 }
 
 router.post("/api/admin/offers", requireAdmin, async (req, res) => {
+  let client;
   try {
     const { id, title, description, fixed_price, discount_percentage, is_active, target_classes, target_branches, valid_from, valid_until, features, is_best_seller, image_url } = req.body;
     
@@ -116,15 +118,31 @@ router.post("/api/admin/offers", requireAdmin, async (req, res) => {
     const classesArray = Array.isArray(target_classes) ? target_classes : [];
     const branchesArray = Array.isArray(target_branches) ? target_branches : [];
 
+    const policy = req.body.payment_policy;
+    let policySql = '', policyValues = [];
+    if (policy !== undefined) {
+      if (!UUID.test(id) || !policy || typeof policy !== 'object' || !Array.isArray(policy.rules) ||
+          ![1,2,3].includes(policy.maximum) || policy.rules.some(rule => !rule || !UUID.test(rule.sourceId))) {
+        return res.status(400).json({success:false,error:'Règles de paiement invalides.'});
+      }
+      client = await pool.connect();
+      await client.query('BEGIN');
+      const {rows} = await client.query('SELECT id,minimum_initial_payment,installment_custom_amounts FROM offers WHERE id=ANY($1::uuid[]) ORDER BY id FOR UPDATE',[[id,...policy.rules.map(rule=>rule.sourceId)]]);
+      const current=rows.find(row=>row.id===id);
+      if (!current) throw Object.assign(new Error('Offre introuvable.'),{status:404});
+      const plans=customInstallmentPlans(policy.customAmounts===undefined?current.installment_custom_amounts:policy.customAmounts,fixed_price,hasTerms?terms[3]:current.minimum_initial_payment,policy.maximum);
+      policyValues=[plans?JSON.stringify(plans):null,policy.maximum,policy.offsets,policy.enabled,policy.deadlineMode||'automatic'];
+      policySql=', installment_custom_amounts=$19::jsonb, installment_max=$20, installment_due_offsets=$21, upgrades_enabled=$22, installment_deadline_mode=$23';
+    }
     if (id) {
-      // Update
-      await pool.query(
+      // Price and payment policy are updated together so constraints never see an intermediate plan.
+      await (client||pool).query(
         `UPDATE offers SET title=$1, description=$2, fixed_price=$3, discount_percentage=$4, is_active=$5, target_classes=$6, target_branches=$7, valid_from=$8, valid_until=$9, features=$10, is_best_seller=$11, image_url=$12,
            access_mode=CASE WHEN $18 THEN $14 ELSE access_mode END,
            academic_year_start=CASE WHEN $18 THEN $15 ELSE academic_year_start END,
            access_cutoff_date=CASE WHEN $18 THEN $16 ELSE access_cutoff_date END,
-           minimum_initial_payment=CASE WHEN $18 THEN $17 ELSE minimum_initial_payment END WHERE id=$13`,
-        [title, description, fixed_price, parsedDiscount, is_active, classesArray, branchesArray, parsedValidFrom, parsedValidUntil, JSON.stringify(features || []), !!is_best_seller, image_url || null, id, ...terms, hasTerms]
+           minimum_initial_payment=CASE WHEN $18 THEN $17 ELSE minimum_initial_payment END${policySql} WHERE id=$13`,
+        [title, description, fixed_price, parsedDiscount, is_active, classesArray, branchesArray, parsedValidFrom, parsedValidUntil, JSON.stringify(features || []), !!is_best_seller, image_url || null, id, ...terms, hasTerms, ...policyValues]
       );
     } else {
       // Insert
@@ -133,13 +151,18 @@ router.post("/api/admin/offers", requireAdmin, async (req, res) => {
         [title, description, fixed_price, parsedDiscount, is_active, classesArray, branchesArray, parsedValidFrom, parsedValidUntil, JSON.stringify(features || []), !!is_best_seller, image_url || null, ...terms]
       );
     }
+    if(client){await saveUpgradePolicy(pool,id,policy,client);await client.query('COMMIT');}
     return res.json({ success: true });
   } catch (err) {
+    if(client)await client.query('ROLLBACK');
+    if (err.status === 404) return res.status(404).json({success:false,error:err.message});
     if (err.status === 400) return res.status(400).json({ success: false, error: err.message });
     if (err.code === "23514") {
       const error = err.constraint === "offers_timed_terms"
         ? "Vérifiez le prix, le minimum de la première tranche et les dates d’accès."
-        : "Ces réglages sont incompatibles avec les règles d’accès ou de surclassement enregistrées.";
+        : err.constraint === 'offers_custom_installment_amounts_valid'
+          ? 'Vérifiez le total des tranches et le minimum initial. Enregistrez le prix et les montants ensemble.'
+          : "Ces réglages sont incompatibles avec les règles d’accès ou de surclassement enregistrées.";
       return res.status(409).json({ success: false, error });
     }
     if (err.code === "42703" || err.code === "42P01") {
@@ -148,7 +171,7 @@ router.post("/api/admin/offers", requireAdmin, async (req, res) => {
     }
     console.error("Error managing offer:", err.code ?? err.name);
     return res.status(500).json({ success: false, error: "Impossible d’enregistrer l’offre pour le moment." });
-  }
+  } finally { client?.release(); }
 });
 
 /**

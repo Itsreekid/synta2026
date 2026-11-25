@@ -6,7 +6,7 @@
         });
         const result = await response.json().catch(() => null);
         if (!result) throw new Error('Le paiement est temporairement indisponible. Réessayez dans un instant.');
-        if (!response.ok || result.success === false) throw new Error(result.error || 'Opération indisponible.');
+        if (!response.ok || result.success === false) throw Object.assign(new Error(result.error || 'Opération indisponible.'),{code:result.code});
         return result;
     }
 
@@ -140,6 +140,11 @@
                     adminStudentId ? 'Confirmer le paiement externe' : 'Confirmer et payer ' + q.dueNow + ' DT';
                 refresh.hidden = false;
             } catch (error) {
+                if(error.code==='FULL_PAYMENT_REQUIRED'){
+                    reset();
+                    for(const option of form.elements.count.options)option.disabled=option.value!=='1';
+                    form.elements.count.value='1';
+                }
                 status.textContent = error.message;
             } finally {
                 submit.disabled = false;

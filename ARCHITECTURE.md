@@ -601,3 +601,7 @@ utils/recording-download.js DNS-validates and pins every HTTPS hop, rejects priv
 ### Recording presentation adapter (2026-11-24)
 
 public/admin/js/recording-ui.js provides escaped, shared presentation helpers for recorded segments and discovery results. The existing session manager groups occurrences separately from parts and uses the existing local trash/status APIs. Discovery metadata projection gains only available topic/summary fields and known MP4 format; session title is read from the existing authenticated session query. No new endpoints, provider calls, schema changes or worker behavior. Native details hide UUIDs and trash contents, with no extra polling. Cache pins: manager JS v5, CSS v3, recording-ui v1.
+
+### Custom installments — local implementation 2026-11-25
+
+Existing offer-upgrades service owns exact amount validation and Tunis civil-date scheduling. Existing admin metadata POST can receive payment_policy and use the same client transaction as saveUpgradePolicy, locking offers in sorted order. The database validates custom amounts against price/minimum/max in the same UPDATE. Existing quote fingerprints and confirmation snapshots preserve historical terms. Additive migration 202611250003 is included in the established deployment runner; no new page, worker or financial ledger.

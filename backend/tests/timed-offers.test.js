@@ -10,7 +10,7 @@ import express from "express";
 import cookieParser from "cookie-parser";
 import jwt from "jsonwebtoken";
 import { withTimedOfferBrowser } from "./timed-offer-browser.js";
-import { installmentBreakdown, saveUpgradePolicy, quoteOfferUpgrade, confirmOfferUpgrade, correctUpgradeClaim } from "../services/offer-upgrades.js";
+import { customInstallmentPlans, installmentDates, installmentBreakdown, saveUpgradePolicy, quoteOfferUpgrade, confirmOfferUpgrade, correctUpgradeClaim } from "../services/offer-upgrades.js";
 import pg from "pg";
 import {
   amount, nextMonthlyDate, offerTerms, createOfferQuote, buyTimedOffer, createInstallment,
@@ -100,6 +100,31 @@ test("upgrade cent allocation and initial minimum follow the agreed examples", (
   assert.throws(() => installmentBreakdown("440.00", 3, null, "440.01"), { status: 409 });
 });
 
+test('custom amounts validate exact totals, minimums and independent payment counts',()=>{
+ const plans={'2':['150.00','240.00'],'3':['100.00','100.00','190.00']};
+ assert.deepEqual(customInstallmentPlans(plans,'390.00','100.00',3),plans);
+ for(const plan of [['100','100','180'],['0','100','290'],['-1','100','291'],['90','100','200']])assert.throws(()=>customInstallmentPlans({'3':plan},'390','100',3),{status:400});
+ assert.throws(()=>customInstallmentPlans({'4':['390']},'390',null,3),{status:400});
+ assert.throws(()=>customInstallmentPlans(plans,'390',null,2),{status:400});
+ assert.deepEqual(installmentBreakdown('390',3,'100','0',plans['3']).schedule.map(r=>r.amount),plans['3']);
+ assert.deepEqual(installmentBreakdown('390',3,'100','180',plans['3']).schedule.map(r=>r.remaining),['0.00','20.00','190.00']);
+ assert.equal(installmentBreakdown('390',3,'100','100',plans['3']).dueNow,'0.00');
+ assert.deepEqual(installmentBreakdown('390',3,'100','300',plans['3']).schedule.map(r=>r.remaining),['0.00','0.00','90.00']);
+ assert.equal(installmentBreakdown('390',2,'100','0',plans['2']).dueNow,'150.00');
+ assert.equal(installmentBreakdown('390',1,'100','180').dueNow,'210.00');
+});
+test('automatic and manual dates respect anchored months and the one-month buffer',()=>{
+ assert.deepEqual(installmentDates('2026-12-01','2027-05-31',3),['2026-12-01','2027-02-01','2027-04-01']);
+ assert.deepEqual(installmentDates('2026-12-01','2027-05-31',2),['2026-12-01','2027-03-01']);
+ assert.deepEqual(installmentDates('2027-01-31','2027-04-30',3),['2027-01-31','2027-03-01','2027-03-30']);
+ assert.deepEqual(installmentDates('2028-01-31','2028-03-31',2),['2028-01-31','2028-02-29']);
+ assert.deepEqual(installmentDates('2027-04-29','2027-05-31',2),['2027-04-29','2027-04-30']);
+ for(const start of ['2027-04-30','2027-05-01','2027-05-31'])assert.throws(()=>installmentDates(start,'2027-05-31',2),{code:'FULL_PAYMENT_REQUIRED'});
+ assert.deepEqual(installmentDates('2026-12-01','2027-05-31',3,'manual',[60,150]),['2026-12-01','2027-01-30','2027-04-30']);
+ for(const offsets of [[null,null],[60,60],[60,151],[100,90]])assert.throws(()=>installmentDates('2026-12-01','2027-05-31',3,'manual',offsets),{status:409});
+ assert.deepEqual(installmentDates('2027-05-31','2027-05-31',1),['2027-05-31']);
+});
+
 test("timed offers on disposable PostgreSQL", { skip: !process.env.BUGI_QA_POSTGRES_PORT, timeout: 60000 }, async t => {
   const connection = { host: "127.0.0.1", port: Number(process.env.BUGI_QA_POSTGRES_PORT),
     user: "bugi_qa", password: "bugi-synthetic-local-only", ssl: false, connectionTimeoutMillis: 5000 };
@@ -133,6 +158,7 @@ test("timed offers on disposable PostgreSQL", { skip: !process.env.BUGI_QA_POSTG
     assert.match(repeatedMigration, /already applied: 202611110004_add_timed_offer_access/);
     assert.match(repeatedMigration, /already applied: 202611120001_reconcile_timed_offer_terms/);
     assert.match(repeatedMigration, /already applied: 202611120002_offer_upgrade_credit/);
+    assert.match(repeatedMigration, /already applied: 202611250003_custom_installment_amounts/);
     assert.equal((await db.query("SELECT progress FROM enrollments WHERE user_id=$1", [second])).rows[0].progress, "42.00");
     assert.equal((await db.query("SELECT offer_id FROM payments WHERE user_id=$1", [second])).rows[0].offer_id, null);
     process.env.JWT_SECRET = "disposable-test-only";
@@ -148,6 +174,8 @@ test("timed offers on disposable PostgreSQL", { skip: !process.env.BUGI_QA_POSTG
       await db.query("INSERT INTO offer_courses(offer_id,course_id) VALUES($1,$2)", [offer.id, course]);
       return offer.id;
     };
+    const extendOffer = async id => db.query(
+      "WITH term AS (SELECT (now() AT TIME ZONE 'Africa/Tunis')::date+180 AS cutoff) UPDATE offers SET access_cutoff_date=term.cutoff,academic_year_start=EXTRACT(YEAR FROM term.cutoff)::int-(EXTRACT(MONTH FROM term.cutoff)<9)::int FROM term WHERE id=$1",[id]);
     const monthly = await makeOffer("monthly");
     const annual = await makeOffer("academic_year", "10.10");
     const requestFor = (id, quote) => ({ offerId: id, quote: quote.quote, requestId: quote.requestId });
@@ -342,7 +370,84 @@ test("timed offers on disposable PostgreSQL", { skip: !process.env.BUGI_QA_POSTG
           assert.equal((await call(path, { id: viewer })).status, 403);
           assert.equal((await call(path, { id: second })).status, 200);
         });
+        await httpTest.test('custom policy saves atomically, rejects invalid totals and snapshots confirmed schedules',async()=>{
+          const target=await makeOffer('academic_year');await extendOffer(target);
+          const policy={maximum:3,enabled:false,offsets:[null,null],deadlineMode:'automatic',customAmounts:{'2':['150.00','240.00'],'3':['100.00','100.00','190.00']},rules:[]};
+          const data={id:target,title:'Custom annual',fixed_price:'390.00',is_active:true,minimum_initial_payment:'100.00',access_mode:'academic_year',
+            academic_year_start:(await db.query('SELECT academic_year_start FROM offers WHERE id=$1',[target])).rows[0].academic_year_start,
+            access_cutoff_date:(await db.query('SELECT access_cutoff_date::text AS cutoff FROM offers WHERE id=$1',[target])).rows[0].cutoff,payment_policy:policy};
+          let response=await call('/api/admin/offers',{id:admin,role:'admin',body:data});assert.equal(response.status,200,await response.text());
+          response=await call('/api/admin/offers',{id:admin,role:'admin',body:{...data,fixed_price:'400.00'}});assert.equal(response.status,400);
+          assert.equal((await db.query('SELECT fixed_price FROM offers WHERE id=$1',[target])).rows[0].fixed_price,'390.00');
+          response=await call('/api/admin/offers',{id:admin,role:'admin',body:{...data,title:'Must roll back',payment_policy:{...policy,unexpected:true}}});assert.equal(response.status,400);
+          assert.equal((await db.query('SELECT title FROM offers WHERE id=$1',[target])).rows[0].title,'Custom annual');
+          for(const value of [{'3':['100.00','100.00','180.00']},{'3':['90.00','100.00','200.00']},{'2':[150,240]},{'x':[]}])await assert.rejects(db.query('UPDATE offers SET installment_custom_amounts=$2::jsonb WHERE id=$1',[target,JSON.stringify(value)]),{code:'23514'});
+          await assert.rejects(db.query('UPDATE offers SET fixed_price=400 WHERE id=$1',[target]),{code:'23514'});
+          const buyer=await user('custom-schedule-buyer');process.env.TIMED_OFFER_UPGRADES_ENABLED='true';
+          try{
+            const quote=await quoteOfferUpgrade(db,buyer,{targetId:target,count:3});
+            assert.equal(quote.dueNow,'100.00');assert.deepEqual(quote.schedule.map(r=>r.amount),['100.00','100.00','190.00']);
+            const original=await quoteOfferUpgrade(db,buyer,{targetId:target,count:3});
+            await saveUpgradePolicy(db,target,{...policy,customAmounts:{'3':['110.00','100.00','180.00']}});
+            await assert.rejects(confirmOfferUpgrade(db,buyer,{quote:original.quote,requestId:original.requestId}),{status:409});
+            await saveUpgradePolicy(db,target,policy);
+            const current=await quoteOfferUpgrade(db,buyer,{targetId:target,count:3});
+            const confirmed=await confirmOfferUpgrade(db,buyer,{quote:current.quote,requestId:current.requestId});
+            const rows=()=>db.query('SELECT s.* FROM offer_installment_schedule s JOIN offer_installment_arrangements a ON a.id=s.arrangement_id WHERE a.grant_id=$1 ORDER BY s.position',[confirmed.grantId]);
+            const before=(await rows()).rows;
+            await saveUpgradePolicy(db,target,{...policy,customAmounts:{'3':['110.00','100.00','180.00']},deadlineMode:'manual',offsets:[1,2]});
+            assert.deepEqual((await rows()).rows,before);
+            assert.equal(await balance(buyer),'200.00');
+          }finally{process.env.TIMED_OFFER_UPGRADES_ENABLED='false';}
+        });
         if (process.env.TIMED_QA_CHROME) {
+          await httpTest.test('custom installment editor and checkout at 390px and 1440px',async()=>{
+            const target=await makeOffer('academic_year');await extendOffer(target);
+            await db.query("UPDATE offers SET title='Browser custom',fixed_price=390,minimum_initial_payment=100 WHERE id=$1",[target]);
+            const token=(id,role)=>jwt.sign({id,role},process.env.JWT_SECRET);
+            process.env.TIMED_OFFER_UPGRADES_ENABLED='true';
+            try{
+              await withTimedOfferBrowser(process.env.TIMED_QA_CHROME,'http://127.0.0.1:'+server.address().port,async({open,evaluate,until,errors,screenshot})=>{
+                for(const width of [390,1440]){
+                  await open('/admin/pages/offers.html',token(admin,'admin'),width);
+                  await until(()=>evaluate("typeof allOffers!=='undefined' && allOffers.some(o=>o.id==='"+target+"')"),'admin offer list');
+                  await evaluate("editOffer('"+target+"')");
+                  await until(()=>evaluate("!document.querySelector('#upgrade-policy').hidden"),'custom policy editor');
+                  await evaluate(`(()=>{const max=document.querySelector('#upgrade-max');max.value='3';max.dispatchEvent(new Event('change'));const plan=document.querySelectorAll('#upgrade-custom-amounts fieldset')[1];const toggle=plan.querySelector('[type=checkbox]');toggle.checked=true;toggle.dispatchEvent(new Event('change'));plan.querySelectorAll('[type=number]').forEach((input,i)=>{input.value=['100','100','190'][i];input.dispatchEvent(new Event('input'));});document.querySelector('#save-upgrade-policy').click();})()`);
+                  await until(()=>evaluate("document.querySelector('#upgrade-policy-status').textContent.includes('Règles enregistrées')"),'custom amounts saved');
+                  assert.equal(await evaluate("document.querySelector('#upgrade-deadline-mode').value"),'automatic');
+                  assert.equal(await evaluate("document.querySelector('#upgrade-due-2').closest('label').hidden"),true);
+                  assert.equal(await evaluate("document.querySelector('#upgrade-custom-amounts').scrollWidth>document.querySelector('#upgrade-custom-amounts').clientWidth+1"),false);
+                  await evaluate("document.querySelector('#upgrade-custom-amounts').scrollIntoView({block:'start'})");
+                  assert.equal(await evaluate("document.querySelectorAll('#upgrade-custom-amounts fieldset')[0].querySelector('[type=number]').getBoundingClientRect().height"),0);
+                  if(process.env.TIMED_QA_SCREENSHOTS)await screenshot(process.env.TIMED_QA_SCREENSHOTS+'-custom-admin-'+width+'.png');
+                  await evaluate("(()=>{const mode=document.querySelector('#upgrade-deadline-mode');mode.value='manual';mode.dispatchEvent(new Event('change'));})()");
+                  assert.equal(await evaluate("document.querySelector('#upgrade-due-2').closest('label').hidden"),false);
+                  await evaluate("(()=>{const mode=document.querySelector('#upgrade-deadline-mode');mode.value='automatic';mode.dispatchEvent(new Event('change'));})()");
+                  const buyer=await user('custom-browser-'+width);
+                  await open('/app/offers',token(buyer,'user'),width);
+                  await until(()=>evaluate("typeof openScheduledOfferCheckout==='function'"),'student checkout loaded');
+                  await evaluate("openScheduledOfferCheckout("+JSON.stringify({id:target,title:'Browser custom',installment_max:3})+")");
+                  await evaluate("(()=>{const f=document.querySelector('.offer-checkout-dialog form');f.elements.count.value='3';f.requestSubmit();})()");
+                  await until(()=>evaluate("document.querySelector('[data-quote]').textContent.includes('190.00 DT')"),'student exact amounts');
+                  assert.match(await evaluate("document.querySelector('[data-quote]').textContent"),/100.00 DT.*100.00 DT.*190.00 DT/s);
+                  assert.equal(await evaluate("document.querySelector('.offer-checkout-dialog').scrollWidth>document.querySelector('.offer-checkout-dialog').clientWidth+1"),false);
+                  if(process.env.TIMED_QA_SCREENSHOTS)await screenshot(process.env.TIMED_QA_SCREENSHOTS+'-custom-student-'+width+'.png');
+                  await evaluate("document.querySelector('.offer-checkout-dialog').close()");
+                  await until(()=>evaluate("!document.querySelector('.offer-checkout-dialog')"),'closed checkout removed');
+                  await db.query("UPDATE offers SET access_cutoff_date=(now() AT TIME ZONE 'Africa/Tunis')::date WHERE id=$1",[target]);
+                  await evaluate("openScheduledOfferCheckout("+JSON.stringify({id:target,title:'Browser custom',installment_max:3})+")");
+                  await evaluate("(()=>{const f=document.querySelector('.offer-checkout-dialog form');f.elements.count.value='3';f.requestSubmit();})()");
+                  const lateMessage=await until(()=>evaluate("document.querySelector('.offer-checkout-status').textContent"),'late full payment message');
+                  assert.match(lateMessage,/Paiement intégral requis/);
+                  assert.equal(await evaluate("document.querySelector('.offer-checkout-dialog form').elements.count.value"),'1');
+                  assert.equal(await balance(buyer),'300.00');
+                  await extendOffer(target);
+                }
+                assert.deepEqual(errors,[]);
+              });
+            }finally{process.env.TIMED_OFFER_UPGRADES_ENABLED='false';}
+          });
           await httpTest.test("desktop and mobile Chrome checkout, renewal, wallet and finance views", async () => {
             const annualId = await makeOffer("academic_year");
             await db.query("UPDATE offers SET title='Browser annual' WHERE id=$1", [annualId]);
@@ -542,12 +647,13 @@ test("timed offers on disposable PostgreSQL", { skip: !process.env.BUGI_QA_POSTG
                 assert.match(errors[0], /Error loading offers.*HTTP 503/);
 
                 const upgradeTarget = await makeOffer("academic_year");
+                await extendOffer(upgradeTarget);
                 const upgradeStudent = await user("browser-upgrade-student");
                 const ordinaryStudent = await user("browser-ordinary-student");
                 await db.query(`WITH clock AS (SELECT (now() AT TIME ZONE 'Africa/Tunis')::date AS today)
                   UPDATE offers SET title='Browser upgrade target',fixed_price=440,features=$2,
-                    access_cutoff_date=clock.today,academic_year_start=
-                      EXTRACT(YEAR FROM clock.today)::int-(EXTRACT(MONTH FROM clock.today)<9)::int
+                    access_cutoff_date=clock.today+180,academic_year_start=
+                      EXTRACT(YEAR FROM clock.today+180)::int-(EXTRACT(MONTH FROM clock.today+180)<9)::int
                   FROM clock WHERE id=$1`, [upgradeTarget, JSON.stringify(["<b>Libellé synthétique</b>"])]);
                 await db.query("INSERT INTO payments(user_id,offer_id,amount,status) VALUES($1,$2,180,'wallet_completed')", [upgradeStudent, legacy]);
                 process.env.TIMED_OFFER_UPGRADES_ENABLED = "true";
@@ -622,6 +728,7 @@ test("timed offers on disposable PostgreSQL", { skip: !process.env.BUGI_QA_POSTG
       const competingBuyer = await user("concurrent-credit-student");
       const target = await makeOffer("academic_year");
       const otherTarget = await makeOffer("academic_year");
+      await extendOffer(target);await extendOffer(otherTarget);
       const partial = await makeOffer("academic_year", "10.10");
       const historic = await makeOffer("academic_year");
       const monthlySource = await makeOffer("monthly");
@@ -688,7 +795,7 @@ test("timed offers on disposable PostgreSQL", { skip: !process.env.BUGI_QA_POSTG
           JOIN offer_upgrade_claims c ON c.confirmation_id=g.upgrade_confirmation_id
           JOIN offer_installment_payments p ON p.id=c.installment_payment_id WHERE g.id=$1`, [upgraded.grantId]);
         assert.equal(linked.remaining, "293.33");
-        assert.equal(linked.next_due_date, null);
+        assert.ok(linked.next_due_date instanceof Date);
         await assert.rejects(reverseInstallmentPayment(db, partialBuyer, sourceDraft.id, linked.payment, admin, {
           requestId: randomUUID(), reason: "Synthetic reversal"
         }), { status: 409 });
@@ -756,6 +863,7 @@ test("timed offers on disposable PostgreSQL", { skip: !process.env.BUGI_QA_POSTG
       const outsider = await user("upgrade-audit-outsider");
       const source = await makeOffer("academic_year");
       const target = await makeOffer("academic_year");
+      await extendOffer(target);
       await db.query("UPDATE offers SET fixed_price=100 WHERE id=$1", [source]);
       await db.query("UPDATE offers SET fixed_price=440 WHERE id=$1", [target]);
       const rules = [{ sourceId: source, allowPartial: false }];
@@ -791,8 +899,10 @@ test("timed offers on disposable PostgreSQL", { skip: !process.env.BUGI_QA_POSTG
         await saveUpgradePolicy(db, target, { ...policy, offsets: [1, null] });
         await assert.rejects(quoteOfferUpgrade(db, buyer, requested), { status: 409 });
         await saveUpgradePolicy(db, target, policy);
+        await assert.rejects(quoteOfferUpgrade(db,buyer,requested),{code:"FULL_PAYMENT_REQUIRED"});
+        await extendOffer(target);
         const short = await quoteOfferUpgrade(db, buyer, requested);
-        assert.ok(short.remainingMinutes > 0 && short.remainingMinutes <= 1440);
+        assert.ok(short.remainingMinutes > 1440);
         const before = await balance(buyer);
         const priorTransactions = await count("SELECT count(*) FROM transactions WHERE user_id=$1", [buyer]);
         await db.query("ALTER TABLE offer_installment_payments ADD CONSTRAINT audit_forced_failure CHECK (false) NOT VALID");
