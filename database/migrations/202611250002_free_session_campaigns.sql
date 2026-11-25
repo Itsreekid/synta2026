@@ -5,6 +5,10 @@
 -- Additive only: no table, column or row is removed. Existing /session data is moved into a
 -- first campaign that stays the default, so the original link, quiz, registrations and
 -- results are preserved. Safe to run once through scripts/migrate.js (one transaction).
+--
+-- Revision 2 (before first successful application): production column types can differ from
+-- schema_postgres.sql (e.g. ids, dates or scores stored as text). Keys copy the real types and
+-- the backfill reads old values through ::text, so the migration no longer assumes them.
 
 CREATE TABLE free_sessions (
   id               UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -29,20 +33,31 @@ CREATE UNIQUE INDEX free_sessions_single_default ON free_sessions (is_default) W
 
 -- Students who completed a campaign quiz. They are the only ones allowed to see and join
 -- that campaign's Zoom session. One row per student per campaign (repeated participation
--- across campaigns = several rows).
-CREATE TABLE free_session_participants (
-  free_session_id UUID NOT NULL REFERENCES free_sessions(id) ON DELETE RESTRICT,
-  user_id         UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-  source          TEXT NOT NULL CHECK (source IN ('new_signup', 'existing_student')),
-  score           INTEGER CHECK (score IS NULL OR score >= 0),
-  total           INTEGER CHECK (total IS NULL OR total >= 0),
-  tier            TEXT,
-  "group"         TEXT,
-  answers         JSONB,
-  registration_id UUID REFERENCES session_registrations(id) ON DELETE SET NULL,
-  joined_at       TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-  PRIMARY KEY (free_session_id, user_id)
-);
+-- across campaigns = several rows). user_id / registration_id copy the real key types.
+DO $$
+DECLARE
+  user_id_type TEXT;
+  registration_id_type TEXT;
+BEGIN
+  SELECT format_type(atttypid, atttypmod) INTO user_id_type
+  FROM pg_attribute WHERE attrelid = 'users'::regclass AND attname = 'id';
+  SELECT format_type(atttypid, atttypmod) INTO registration_id_type
+  FROM pg_attribute WHERE attrelid = 'session_registrations'::regclass AND attname = 'id';
+  EXECUTE format($create$
+    CREATE TABLE free_session_participants (
+      free_session_id UUID NOT NULL REFERENCES free_sessions(id) ON DELETE RESTRICT,
+      user_id         %s NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      source          TEXT NOT NULL CHECK (source IN ('new_signup', 'existing_student')),
+      score           INTEGER CHECK (score IS NULL OR score >= 0),
+      total           INTEGER CHECK (total IS NULL OR total >= 0),
+      tier            TEXT,
+      "group"         TEXT,
+      answers         JSONB,
+      registration_id %s REFERENCES session_registrations(id) ON DELETE SET NULL,
+      joined_at       TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      PRIMARY KEY (free_session_id, user_id)
+    )$create$, user_id_type, registration_id_type);
+END $$;
 CREATE INDEX idx_free_session_participants_user ON free_session_participants (user_id);
 
 -- Quiz questions and pre-account registrations belong to one campaign.
@@ -89,13 +104,36 @@ END $$;
 
 -- ---------------------------------------------------------------------------------------
 -- Backfill: keep the original /session campaign with its quiz, registrations and results.
+-- Old values are read through ::text so any production column type works.
 -- ---------------------------------------------------------------------------------------
-INSERT INTO free_sessions (slug, title, subject, scheduled_at, is_default)
-SELECT 'decouverte', 'Séance gratuite',
-       COALESCE(NULLIF(btrim(cfg.session_matiere), ''), 'Informatique'),
-       cfg.session_date, true
-FROM (SELECT 1) AS one
-LEFT JOIN session_config cfg ON cfg.id = 1;
+INSERT INTO free_sessions (slug, title, subject, is_default)
+VALUES ('decouverte', 'Séance gratuite', 'Informatique', true);
+
+-- Copy the old /session subject and date when readable; otherwise keep the defaults
+-- (the admin sets a new date from the campaign page).
+DO $$
+DECLARE
+  old_subject TEXT;
+  old_date TEXT;
+BEGIN
+  IF to_regclass('session_config') IS NULL THEN RETURN; END IF;
+  EXECUTE $q$SELECT session_matiere::text, session_date::text FROM session_config WHERE id::text = '1'$q$
+    INTO old_subject, old_date;
+  IF NULLIF(btrim(old_subject), '') IS NOT NULL THEN
+    UPDATE free_sessions SET subject = left(btrim(old_subject), 100) WHERE is_default;
+  END IF;
+  IF NULLIF(btrim(old_date), '') IS NOT NULL THEN
+    BEGIN
+      -- Dates saved without a time zone were entered in Tunisia (UTC+1).
+      UPDATE free_sessions SET scheduled_at = CASE
+        WHEN btrim(old_date) ~ '(Z|[+-][0-9]{2}(:?[0-9]{2})?)$' THEN btrim(old_date)::timestamptz
+        ELSE (btrim(old_date) || '+01:00')::timestamptz END
+      WHERE is_default;
+    EXCEPTION WHEN invalid_datetime_format OR datetime_field_overflow OR invalid_text_representation THEN
+      RAISE NOTICE 'Old /session date was not readable; left empty.';
+    END;
+  END IF;
+END $$;
 
 UPDATE session_questions SET free_session_id = (SELECT id FROM free_sessions WHERE is_default)
 WHERE free_session_id IS NULL;
@@ -106,14 +144,17 @@ WHERE free_session_id IS NULL;
 -- Accounts already created through /session become participants of the default campaign
 -- and keep "free session" as their original signup source.
 INSERT INTO free_session_participants
-  (free_session_id, user_id, source, score, total, tier, "group", registration_id, joined_at)
-SELECT r.free_session_id, r.auth_user_id, 'new_signup', r.score, NULL, r.tier, r."group", r.id, r.updated_at
+  (free_session_id, user_id, source, score, total, tier, "group", registration_id)
+SELECT r.free_session_id, u.id, 'new_signup',
+       CASE WHEN btrim(r.score::text) ~ '^[0-9]{1,9}$' THEN btrim(r.score::text)::integer END,
+       NULL, r.tier::text, r."group"::text, r.id
 FROM session_registrations r
-JOIN users u ON u.id = r.auth_user_id
-WHERE r.account_activated AND r.auth_user_id IS NOT NULL
+JOIN users u ON u.id::text = r.auth_user_id::text
+WHERE r.account_activated::text IN ('true', 't')
 ON CONFLICT (free_session_id, user_id) DO NOTHING;
 
 UPDATE users u
 SET signup_source = 'free_session', signup_free_session_id = r.free_session_id
 FROM session_registrations r
-WHERE r.auth_user_id = u.id AND r.account_activated AND u.signup_source IS NULL;
+WHERE r.auth_user_id::text = u.id::text AND r.account_activated::text IN ('true', 't')
+  AND u.signup_source IS NULL;

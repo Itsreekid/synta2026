@@ -61,7 +61,10 @@ async function migrate() {
 }
 
 migrate().then(() => pool.end()).catch(async (error) => {
-  console.error("[migrate] deployment stopped; database migration failed:", typeof error.code === "string" && /^[A-Z0-9_]{1,32}$/.test(error.code) ? error.code : "Migration validation or execution failed. Check approved migration files and database connectivity.");
+  const code = typeof error.code === "string" && /^[A-Z0-9_]{1,32}$/.test(error.code) ? error.code : null;
+  // PostgreSQL messages name the table/column that failed (no row data), which deployment logs need.
+  const detail = code && typeof error.message === "string" ? " — " + error.message.replace(/\s+/g, " ").slice(0, 300) : "";
+  console.error("[migrate] deployment stopped; database migration failed:", code ? code + detail : "Migration validation or execution failed. Check approved migration files and database connectivity.");
   await pool.end();
   process.exitCode = 1;
 });

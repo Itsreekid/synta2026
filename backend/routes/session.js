@@ -722,7 +722,7 @@ router.get("/admin/campaigns/:id/students", requireAdmin, adminHandler(async (re
     `SELECT r.id, r.full_name, r.email, r.phone, r.track, r.filier, r.score, r.quiz_total AS total, r.tier, r."group",
             r.completed, r.created_at,
             COALESCE((SELECT json_object_agg(s.question_id, json_build_object('answer', s.answer, 'is_correct', s.is_correct))
-                      FROM session_submissions s WHERE s.registration_id = r.id), '{}'::json) AS answers
+                      FROM session_submissions s WHERE s.registration_id::text = r.id::text), '{}'::json) AS answers
      FROM session_registrations r
      WHERE r.free_session_id = $1 AND NOT r.account_activated
      ORDER BY r.created_at DESC`, [req.params.id]
@@ -732,7 +732,7 @@ router.get("/admin/campaigns/:id/students", requireAdmin, adminHandler(async (re
             p.source, p.score, p.total, p.tier, p."group", p.joined_at,
             COALESCE(p.answers::json,
               (SELECT json_object_agg(s.question_id, json_build_object('answer', s.answer, 'is_correct', s.is_correct))
-               FROM session_submissions s WHERE s.registration_id = p.registration_id), '{}'::json) AS answers,
+               FROM session_submissions s WHERE s.registration_id::text = p.registration_id::text), '{}'::json) AS answers,
             (SELECT COUNT(*)::int FROM free_session_participants other WHERE other.user_id = p.user_id) AS campaign_count
      FROM free_session_participants p JOIN users u ON u.id = p.user_id
      WHERE p.free_session_id = $1

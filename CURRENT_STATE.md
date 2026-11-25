@@ -1,3 +1,10 @@
+### 2026-11-25 — Free-session migration fix after failed deploy (not redeployed)
+
+- A deploy stopped at `202611250002_free_session_campaigns.sql` with SQLSTATE 42804 (type mismatch). The runner rolled the transaction back: production schema and data unchanged; the previous image must be redeployed. Cause: production column types differ from `schema_postgres.sql` (reproduced with text-typed `session_config.session_date`, `session_registrations.score` and text registration/user keys).
+- Migration revised before its first successful application (no checksum issue): participant key columns copy the real `users.id` / `session_registrations.id` types; the backfill reads old values through `::text` (unreadable old date left empty); `joined_at` of backfilled rows = migration time. Admin answer lookups compare registration ids as text.
+- `scripts/migrate.js` now logs the PostgreSQL message (table/column names, no row data) next to the SQLSTATE.
+- Validation (disposable PostgreSQL 16, real runner): 7 schema variants (normal, text date, naive date, unreadable date, text score, text ids, all text) apply and keep the old quiz, registrations and result; old rows byte-identical; both orders with held 002/004; redeploy re-applies nothing; free-session suites 15/15 + 7/7 on normal, multi-audience and all-text variants. Production column types still unconfirmed — run the type query before redeploying.
+
 ### 2026-11-25 — Free-session campaigns (owner-approved; local only, uncommitted)
 
 - Owner approved: several free-session links (`/session` default + `/session/<slug>`), each with its own quiz, class/branch, schedule and Zoom meeting, managed only from « Configuration de la Session ». Exception to the 2026-11-20 feature freeze, requested by the owner.
