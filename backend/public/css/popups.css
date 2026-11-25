@@ -55,3 +55,5 @@ body:has(#event-modal[open]) { overflow:hidden; }
 #event-modal .countdown-title .popup-inline-icon { width:14px; height:14px; vertical-align:-2px; margin-inline-end:5px; }
 #event-modal .modal-btn-primary .popup-inline-icon { color:#fb923c; }
 #event-modal .modal-event-icon { color:#f97316; }
+
+.important-notification #important-notification-message strong { font-weight:700; color:#173d54; }

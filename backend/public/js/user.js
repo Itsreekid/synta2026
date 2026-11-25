@@ -361,6 +361,16 @@ window.closeMobileMenu = closeMobileMenu;
 window.toggleNotifications = toggleNotifications;
 window.toggleProfileDropdown = toggleProfileDropdown; 
 
+// Emphasis is built with text nodes, never HTML from notification content.
+function renderImportantMessage(node,message){
+ const text=String(message||'');node.replaceChildren();let position=0;
+ for(const match of text.matchAll(/«[^»]*»|\b\d{1,2}:\d{2}\b/g)){
+  node.append(document.createTextNode(text.slice(position,match.index)));
+  const emphasis=document.createElement('strong');emphasis.textContent=match[0];node.append(emphasis);position=match.index+match[0].length;
+ }
+ node.append(document.createTextNode(text.slice(position)));
+}
+
 // One persistent, server-backed popup controller across Turbo page navigation.
 (() => {
  if(window.syntaImportantPopup)return;
@@ -407,7 +417,7 @@ window.toggleProfileDropdown = toggleProfileDropdown;
    if(dialog&&current?.id===item.id)return;
    close();if(document.querySelector('dialog[open]'))return;
    current=item;opener=document.activeElement;create();
-   dialog.querySelector('#important-notification-message').textContent=item.message;
+   renderImportantMessage(dialog.querySelector('#important-notification-message'),item.message);
    dialog.showModal();dialog.querySelector('.important-calendar').focus();
   }catch{}finally{busy=false;}
  }

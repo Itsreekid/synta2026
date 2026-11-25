@@ -1,3 +1,7 @@
+### 2026-11-25 — Reschedule popup text emphasis
+
+- Session title inside French quotes and HH:MM time now render bold in #173d54. Uses safe text nodes/strong elements; layout, message wording and acknowledgment unchanged. Versioned user.js/shared popup stylesheet. Existing six-width popup browser test passed, including synthetic HTML safety and acknowledgment/retry/navigation. No deployment.
+
 ### 2026-11-25 — Premium calendar visual refinement
 
 - Refined existing desktop seven-column timetable and preserved mobile date-strip/daily agenda; tablet week rows remain. Scoped calendar.css styles, SVG heading/navigation icons, clearer time/state/title/course cards, keyboard date selection and overlap/short-card presentation. Desktop has a single scroll region; narrow-phone chips retain 44px targets with strip-only scrolling.
