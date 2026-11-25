@@ -1,3 +1,18 @@
+## 2026-11-25 — Premium calendar refinement
+
+- Refined desktop weekly timetable, header, event cards and scrolling; preserved and polished mobile date selector/daily agenda. Added keyboard date controls and data-driven lifecycle labels.
+- Reused existing authorized refresh for changed sessions without new polling. Existing popup/join/replay/resource flows preserved. No database changes. 62 affected tests passed with eight-width browser validation.
+
+## 2026-11-25 — Add professional popup icon accents
+
+- Added small decorative SVG icons and orange accents to the existing LIVE popup without changing layout, text or actions. Existing responsive browser tests pass.
+
+## 2026-11-25 — Shared popup design and automatic LIVE reminders
+
+- Reused calendar event popup across student pages with compact horizontal countdown and shared reschedule-card styling. Preserved manual calendar/replay/resource actions.
+- Unified joining at five minutes using server timestamps. Added browser-persistent upcoming/LIVE phases, same-origin tab coordination, critical-dialog deferral and status refresh. No schema changes.
+- 60 affected tests passed, including disposable PostgreSQL and six-width browser checks. No production action.
+
 ## 2026-11-25 — Important session-change popup and automatic migration verification
 
 - Added persistent, independent popup acknowledgments to existing reschedule notifications and a responsive, accessible modal with calendar navigation.

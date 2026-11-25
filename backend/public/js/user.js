@@ -366,6 +366,7 @@ window.toggleProfileDropdown = toggleProfileDropdown;
  if(window.syntaImportantPopup)return;
  window.syntaImportantPopup=true;
  let dialog=null,current=null,busy=false,saving=false,lastCheck=0,opener=null;
+ window.syntaImportantPopupController={pause:()=>{if(saving)return false;close();return true;}};
  function close(){if(dialog){dialog.remove();dialog=null;}current=null;}
  function create(){
   dialog=document.createElement('dialog');dialog.className='important-notification';
@@ -392,6 +393,8 @@ window.toggleProfileDropdown = toggleProfileDropdown;
  }
  async function check(force=false){
   if(busy||saving||document.visibilityState==='hidden'||!document.getElementById('app-header-top'))return;
+  await window.syntaLiveReminders?.refresh();
+  if(window.syntaLiveReminders?.hasPriority())return;
   if(!force&&Date.now()-lastCheck<2000)return;
   if(document.querySelector('dialog[open]:not(.important-notification)'))return;
   busy=true;lastCheck=Date.now();
@@ -413,6 +416,7 @@ window.toggleProfileDropdown = toggleProfileDropdown;
  document.addEventListener('turbo:before-cache',close);
  document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='hidden')close();else check(true);});
  document.addEventListener('close',()=>check(),true);
+ document.addEventListener('synta:popup-available',()=>check(true));
  window.addEventListener('pageshow',()=>check(true));window.addEventListener('focus',()=>check());
  if(document.readyState!=='loading')check();
 })();

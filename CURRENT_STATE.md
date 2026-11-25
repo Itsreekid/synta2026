@@ -1,3 +1,23 @@
+### 2026-11-25 — Premium calendar visual refinement
+
+- Refined existing desktop seven-column timetable and preserved mobile date-strip/daily agenda; tablet week rows remain. Scoped calendar.css styles, SVG heading/navigation icons, clearer time/state/title/course cards, keyboard date selection and overlap/short-card presentation. Desktop has a single scroll region; narrow-phone chips retain 44px targets with strip-only scrolling.
+- Preserved stored titles, timezone mapping, student filtering, overlap positions, shared popup/replay/resources and five-minute join rule. Status labels derive from timestamps/completion rather than LIVE title text. Current API has no explicit reschedule flag: display updated time, do not invent a badge.
+- Reused reminder refresh data through synta:live-sessions browser event, avoiding new API polling. Actual revision changes update the calendar while preserving scroll/focus. No backend/data/schema/migration changes for this task.
+- Validation: 62 affected tests passed, zero failed/skipped, disposable PostgreSQL/mocked providers plus browser widths 320/375/390/430/768/1024/1280/1440. Mobile/desktop screenshot review completed. See CALENDAR_UI_REPORT.md. No production build script for this backend; Docker unavailable. Physical-device checks remain; no push/deploy/production changes.
+
+### 2026-11-25 — Decorative popup icons only
+
+- Added fixed-path SVG icons for countdown/time, joining, replay and add-to-calendar actions in the existing LIVE popup; orange #f97316 accents, warm orange icons on navy buttons. Layout, wording, timing, authorization and popup behavior unchanged. Versioned shared assets.
+- Two existing browser tests passed at all six widths, including dismissal/priority/error handling and reschedule acknowledgment. Mobile screenshot reviewed. No schema, production, push or deployment changes.
+
+### 2026-11-25 — Unified popups and automatic LIVE reminders
+
+- Reused/extracted existing #event-modal into shared live-session-popup.js, preserving calendar replay/resources/add-to-calendar. Added scoped popups.css shared with existing important reschedule dialog; reschedule DB/ack logic unchanged. Loaded across student pages and authenticated homepage visits.
+- Owner selected FIVE minutes: single backend JOIN_EARLY_MS drives session timing metadata and join route. Frontend consumes join_opens_at/ends_at/server_now. No early join_url; explicit completion respected by session details/upcoming/join.
+- Reminder phases use browser-local student/session/schedule keys, Web Locks/localStorage coordination, exact-boundary wake and 60s/15s authorized status checks. Hidden tabs pause; return/network/Turbo recheck. Critical dialogs/forms/quiz/Python execution defer. LIVE priority preserves unacknowledged reschedule alerts. Server blocks ended joins immediately; remote popup closing may take one status interval (normally <=15s), not push.
+- Validation: 60 affected tests passed using disposable PostgreSQL/mocked providers and Chrome at 320/375/390/430/768/1440, with homepage, access, five-minute boundary, reminder persistence/priority, reschedule acknowledgment and manual replay/resources. Mobile/desktop screenshot review done. See UNIFIED_POPUPS_IMPLEMENTATION.md. No new DB migration/env. Docker unavailable/no build script; full repository suite and physical-device behavior not claimed. No push/deploy/production changes.
+- Next: owner-approved staging smoke test on Android/iOS for visibility/return, cross-tab coordination, manual finish and background timer throttling.
+
 ### 2026-11-25 — Important popup implemented; automatic migrations verified locally
 
 - Implemented same-event important reschedule popup using three approved nullable notifications fields and existing notification IDs; promoted only 202611250001 to database/migrations. JWT-owned important list/ack routes, revalidated current access/schedule, supersession/cancel/expiry suppression and independent persistent acknowledgment. Bell system unchanged. Mobile accessible native dialog, sequential events, failure retry, Escape/X/calendar acknowledgment and session calendar deep-link.

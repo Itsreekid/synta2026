@@ -1,3 +1,9 @@
+### Unified LIVE reminders — owner approved 2026-11-25
+
+- Join window is FIVE minutes before scheduled start until scheduled end, excluding completed/cancelled sessions. This supersedes the former ten-minute rule. Backend metadata is the frontend timing source.
+- One upcoming and one LIVE reminder may appear per session occurrence/student/browser. Showing the reminder records the phase to avoid repeated navigation interruptions. Browser storage reset/other device can show it again; reschedule acknowledgments remain database-persistent.
+- Manual calendar access always remains. LIVE then joinable upcoming precede reschedule notices, which remain pending until acknowledged. Critical forms/dialogs defer automatic interruption. Manual finish immediately blocks server joins; remote UI notices the change on the next authorized status check.
+
 ### Important session notification acknowledgment — 2026-11-25
 
 - Future rescheduling creates one existing bell row per currently entitled student, enriched for important popup display. Acknowledging popup (X, Escape, understood or calendar) persists independently of reading/deleting the bell notification.
@@ -303,7 +309,7 @@ Two roles exist: `user` (student) and `admin`.
 | Attendance is tracked per student per session | ❌ | No `live_session_attendance` table |
 | Session status updates (live → completed) | ❌ | `status` column exists but no mechanism to update it |
 | A session stays listed for students until `scheduled_at + duration_minutes` | ✅ | `GET /api/live/upcoming` |
-| Students can join from 10 minutes before the start until the scheduled end (owner decision 2026-11-20) | ✅ | `calendar.js` join window uses `duration_minutes` (default 60), and the server enforces the same window |
+| Students can join from 5 minutes before the start until the scheduled end (owner decision 2026-11-25) | ✅ | Backend timing metadata drives the shared popup; the server independently enforces this window |
 | Students never receive the Zoom join link in API data; they get `/api/live/:id/join`, which checks access and the window before redirecting (owner decision 2026-11-20) | ✅ | `GET /api/live/:sessionId/join`: 302 to Zoom, otherwise a French notice (404 no access, 403 too early, 410 ended, 401 logged out) |
 
 ### BR-19: Automatic Zoom imports, manual replay publication (owner revision 2026-11-24)

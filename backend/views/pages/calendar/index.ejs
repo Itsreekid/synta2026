@@ -17,13 +17,13 @@
                 <!-- Header -->
                 <div class="calendar-header">
                     <div class="calendar-heading">
-                        <h1><i class="fas fa-calendar" aria-hidden="true"></i> Calendrier des Sessions</h1>
+                        <h1><svg class="calendar-heading-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><path d="M8 2v4m8-4v4M3 10h18M5 4h14a2 2 0 0 1 2 2v14H3V6a2 2 0 0 1 2-2"/></svg> Calendrier des Sessions</h1>
                         <p id="event-count-text">Aucun événement cette semaine</p>
                     </div>
                     <div class="header-controls">
-                        <button type="button" class="nav-btn" onclick="previousWeek()" aria-label="Semaine précédente"><i class="fas fa-chevron-left" aria-hidden="true"></i><span class="nav-label">Précédente</span></button>
+                        <button type="button" class="nav-btn" onclick="previousWeek()" aria-label="Semaine précédente"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="m15 5-7 7 7 7"/></svg><span class="nav-label">Précédente</span></button>
                         <h2 id="current-week-range">Chargement...</h2>
-                        <button type="button" class="nav-btn" onclick="nextWeek()" aria-label="Semaine suivante"><span class="nav-label">Suivante</span><i class="fas fa-chevron-right" aria-hidden="true"></i></button>
+                        <button type="button" class="nav-btn" onclick="nextWeek()" aria-label="Semaine suivante"><span class="nav-label">Suivante</span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="m9 5 7 7-7 7"/></svg></button>
                         <button type="button" class="today-btn" onclick="goToToday()">Aujourd'hui</button>
                     </div>
                 </div>
@@ -35,15 +35,7 @@
                     </div>
                 </div>
 
-                <!-- Event Details Modal -->
-                <div id="event-modal" class="modal">
-                    <div class="modal-content">
-                        <button type="button" class="close" onclick="closeModal()" aria-label="Fermer">&times;</button>
-                        <div id="modal-body">
-                            <!-- Event details inserted here -->
-                        </div>
-                    </div>
-                </div>
+
             </div>
         </section>
     </div>
@@ -52,9 +44,9 @@
          NOTE: The static /data/events.js script tag has been removed.
          Events are fetched via GET /api/events (server-filtered). -->
     <script src="/js/authentication.js"></script>
-    <script src="/js/user.js?v=20261125-popup"></script>
+    <script src="/js/user.js?v=20261125-live"></script>
     <script src="/js/learning-player.js?v=2"></script>
     <script src="/js/replay-player.js"></script>
-    <script src="/js/calendar.js?v=20261125-popup"></script>
+    <script src="/js/calendar.js?v=20261125-calendar"></script>
 </body>
 </html>

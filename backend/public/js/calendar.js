@@ -9,6 +9,13 @@ document.addEventListener('DOMContentLoaded', function () {
     initializeCalendar();
 });
 
+function calendarEventFromSession(ev){
+    const d=new Date(ev.scheduled_at),localDate=new Date(d.getTime()-d.getTimezoneOffset()*60000);
+    return {...ev,date:localDate.toISOString().split('T')[0],time:d.toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'}),description:ev.course?.title||ev.course_title||ev.description||'',zoomLink:ev.join_url||''};
+}
+function calendarRevision(events){return JSON.stringify(events.map(e=>[e.id,e.title,e.description,e.scheduled_at,e.duration_minutes,e.status,calendarSessionState(e).key]));}
+var calendarDataRevision='';
+
 async function initializeCalendar() {
     try {
         // Authentication is verified server-side.
@@ -43,17 +50,7 @@ async function initializeCalendar() {
             const res = await fetch('/api/live/upcoming', { credentials: 'include' });
             if (res.ok) {
                 const apiEvents = await res.json();
-                window.upcomingEvents = apiEvents.map(ev => {
-                    const d = new Date(ev.scheduled_at);
-                    const localDate = new Date(d.getTime() - d.getTimezoneOffset() * 60000);
-                    return {
-                        ...ev,
-                        date: localDate.toISOString().split('T')[0],
-                        time: d.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }),
-                        description: ev.course?.title || ev.course_title || ev.description || '',
-                        zoomLink: ev.join_url || ''
-                    };
-                });
+                window.upcomingEvents = apiEvents.map(calendarEventFromSession);
             } else {
                 window.upcomingEvents = [];
             }
@@ -195,6 +192,10 @@ function renderCalendar() {
             <div class="day-date">${currentDay.getDate()}</div>
             <div class="day-month">${monthNames[currentDay.getMonth()]}</div>
         `;
+        dayHeader.tabIndex=0;dayHeader.setAttribute('role','button');dayHeader.setAttribute('aria-pressed',String(isSelected));
+        dayHeader.setAttribute('aria-label',currentDay.toLocaleDateString('fr-FR',{weekday:'long',day:'numeric',month:'long'})+' · '+dayEvents.length+' séance(s)');
+        if(isToday)dayHeader.setAttribute('aria-current','date');
+        dayHeader.addEventListener('keydown',event=>{if(event.key==='Enter'||event.key===' '){event.preventDefault();updateExpandedCard(i);}});
         dayColumn.appendChild(dayHeader);
 
         // Events container (hidden on mobile for compact view)
@@ -263,6 +264,7 @@ function renderCalendar() {
     // Store allDaysData globally for updateExpandedCard function
     window.calendarDaysData = allDaysData;
     layoutWeekTimetable(allDaysData);
+    calendarDataRevision=calendarRevision(window.upcomingEvents||[]);
 }
 
 function layoutWeekTimetable(days) {
@@ -305,6 +307,10 @@ function layoutWeekTimetable(days) {
                 item.element.style.setProperty('--event-height', (item.end - item.start) * 1.5 - 4 + 'px');
                 item.element.style.setProperty('--event-left', item.lane / lanes.length * 100 + '%');
                 item.element.style.setProperty('--event-width', 100 / lanes.length + '%');
+                item.element.dataset.overlap=String(lanes.length>1);
+                item.element.classList.toggle('is-short',item.end-item.start<55);
+                item.element.classList.toggle('is-compact',item.end-item.start<90);
+                item.element.classList.toggle('is-tiny',item.end-item.start<30);
             }
         };
         for (const item of placed) {
@@ -335,6 +341,7 @@ function updateExpandedCard(dayIndex) {
     const allDayColumns = document.querySelectorAll('.calendar-grid > .day-column:not(.expanded-card)');
     allDayColumns.forEach((col, index) => {
         col.classList.remove('selected');
+        col.querySelector('.day-header')?.setAttribute('aria-pressed',String(index===dayIndex));
         if (index === dayIndex) {
             col.classList.add('selected');
         }
@@ -402,19 +409,25 @@ function getEventsForDate(date) {
     });
 }
 
+function calendarSessionState(event,now=Date.now()){
+    const start=Date.parse(event.scheduled_at||event.date+'T'+event.time+':00');
+    const end=event.ends_at?Date.parse(event.ends_at):start+(Number(event.duration_minutes)||60)*60000;
+    if(['completed','cancelled'].includes(event.status)||now>=end)return {key:'ended',label:'Terminée'};
+    if(now>=start)return {key:'live',label:'En direct'};
+    if(event.status==='rescheduled')return {key:'rescheduled',label:'Reportée'};
+    return {key:'upcoming',label:'À venir'};
+}
+
 // FIX #7: Build event elements with safe DOM APIs (no innerHTML with user data)
 function createEventElement(event, date) {
     const eventElement = document.createElement('div');
-    eventElement.className = 'calendar-event';
-    eventElement.style.borderLeftColor = event.color || '#667eea';
-
-    const iconEl = document.createElement('div');
-    iconEl.className = 'event-icon';
-    iconEl.textContent = event.icon || '📅'; // textContent is XSS-safe
+    const state=calendarSessionState(event);
+    eventElement.className = 'calendar-event state-'+state.key;
+    eventElement.dataset.sessionId=event.id||'';
 
     const timeEl = document.createElement('div');
     timeEl.className = 'event-time';
-    timeEl.textContent = '🕐 ' + event.time;
+    timeEl.textContent = event.time;
 
     const titleEl = document.createElement('div');
     titleEl.className = 'event-title';
@@ -435,16 +448,17 @@ function createEventElement(event, date) {
 
     const metaEl = document.createElement('div');
     metaEl.className = 'event-meta';
-    metaEl.appendChild(iconEl);
     metaEl.appendChild(timeEl);
+    const status=document.createElement('span');status.className='event-status';status.textContent=state.label;metaEl.append(status);
 
     eventElement.appendChild(metaEl);
     eventElement.appendChild(titleEl);
     eventElement.appendChild(descEl);
+    if(Number(event.duration_minutes)>0){const duration=document.createElement('span');duration.className='event-duration';duration.textContent=event.duration_minutes+' min';eventElement.append(duration);}
     eventElement.tabIndex = 0;
     eventElement.setAttribute('role', 'button');
-    eventElement.setAttribute('aria-label', `${event.title} · ${event.time}. Voir les détails`);
-    eventElement.title = `${event.time} · ${event.title}`;
+    eventElement.setAttribute('aria-label', [event.title,event.time,state.label,typeof event.description==='string'?event.description:''].filter(Boolean).join(' · ')+'. Voir les détails');
+    eventElement.title = [event.time,event.title,typeof event.description==='string'?event.description:'',state.label,event.duration_minutes?event.duration_minutes+' min':''].filter(Boolean).join(' · ');
 
     // FIX #7: Use addEventListener instead of onclick attribute (prevents attribute injection)
     const openDetails = async () => {
@@ -471,337 +485,6 @@ function createEventElement(event, date) {
     });
 
     return eventElement;
-}
-
-function showEventDetails(event, date) {
-    const modal = document.getElementById('event-modal');
-    const modalBody = document.getElementById('modal-body');
-
-    const monthNames = ['janvier', 'février', 'mars', 'avril', 'mai', 'juin', 'juillet', 'août', 'septembre', 'octobre', 'novembre', 'décembre'];
-    const dayNames = ['Dimanche', 'Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi'];
-
-    const dateString = `${dayNames[date.getDay()]}, ${date.getDate()} ${monthNames[date.getMonth()]} ${date.getFullYear()}`;
-
-    const eventDateTime = event.scheduled_at ? new Date(event.scheduled_at) : new Date(`${event.date}T${event.time}:00`);
-    const now = new Date();
-    const isEventLive = now >= eventDateTime;
-    const sessionEndTime = getSessionEndTime(event, eventDateTime);
-    const isSessionEnded = now >= sessionEndTime;
-    const canJoin = now >= new Date(eventDateTime.getTime() - JOIN_EARLY_MS) && !isSessionEnded;
-
-    // Handle both object and string description formats
-    let descriptionHTML = '';
-    if (typeof event.description === 'object' && event.description?.line1) {
-        descriptionHTML = `
-            <div>${event.description.line1}</div>
-            ${event.description.line2 ? `<div style="margin-top: 8px;">${event.description.line2}</div>` : ''}
-        `;
-    } else {
-        descriptionHTML = event.description;
-    }
-
-    // FIX #7: Build Zoom button with addEventListener (no inline onclick + no attribute injection)
-    let zoomButton = '';
-    if (event.zoomLink) {
-        const btn = document.createElement('button');
-        btn.className = 'modal-btn modal-btn-primary';
-        btn.id = 'join-btn';
-        btn.textContent = '🎥 Rejoindre';
-        btn.disabled = !canJoin;
-        btn.addEventListener('click', () => joinZoomSession(event.zoomLink));
-        // We'll inject this real element after setting innerHTML on modalBody below
-        zoomButton = btn; // Pass the real DOM node
-    }
-
-    // Generate countdown or live badge
-    let countdownOrBadge = '';
-    if (isSessionEnded) {
-        countdownOrBadge = '<div class="event-live-badge ended">Séance terminée</div>';
-    } else if (isEventLive) {
-        countdownOrBadge = '<div class="event-live-badge">🔴 En direct maintenant</div>';
-    } else {
-        countdownOrBadge = '<div class="countdown-timer" id="countdown-timer"></div>';
-    }
-
-    // FIX #7: Build modal content safely — text nodes only, no HTML interpolation
-    modalBody.innerHTML = '';
-
-    const iconEl = document.createElement('div');
-    iconEl.className = 'modal-event-icon';
-    iconEl.textContent = event.icon || '📅';
-
-    const titleEl = document.createElement('h2');
-    titleEl.className = 'modal-event-title';
-    titleEl.textContent = event.title;
-
-    const badgeWrapper = document.createElement('div');
-    if (isSessionEnded) {
-        badgeWrapper.innerHTML = '<div class="event-live-badge ended">Séance terminée</div>';
-    } else if (isEventLive) {
-        badgeWrapper.innerHTML = '<div class="event-live-badge">🔴 En direct maintenant</div>';
-    } else {
-        const countdown = document.createElement('div');
-        countdown.className = 'countdown-timer';
-        countdown.id = 'countdown-timer';
-        badgeWrapper.appendChild(countdown);
-    }
-
-    const detailsEl = document.createElement('div');
-    detailsEl.className = 'modal-event-details';
-    detailsEl.innerHTML = `
-        <div class="modal-event-detail"><strong>📅 Date:</strong> <span id="modal-date"></span></div>
-        <div class="modal-event-detail"><strong>🕐 Heure:</strong> <span id="modal-time"></span></div>
-    `;
-
-    const descEl = document.createElement('div');
-    descEl.className = 'modal-event-description';
-    if (typeof event.description === 'object' && event.description?.line1) {
-        const p1 = document.createElement('div');
-        p1.textContent = event.description.line1;
-        const p2 = document.createElement('div');
-        p2.textContent = event.description.line2 || '';
-        p2.style.marginTop = '8px';
-        descEl.appendChild(p1);
-        descEl.appendChild(p2);
-    } else {
-        descEl.textContent = event.description || '';
-    }
-
-    const actionsEl = document.createElement('div');
-    actionsEl.className = 'modal-actions';
-    if (event.replay_url) {
-        const play = document.createElement('button');
-        play.type = 'button';
-        play.className = 'modal-btn modal-btn-primary';
-        play.textContent = 'Regarder le replay';
-        play.onclick = () => {
-            let player;
-            try { player = window.createSessionReplayPlayer(event.replay_url, event.title); }
-            catch (error) { play.textContent = error.message; return; }
-            const frame = document.createElement('div');
-            frame.className = 'calendar-replay-frame';
-            frame.append(player);
-            if (player instanceof HTMLVideoElement) window.enhanceLearningPlayer?.(player, { autoplay: true, storageKey: event.id ? event.id + ':0' : '' });
-            modalBody.querySelector('.calendar-replay-frame')?.remove();
-            modalBody.prepend(frame);
-            modal.classList.add('has-replay');
-        };
-        actionsEl.append(play);
-    }
-    for (const resource of event.resources || []) {
-            if (!resource.url) continue;
-            const link = document.createElement('a');
-            const url = new URL(resource.url, window.location.href);
-            if (!['https:', 'http:'].includes(url.protocol)) continue;
-            link.href = url.href;
-            link.textContent = resource.file_name || resource.title;
-            link.className = 'modal-btn modal-btn-secondary';
-            link.target = '_blank';
-            link.rel = 'noopener';
-            actionsEl.append(link);
-    }
-
-    // Append the real zoom button DOM node if it exists
-    if (zoomButton) actionsEl.appendChild(zoomButton);
-
-    const calBtn = document.createElement('button');
-    calBtn.className = 'modal-btn modal-btn-secondary';
-    calBtn.textContent = 'Ajouter à calendrier';
-    calBtn.addEventListener('click', () => addToCalendar(event.title, eventDateTime, sessionEndTime));
-
-    const closeBtn = document.createElement('button');
-    closeBtn.className = 'modal-btn modal-btn-secondary';
-    closeBtn.textContent = 'Fermer';
-    closeBtn.addEventListener('click', window.closeModal);
-
-    actionsEl.appendChild(calBtn);
-    actionsEl.appendChild(closeBtn);
-
-    modalBody.appendChild(iconEl);
-    modalBody.appendChild(titleEl);
-    modalBody.appendChild(badgeWrapper);
-    modalBody.appendChild(detailsEl);
-    modalBody.appendChild(descEl);
-    modalBody.appendChild(actionsEl);
-
-    // Now safely set text content for date/time spans
-    const modalDateEl = document.getElementById('modal-date');
-    const modalTimeEl = document.getElementById('modal-time');
-    if (modalDateEl) modalDateEl.textContent = dateString;
-    if (modalTimeEl) modalTimeEl.textContent = event.time;
-
-    modal.classList.add('is-open');
-
-    // Start countdown if event is not live yet
-    if (!isEventLive) {
-        startCountdown(eventDateTime, sessionEndTime);
-    } else if (!isSessionEnded) {
-        // If event is live but not ended, start monitoring for session end
-        startSessionEndMonitor(sessionEndTime);
-    }
-}
-
-var countdownInterval = null;
-var sessionEndInterval = null;
-var JOIN_EARLY_MS = 10 * 60 * 1000;
-
-function getSessionEndTime(event, eventDateTime) {
-    const minutes = Number(event.duration_minutes) > 0 ? Number(event.duration_minutes) : 60;
-    return new Date(eventDateTime.getTime() + minutes * 60 * 1000);
-}
-
-window.closeModal = function() {
-    sessionDetailsRequest++;
-    const modal = document.getElementById('event-modal');
-    if (modal) {
-        modal.querySelector('video')?.pause();
-        modal.querySelector('.calendar-replay-frame')?.remove();
-        modal.classList.remove('has-replay');
-        modal.classList.remove('is-open');
-        modal.style.removeProperty('display');
-    }
-
-    // Clear countdown interval when closing modal
-    if (countdownInterval) {
-        clearInterval(countdownInterval);
-        countdownInterval = null;
-    }
-
-    // Clear session end interval when closing modal
-    if (sessionEndInterval) {
-        clearInterval(sessionEndInterval);
-        sessionEndInterval = null;
-    }
-}
-
-function startCountdown(eventDateTime, sessionEndTime) {
-    const countdownTimer = document.getElementById('countdown-timer');
-    const joinBtn = document.getElementById('join-btn');
-
-    if (!countdownTimer) return;
-
-    // Clear any existing interval
-    if (countdownInterval) {
-        clearInterval(countdownInterval);
-    }
-
-    function updateCountdown() {
-        const now = new Date();
-        const distance = eventDateTime - now;
-
-        if (joinBtn && distance <= JOIN_EARLY_MS) joinBtn.disabled = false;
-
-        // If countdown is finished
-        if (distance < 0) {
-            clearInterval(countdownInterval);
-            countdownTimer.innerHTML = '<div class="event-live-badge">🔴 En direct maintenant</div>';
-            startSessionEndMonitor(sessionEndTime);
-            return;
-        }
-
-        // Calculate time units
-        const days = Math.floor(distance / (1000 * 60 * 60 * 24));
-        const hours = Math.floor((distance % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
-        const minutes = Math.floor((distance % (1000 * 60 * 60)) / (1000 * 60));
-        const seconds = Math.floor((distance % (1000 * 60)) / 1000);
-
-        countdownTimer.innerHTML = `
-            <div class="countdown-title">⏰ Début de la séance dans</div>
-            <div class="countdown-display">
-                ${days > 0 ? `
-                <div class="countdown-unit">
-                    <span class="countdown-value">${days}</span>
-                    <span class="countdown-label">j</span>
-                </div>
-                ` : ''}
-                <div class="countdown-unit">
-                    <span class="countdown-value">${String(hours).padStart(2, '0')}</span>
-                    <span class="countdown-label">h</span>
-                </div>
-                <div class="countdown-unit">
-                    <span class="countdown-value">${String(minutes).padStart(2, '0')}</span>
-                    <span class="countdown-label">min</span>
-                </div>
-                <div class="countdown-unit">
-                    <span class="countdown-value">${String(seconds).padStart(2, '0')}</span>
-                    <span class="countdown-label">s</span>
-                </div>
-            </div>
-        `;
-    }
-
-    // Update immediately and then every second
-    updateCountdown();
-    countdownInterval = setInterval(updateCountdown, 1000);
-}
-
-function startSessionEndMonitor(sessionEndTime) {
-    // Clear any existing session end interval
-    if (sessionEndInterval) {
-        clearInterval(sessionEndInterval);
-    }
-
-    function checkSessionEnd() {
-        const now = new Date();
-        const timeRemaining = sessionEndTime - now;
-
-        // If session has ended (1.5 hours passed)
-        if (timeRemaining <= 0) {
-            clearInterval(sessionEndInterval);
-
-            // Update the live badge
-            const liveBadge = document.querySelector('.event-live-badge');
-            if (liveBadge) {
-                liveBadge.textContent = 'Séance terminée';
-                liveBadge.classList.remove('live');
-                liveBadge.classList.add('ended');
-            }
-
-            // Disable the join button
-            const joinBtn = document.getElementById('join-btn');
-            if (joinBtn) {
-                joinBtn.disabled = true;
-            }
-
-            return;
-        }
-    }
-
-    // Check immediately and then every minute
-    checkSessionEnd();
-    sessionEndInterval = setInterval(checkSessionEnd, 60000); // Check every minute
-}
-
-function addToCalendar(title, eventDate, endDate) {
-
-    const formatICSDate = (date) => {
-        return date.toISOString().replace(/[-:]/g, '').split('.')[0] + 'Z';
-    };
-
-    const icsContent = `BEGIN:VCALENDAR
-VERSION:2.0
-PRODID:-//Synta Academy//Calendar//FR
-BEGIN:VEVENT
-UID:${Date.now()}@syntaacademy.com
-DTSTAMP:${formatICSDate(new Date())}
-DTSTART:${formatICSDate(eventDate)}
-DTEND:${formatICSDate(endDate)}
-SUMMARY:${title}
-DESCRIPTION:Événement Synta Academy
-END:VEVENT
-END:VCALENDAR`;
-
-    const blob = new Blob([icsContent], { type: 'text/calendar' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = 'event.ics';
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    URL.revokeObjectURL(url);
-
-    alert('L\'événement a été téléchargé. Ouvrez le fichier pour l\'ajouter à votre calendrier.');
 }
 
 function previousWeek() {
@@ -835,24 +518,6 @@ function goBack() {
     }
 }
 
-function joinZoomSession(zoomLink) {
-    // Open Zoom link in a new tab
-    window.open(zoomLink, '_blank');
-    if (window.closeModal) window.closeModal();
-}
-
-// Close modal when clicking outside of it, or with Escape
-window.addEventListener('click', function (event) {
-    const modal = document.getElementById('event-modal');
-    if (modal && event.target === modal) {
-        if (window.closeModal) window.closeModal();
-    }
-});
-
-window.addEventListener('keydown', function (event) {
-    if (event.key === 'Escape' && window.closeModal) window.closeModal();
-});
-
 function sameDay(a, b) {
     return a instanceof Date && b instanceof Date && !isNaN(a) && !isNaN(b)
         && a.getFullYear() === b.getFullYear()
@@ -879,3 +544,15 @@ function formatWeekRange(start, end, monthNames) {
     const startYear = start.getFullYear() === end.getFullYear() ? '' : ` ${start.getFullYear()}`;
     return `${start.getDate()} ${monthNames[start.getMonth()]}${startYear} – ${end.getDate()} ${monthNames[end.getMonth()]} ${end.getFullYear()}`;
 }
+
+// Reuse the existing authorized reminder refresh instead of adding calendar polling.
+document.addEventListener('synta:live-sessions',event=>{
+ if(!window.calendarDaysData||!Array.isArray(event.detail))return;
+ const next=event.detail.map(calendarEventFromSession);if(calendarRevision(next)===calendarDataRevision)return;
+ const scroll=document.querySelector('.week-calendar'),top=scroll?.scrollTop||0;
+ const active=document.activeElement,day=active?.closest('[data-day-index]')?.dataset.dayIndex,id=active?.dataset.sessionId;
+ window.upcomingEvents=next;renderCalendar();
+ if(scroll&&matchMedia('(min-width:1200px)').matches)scroll.scrollTo({top,behavior:'instant'});
+ if(id)document.querySelector('.calendar-grid [data-session-id="'+CSS.escape(id)+'"]')?.focus({preventScroll:true});
+ else if(day)document.querySelector('[data-day-index="'+CSS.escape(day)+'"] .day-header')?.focus({preventScroll:true});
+});

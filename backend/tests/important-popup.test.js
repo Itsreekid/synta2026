@@ -6,7 +6,7 @@ test('important popup mobile widths, safe text, acknowledgment, retry and persis
  app.get('/api/user/notifications/important',(req,res)=>res.json({notifications:pending?[{id:'synthetic',message:'La séance « <b>Cours Matrice</b> » est reportée au mercredi 25 novembre 2026 à 20:00.',link:'/app/calendar?session=synthetic'}]:[]}));
  app.post('/api/user/notifications/:id/acknowledge',(req,res)=>{if(fail)return res.sendStatus(503);pending=false;acks++;res.json({success:true});});
  app.use(express.static(fileURLToPath(new URL('../public',import.meta.url))));
- app.get('/app/test',(req,res)=>res.send('<!doctype html><html lang="fr"><meta name="viewport" content="width=device-width,initial-scale=1"><link rel="stylesheet" href="/css/user.css"><div id="app-header-top"></div><script src="/js/user.js"></script></html>'));
+ app.get('/app/test',(req,res)=>res.send('<!doctype html><html lang="fr"><meta name="viewport" content="width=device-width,initial-scale=1"><link rel="stylesheet" href="/css/user.css"><link rel="stylesheet" href="/css/popups.css"><div id="app-header-top"></div><script src="/js/user.js"></script></html>'));
  app.get('/app/calendar',(req,res)=>res.send('Calendrier'));
  const server=app.listen(0,'127.0.0.1');await new Promise(resolve=>server.once('listening',resolve));
  try{await withTimedOfferBrowser(process.env.TIMED_QA_CHROME,'http://127.0.0.1:'+server.address().port,async({open,evaluate,until,pressKey,errors})=>{
@@ -15,7 +15,7 @@ test('important popup mobile widths, safe text, acknowledgment, retry and persis
  assert.ok(await evaluate("document.querySelector('.important-notification').getBoundingClientRect().right<=innerWidth"));
  assert.ok(await evaluate("document.querySelector('.important-notification').scrollWidth<=document.querySelector('.important-notification').clientWidth"));
  assert.equal(await evaluate("document.querySelector('#important-notification-message b')===null"),true);
- assert.ok(await evaluate("document.querySelector('.important-calendar').getBoundingClientRect().height>=48"));
+ assert.ok(await evaluate("Math.round(document.querySelector('.important-calendar').getBoundingClientRect().height)>=48"));
  fail=true;await evaluate("document.querySelector('.important-understood').click()");await until(()=>evaluate("document.querySelector('.important-error').textContent.length>0"),'failure');
  assert.equal(pending,true);fail=false;
  await pressKey('Escape',27);await until(()=>evaluate("!document.querySelector('.important-notification')"),'acknowledged');

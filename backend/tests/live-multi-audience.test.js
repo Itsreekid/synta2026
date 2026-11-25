@@ -134,7 +134,7 @@ test('OR session migration, API access and admin browser on disposable PostgreSQ
       });
       // Exercise the real calendar and media scripts without unrelated CDN/auth bootstrapping.
       html=html.replace(/<script\b[^>]*>[\s\S]*?<\/script>/g,script=>
-        /src="\/js\/(calendar|replay-player)\.js/.test(script)?script:'');
+        /src="\/js\/(calendar|replay-player|live-session-popup)\.js/.test(script)?script:'');
       res.send(html.replace('<body>','<body><style>#global-hydration-overlay{display:none!important}</style>'));
     });
     server=app.listen(0,'127.0.0.1');await once(server,'listening');
@@ -460,6 +460,23 @@ test('OR session migration, API access and admin browser on disposable PostgreSQ
       assert.ok(!(await(await request('/api/live/replays',enrolled)).json()).some(r=>r.id===id));
       assert.equal((await db.query('SELECT replay_url FROM live_sessions WHERE id=$1',[id])).rows[0].replay_url,original.replay_url);
       assert.equal((await request('/api/live/'+id,admin,undefined,'DELETE')).status,200);
+    });
+    await t.test('one five-minute timing rule gates metadata and joining, including manual completion',async()=>{
+      const id=await schedule({courseIds:[c2]});
+      await db.query("UPDATE live_sessions SET scheduled_at=NOW()+interval '20 minutes' WHERE id=$1",[id]);
+      let detail=await(await request('/api/live/session/'+id,enrolled)).json();
+      assert.equal(detail.join_url,null);assert.equal(Date.parse(detail.scheduled_at)-Date.parse(detail.join_opens_at),300000);
+      assert.equal((await request('/api/live/'+id+'/join',enrolled)).status,403);
+      await db.query("UPDATE live_sessions SET scheduled_at=NOW()+interval '5 minutes 1 second' WHERE id=$1",[id]);
+      assert.equal((await request('/api/live/'+id+'/join',enrolled)).status,403);
+      await db.query("UPDATE live_sessions SET scheduled_at=NOW()+interval '5 minutes' WHERE id=$1",[id]);
+      detail=await(await request('/api/live/session/'+id,enrolled)).json();assert.equal(detail.join_url,'/api/live/'+id+'/join');
+      assert.equal((await request('/api/live/'+id+'/join',enrolled)).status,302);
+      await db.query("UPDATE live_sessions SET scheduled_at=NOW()-interval '1 minute' WHERE id=$1",[id]);
+      assert.equal((await request('/api/live/'+id+'/finish',admin,{},'PATCH')).status,200);
+      assert.equal((await request('/api/live/'+id+'/join',enrolled)).status,410);
+      assert.equal((await(await request('/api/live/session/'+id,enrolled)).json()).join_url,null);
+      assert.ok(!(await(await request('/api/live/upcoming',enrolled)).json()).some(row=>row.id===id));
     });
     if(process.env.TIMED_QA_CHROME) await t.test('desktop and mobile searchable selectors create one session',async()=>{
       await db.query("UPDATE live_sessions SET status='completed' WHERE id=$1",[mixed]);

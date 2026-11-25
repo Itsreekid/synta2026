@@ -407,3 +407,5 @@ TASK-009 follow-up completed locally 2026-11-24: automatic occurrence discovery 
 - Production gate: backup, stop all old backend workers, deploy initially with ZOOM_RECORDING_IMPORT_ENABLED=false, verify schema/replays and then separately activate. Existing real Zoom/R2 validation and the previously documented unrelated offer-card full-suite failure remain outstanding. See ZOOM_RECORDING_IMPLEMENTATION.md.
 
 TASK-009 presentation follow-up implemented locally 2026-11-24: mobile-first occurrence/segment cards, metadata summaries, byte-progress UI and compact Corbeille. Import pipeline and schema unchanged. Production rollout not performed.
+
+TASK-015 student-status follow-up completed locally 2026-11-25: existing manual finish status enforced in shared LIVE reminders, five-minute join metadata and server join gate. Shared popup styling/reminders delivered without new schema; automatic database status-transition jobs remain outside this follow-up. See UNIFIED_POPUPS_IMPLEMENTATION.md; staging/physical-device validation remains.

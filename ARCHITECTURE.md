@@ -1,3 +1,11 @@
+### Calendar presentation refresh — 2026-11-25
+
+Calendar cards and date controls retain the existing vanilla renderer and timetable lane positioning. The shared LIVE reminder controller publishes its already-authorized upcoming response as a browser synta:live-sessions CustomEvent. Calendar revision comparison reuses that data without another polling loop, preserves scroll/focus and updates changed times/statuses. No API/schema/authorization change. Scoped calendar CSS preserves mobile agenda, tablet week rows and desktop timetable.
+
+### Unified student popup timing — 2026-11-25
+
+Existing calendar #event-modal renderer is shared across pages via public/js/live-session-popup.js, styled with important reschedule card through scoped popups.css. Reminder orchestration consumes server-authorized upcoming data. Backend is the sole five-minute window source and returns opening/end/server timestamps; join redirect remains authoritative. Browser-local per-student/session/schedule phase keys and Web Locks/lease suppress duplicate LIVE reminders. Existing PostgreSQL reschedule acknowledgments remain independent. Polling is 60s outside/15s inside the joinable window plus boundary and lifecycle wakes; no Zoom polling. See UNIFIED_POPUPS_IMPLEMENTATION.md.
+
 ### Important notification popup — 2026-11-25
 
 GET /api/user/notifications/important and POST /api/user/notifications/:id/acknowledge reuse cookie auth and notifications rows. Current session access/time is checked on listing; acknowledgment is ownership-constrained/idempotent and independent of is_read. Three additive popup fields link the existing notification to the current reschedule snapshot. Missing columns leave the popup dormant and preserve reschedule/bell behavior. Native dialog controller in shared user.js refreshes on lifecycle events without polling.
@@ -457,7 +465,7 @@ New OR sessions use `live_session_courses` and `live_session_offers` association
 - Authentication: Server-to-Server OAuth (account-level, no user auth)
 - Token caching: In-memory, refreshed 60 seconds before 1-hour expiry
 - Operations: Create meeting, delete meeting
-- Security: `zoom_start_url` (host link) stored in DB but **never sent to students**. Students don't receive `zoom_join_url` either: they get `/api/live/:id/join`, which re-checks access and the join window (10 minutes before the start until the scheduled end) and then redirects.
+- Security: `zoom_start_url` (host link) stored in DB but **never sent to students**. Students don't receive `zoom_join_url` either: they get `/api/live/:id/join`, which re-checks access and the join window (5 minutes before the start until the scheduled end) and then redirects.
 - Access rule: one SQL fragment, `liveSessionAccess` in `utils/offerAccess.js`, is shared by every student endpoint (upcoming, course sessions, replays, calendar events, join, resources). `services/live-features.js` detects at startup whether held migration `202611200002` is applied; until it is, the SQL is identical to the previous rule.
 - Replay: `replay_url` can be set manually, or automatically by the Zoom → R2 import:
   - `POST /api/zoom/webhook` (`routes/zoom-webhook.js`) verifies the `x-zm-signature` HMAC with `ZOOM_WEBHOOK_SECRET_TOKEN` and a 5-minute timestamp window. It answers `endpoint.url_validation` and queues one `zoom_recording_imports` row per MP4 segment, deduplicated by Zoom file ID. Meetings unknown to Synta are ignored.

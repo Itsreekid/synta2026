@@ -20,9 +20,14 @@ import { selectRecordingSegments } from '../services/zoom-recordings.js';
 const router = express.Router();
 const discovery=createRecordingDiscovery({pool,recordings:getZoomOccurrenceRecordings,instances:getZoomPastInstances});
 const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-const JOIN_EARLY_MS = 10 * 60_000;
+const JOIN_EARLY_MS = 5 * 60_000;
 
 const joinPath = id => `/api/live/${encodeURIComponent(id)}/join`;
+function sessionTiming(session,hasJoinLink){
+ const start=new Date(session.scheduled_at).getTime(),end=start+Number(session.duration_minutes||60)*60000,now=Date.now();
+ const available=!['cancelled','completed'].includes(session.status)&&now>=start-JOIN_EARLY_MS&&now<end;
+ return {has_join_link:Boolean(hasJoinLink),server_now:new Date(now).toISOString(),join_opens_at:new Date(start-JOIN_EARLY_MS).toISOString(),ends_at:new Date(end).toISOString(),join_url:hasJoinLink&&available?joinPath(session.id):null};
+}
 const signReplay = async url => url && !/^https?:\/\//i.test(url) ? generateSignedUrl(url, 3600) : url;
 
 // Historical recordings reuse course enrollment permissions; never schedule Zoom.
@@ -172,12 +177,12 @@ router.patch('/:sessionId/details', requireAdmin, async (req,res)=>{
 router.get('/session/:sessionId', authApiMiddleware, async (req, res) => {
   if (!uuidPattern.test(req.params.sessionId)) return res.status(400).json({ error: 'Séance invalide.' });
   try {
-    const { rows } = await pool.query(`SELECT ls.id,ls.title,ls.description,ls.scheduled_at,ls.duration_minutes,ls.replay_url,
+    const { rows } = await pool.query(`SELECT ls.id,ls.title,ls.description,ls.scheduled_at,ls.duration_minutes,ls.status,ls.replay_url,
       ls.zoom_join_url IS NOT NULL AS has_join_link FROM live_sessions ls
       WHERE ls.id=$1 AND ${liveSessionAccess('$2')}`, [req.params.sessionId, req.user.id]);
     if (!rows.length) return res.status(404).json({ error: 'Séance introuvable.' });
     const { has_join_link, ...session } = rows[0];
-    session.join_url = has_join_link && session.status!=='completed' ? joinPath(session.id) : null;
+    Object.assign(session,sessionTiming(session,has_join_link));
     session.replay_url = await signReplay(session.replay_url);
     res.set('Cache-Control', 'private, no-store');
     res.json((await attachSessionResources(await attachReplayParts([session]), true))[0]);
@@ -294,7 +299,7 @@ router.get("/course/:courseId", authApiMiddleware, async (req, res) => {
 
     const sessions = await Promise.all(result.rows.map(async ({ has_join_link, ...session }) => ({
       ...session,
-      join_url: has_join_link && session.status!=='completed' ? joinPath(session.id) : null,
+      ...sessionTiming(session,has_join_link),
       replay_url: await signReplay(session.replay_url),
     })));
     res.json(await attachSessionResources(await attachReplayParts(sessions), true));
@@ -341,6 +346,7 @@ router.get("/resources/:resourceId/code", authApiMiddleware, async (req, res) =>
 router.get("/upcoming", authApiMiddleware, async (req, res) => {
   try {
     const userId = req.user.id;
+    res.set('Cache-Control','private, no-store');
 
     const sessionResult = await pool.query(
       `SELECT ls.id, ls.title, ls.description, ls.scheduled_at, ls.duration_minutes,
@@ -356,7 +362,7 @@ router.get("/upcoming", authApiMiddleware, async (req, res) => {
 
     const response = await Promise.all(sessionResult.rows.map(async ({ has_join_link, course_title, course_thumbnail, ...s }) => ({
       ...s,
-      join_url: has_join_link ? joinPath(s.id) : null,
+      ...sessionTiming(s,has_join_link),
       replay_url: await signReplay(s.replay_url),
       course: { title: course_title, thumbnail_url: course_thumbnail },
     })));
@@ -427,9 +433,9 @@ router.get("/:sessionId/join", authApiMiddleware, async (req, res) => {
     const end = start + Number(session.duration_minutes || 60) * 60_000;
     const now = Date.now();
     if (now < start - JOIN_EARLY_MS) {
-      return joinNotice(res, 403, "La séance n’a pas encore commencé. Le lien s’ouvre 10 minutes avant le début.");
+      return joinNotice(res, 403, "La séance n’a pas encore commencé. Le lien s’ouvre 5 minutes avant le début.");
     }
-    if (session.status==='completed' || now > end) return joinNotice(res, 410, "Cette séance est terminée.");
+    if (['completed','cancelled'].includes(session.status) || now >= end) return joinNotice(res, 410, "Cette séance est terminée.");
     res.set("Cache-Control", "private, no-store");
     res.redirect(302, session.zoom_join_url);
   } catch (error) {
