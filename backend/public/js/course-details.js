@@ -61,6 +61,69 @@ function openInLessonCodePanel() {
     return true;
 }
 
+/** A PDF resource with a link the browser can show inline (signed preview URL). */
+function isReadablePdf(resource) {
+    return /\.pdf$/i.test(String(resource?.file_name || resource?.title || '')) && Boolean(resource?.preview_url);
+}
+
+/**
+ * PDF reader tab: shows one PDF of the lesson/replay in the page (browser PDF viewer in a frame),
+ * a switcher when there are several, and « Nouvel onglet » for students who prefer another page.
+ */
+function showLessonPdf(root, resource) {
+    const panel = root.querySelector('[data-lesson-pdf-panel]');
+    const pdfs = root.lessonPdfs || [];
+    if (!panel || !pdfs.length) return false;
+    const selected = pdfs.includes(resource) ? resource : pdfs[0];
+    const name = selected.title || selected.file_name || 'Document PDF';
+    panel.replaceChildren();
+    const bar = document.createElement('div');
+    bar.className = 'lesson-pdf-bar';
+    if (pdfs.length > 1) {
+        const picker = document.createElement('select');
+        picker.className = 'lesson-pdf-picker';
+        picker.setAttribute('aria-label', 'Choisir le PDF');
+        pdfs.forEach((pdf, index) => {
+            const option = new Option(pdf.title || pdf.file_name || `PDF ${index + 1}`, String(index), false, pdf === selected);
+            picker.add(option);
+        });
+        picker.addEventListener('change', () => showLessonPdf(root, pdfs[Number(picker.value)]));
+        bar.append(picker);
+    } else {
+        const label = document.createElement('span');
+        label.className = 'lesson-pdf-name';
+        label.dir = 'auto';
+        label.textContent = name;
+        bar.append(label);
+    }
+    const external = document.createElement('a');
+    external.className = 'lesson-pdf-external';
+    external.href = selected.preview_url;
+    external.target = '_blank';
+    external.rel = 'noopener noreferrer';
+    external.title = 'Ouvrir dans un nouvel onglet';
+    external.setAttribute('aria-label', 'Ouvrir ' + name + ' dans un nouvel onglet');
+    external.innerHTML = '<i class="fas fa-up-right-from-square" aria-hidden="true"></i><span>Nouvel onglet</span>';
+    bar.append(external);
+    const frame = document.createElement('iframe');
+    frame.className = 'lesson-pdf-frame';
+    frame.title = name;
+    frame.referrerPolicy = 'no-referrer';
+    frame.src = selected.preview_url;
+    panel.append(bar, frame);
+    panel.dataset.loaded = 'true';
+    return true;
+}
+
+/** « Ouvrir le PDF »: opens the file in the PDF tab of this page; returns false when there is no PDF tab. */
+function openInLessonPdfPanel(resource) {
+    const courseMain = document.querySelector('.course-main');
+    if (!courseMain?.querySelector('[data-lesson-pdf-panel]') || typeof courseMain.lessonTabSelect !== 'function') return false;
+    showLessonPdf(courseMain, resource);
+    courseMain.lessonTabSelect('pdf');
+    return true;
+}
+
 /** Course page URL for the current course, with or without the open lesson. */
 function courseDetailsUrl(lessonId = null) {
     const params = new URLSearchParams(window.location.search);
@@ -597,6 +660,18 @@ function renderCourseLiveSessions(sessions, hasAccess, loaded) {
     }).join('');
 }
 
+/** Replays in the order the replay list shows them (grouped by month, first month first). */
+function orderedReplaySessions() {
+    const groups = new Map();
+    (currentLiveSessions || []).filter(session => session.replay_url).forEach(session => {
+        const date = new Date(session.scheduled_at);
+        const key = `${date.getFullYear()}-${date.getMonth()}`;
+        if (!groups.has(key)) groups.set(key, []);
+        groups.get(key).push(session);
+    });
+    return [...groups.values()].flat();
+}
+
 function renderReplaySidebar(sidebar, sessions, selectedSessionId = '') {
     const escapeHtml = value => String(value ?? '').replace(/[&<>"']/g, char => ({
         '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
@@ -666,47 +741,23 @@ function openReplayPlayer(replayUrl, title, resources = [], sessionId = '', { pa
     if (!courseMain || !courseSidebar) return;
     enterCoursePlayer(courseMain, courseSidebar, 'live');
     syncLessonUrl(null);
+    document.querySelector('.course-details-page')?.classList.add('is-lesson-player');
 
-    const wrapper = document.createElement('div');
-    wrapper.className = 'video-section-wrapper course-replay-view';
-    const heading = document.createElement('div');
-    heading.className = 'course-player-heading';
-    const mode = document.createElement('span');
-    mode.className = 'course-player-mode';
-    mode.textContent = 'Replay de la séance';
-    const switchButton = document.createElement('button');
-    switchButton.type = 'button';
-    switchButton.className = 'course-player-switch';
-    switchButton.innerHTML = '<i class="fas fa-book-open" aria-hidden="true"></i> Retour aux chapitres';
-    switchButton.addEventListener('click', () => switchCoursePlayerTo('chapters'));
-    const actions = document.createElement('div');
-    actions.className = 'course-player-actions';
-    const replayListButton = document.createElement('button');
-    replayListButton.type = 'button';
-    replayListButton.className = 'course-player-switch';
-    replayListButton.textContent = 'Replays';
-    replayListButton.addEventListener('click', () => switchCoursePlayerTo('live'));
-    if (currentCourse?.modules?.length) actions.append(switchButton);
-    actions.append(replayListButton);
-    heading.append(mode, actions);
-    const frame = document.createElement('div');
-    frame.className = 'video-container course-player-frame';
-    frame.appendChild(player);
-    const details = document.createElement('div');
-    details.className = 'lesson-details-content';
-    const titleElement = document.createElement('h1');
-    titleElement.className = 'course-player-title';
-    titleElement.dir = 'auto';
-    titleElement.textContent = title || 'Replay de la séance';
-    details.appendChild(titleElement);
+    // Same video page as the chapter lessons (renderPlayerView); only the data differs.
     const session = currentLiveSessions.find(item => item.id === sessionId);
     const date = new Date(session?.scheduled_at);
-    if (Number.isFinite(date.getTime())) {
+    const hasDate = Number.isFinite(date.getTime());
+    const dateLabel = hasDate ? date.toLocaleDateString('fr-FR', { dateStyle: 'long', timeZone: 'Africa/Tunis' }) : '';
+    const replays = orderedReplaySessions();
+    const replayIndex = replays.findIndex(item => item.id === sessionId);
+    const replayLink = item => item && { title: item.title, open: () => openReplayPlayer(item.replay_url, item.title, item.resources || [], item.id) };
+    const overviewNodes = [];
+    if (hasDate) {
         const recordedAt = document.createElement('time');
         recordedAt.className = 'course-replay-date';
         recordedAt.dateTime = date.toISOString();
-        recordedAt.textContent = date.toLocaleDateString('fr-FR', { dateStyle: 'long', timeZone: 'Africa/Tunis' });
-        details.appendChild(recordedAt);
+        recordedAt.textContent = 'Séance du ' + dateLabel;
+        overviewNodes.push(recordedAt);
     }
     if (replayParts.length > 1) {
         const partsNav = document.createElement('div');
@@ -722,10 +773,29 @@ function openReplayPlayer(replayUrl, title, resources = [], sessionId = '', { pa
             });
             partsNav.appendChild(partButton);
         });
-        details.appendChild(partsNav);
+        overviewNodes.push(partsNav);
     }
-    wrapper.append(heading, frame, details);
-    courseMain.replaceChildren(wrapper);
+    renderPlayerView(courseMain, {
+        backHref: courseDetailsUrl(null), backLabel: 'Retour aux replays',
+        contextLabel: 'Replay de la séance' + (dateLabel ? ' · ' + dateLabel : ''),
+        title: title || 'Replay de la séance',
+        counter: replayIndex >= 0 && replays.length > 1 ? `Replay ${replayIndex + 1} / ${replays.length}` : '',
+        switchTo: currentCourse?.modules?.length ? { panel: 'chapters', icon: 'fa-book-open', label: 'Chapitres du cours' } : null,
+        outlineLabel: 'Replays',
+        frameHtml: '',
+        navLabel: 'Navigation entre les replays',
+        previous: replayLink(replays[replayIndex - 1]),
+        next: replayIndex >= 0 ? replayLink(replays[replayIndex + 1]) : null,
+        detailsLabel: 'Détails du replay',
+        description: session?.description || 'Enregistrement de la séance en direct.',
+        overviewNodes,
+        resources,
+        resourcesHeading: 'Fichiers utilisés pendant la séance',
+        resourcesEmpty: 'Aucun fichier pour cette séance.',
+        viewClass: 'course-replay-view',
+    });
+    courseMain.querySelector('.course-player-frame').appendChild(player);
+    courseMain.querySelector('.lesson-player-view').dispatchEvent(new CustomEvent('lesson-layout-change'));
     if (player instanceof HTMLVideoElement) {
         if (resumeAt > 0) {
             player.addEventListener('loadedmetadata', () => {
@@ -750,16 +820,21 @@ function openReplayPlayer(replayUrl, title, resources = [], sessionId = '', { pa
         };
         prepareCourseVideo(player, parsed.href, retry, recover);
         window.enhanceLearningPlayer?.(player, { autoplay: true, storageKey: sessionId ? sessionId + ':' + partIndex : '' });
+        enableLessonShortcuts(player);
     }
 
-    if (resources.length) details.appendChild(createResourceSection(resources, 'Fichiers utilisés pendant la séance'));
     renderReplaySidebar(courseSidebar, currentLiveSessions, sessionId);
+    // The replay list scrolls on its own beside the video, like the chapter outline.
+    courseSidebar.classList.add('is-outline');
+    const replayList = courseSidebar.querySelector('.replay-sidebar-card');
+    if (replayList) replayList.tabIndex = -1;
     if (window.matchMedia('(max-width: 768px)').matches) {
         document.getElementById('app-sidebar')?.classList.remove('active');
         document.getElementById('sidebar-overlay')?.classList.remove('active');
         document.querySelector('.mobile-menu-toggle')?.classList.remove('active');
     }
     courseMain.style.order = '-2';
+    courseMain.scrollTop = 0;
     courseMain.scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
 
@@ -1104,84 +1179,38 @@ async function showLessonInMainArea(lesson, videoUrl, pdfUrl, practiceFiles = []
     const backHref = courseDetailsUrl(null);
     document.querySelector('.course-details-page')?.classList.add('is-lesson-player');
 
-    // Replace main content with the video (when present), lesson resources, and actions.
-    // LessonHeader · video · LessonNavBar · LessonDetailsTabs
-    courseMain.innerHTML = `
-        <div class="video-section-wrapper lesson-player-view">
-            <header class="lesson-header">
-                <div class="lesson-header-row">
-                    <a href="${escapeQuizHtml(backHref)}" class="lesson-back-link lesson-icon-btn" data-lesson-back title="Retour au cours" aria-label="Retour au cours">
-                        <i class="fas fa-arrow-left" aria-hidden="true"></i>
-                    </a>
-                    <span class="lesson-header-sep" aria-hidden="true">·</span>
-                    <span class="course-player-mode lesson-chapter-label"><span dir="auto">${escapeQuizHtml(chapterLabel)}</span></span>
-                    <span class="lesson-header-tools">
-                        ${currentLiveSessions.length ? `<button class="course-player-switch lesson-icon-btn" type="button" onclick="switchCoursePlayerTo('live')" title="Replays" aria-label="Replays"><i class="fas fa-video" aria-hidden="true"></i></button>` : ''}
-                        <button class="course-player-switch lesson-outline-jump lesson-icon-btn" type="button" data-outline-jump title="Chapitres du cours" aria-label="Chapitres du cours"><i class="fas fa-list-ul" aria-hidden="true"></i></button>
-                        ${videoUrl ? `<button class="course-player-switch lesson-theater-toggle lesson-icon-btn" type="button" data-theater-toggle aria-pressed="false" title="Mode cinéma" aria-label="Mode cinéma"><i class="fas fa-expand" aria-hidden="true"></i></button>` : ''}
-                    </span>
-                </div>
-                <div class="lesson-title-row">
-                    <h2 class="course-player-title" dir="auto">${escapeQuizHtml(lesson.title)}</h2>
-                    ${position.total ? `<span class="lesson-counter">Leçon ${position.number} / ${position.total}</span>` : ''}
-                </div>
-            </header>
-            ${videoUrl ? `<div class="video-container course-player-frame">
-                <video
+    // Shared video page (same template as replays): header · video · prev/next · Aperçu / Ressources / Code Pratique.
+    renderPlayerView(courseMain, {
+        backHref, backLabel: 'Retour au cours',
+        contextLabel: chapterLabel,
+        title: lesson.title,
+        counter: position.total ? `Leçon ${position.number} / ${position.total}` : '',
+        switchTo: currentLiveSessions.length ? { panel: 'live', icon: 'fa-video', label: 'Replays' } : null,
+        outlineLabel: 'Chapitres du cours',
+        frameHtml: videoUrl ? `<video
                     id="current-lesson-video"
-                    data-lesson-id="${lesson.id}"
+                    data-lesson-id="${escapeQuizHtml(lesson.id)}"
                     data-resume-position="${Number(lesson.last_position) || 0}"
                     data-last-saved-position="${Number(lesson.last_position) || 0}"
                     controlsList="nodownload"
                     class="course-lesson-player"
                 >
                     Votre navigateur ne supporte pas la lecture de vidéos.
-                </video>
-            </div>` : '<div class="course-video-status" data-lesson-media-status role="status"></div>'}
-
-            <nav class="lesson-nav" aria-label="Navigation entre les leçons">
-                <button type="button" class="lesson-nav-btn lesson-icon-btn is-prev" data-lesson-nav="prev"
-                    title="${escapeQuizHtml(position.previous ? 'Précédent : ' + position.previous.title : 'Précédent')}"
-                    ${position.previous ? '' : 'disabled aria-disabled="true"'}>
-                    <i class="fas fa-chevron-left" aria-hidden="true"></i><span class="lesson-sr-only">Précédent</span>
-                </button>
-                ${videoUrl ? '' : /* A video proposes the quiz / next lesson in a popup at its end; other lessons keep this button. */ `<div class="lesson-actions${hasQuiz ? ' lesson-actions-quiz' : ''}">
+                </video>` : null,
+        navLabel: 'Navigation entre les leçons',
+        previous: position.previous && { title: position.previous.title, open: () => playLesson(position.previous.id) },
+        next: position.next && { title: position.next.title, open: () => playLesson(position.next.id) },
+        // A video proposes the quiz / next lesson in a popup at its end; other lessons keep this button.
+        middleHtml: videoUrl ? '' : `<div class="lesson-actions${hasQuiz ? ' lesson-actions-quiz' : ''}">
                     <button type="button" class="btn-complete-next lesson-icon-btn${hasQuiz ? ' btn-lesson-quiz' : ''}" title="${hasQuiz ? 'Passer au quiz' : 'Leçon suivante'}" onclick="completeLessonAndNext('${escapeQuizHtml(lesson.id)}')">
                         <i class="fas fa-${hasQuiz ? 'bolt' : 'arrow-right'}" aria-hidden="true"></i><span class="lesson-sr-only">${hasQuiz ? 'Passer au quiz' : 'Leçon suivante'}</span>
                     </button>
-                </div>`}
-                <button type="button" class="lesson-nav-btn lesson-icon-btn is-next" data-lesson-nav="next"
-                    title="${escapeQuizHtml(position.next ? 'Suivant : ' + position.next.title : 'Suivant')}"
-                    ${position.next ? '' : 'disabled aria-disabled="true"'}>
-                    <span class="lesson-sr-only">Suivant</span><i class="fas fa-chevron-right" aria-hidden="true"></i>
-                </button>
-            </nav>
-
-            <section class="lesson-details-content lesson-details-card" aria-label="Détails de la leçon">
-                <div class="lesson-tabs" role="tablist" aria-label="Détails de la leçon">
-                    <button type="button" class="lesson-tab is-active" role="tab" id="lesson-tab-overview" aria-selected="true" aria-controls="lesson-panel-overview" data-lesson-tab="overview">Aperçu</button>
-                    <button type="button" class="lesson-tab" role="tab" id="lesson-tab-resources" aria-selected="false" tabindex="-1" aria-controls="lesson-panel-resources" data-lesson-tab="resources">Ressources (${practiceFiles.length})</button>
-                    <button type="button" class="lesson-tab lesson-tab-code" role="tab" id="lesson-tab-code" aria-selected="false" tabindex="-1" aria-controls="lesson-panel-code" data-lesson-tab="code"><i class="fas fa-code" aria-hidden="true"></i> ${LESSON_CODE_RUNTIME.label}</button>
-                </div>
-                <div class="lesson-tab-panel" role="tabpanel" id="lesson-panel-overview" aria-labelledby="lesson-tab-overview">
-                    <p class="lesson-description" dir="auto">${escapeQuizHtml(lesson.description || 'Aucune description pour cette leçon.')}</p>
-                </div>
-                <div class="lesson-tab-panel" role="tabpanel" id="lesson-panel-resources" aria-labelledby="lesson-tab-resources" hidden>
-                    ${practiceFiles.length ? '' : '<p class="lesson-resources-empty">Aucune ressource pour cette leçon.</p>'}
-                </div>
-                <div class="lesson-tab-panel lesson-code-panel" role="tabpanel" id="lesson-panel-code" aria-labelledby="lesson-tab-code" data-lesson-code-panel hidden></div>
-            </section>
-        </div>
-    `;
-    courseMain.querySelector('[data-lesson-nav="prev"]')?.addEventListener('click', () => position.previous && playLesson(position.previous.id));
-    courseMain.querySelector('[data-lesson-nav="next"]')?.addEventListener('click', () => position.next && playLesson(position.next.id));
-    setupLessonDetailsTabs(courseMain);
-    setupTheaterToggle(courseMain);
-    fitLessonLayout(courseMain);
-    courseMain.querySelector('[data-outline-jump]')?.addEventListener('click', () => {
-        const outline = document.querySelector('.course-sidebar .course-outline');
-        outline?.scrollIntoView({ behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth', block: 'start' });
-        outline?.focus({ preventScroll: true });
+                </div>`,
+        detailsLabel: 'Détails de la leçon',
+        description: lesson.description || 'Aucune description pour cette leçon.',
+        resources: practiceFiles,
+        resourcesHeading: 'Ressources de la leçon',
+        resourcesEmpty: 'Aucune ressource pour cette leçon.',
     });
     const mediaStatus = courseMain.querySelector('[data-lesson-media-status]');
     if (mediaStatus) {
@@ -1198,10 +1227,6 @@ async function showLessonInMainArea(lesson, videoUrl, pdfUrl, practiceFiles = []
             });
             mediaStatus.appendChild(retry);
         }
-    }
-
-    if (practiceFiles.length) {
-        courseMain.querySelector('#lesson-panel-resources')?.appendChild(createResourceSection(practiceFiles, 'Ressources de la leçon'));
     }
 
     // Replace sidebar with the course outline: CourseProgress + chapters (CourseOutline)
@@ -1312,6 +1337,91 @@ async function showLessonInMainArea(lesson, videoUrl, pdfUrl, practiceFiles = []
     }, 150);
 }
 
+/**
+ * Shared video page for chapter lessons AND replays (one template: a change here applies to both).
+ * Header (back · context · title · counter · tools) · video frame · prev/next · Aperçu / Ressources / Code Pratique.
+ * frameHtml === null means "no video": a status line replaces the frame. Returns the view element.
+ */
+function renderPlayerView(courseMain, {
+    backHref, backLabel, contextLabel, title, counter = '', switchTo = null, outlineLabel,
+    frameHtml = null, navLabel, previous = null, next = null, middleHtml = '',
+    detailsLabel, description, overviewNodes = [], resources = [], resourcesHeading, resourcesEmpty, viewClass = '',
+}) {
+    const esc = escapeQuizHtml;
+    const hasFrame = frameHtml !== null;
+    const pdfs = resources.filter(isReadablePdf);
+    const navButton = (side, item) => `<button type="button" class="lesson-nav-btn lesson-icon-btn is-${side}" data-lesson-nav="${side}"
+                    title="${esc(item ? (side === 'prev' ? 'Précédent : ' : 'Suivant : ') + item.title : (side === 'prev' ? 'Précédent' : 'Suivant'))}"
+                    ${item ? '' : 'disabled aria-disabled="true"'}>
+                    ${side === 'prev' ? '<i class="fas fa-chevron-left" aria-hidden="true"></i><span class="lesson-sr-only">Précédent</span>'
+                        : '<span class="lesson-sr-only">Suivant</span><i class="fas fa-chevron-right" aria-hidden="true"></i>'}
+                </button>`;
+    courseMain.innerHTML = `
+        <div class="video-section-wrapper lesson-player-view${viewClass ? ' ' + viewClass : ''}" data-resource-count="${resources.length}">
+            <header class="lesson-header">
+                <div class="lesson-header-row">
+                    <a href="${esc(backHref)}" class="lesson-back-link lesson-icon-btn" data-lesson-back title="${esc(backLabel)}" aria-label="${esc(backLabel)}">
+                        <i class="fas fa-arrow-left" aria-hidden="true"></i>
+                    </a>
+                    <span class="lesson-header-sep" aria-hidden="true">·</span>
+                    <span class="course-player-mode lesson-chapter-label"><span dir="auto">${esc(contextLabel)}</span></span>
+                    <span class="lesson-header-tools">
+                        ${switchTo ? `<button class="course-player-switch lesson-icon-btn" type="button" data-player-switch="${esc(switchTo.panel)}" title="${esc(switchTo.label)}" aria-label="${esc(switchTo.label)}"><i class="fas ${esc(switchTo.icon)}" aria-hidden="true"></i></button>` : ''}
+                        <button class="course-player-switch lesson-outline-jump lesson-icon-btn" type="button" data-outline-jump title="${esc(outlineLabel)}" aria-label="${esc(outlineLabel)}"><i class="fas fa-list-ul" aria-hidden="true"></i></button>
+                        ${hasFrame ? `<button class="course-player-switch lesson-theater-toggle lesson-icon-btn" type="button" data-theater-toggle aria-pressed="false" title="Mode cinéma" aria-label="Mode cinéma"><i class="fas fa-expand" aria-hidden="true"></i></button>` : ''}
+                    </span>
+                </div>
+                <div class="lesson-title-row">
+                    <h2 class="course-player-title" dir="auto">${esc(title)}</h2>
+                    ${counter ? `<span class="lesson-counter">${esc(counter)}</span>` : ''}
+                </div>
+            </header>
+            ${hasFrame ? `<div class="video-container course-player-frame">${frameHtml}</div>`
+                : '<div class="course-video-status" data-lesson-media-status role="status"></div>'}
+
+            <nav class="lesson-nav" aria-label="${esc(navLabel)}">
+                ${navButton('prev', previous)}
+                ${middleHtml}
+                ${navButton('next', next)}
+            </nav>
+
+            <section class="lesson-details-content lesson-details-card" aria-label="${esc(detailsLabel)}">
+                <div class="lesson-tabs" role="tablist" aria-label="${esc(detailsLabel)}">
+                    <button type="button" class="lesson-tab is-active" role="tab" id="lesson-tab-overview" aria-selected="true" aria-controls="lesson-panel-overview" data-lesson-tab="overview">Aperçu</button>
+                    <button type="button" class="lesson-tab" role="tab" id="lesson-tab-resources" aria-selected="false" tabindex="-1" aria-controls="lesson-panel-resources" data-lesson-tab="resources">Ressources (${resources.length})</button>
+                    <button type="button" class="lesson-tab lesson-tab-code lesson-tab-tool" role="tab" id="lesson-tab-code" aria-selected="false" tabindex="-1" aria-controls="lesson-panel-code" data-lesson-tab="code" title="${esc(LESSON_CODE_RUNTIME.label)}"><i class="fas fa-code" aria-hidden="true"></i><span class="lesson-tab-label">${esc(LESSON_CODE_RUNTIME.label)}</span></button>
+                    ${pdfs.length ? `<button type="button" class="lesson-tab lesson-tab-pdf lesson-tab-tool" role="tab" id="lesson-tab-pdf" aria-selected="false" tabindex="-1" aria-controls="lesson-panel-pdf" data-lesson-tab="pdf" title="Lecteur PDF"><i class="fas fa-file-pdf" aria-hidden="true"></i><span class="lesson-tab-label">PDF</span></button>` : ''}
+                </div>
+                <div class="lesson-tab-panel" role="tabpanel" id="lesson-panel-overview" aria-labelledby="lesson-tab-overview">
+                    <p class="lesson-description" dir="auto">${esc(description)}</p>
+                </div>
+                <div class="lesson-tab-panel" role="tabpanel" id="lesson-panel-resources" aria-labelledby="lesson-tab-resources" hidden>
+                    ${resources.length ? '' : `<p class="lesson-resources-empty">${esc(resourcesEmpty)}</p>`}
+                </div>
+                <div class="lesson-tab-panel lesson-code-panel" role="tabpanel" id="lesson-panel-code" aria-labelledby="lesson-tab-code" data-lesson-code-panel hidden></div>
+                ${pdfs.length ? '<div class="lesson-tab-panel lesson-pdf-panel" role="tabpanel" id="lesson-panel-pdf" aria-labelledby="lesson-tab-pdf" data-lesson-pdf-panel hidden></div>' : ''}
+            </section>
+        </div>
+    `;
+    const view = courseMain.querySelector('.lesson-player-view');
+    courseMain.lessonPdfs = pdfs;
+    courseMain.querySelector('#lesson-panel-overview').append(...overviewNodes);
+    if (resources.length) courseMain.querySelector('#lesson-panel-resources').appendChild(createResourceSection(resources, resourcesHeading));
+    courseMain.querySelector('[data-lesson-nav="prev"]')?.addEventListener('click', () => previous?.open());
+    courseMain.querySelector('[data-lesson-nav="next"]')?.addEventListener('click', () => next?.open());
+    courseMain.querySelector('[data-player-switch]')?.addEventListener('click', event =>
+        switchCoursePlayerTo(event.currentTarget.dataset.playerSwitch));
+    courseMain.querySelector('[data-outline-jump]')?.addEventListener('click', () => {
+        const outline = document.querySelector('.course-sidebar.is-outline > *');
+        outline?.scrollIntoView({ behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth', block: 'start' });
+        outline?.focus({ preventScroll: true });
+    });
+    setupLessonDetailsTabs(courseMain);
+    setupTheaterToggle(courseMain);
+    fitLessonLayout(courseMain);
+    return view;
+}
+
 // =====================================================
 // Lesson player layout helpers (front-end only; computed from data already on the page)
 // =====================================================
@@ -1368,17 +1478,21 @@ function setupLessonDetailsTabs(root) {
             item.tabIndex = active ? 0 : -1;
             root.querySelector('#' + item.getAttribute('aria-controls')).hidden = !active;
         });
-        // The practice editor needs room: the layout gives the details card more space while it is open.
+        // Tool tabs (Code Pratique, PDF) need room: the layout gives the details card more space while one is open.
         const coding = tab.dataset.lessonTab === 'code';
-        const wasCoding = Boolean(view?.classList.contains('is-coding'));
+        const reading = tab.dataset.lessonTab === 'pdf';
+        const tool = coding || reading;
+        const wasTool = Boolean(view?.classList.contains('is-tool'));
         if (coding) ensureLessonCodeFrame(root);
-        // Desktop: opening Code Pratique switches to cinema mode (chapters hidden) so video and editor share the
+        if (reading && !root.querySelector('[data-lesson-pdf-panel]')?.dataset.loaded) showLessonPdf(root);
+        // Desktop: opening a tool tab switches to cinema mode (chapters hidden) so video and tool share the
         // width. It stays on (also for the next lessons) until the student clicks "Quitter le mode cinéma".
         const theater = root.lessonTheater;
-        if (theater && coding && !wasCoding && !theater.isOn() && matchMedia('(min-width: 1024px)').matches) {
+        if (theater && tool && !wasTool && !theater.isOn() && matchMedia('(min-width: 1024px)').matches) {
             theater.choose(true);
         }
         view?.classList.toggle('is-coding', coding);
+        view?.classList.toggle('is-tool', tool);
         view?.dispatchEvent(new CustomEvent('lesson-layout-change'));
     };
     root.lessonTabSelect = name => {
@@ -1414,7 +1528,14 @@ function setupTheaterToggle(root) {
         button.title = label;
         button.setAttribute('aria-label', label);
         button.querySelector('i').className = 'fas fa-' + (on ? 'compress' : 'expand');
+        // Desktop: Code Pratique and PDF only exist in cinema mode (their tabs are hidden in normal mode by CSS),
+        // so leaving cinema mode while one is open goes back to Aperçu.
+        if (!on && root.querySelector('.lesson-player-view.is-tool') && matchMedia('(min-width: 1024px)').matches) {
+            root.lessonTabSelect?.('overview');
+        }
     };
+    // Marks a page that can switch to cinema mode (lessons without video keep the Code Pratique tab).
+    root.querySelector('.lesson-player-view')?.classList.add('can-cinema');
     let stored = false;
     try { stored = localStorage.getItem(THEATER_KEY) === '1'; } catch { /* storage optional */ }
     apply(stored);
@@ -1430,12 +1551,17 @@ function setupTheaterToggle(root) {
 /*
  * Desktop "fit to screen" layout for the lesson player (front-end only).
  * The video takes the height left after the header, navigation bar and a compact details card.
- * On wide screens, when it gives a larger video, the Aperçu/Ressources card moves beside the video.
+ * Normal mode: Précédent / Suivant sit beside the video and the card keeps room for two rows of resource files.
+ * Cinema mode on wide screens, when it gives a larger video, moves the Aperçu/Ressources card beside the video.
  * Recomputed whenever the lesson column, header or nav bar changes size (window resize, cinema mode, menu rail).
  */
 const LESSON_DETAILS_MIN = 140;          // tabs + about three lines of description
 const LESSON_DETAILS_MIN_THEATER = 60;   // cinema mode: only the tab bar stays visible
-const LESSON_SIDE_DETAILS_MIN = 300;     // minimum width of the details card beside the video
+const LESSON_SIDE_DETAILS_MIN = 340;     // minimum width of the details card beside the video (readable PDF / editor)
+const LESSON_SIDE_ARROW_SPACE = 58;      // normal mode: one 44px arrow + gap on each side of the video
+const LESSON_RESOURCE_TILE_MIN = 260;    // min width of a resource tile (keep in sync with course-details.css)
+const LESSON_RESOURCE_ROW = 52;          // one row of resource tiles (44px + gap)
+const LESSON_DETAILS_CHROME = 84;        // tab bar + card padding around the resource tiles
 
 function fitLessonLayout(courseMain) {
     const view = courseMain.querySelector('.lesson-player-view');
@@ -1449,8 +1575,8 @@ function fitLessonLayout(courseMain) {
         layout.style.setProperty('--lesson-header-h', header.offsetHeight + 'px');
         const frame = view.querySelector('.course-player-frame');
         if (!desktop.matches || !frame) {
-            view.classList.remove('is-side-details');
-            view.style.removeProperty('--frame-w');
+            view.classList.remove('is-side-details', 'is-side-arrows');
+            ['--frame-w', '--frame-top', '--frame-h'].forEach(name => view.style.removeProperty(name));
             return;
         }
         const mainStyle = getComputedStyle(courseMain);
@@ -1459,22 +1585,39 @@ function fitLessonLayout(courseMain) {
         // Only a status shown outside the player frame takes room in the column.
         const status = view.querySelector(':scope > .course-video-status');
         const statusH = status && !status.hidden && status.offsetHeight ? status.offsetHeight + gap : 0;
-        const fixed = header.offsetHeight + nav.offsetHeight + statusH;
-        const colW = view.clientWidth;
         const theater = layout.classList.contains('is-theater');
-        const detailsMin = theater ? LESSON_DETAILS_MIN_THEATER : LESSON_DETAILS_MIN;
-
-        const stackedH = Math.max(220, avail - fixed - detailsMin - 3 * gap);
-        const stackedVideoW = Math.min(colW, stackedH * 16 / 9);
+        // Normal mode: Précédent / Suivant sit on both sides of the video instead of a row under it,
+        // which gives that row's height to the Aperçu / Ressources card.
+        const sideArrows = !theater;
+        const fixed = header.offsetHeight + (sideArrows ? 0 : nav.offsetHeight) + statusH;
+        const colW = view.clientWidth;
+        const videoColW = sideArrows ? colW - 2 * LESSON_SIDE_ARROW_SPACE : colW;
+        const gaps = sideArrows ? 2 * gap : 3 * gap;
+        // Normal mode keeps room for up to two rows of resource files (5 files = 2 rows on most screens).
+        const detailsMinFor = videoW => {
+            if (theater) return LESSON_DETAILS_MIN_THEATER;
+            const count = Number(view.dataset.resourceCount) || 0;
+            const perRow = Math.max(1, Math.floor((videoW - 32 + 8) / (LESSON_RESOURCE_TILE_MIN + 8)));
+            const rows = Math.min(2, Math.ceil(count / perRow));
+            return Math.max(LESSON_DETAILS_MIN, LESSON_DETAILS_CHROME + rows * LESSON_RESOURCE_ROW);
+        };
+        const stackedFor = detailsMin => Math.min(videoColW, Math.max(220, avail - fixed - detailsMin - gaps) * 16 / 9);
+        const stackedVideoW = stackedFor(detailsMinFor(stackedFor(detailsMinFor(videoColW))));
         // Code Pratique uses the same card as Aperçu and Ressources: switching tabs never resizes the video.
         const sideW = Math.floor(Math.min(colW - LESSON_SIDE_DETAILS_MIN - gap, (avail - fixed - 2 * gap) * 16 / 9));
         // Normal mode already shares the width with the chapters, so the details sit under the video there;
         // only cinema mode has room for them beside it.
-        const side = theater && sideW >= 560 && sideW > stackedVideoW * 1.1;
+        // Cinema mode prefers the card beside the video (Code Pratique / PDF then fit without scrolling)
+        // as long as the video stays about as large; the choice never depends on the open tab.
+        const side = theater && sideW >= 560 && sideW >= stackedVideoW * 0.95;
+        const frameW = Math.floor(side ? sideW : stackedVideoW);
 
         // The frame stays a true 16:9 box; its size is set through its width only.
         view.classList.toggle('is-side-details', side);
-        view.style.setProperty('--frame-w', Math.floor(side ? sideW : stackedVideoW) + 'px');
+        view.classList.toggle('is-side-arrows', sideArrows);
+        view.style.setProperty('--frame-w', frameW + 'px');
+        view.style.setProperty('--frame-top', header.offsetHeight + gap + 'px');
+        view.style.setProperty('--frame-h', Math.round(frameW * 9 / 16) + 'px');
     };
 
     let queued = false;
@@ -1634,7 +1777,7 @@ function enableLessonShortcuts(video) {
  * Restore course content
  */
 function enterCoursePlayer(courseMain, courseSidebar, returnTab) {
-    // Only the lesson view uses the focused layout; replays keep the standard player layout.
+    // Lessons and replays add the focused layout again once their view is rendered.
     document.querySelector('.course-details-page')?.classList.remove('is-lesson-player');
     document.querySelector('.course-layout')?.classList.remove('is-theater');
     setCourseRail(false);
@@ -2171,6 +2314,7 @@ function createResourceSection(resources, headingText) {
         const label = document.createElement('span');
         label.textContent = resource.title || resource.file_name || 'Fichier';
         if (resource.file_size) label.textContent += ' · ' + formatResourceSize(resource.file_size);
+        link.title = label.textContent; // full name on hover when a narrow tile shortens it
         link.append(icon, label);
         link.addEventListener('click', event => {
             event.preventDefault();
@@ -2199,6 +2343,11 @@ function createResourceSection(resources, headingText) {
             preview.className = 'lesson-resource-action';
             preview.title = 'Ouvrir le PDF';
             preview.setAttribute('aria-label', 'Ouvrir ' + fileName);
+            // Plain click: read it in the PDF tab of this page. Ctrl/middle click still opens a new tab.
+            preview.addEventListener('click', event => {
+                if (event.button !== 0 || event.ctrlKey || event.metaKey || event.shiftKey || event.altKey) return;
+                if (openInLessonPdfPanel(resource)) event.preventDefault();
+            });
             const previewIcon = document.createElement('i');
             previewIcon.className = 'fas fa-eye';
             previewIcon.setAttribute('aria-hidden', 'true');

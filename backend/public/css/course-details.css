@@ -846,7 +846,16 @@ button.lesson-icon.quiz:focus-visible { outline: 2px solid #6d28d9; outline-offs
 
 .replay-resource-list { display: flex; flex-direction: column; gap: 0.45rem; }
 
-.lesson-resource-item { display: flex; align-items: center; gap: 0.45rem; width: 100%; }
+/* One box per file: its name on the left, its own Télécharger / PDF / Code Pratique buttons inside on the right. */
+.lesson-resource-item {
+    display: flex; align-items: center; gap: 0.25rem; width: 100%; box-sizing: border-box; padding-right: 0.35rem;
+    border: 1px solid var(--cd-line); border-radius: 11px; background: var(--cd-card);
+}
+.lesson-resource-item:hover, .lesson-resource-item:focus-within { border-color: var(--cd-orange-line); }
+.lesson-resource-item .replay-resource-link { min-width: 0; border: 0; background: transparent; }
+.lesson-resource-item .lesson-resource-action { width: 36px; height: 36px; border: 0; border-radius: 9px; background: transparent; }
+.lesson-resource-item .lesson-resource-action:hover { background: var(--cd-orange-soft); }
+@media (pointer: coarse) { .lesson-resource-item .lesson-resource-action { width: 42px; height: 42px; } }
 
 .replay-resource-link {
     display: flex;
@@ -1502,7 +1511,8 @@ button.lesson-icon.quiz:focus-visible { outline: 2px solid #6d28d9; outline-offs
 .lesson-player-view .course-player-frame > .learning-player,
 .lesson-player-view .course-player-frame video-player,
 .lesson-player-view .course-player-frame video-skin,
-.lesson-player-view .course-player-frame video.course-lesson-player { position: absolute; inset: 0; width: 100%; height: 100%; }
+.lesson-player-view .course-player-frame video.course-lesson-player,
+.lesson-player-view .course-player-frame video.course-replay-player { position: absolute; inset: 0; width: 100%; height: 100%; }
 .lesson-player-view .course-player-frame video.course-lesson-player { object-fit: contain; }
 
 /* Loading / error status as an overlay inside the frame (never in page flow). */
@@ -1600,9 +1610,36 @@ button.lesson-icon.quiz:focus-visible { outline: 2px solid #6d28d9; outline-offs
 .lesson-code-panel { display: flex; min-height: 0; padding: 0 !important; overflow: hidden !important; }
 .lesson-code-panel[hidden] { display: none; }
 .lesson-code-frame { display: block; width: 100%; height: 100%; min-height: 0; flex: 1 1 auto; border: 0; border-radius: 12px; background: #f8fafc; }
-.lesson-player-view.is-coding .lesson-details-card { padding-bottom: .6rem; }
+.lesson-player-view.is-tool .lesson-details-card { padding-bottom: .6rem; }
+
+/* Narrow details card (cinema card beside the video): Code Pratique / PDF tabs become icons (name on hover). */
+.lesson-details-card { container-type: inline-size; }
+@container (max-width: 460px) {
+    .lesson-tab-tool .lesson-tab-label { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+    .lesson-tab { padding: 0 .7rem; white-space: nowrap; }
+}
+
+/* PDF reader beside the lesson (browser PDF viewer in a frame) with a file picker and « Nouvel onglet ». */
+.lesson-tab-pdf { display: inline-flex; align-items: center; gap: .45rem; }
+.lesson-tab-pdf i { color: #dc2626; }
+.lesson-pdf-panel { display: flex; flex-direction: column; gap: .5rem; min-height: 0; padding: 0 !important; overflow: hidden !important; }
+.lesson-pdf-panel[hidden] { display: none; }
+.lesson-pdf-bar { display: flex; align-items: center; gap: .5rem; min-width: 0; }
+.lesson-pdf-name, .lesson-pdf-picker {
+    flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    color: var(--cd-body); font: inherit; font-size: .85rem; font-weight: 700;
+}
+.lesson-pdf-picker { min-height: 36px; padding: 0 .6rem; border: 1px solid var(--cd-line); border-radius: 9px; background: var(--cd-card); }
+.lesson-pdf-external {
+    display: inline-flex; flex: none; align-items: center; gap: .4rem; min-height: 36px; padding: 0 .75rem;
+    border: 1px solid var(--cd-line); border-radius: 9px; background: var(--cd-card);
+    color: var(--cd-orange-dark); font-size: .8rem; font-weight: 700; text-decoration: none;
+}
+.lesson-pdf-external:hover { border-color: var(--cd-orange-line); background: var(--cd-orange-soft); }
+.lesson-pdf-external:focus-visible, .lesson-pdf-picker:focus-visible { outline: 3px solid var(--cd-orange-line); outline-offset: 2px; }
+.lesson-pdf-frame { display: block; flex: 1 1 auto; width: 100%; min-height: 0; border: 1px solid var(--cd-line); border-radius: 12px; background: #f1f5f9; }
 @media (max-width: 1023px) {
-    .lesson-code-panel { height: min(600px, 80vh); }
+    .lesson-code-panel, .lesson-pdf-panel { height: min(600px, 80vh); }
 }
 
 /* CourseOutline + CourseProgress */
@@ -1693,7 +1730,33 @@ button.lesson-icon.quiz:focus-visible { outline: 2px solid #6d28d9; outline-offs
     .lesson-player-view.is-side-details > .lesson-details-card { grid-column: 2; grid-row: 2 / -1; height: 100%; min-height: 0; box-sizing: border-box; }
     .lesson-player-view.is-side-details .course-player-frame { width: var(--frame-w); }
     /* Narrow lesson column: the editor stays below the video with a usable height (the column scrolls). */
-    .lesson-player-view.is-coding:not(.is-side-details) > .lesson-details-card { flex: none; height: 560px; }
+    .lesson-player-view.is-tool:not(.is-side-details) > .lesson-details-card { flex: none; height: 560px; }
+
+    /* Normal mode: no Code Pratique / PDF tabs; « Ouvrir dans Code Pratique » / « Ouvrir le PDF » switch to cinema mode, where they appear. */
+    .course-layout:not(.is-theater) .lesson-player-view.can-cinema .lesson-tab-tool { display: none; }
+
+    /* Normal mode (not cinema): Précédent / Suivant sit on both sides of the video, vertically centred,
+       so the row under the video is free for the Aperçu / Ressources card (fitLessonLayout sets is-side-arrows). */
+    .lesson-player-view.is-side-arrows { position: relative; }
+    .lesson-player-view.is-side-arrows > .lesson-nav {
+        position: absolute; top: var(--frame-top); left: 50%; z-index: 5;
+        width: calc(var(--frame-w) + 116px); max-width: none; height: var(--frame-h);
+        margin: 0; padding: 0; transform: translateX(-50%);
+        display: flex; align-items: center; justify-content: space-between; pointer-events: none;
+    }
+    .lesson-player-view.is-side-arrows > .lesson-nav > * { pointer-events: auto; }
+
+    /* Resource files inside the card: tiles that fill the width (blocks on a wide card, one per line when narrow). */
+    .lesson-details-card .replay-resource-section { padding: 0; border: 0; background: none; }
+    .lesson-details-card .replay-resource-section > h3 {
+        position: absolute; width: 1px; height: 1px; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap;
+    }
+    .lesson-details-card .replay-resource-list {
+        display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 260px), 1fr)); gap: 8px;
+    }
+    .lesson-details-card .lesson-resource-item { min-width: 0; }
+    .lesson-details-card .replay-resource-link { padding: .45rem .3rem .45rem .7rem; }
+    .lesson-details-card .replay-resource-link span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; overflow-wrap: normal; }
 
     /* LessonHeader on one compact line: back · chapter / title · counter · tools. */
     .lesson-player-view .lesson-header {
@@ -1766,9 +1829,6 @@ button.lesson-icon.quiz:focus-visible { outline: 2px solid #6d28d9; outline-offs
     .lesson-header-tools { margin-left: 0; }
     .lesson-header .lesson-title-row { flex-wrap: wrap; }
     .lesson-tab { flex: 1 1 auto; padding: 0 .4rem; font-size: .8rem; white-space: nowrap; }
-    .lesson-resource-item { flex-wrap: wrap; }
-    .lesson-resource-item .replay-resource-link { flex: 1 1 100%; }
-    .lesson-resource-actions { flex: 1 1 100%; justify-content: flex-end; flex-wrap: wrap; }
     .next-lesson-overlay { right: .5rem; bottom: 3.75rem; width: calc(100% - 1rem); padding: .7rem .8rem; }
     .next-lesson-actions button { flex: 1 1 0; }
 }
