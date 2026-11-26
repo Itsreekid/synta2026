@@ -1,3 +1,5 @@
+> Promotion/deployment approval received26 November2026. The two migrations are now in database/migrations, byte-identical to the reviewed drafts. Earlier HELD/NO-GO notes below are historical. Activation still requires deployment success and explicit admin occurrence publication; see latest CURRENT_STATE.md.
+
 > Owner approved local implementation and disposable PostgreSQL testing on26 November2026. Implementation: FREE_SESSION_FINAL_FLOW_IMPLEMENTATION.md. New SQL remains pending; no promotion/production authority. Proposal below retained as history.
 
 # Final free-session flow — exact local schema approval requested, 26 November 2026

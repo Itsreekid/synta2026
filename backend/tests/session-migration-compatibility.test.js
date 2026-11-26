@@ -24,9 +24,12 @@ test('session compatibility: historical ledgers, strict shapes, atomic failure a
     if (file.endsWith('.sql')) files.set(file, await readFile(new URL('migrations/' + file, root), 'utf8'));
   }
   const held = new Map();
+  const releaseFiles=new Map(files);
+  // These explicit historical inventories still exercise pre-activation compatibility.
+  files.delete(funnelFile);files.delete('202611260005_free_campaign_public_occurrence.sql');
   for (const file of ['202611200002_extend_live_session_access.sql',
     '202611200004_live_session_multi_audience.sql', funnelFile]) {
-    held.set(file, await readFile(new URL('pending-migrations/' + file, root), 'utf8'));
+    held.set(file, await readFile(new URL((file===funnelFile?'migrations/':'pending-migrations/') + file, root), 'utf8'));
   }
   // Promoted 2026-11-26 after the production ledger snapshot, so production has not applied it yet.
   const refreshFile = '202611200001_create_refresh_tokens.sql';
@@ -35,9 +38,9 @@ test('session compatibility: historical ledgers, strict shapes, atomic failure a
   const bugiUsageFile = '202611260004_bugi_daily_usage.sql';
   const before = new Map([...files].filter(([file]) => ![originalFile, repairFile, customFile, refreshFile, aliasFile, deactivationFile, bugiUsageFile].includes(file)));
   const withoutAliases = new Map([...files].filter(([file]) => file !== aliasFile));
-  const full = new Map([...files, ...held]);
+  const full = new Map([...releaseFiles, ...held]);
   const publicationFile='202611260005_free_campaign_public_occurrence.sql';
-  full.set(publicationFile,await readFile(new URL('pending-migrations/'+publicationFile,root),'utf8'));
+  full.set(publicationFile,await readFile(new URL('migrations/'+publicationFile,root),'utf8'));
   async function isolated(run) {
     const name = 'session_compat_' + randomUUID().replaceAll('-', '');
     await maintenance.query(`CREATE DATABASE "${name}"`);
@@ -86,14 +89,15 @@ test('session compatibility: historical ledgers, strict shapes, atomic failure a
       const campaign = (await db.query('SELECT id FROM free_sessions WHERE is_default')).rows[0].id;
       const free = (await db.query("INSERT INTO live_sessions(title,scheduled_at,free_session_id,zoom_meeting_id,status) VALUES('Production-shaped free history',now()-interval '1 day',$1,'444555666','completed') RETURNING id", [campaign])).rows[0].id;
       const history = (await db.query('SELECT to_jsonb(ls) row FROM live_sessions ls ORDER BY id')).rows;
-      const result = await runMigrations(db, files);
+      const result = await runMigrations(db, releaseFiles);
       assert.equal(result.code, 0, result.logs.join('\n'));
-      assert.deepEqual(result.logs.filter(line => line.startsWith('[migrate] applied:')), [refreshFile, repairFile, aliasFile, deactivationFile, bugiUsageFile].map(file => '[migrate] applied: ' + file));
-      assert.deepEqual((await db.query('SELECT * FROM schema_migrations WHERE filename<>ALL($1) ORDER BY filename', [[repairFile, refreshFile, aliasFile, deactivationFile, bugiUsageFile]])).rows, ledger);
-      assert.deepEqual((await db.query('SELECT to_jsonb(ls) row FROM live_sessions ls ORDER BY id')).rows, history);
+      assert.deepEqual(result.logs.filter(line => line.startsWith('[migrate] applied:')), [refreshFile, repairFile, funnelFile, aliasFile, deactivationFile, bugiUsageFile,publicationFile].map(file => '[migrate] applied: ' + file));
+      assert.deepEqual((await db.query('SELECT * FROM schema_migrations WHERE filename<>ALL($1) ORDER BY filename', [[repairFile, refreshFile, aliasFile, deactivationFile, bugiUsageFile,funnelFile,publicationFile]])).rows, ledger);
+      assert.deepEqual((await db.query("SELECT to_jsonb(ls)-'free_reservation_required' row FROM live_sessions ls ORDER BY id")).rows, history);
+      assert.equal((await db.query('SELECT bool_and(NOT free_reservation_required) unchanged FROM live_sessions')).rows[0].unchanged,true);
       assert.equal((await db.query('SELECT zoom_meeting_id FROM live_sessions WHERE id=$1', [free])).rows[0].zoom_meeting_id, '444555666');
       assert.equal((await db.query('SELECT replay_url FROM live_sessions WHERE id=$1', [session])).rows[0].replay_url, 'private-existing-replay');
-      assert.equal((await db.query("SELECT to_regclass('free_session_reservations') t")).rows[0].t, null, 'held funnel is not auto-promoted');
+      assert.ok((await db.query("SELECT to_regclass('free_session_reservations') t")).rows[0].t,'approved guest reservation schema activates');
       assert.equal((await db.query("SELECT count(*)::int n FROM information_schema.columns WHERE table_name='live_sessions' AND column_name='access_policy'")).rows[0].n, 0, 'held audience migration is not auto-promoted');
     }));
 

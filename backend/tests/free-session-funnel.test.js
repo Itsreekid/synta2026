@@ -52,20 +52,19 @@ test('free funnel on disposable PostgreSQL: guest proof, ownership, occurrences 
     db = new pg.Pool({ ...connection, database: name });
     await db.query(await readFile(new URL('../../database/schema_postgres.sql', import.meta.url), 'utf8'));
     const databaseUrl = `postgresql://${connection.user}:${connection.password}@127.0.0.1:${connection.port}/${name}`;
-    await promisify(execFile)(process.execPath, [fileURLToPath(new URL('../scripts/migrate.js', import.meta.url))], {
-      env: { ...process.env, DATABASE_URL: databaseUrl, DB_SSL: 'false' }, timeout: 30000
-    });
+    // Rehearse upgrading the pre-promotion database before testing the new release.
+    const files=new Map();for(const file of await readdir(new URL('../../database/migrations/',import.meta.url)))if(file.endsWith('.sql')&&!['202611250004_free_session_funnel.sql','202611260005_free_campaign_public_occurrence.sql'].includes(file))files.set(file,await readFile(new URL('../../database/migrations/'+file,import.meta.url),'utf8'));
+    assert.equal((await runMigrations(db,files)).code,0);
     const oldUser=(await db.query("INSERT INTO users(email,name,password_hash,email_verified,balance) VALUES('old-free@example.invalid','Historical','old-hash',true,123.45) RETURNING id")).rows[0].id;
     const oldCampaign=(await db.query('SELECT id FROM free_sessions WHERE is_default')).rows[0].id;
     const oldSession=(await db.query("INSERT INTO live_sessions(free_session_id,title,scheduled_at,status) VALUES($1,'Old session',now()-interval '10 days','completed') RETURNING id",[oldCampaign])).rows[0].id;
     await db.query("INSERT INTO free_session_participants(free_session_id,user_id,source,score,total) VALUES($1,$2,'existing_student',1,2)",[oldCampaign,oldUser]);
     const beforeLegacy=(await db.query('SELECT to_jsonb(p) AS row FROM free_session_participants p WHERE user_id=$1',[oldUser])).rows;
-    const files=new Map();for(const file of await readdir(new URL('../../database/migrations/',import.meta.url)))if(file.endsWith('.sql'))files.set(file,await readFile(new URL('../../database/migrations/'+file,import.meta.url),'utf8'));
     const missingDependency=new Map(files);
-    missingDependency.set('202611260005_free_campaign_public_occurrence.sql',await readFile(new URL('../../database/pending-migrations/202611260005_free_campaign_public_occurrence.sql',import.meta.url),'utf8'));
+    missingDependency.set('202611260005_free_campaign_public_occurrence.sql',await readFile(new URL('../../database/migrations/202611260005_free_campaign_public_occurrence.sql',import.meta.url),'utf8'));
     assert.notEqual((await runMigrations(db,missingDependency)).code,0,'publication migration refuses missing guest/reservation dependency');
     assert.equal((await db.query("SELECT count(*)::int n FROM information_schema.columns WHERE table_schema='public' AND table_name='free_sessions' AND column_name='published_occurrence_id'")).rows[0].n,0);
-    const funnelFile='202611250004_free_session_funnel.sql';files.set(funnelFile,await readFile(new URL('../../database/pending-migrations/'+funnelFile,import.meta.url),'utf8'));
+    const funnelFile='202611250004_free_session_funnel.sql';files.set(funnelFile,await readFile(new URL('../../database/migrations/'+funnelFile,import.meta.url),'utf8'));
     const aliasFile='202611260002_free_session_slug_aliases.sql';files.set(aliasFile,await readFile(new URL('../../database/migrations/'+aliasFile,import.meta.url),'utf8'));
     const applied=await runMigrations(db,files);assert.equal(applied.code,0,applied.logs.join('\n'));
     const repeated=await runMigrations(db,files);assert.equal(repeated.code,0);assert.ok(repeated.logs.some(line=>line==='[migrate] already applied: '+funnelFile));
@@ -450,7 +449,7 @@ test('free funnel on disposable PostgreSQL: guest proof, ownership, occurrences 
     await t.test('published occurrence migration, server-owned reservations and final registration journey',async()=>{
       const publicationFile='202611260005_free_campaign_public_occurrence.sql';
       const beforeHistory=(await db.query('SELECT to_jsonb(r) AS row FROM free_session_reservations r ORDER BY live_session_id,user_id')).rows;
-      files.set(publicationFile,await readFile(new URL('../../database/pending-migrations/'+publicationFile,import.meta.url),'utf8'));
+      files.set(publicationFile,await readFile(new URL('../../database/migrations/'+publicationFile,import.meta.url),'utf8'));
       const runs=await Promise.all([runMigrations(db,files),runMigrations(db,files)]);
       runs.forEach(result=>assert.equal(result.code,0,result.logs.join('\n')));
       assert.equal((await db.query('SELECT count(*)::int n FROM schema_migrations WHERE filename=$1',[publicationFile])).rows[0].n,1);

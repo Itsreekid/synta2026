@@ -41,7 +41,7 @@ test('production readiness: migration compatibility, financial preservation and 
         const db = new pg.Pool({ ...connection, database: name });
         try {
           await db.query(await readFile(new URL('schema_postgres.sql', root), 'utf8'));
-          const before = new Map([...approved].filter(([file]) => ![freeFile, customFile, compatibilityFile, aliasFile].includes(file)));
+          const before = new Map([...approved].filter(([file]) => ![freeFile, customFile, compatibilityFile, aliasFile,'202611250004_free_session_funnel.sql','202611260005_free_campaign_public_occurrence.sql'].includes(file)));
           assert.equal((await runMigrations(db, before)).code, 0);
           const user = (await db.query("INSERT INTO users(email,password_hash,name,balance) VALUES('readiness@example.invalid','synthetic','Readiness',123.45) RETURNING id")).rows[0].id;
           const course = (await db.query("INSERT INTO courses(title) VALUES('Readiness') RETURNING id")).rows[0].id;
@@ -92,7 +92,7 @@ test('production readiness: migration compatibility, financial preservation and 
             assert.equal(compatible.code,0,compatible.logs.join('\n'));
             assert.ok((await db.query("SELECT to_regclass('free_sessions') AS value")).rows[0].value);
             const sessionAfter=(await db.query('SELECT to_jsonb(ls) AS row FROM live_sessions ls WHERE id=$1',[existing])).rows[0].row;
-            assert.deepEqual(sessionAfter,{...sessionBefore,free_session_id:null});
+            assert.deepEqual(sessionAfter,{...sessionBefore,free_session_id:null,free_reservation_required:false});
             assert.equal((await db.query('SELECT count(*)::int AS n FROM live_session_courses WHERE session_id=$1',[existing])).rows[0].n,1);
             assert.deepEqual(await snapshot(),original);
           }
@@ -155,7 +155,7 @@ test('readiness: real campaign API preserves credentials, rejects replayed proof
     await db.query(await readFile(new URL('schema_postgres.sql', root), 'utf8'));
     const files = new Map();
     for (const file of await readdir(new URL('migrations/', root))) {
-      if (file.endsWith('.sql')) files.set(file, await readFile(new URL('migrations/' + file, root), 'utf8'));
+      if (file.endsWith('.sql')&&!['202611250004_free_session_funnel.sql','202611260005_free_campaign_public_occurrence.sql'].includes(file)) files.set(file, await readFile(new URL('migrations/' + file, root), 'utf8'));
     }
     assert.equal((await runMigrations(db, files)).code, 0);
     const campaign = (await db.query('SELECT id FROM free_sessions WHERE is_default')).rows[0].id;

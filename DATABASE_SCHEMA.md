@@ -1,3 +1,7 @@
+### Free-session activation migrations promoted —26 November2026
+
+Owner authorized deployment. 202611250004_free_session_funnel.sql and202611260005_free_campaign_public_occurrence.sql are in database/migrations unchanged. Ordered runner applies guest-attempt/reservation schema before public-occurrence/section-subset columns. Actual production application must be verified after deployment; no automatic publication or historical reservation movement. Earlier pending/local-only notes are superseded.
+
 ### APPROVED LOCAL / HELD — public occurrence and section subsets, 2026-11-26
 
 Exact file: database/pending-migrations/202611260005_free_campaign_public_occurrence.sql. Local/disposable approval received; not promoted or production-applied. Depends on held250004 guest-attempt/reservation schema (explicit fail-closed guard), campaign schema and reviewed compatibility repair. Adds free_sessions.published_occurrence_id UUID NULL, target_branches TEXT[] NULL, unique live_sessions(free_session_id,id), composite FK (campaign id,published occurrence) to that key. CHECK validates one-dimensional nonempty allowed-vocabulary subset, no null entries and no conflicting scalar target_branch. Existing scalar/Toutes behavior retained. NULL publishes nothing; no historical row backfill/reservation movement. Local runner concurrency/repeat/failure tests preserve the supplied20 hashes. Earlier PROPOSED notes below are historical.

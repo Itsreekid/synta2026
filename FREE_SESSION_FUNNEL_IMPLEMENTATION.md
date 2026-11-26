@@ -1,3 +1,5 @@
+> Promotion/deployment approval received26 November2026. The two migrations are now in database/migrations, byte-identical to the reviewed drafts. Earlier HELD/NO-GO notes below are historical. Activation still requires deployment success and explicit admin occurrence publication; see latest CURRENT_STATE.md.
+
 # Free-session funnel — local implementation, 26 November 2026
 
 Production verdict: **NO-GO**. No production SQL, deployment, push or paid activation was performed.
