@@ -353,7 +353,10 @@
         }
 
         async function confirmPayment(id) {
-            if (!confirm("Êtes-vous sûr de vouloir confirmer ce paiement ? Le solde de l'étudiant sera crédité.")) return;
+            // Show exactly what will be credited: the amount is typed by the student and must match the real payment.
+            const payment = currentPayments.find(p => String(p.id) === String(id));
+            const amountLine = payment ? `\n\nMontant à créditer : ${Number(payment.amount).toFixed(2)} DT\nÉtudiant : ${payment.user_name || 'N/A'}` : '';
+            if (!confirm("Confirmer ce paiement ? Le solde de l'étudiant sera crédité." + amountLine + "\n\nVérifiez que ce montant correspond au paiement réellement reçu.")) return;
             
             try {
                 const response = await fetch(`/api/admin/payments/${id}/confirm`, {
