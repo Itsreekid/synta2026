@@ -286,7 +286,9 @@ router.get("/app/offers", ...protect, (req, res) => {
 
 
 router.get("/app/code-pratique", ...protect, (req, res) => {
-  renderPage(res, "pages/code/index", { user: req.user, profile: req.userProfile, bugiMessages: BUGI_MESSAGES });
+  // ?embed=1: editor only, shown inside the lesson page beside the video (same-origin iframe).
+  const embed = req.query.embed === "1";
+  renderPage(res, "pages/code/index", { user: req.user, profile: req.userProfile, bugiMessages: BUGI_MESSAGES, embed });
 });
 
 export default router;

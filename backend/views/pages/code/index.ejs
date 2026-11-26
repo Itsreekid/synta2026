@@ -1161,9 +1161,25 @@
         .cp-code-window .vis-val-string { color: #85e3c0; }
         .cp-code-window .vis-val-bool { color: #d7bdfb; }
         .cp-code-window .vis-val-list { color: var(--cp-cyan); }
+
+        /* Panels hidden by the phone tabs come back wherever those tabs are not shown (701–768px left them all hidden). */
+        @media (min-width:701px) {
+            .mode-panel .cp-panel.mobile-hidden { display:flex !important; }
+        }
+
+        /* ========= Embed mode (?embed=1): only the workspace, inside the lesson page ========= */
+        body.cp-embed { overflow: hidden; background: #f8fafc; }
+        body.cp-embed #app-header-top,
+        body.cp-embed #app-sidebar,
+        body.cp-embed .sidebar-overlay,
+        body.cp-embed .ide-ribbon,
+        body.cp-embed .practice-file-notice { display: none !important; }
+        body.cp-embed .content-wrapper { height: 100dvh !important; min-height: 0 !important; margin: 0 !important; padding: 0 !important; }
+        body.cp-embed .main-section { height: 100% !important; margin: 0 !important; padding: 0 !important; overflow: hidden !important; }
+        body.cp-embed .cp-page { height: 100% !important; min-height: 0 !important; padding: 0 !important; gap: 8px; background: transparent; }
     </style>
 </head>
-<body>
+<body<% if (typeof embed !== 'undefined' && embed) { %> class="cp-embed"<% } %>>
 <div id="global-hydration-overlay"><div class="spinner"></div></div>
 <%- include('../../partials/header') %>
 

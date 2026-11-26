@@ -23,6 +23,44 @@ const COURSE_CATEGORY_LABELS = {
 // The open lesson lives in the URL (?id=<course>&lesson=<lesson>) so a refresh reopens it.
 const LAST_COURSE_KEY = 'synta:last-course';
 
+/*
+ * Practice editor shown beside the lesson ("Code Pratique" tab). It is the Code Pratique page itself in
+ * embed mode, so the editor, console, input() and variables behave exactly as on /app/code-pratique.
+ * To offer another language later (e.g. C++ for university students), change this runtime only:
+ * the page receives it as ?lang= and the tab label follows.
+ */
+const LESSON_CODE_RUNTIME = { lang: 'python', label: 'Code Pratique', fileExtensions: /\.py$/i };
+
+function lessonCodeFrameUrl() {
+    return '/app/code-pratique?' + new URLSearchParams({ embed: '1', lang: LESSON_CODE_RUNTIME.lang });
+}
+
+/** Creates the embedded practice editor the first time the Code Pratique tab opens (keeps lessons light). */
+function ensureLessonCodeFrame(root = document) {
+    const panel = root.querySelector('[data-lesson-code-panel]');
+    if (!panel) return null;
+    let frame = panel.querySelector('iframe.lesson-code-frame');
+    if (!frame) {
+        frame = document.createElement('iframe');
+        frame.className = 'lesson-code-frame';
+        frame.title = LESSON_CODE_RUNTIME.label;
+        frame.src = lessonCodeFrameUrl();
+        panel.appendChild(frame);
+    }
+    return frame;
+}
+
+/** Shows a queued practice file in the embedded editor; returns false when the lesson has no editor tab. */
+function openInLessonCodePanel() {
+    const courseMain = document.querySelector('.course-main');
+    if (!courseMain?.querySelector('[data-lesson-code-panel]') || typeof courseMain.lessonTabSelect !== 'function') return false;
+    courseMain.lessonTabSelect('code');
+    const frame = ensureLessonCodeFrame(courseMain);
+    // Already loaded: hand over the queued file now. Still loading: the editor reads it when it boots.
+    try { frame?.contentWindow?.loadPracticeStarterFile?.(); } catch { /* same-origin; ignore if not ready */ }
+    return true;
+}
+
 /** Course page URL for the current course, with or without the open lesson. */
 function courseDetailsUrl(lessonId = null) {
     const params = new URLSearchParams(window.location.search);
@@ -1070,15 +1108,15 @@ async function showLessonInMainArea(lesson, videoUrl, pdfUrl, practiceFiles = []
         <div class="video-section-wrapper lesson-player-view">
             <header class="lesson-header">
                 <div class="lesson-header-row">
-                    <a href="${escapeQuizHtml(backHref)}" class="lesson-back-link" data-lesson-back>
-                        <i class="fas fa-arrow-left" aria-hidden="true"></i> <span>Retour au cours</span>
+                    <a href="${escapeQuizHtml(backHref)}" class="lesson-back-link lesson-icon-btn" data-lesson-back title="Retour au cours" aria-label="Retour au cours">
+                        <i class="fas fa-arrow-left" aria-hidden="true"></i>
                     </a>
                     <span class="lesson-header-sep" aria-hidden="true">·</span>
                     <span class="course-player-mode lesson-chapter-label"><span dir="auto">${escapeQuizHtml(chapterLabel)}</span></span>
                     <span class="lesson-header-tools">
-                        ${currentLiveSessions.length ? `<button class="course-player-switch" type="button" onclick="switchCoursePlayerTo('live')"><i class="fas fa-video" aria-hidden="true"></i> Replays</button>` : ''}
-                        <button class="course-player-switch lesson-outline-jump" type="button" data-outline-jump><i class="fas fa-list-ul" aria-hidden="true"></i> Chapitres</button>
-                        ${videoUrl ? `<button class="course-player-switch lesson-theater-toggle" type="button" data-theater-toggle aria-pressed="false" title="Mode cinéma : masquer les chapitres pour agrandir la vidéo"><i class="fas fa-expand" aria-hidden="true"></i> <span>Mode cinéma</span></button>` : ''}
+                        ${currentLiveSessions.length ? `<button class="course-player-switch lesson-icon-btn" type="button" onclick="switchCoursePlayerTo('live')" title="Replays" aria-label="Replays"><i class="fas fa-video" aria-hidden="true"></i></button>` : ''}
+                        <button class="course-player-switch lesson-outline-jump lesson-icon-btn" type="button" data-outline-jump title="Chapitres du cours" aria-label="Chapitres du cours"><i class="fas fa-list-ul" aria-hidden="true"></i></button>
+                        ${videoUrl ? `<button class="course-player-switch lesson-theater-toggle lesson-icon-btn" type="button" data-theater-toggle aria-pressed="false" title="Mode cinéma" aria-label="Mode cinéma"><i class="fas fa-expand" aria-hidden="true"></i></button>` : ''}
                     </span>
                 </div>
                 <div class="lesson-title-row">
@@ -1100,18 +1138,20 @@ async function showLessonInMainArea(lesson, videoUrl, pdfUrl, practiceFiles = []
             </div>` : '<div class="course-video-status" data-lesson-media-status role="status"></div>'}
 
             <nav class="lesson-nav" aria-label="Navigation entre les leçons">
-                <button type="button" class="lesson-nav-btn is-prev" data-lesson-nav="prev"
-                    ${position.previous ? `title="${escapeQuizHtml('Leçon précédente : ' + position.previous.title)}"` : 'disabled aria-disabled="true"'}>
-                    <i class="fas fa-chevron-left" aria-hidden="true"></i> <span>Précédent</span>
+                <button type="button" class="lesson-nav-btn lesson-icon-btn is-prev" data-lesson-nav="prev"
+                    title="${escapeQuizHtml(position.previous ? 'Précédent : ' + position.previous.title : 'Précédent')}"
+                    ${position.previous ? '' : 'disabled aria-disabled="true"'}>
+                    <i class="fas fa-chevron-left" aria-hidden="true"></i><span class="lesson-sr-only">Précédent</span>
                 </button>
                 <div class="lesson-actions${hasQuiz ? ' lesson-actions-quiz' : ''}">
-                    <button type="button" class="btn-complete-next${hasQuiz ? ' btn-lesson-quiz' : ''}" onclick="completeLessonAndNext('${escapeQuizHtml(lesson.id)}')">
-                        <i class="fas fa-${hasQuiz ? 'bolt' : 'arrow-right'}" aria-hidden="true"></i> ${hasQuiz ? 'Passer au quiz' : 'Leçon suivante'}
+                    <button type="button" class="btn-complete-next lesson-icon-btn${hasQuiz ? ' btn-lesson-quiz' : ''}" title="${hasQuiz ? 'Passer au quiz' : 'Leçon suivante'}" onclick="completeLessonAndNext('${escapeQuizHtml(lesson.id)}')">
+                        <i class="fas fa-${hasQuiz ? 'bolt' : 'arrow-right'}" aria-hidden="true"></i><span class="lesson-sr-only">${hasQuiz ? 'Passer au quiz' : 'Leçon suivante'}</span>
                     </button>
                 </div>
-                <button type="button" class="lesson-nav-btn is-next" data-lesson-nav="next"
-                    ${position.next ? `title="${escapeQuizHtml('Leçon suivante : ' + position.next.title)}"` : 'disabled aria-disabled="true"'}>
-                    <span>Suivant</span> <i class="fas fa-chevron-right" aria-hidden="true"></i>
+                <button type="button" class="lesson-nav-btn lesson-icon-btn is-next" data-lesson-nav="next"
+                    title="${escapeQuizHtml(position.next ? 'Suivant : ' + position.next.title : 'Suivant')}"
+                    ${position.next ? '' : 'disabled aria-disabled="true"'}>
+                    <span class="lesson-sr-only">Suivant</span><i class="fas fa-chevron-right" aria-hidden="true"></i>
                 </button>
             </nav>
 
@@ -1119,6 +1159,7 @@ async function showLessonInMainArea(lesson, videoUrl, pdfUrl, practiceFiles = []
                 <div class="lesson-tabs" role="tablist" aria-label="Détails de la leçon">
                     <button type="button" class="lesson-tab is-active" role="tab" id="lesson-tab-overview" aria-selected="true" aria-controls="lesson-panel-overview" data-lesson-tab="overview">Aperçu</button>
                     <button type="button" class="lesson-tab" role="tab" id="lesson-tab-resources" aria-selected="false" tabindex="-1" aria-controls="lesson-panel-resources" data-lesson-tab="resources">Ressources (${practiceFiles.length})</button>
+                    <button type="button" class="lesson-tab lesson-tab-code" role="tab" id="lesson-tab-code" aria-selected="false" tabindex="-1" aria-controls="lesson-panel-code" data-lesson-tab="code"><i class="fas fa-code" aria-hidden="true"></i> ${LESSON_CODE_RUNTIME.label}</button>
                 </div>
                 <div class="lesson-tab-panel" role="tabpanel" id="lesson-panel-overview" aria-labelledby="lesson-tab-overview">
                     <p class="lesson-description" dir="auto">${escapeQuizHtml(lesson.description || 'Aucune description pour cette leçon.')}</p>
@@ -1126,6 +1167,7 @@ async function showLessonInMainArea(lesson, videoUrl, pdfUrl, practiceFiles = []
                 <div class="lesson-tab-panel" role="tabpanel" id="lesson-panel-resources" aria-labelledby="lesson-tab-resources" hidden>
                     ${practiceFiles.length ? '' : '<p class="lesson-resources-empty">Aucune ressource pour cette leçon.</p>'}
                 </div>
+                <div class="lesson-tab-panel lesson-code-panel" role="tabpanel" id="lesson-panel-code" aria-labelledby="lesson-tab-code" data-lesson-code-panel hidden></div>
             </section>
         </div>
     `;
@@ -1316,6 +1358,7 @@ function createCourseProgressBlock() {
 /** LessonDetailsTabs: Aperçu / Ressources with arrow-key support. */
 function setupLessonDetailsTabs(root) {
     const tabs = [...root.querySelectorAll('[data-lesson-tab]')];
+    const view = root.querySelector('.lesson-player-view');
     const select = tab => {
         tabs.forEach(item => {
             const active = item === tab;
@@ -1324,6 +1367,26 @@ function setupLessonDetailsTabs(root) {
             item.tabIndex = active ? 0 : -1;
             root.querySelector('#' + item.getAttribute('aria-controls')).hidden = !active;
         });
+        // The practice editor needs room: the layout gives the details card more space while it is open.
+        const coding = tab.dataset.lessonTab === 'code';
+        const wasCoding = Boolean(view?.classList.contains('is-coding'));
+        if (coding) ensureLessonCodeFrame(root);
+        // Desktop: opening Code Pratique switches to cinema mode (chapters hidden) so video and editor share the
+        // width; leaving it restores the previous mode. This automatic switch is not saved as a preference.
+        const theater = root.lessonTheater;
+        if (theater && coding && !wasCoding && matchMedia('(min-width: 1024px)').matches) {
+            root.lessonTheaterBefore = theater.isOn();
+            theater.set(true);
+        } else if (theater && !coding && wasCoding && root.lessonTheaterBefore !== null) {
+            theater.set(root.lessonTheaterBefore);
+            root.lessonTheaterBefore = null;
+        }
+        view?.classList.toggle('is-coding', coding);
+        view?.dispatchEvent(new CustomEvent('lesson-layout-change'));
+    };
+    root.lessonTabSelect = name => {
+        const tab = tabs.find(item => item.dataset.lessonTab === name);
+        if (tab) select(tab);
     };
     tabs.forEach((tab, index) => {
         tab.addEventListener('click', () => select(tab));
@@ -1343,19 +1406,28 @@ const THEATER_KEY = 'synta:course-theater';
 function setupTheaterToggle(root) {
     const button = root.querySelector('[data-theater-toggle]');
     const layout = document.querySelector('.course-layout');
+    root.lessonTheater = null;
+    root.lessonTheaterBefore = null;
     if (!button || !layout) return;
     const apply = on => {
         layout.classList.toggle('is-theater', on);
         button.setAttribute('aria-pressed', String(on));
-        button.querySelector('span').textContent = on ? 'Quitter le mode cinéma' : 'Mode cinéma';
+        // Icon-only button: the name shows on hover (title) and is read by screen readers (aria-label).
+        const label = on ? 'Quitter le mode cinéma' : 'Mode cinéma';
+        button.title = label;
+        button.setAttribute('aria-label', label);
         button.querySelector('i').className = 'fas fa-' + (on ? 'compress' : 'expand');
     };
     let stored = false;
     try { stored = localStorage.getItem(THEATER_KEY) === '1'; } catch { /* storage optional */ }
     apply(stored);
+    // Used by the Code Pratique tab to switch cinema mode on for coding without saving it as a preference.
+    root.lessonTheater = { isOn: () => layout.classList.contains('is-theater'), set: apply };
+    root.lessonTheaterBefore = null;
     button.addEventListener('click', () => {
         const on = !layout.classList.contains('is-theater');
         apply(on);
+        root.lessonTheaterBefore = null; // the student chose: leaving Code Pratique keeps this choice
         try { localStorage.setItem(THEATER_KEY, on ? '1' : '0'); } catch { /* storage optional */ }
     });
 }
@@ -1369,6 +1441,8 @@ function setupTheaterToggle(root) {
 const LESSON_DETAILS_MIN = 140;          // tabs + about three lines of description
 const LESSON_DETAILS_MIN_THEATER = 60;   // cinema mode: only the tab bar stays visible
 const LESSON_SIDE_DETAILS_MIN = 300;     // minimum width of the details card beside the video
+const LESSON_CODE_PANEL_MIN = 420;       // minimum width of the Code Pratique editor beside the video
+const LESSON_CODE_SIDE_MIN_COLUMN = 900; // narrower lesson columns keep the editor below the video
 
 function fitLessonLayout(courseMain) {
     const view = courseMain.querySelector('.lesson-player-view');
@@ -1398,8 +1472,12 @@ function fitLessonLayout(courseMain) {
 
         const stackedH = Math.max(220, avail - fixed - detailsMin - 3 * gap);
         const stackedVideoW = Math.min(colW, stackedH * 16 / 9);
-        const sideW = Math.floor(Math.min(colW - LESSON_SIDE_DETAILS_MIN - gap, (avail - fixed - 2 * gap) * 16 / 9));
-        const side = sideW >= 560 && sideW > stackedVideoW * 1.1;
+        // Code Pratique open: the editor sits beside the video (when the column is wide enough) and gets
+        // about half of it, so the student can watch and code at the same time.
+        const coding = view.classList.contains('is-coding') && colW >= LESSON_CODE_SIDE_MIN_COLUMN;
+        const sideDetailsW = coding ? Math.min(760, Math.max(LESSON_CODE_PANEL_MIN, colW * 0.48)) : LESSON_SIDE_DETAILS_MIN;
+        const sideW = Math.floor(Math.min(colW - sideDetailsW - gap, (avail - fixed - 2 * gap) * 16 / 9));
+        const side = coding || (sideW >= 560 && sideW > stackedVideoW * 1.1);
 
         // The frame stays a true 16:9 box; its size is set through its width only.
         view.classList.toggle('is-side-details', side);
@@ -1413,6 +1491,7 @@ function fitLessonLayout(courseMain) {
         requestAnimationFrame(() => { queued = false; if (view.isConnected) fit(); });
     };
     fit();
+    view.addEventListener('lesson-layout-change', schedule);
     if ('ResizeObserver' in window) {
         const observer = new ResizeObserver(() => {
             if (!view.isConnected) { observer.disconnect(); return; }
@@ -2113,8 +2192,6 @@ function createResourceSection(resources, headingText) {
         downloadIcon.className = 'fas fa-download';
         downloadIcon.setAttribute('aria-hidden', 'true');
         downloadButton.appendChild(downloadIcon);
-        downloadButton.append(resourceActionLabel('Télécharger'));
-        downloadButton.classList.add('has-label');
         downloadButton.addEventListener('click', () => downloadPracticeResource(resource, downloadButton));
         actions.appendChild(downloadButton);
         const fileName = String(resource.file_name || resource.title || '');
@@ -2132,7 +2209,7 @@ function createResourceSection(resources, headingText) {
             preview.appendChild(previewIcon);
             actions.appendChild(preview);
         }
-        if (/\.py$/i.test(fileName)) {
+        if (LESSON_CODE_RUNTIME.fileExtensions.test(fileName)) {
             const openButton = document.createElement('button');
             openButton.type = 'button';
             openButton.className = 'lesson-resource-action lesson-resource-code';
@@ -2142,8 +2219,6 @@ function createResourceSection(resources, headingText) {
             codeIcon.className = 'fas fa-code';
             codeIcon.setAttribute('aria-hidden', 'true');
             openButton.appendChild(codeIcon);
-            openButton.append(resourceActionLabel('Ouvrir dans Code Pratique'));
-            openButton.classList.add('has-label');
             openButton.addEventListener('click', () => openPracticeResource(resource, openButton));
             actions.appendChild(openButton);
         }
@@ -2152,15 +2227,6 @@ function createResourceSection(resources, headingText) {
     });
     section.appendChild(list);
     return section;
-}
-
-/** Visible text next to a resource action icon (the button keeps its full aria-label). */
-function resourceActionLabel(text) {
-    const label = document.createElement('span');
-    label.className = 'lesson-resource-action-label';
-    label.setAttribute('aria-hidden', 'true');
-    label.textContent = text;
-    return label;
 }
 
 async function openPracticeResource(resource, button) {
@@ -2179,6 +2245,12 @@ async function openPracticeResource(resource, button) {
             fileName: resource.file_name || resource.title || 'exercice.py',
             code
         }));
+        // In a lesson the file opens beside the video; elsewhere (replays) it opens the Code Pratique page.
+        if (openInLessonCodePanel()) {
+            button.disabled = false;
+            if (icon) icon.className = 'fas fa-code';
+            return;
+        }
         window.location.assign('/app/code-pratique?source=lesson-file');
     } catch (error) {
         console.error('Unable to open practice file in Code Pratique:', error);

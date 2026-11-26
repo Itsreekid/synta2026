@@ -32,10 +32,13 @@
 <!-- App Shell CSS -->
 <link rel="stylesheet" href="/css/user.css?v=20261125-live" data-turbo-track="reload">
 <link rel="stylesheet" href="/css/popups.css?v=20261125-emphasis" data-turbo-track="reload">
+<% if (typeof embed === 'undefined' || !embed) { %>
+<%# Embedded tools (Code Pratique inside a lesson) must not show live-session popups a second time. %>
 <script defer src="/js/live-session-popup.js?v=20261126-shared"></script>
+<% } %>
 <!-- Per-page CSS (loaded when a css variable is passed from the view) -->
 <% if (typeof css !== 'undefined' && css) { %>
-<link rel="stylesheet" href="/css/<%= css %>.css<%= css === 'calendar' ? '?v=20261125-premium' : css === 'course-details' ? '?v=20261126-stable' : '' %>" data-turbo-track="reload">
+<link rel="stylesheet" href="/css/<%= css %>.css<%= css === 'calendar' ? '?v=20261125-premium' : css === 'course-details' ? '?v=20261126-navgap' : '' %>" data-turbo-track="reload">
 <% } %>
 <!-- Extra head content -->
 <%- (typeof extraHead !== 'undefined' && extraHead) ? extraHead : '' %>

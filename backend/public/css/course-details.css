@@ -1553,6 +1553,8 @@ button.lesson-icon.quiz:focus-visible { outline: 2px solid #6d28d9; outline-offs
 
 /* LessonNavBar */
 .lesson-nav { display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; gap: .6rem; }
+/* Breathing room between the video and Précédent / quiz / Suivant (padding counts in the fitted layout). */
+.lesson-player-view > .lesson-nav { padding-top: .6rem; }
 .lesson-nav .is-prev { justify-self: start; }
 .lesson-nav .is-next { justify-self: end; }
 .lesson-nav-btn {
@@ -1581,7 +1583,27 @@ button.lesson-icon.quiz:focus-visible { outline: 2px solid #6d28d9; outline-offs
 .lesson-tab:focus-visible { outline: 3px solid var(--cd-orange-line); outline-offset: -3px; border-radius: 8px 8px 0 0; }
 .lesson-tab-panel[hidden] { display: none; }
 .lesson-resources-empty { margin: 0; color: var(--cd-muted); font-size: .9rem; }
-.lesson-resource-action.has-label { width: auto; gap: .45rem; padding: 0 .8rem; font-size: .8rem; font-weight: 600; }
+
+/* Icon-only buttons: the name appears on hover/focus (title) and stays readable by screen readers. */
+.lesson-sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
+.lesson-player-view .lesson-icon-btn { justify-content: center; gap: 0; padding: 0; }
+.lesson-player-view .lesson-back-link.lesson-icon-btn,
+.lesson-player-view .lesson-header-tools .lesson-icon-btn { width: 40px; min-width: 40px; height: 40px; min-height: 40px; border-radius: 12px; font-size: .95rem; }
+.lesson-player-view .lesson-nav-btn.lesson-icon-btn { width: 44px; min-width: 44px; height: 44px; border-radius: 50%; font-size: 1rem; }
+.lesson-player-view .lesson-nav .btn-complete-next.lesson-icon-btn {
+    width: 52px; min-width: 52px; height: 52px; min-height: 52px; border-radius: 50%; font-size: 1.15rem;
+}
+.lesson-player-view .lesson-nav .btn-complete-next.lesson-icon-btn i { margin: 0; }
+
+/* Code Pratique beside the lesson (embedded editor). */
+.lesson-tab-code { display: inline-flex; align-items: center; gap: .45rem; }
+.lesson-code-panel { display: flex; min-height: 0; padding: 0 !important; overflow: hidden !important; }
+.lesson-code-panel[hidden] { display: none; }
+.lesson-code-frame { display: block; width: 100%; height: 100%; min-height: 0; flex: 1 1 auto; border: 0; border-radius: 12px; background: #f8fafc; }
+.lesson-player-view.is-coding .lesson-details-card { padding-bottom: .6rem; }
+@media (max-width: 1023px) {
+    .lesson-code-panel { height: min(600px, 80vh); }
+}
 
 /* CourseOutline + CourseProgress */
 .course-sidebar.is-outline { gap: 0; }
@@ -1669,6 +1691,10 @@ button.lesson-icon.quiz:focus-visible { outline: 2px solid #6d28d9; outline-offs
     .lesson-player-view.is-side-details > :not(.lesson-header):not(.lesson-details-card) { grid-column: 1; }
     .lesson-player-view.is-side-details > .lesson-details-card { grid-column: 2; grid-row: 2 / span 2; min-height: 0; box-sizing: border-box; }
     .lesson-player-view.is-side-details .course-player-frame { width: var(--frame-w); }
+    /* Coding beside the video: the editor uses the full height of the column. */
+    .lesson-player-view.is-side-details.is-coding > .lesson-details-card { grid-row: 2 / -1; height: 100%; }
+    /* Narrow lesson column: the editor stays below the video with a usable height (the column scrolls). */
+    .lesson-player-view.is-coding:not(.is-side-details) > .lesson-details-card { flex: none; height: 560px; }
 
     /* LessonHeader on one compact line: back · chapter / title · counter · tools. */
     .lesson-player-view .lesson-header {
@@ -1740,12 +1766,7 @@ button.lesson-icon.quiz:focus-visible { outline: 2px solid #6d28d9; outline-offs
     .lesson-header .lesson-chapter-label { flex: 1 1 100%; }
     .lesson-header-tools { margin-left: 0; }
     .lesson-header .lesson-title-row { flex-wrap: wrap; }
-    .lesson-nav { grid-template-columns: 1fr 1fr; grid-template-areas: "center center" "prev next"; }
-    .lesson-nav .lesson-actions { grid-area: center; width: 100%; }
-    .lesson-nav .lesson-actions .btn-complete-next { width: 100%; }
-    .lesson-nav .is-prev { grid-area: prev; justify-self: stretch; }
-    .lesson-nav .is-next { grid-area: next; justify-self: stretch; }
-    .lesson-tab { flex: 1 1 0; padding: 0 .5rem; }
+    .lesson-tab { flex: 1 1 auto; padding: 0 .4rem; font-size: .8rem; white-space: nowrap; }
     .lesson-resource-item { flex-wrap: wrap; }
     .lesson-resource-item .replay-resource-link { flex: 1 1 100%; }
     .lesson-resource-actions { flex: 1 1 100%; justify-content: flex-end; flex-wrap: wrap; }
