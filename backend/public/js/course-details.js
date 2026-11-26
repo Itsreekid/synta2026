@@ -1042,18 +1042,7 @@ async function showLessonInMainArea(lesson, videoUrl, pdfUrl, practiceFiles = []
     courseMain.querySelector('[data-lesson-nav="next"]')?.addEventListener('click', () => position.next && playLesson(position.next.id));
     setupLessonDetailsTabs(courseMain);
     setupTheaterToggle(courseMain);
-    // Align the top of the outline with the top of the video (below the lesson header).
-    {
-        const header = courseMain.querySelector('.lesson-header');
-        const layout = document.querySelector('.course-layout');
-        if (header && layout && 'ResizeObserver' in window) {
-            const observer = new ResizeObserver(() => {
-                if (!header.isConnected) { observer.disconnect(); layout.style.removeProperty('--lesson-header-h'); return; }
-                layout.style.setProperty('--lesson-header-h', header.offsetHeight + 'px');
-            });
-            observer.observe(header);
-        }
-    }
+    fitLessonLayout(courseMain);
     courseMain.querySelector('[data-outline-jump]')?.addEventListener('click', () => {
         const outline = document.querySelector('.course-sidebar .course-outline');
         outline?.scrollIntoView({ behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth', block: 'start' });
@@ -1182,6 +1171,8 @@ async function showLessonInMainArea(lesson, videoUrl, pdfUrl, practiceFiles = []
     // Smooth scroll directly to the video player
     setTimeout(() => {
         if (courseMain) {
+            // Desktop: the lesson column scrolls on its own, so a new lesson starts at its top.
+            courseMain.scrollTop = 0;
             courseMain.scrollIntoView({ behavior: 'smooth', block: 'start' });
         }
     }, 150);
@@ -1276,6 +1267,75 @@ function setupTheaterToggle(root) {
         apply(on);
         try { localStorage.setItem(THEATER_KEY, on ? '1' : '0'); } catch { /* storage optional */ }
     });
+}
+
+/*
+ * Desktop "fit to screen" layout for the lesson player (front-end only).
+ * The video takes the height left after the header, navigation bar and a compact details card.
+ * On wide screens, when it gives a larger video, the Aperçu/Ressources card moves beside the video.
+ * Recomputed whenever the lesson column, header or nav bar changes size (window resize, cinema mode, menu rail).
+ */
+const LESSON_DETAILS_MIN = 140;          // tabs + about three lines of description
+const LESSON_DETAILS_MIN_THEATER = 60;   // cinema mode: only the tab bar stays visible
+const LESSON_SIDE_DETAILS_MIN = 300;     // minimum width of the details card beside the video
+
+function fitLessonLayout(courseMain) {
+    const view = courseMain.querySelector('.lesson-player-view');
+    const header = view?.querySelector('.lesson-header');
+    const nav = view?.querySelector('.lesson-nav');
+    const layout = document.querySelector('.course-layout');
+    if (!view || !header || !nav || !layout) return;
+    const desktop = matchMedia('(min-width: 1024px)');
+
+    const fit = () => {
+        layout.style.setProperty('--lesson-header-h', header.offsetHeight + 'px');
+        const frame = view.querySelector('.course-player-frame');
+        if (!desktop.matches || !frame) {
+            view.classList.remove('is-side-details');
+            view.style.removeProperty('--frame-max-h');
+            view.style.removeProperty('--frame-w');
+            return;
+        }
+        const mainStyle = getComputedStyle(courseMain);
+        const gap = parseFloat(getComputedStyle(view).rowGap) || 12;
+        const avail = courseMain.clientHeight - parseFloat(mainStyle.paddingTop) - parseFloat(mainStyle.paddingBottom);
+        const status = view.querySelector('.course-video-status');
+        const statusH = status && !status.hidden && status.offsetHeight ? status.offsetHeight + gap : 0;
+        const fixed = header.offsetHeight + nav.offsetHeight + statusH;
+        const colW = view.clientWidth;
+        const detailsMin = layout.classList.contains('is-theater') ? LESSON_DETAILS_MIN_THEATER : LESSON_DETAILS_MIN;
+
+        const stackedH = Math.max(220, avail - fixed - detailsMin - 3 * gap);
+        const stackedVideoW = Math.min(colW, stackedH * 16 / 9);
+        const sideW = Math.floor(Math.min(colW - LESSON_SIDE_DETAILS_MIN - gap, (avail - fixed - 2 * gap) * 16 / 9));
+        const side = sideW >= 560 && sideW > stackedVideoW * 1.1;
+
+        view.classList.toggle('is-side-details', side);
+        if (side) {
+            view.style.setProperty('--frame-w', sideW + 'px');
+            view.style.removeProperty('--frame-max-h');
+        } else {
+            view.style.setProperty('--frame-max-h', Math.floor(stackedH) + 'px');
+            view.style.removeProperty('--frame-w');
+        }
+    };
+
+    let queued = false;
+    const schedule = () => {
+        if (queued) return;
+        queued = true;
+        requestAnimationFrame(() => { queued = false; if (view.isConnected) fit(); });
+    };
+    fit();
+    if ('ResizeObserver' in window) {
+        const observer = new ResizeObserver(() => {
+            if (!view.isConnected) { observer.disconnect(); return; }
+            schedule();
+        });
+        [courseMain, header, nav].forEach(element => observer.observe(element));
+    } else {
+        window.addEventListener('resize', schedule);
+    }
 }
 
 function formatClock(seconds) {

@@ -40,6 +40,10 @@ Executed: complete PostgreSQL+Chrome suite191/191, zero failures/skips (179.7s; 
 
 New260005 and base250004 remain in database/pending-migrations; NO promotion, commit, push, deploy or production SQL. Supplied20 production hashes unchanged; no unrelated migration changes. Earlier free-session/multi-audience conflict is resolved in local matrix tests, not asserted production-repaired. Production remains NO-GO pending separate migration/release authorization and actual environment verification. Local journey ready for controlled hosted validation after authorized test-environment activation. Next TASK-FREE-FUNNEL: owner-reviewed migration promotion/isolated environment and real email/OAuth/Zoom checks. Full report/files: FREE_SESSION_FINAL_FLOW_IMPLEMENTATION.md.
 
+### 2026-11-26 — Course player fits the screen (front-end only)
+
+On desktop the lesson page now fills the screen without page scrolling: the lesson and the chapter outline scroll independently, the outline stays fully visible, the video is sized to the screen height, and on wide screens the Aperçu/Ressources card sits beside the video. Phone and tablet layouts are unchanged.
+
 ### 2026-11-26 — Course player focus layout (front-end only)
 
 - `/app/course-details` lesson view: app menu as a remembered icon rail, one header row (Retour au cours · Chapitre · name), title + « Leçon n / total », Précédent / Passer au quiz / Suivant row, Aperçu / Ressources tabs with labelled actions, sticky outline with course progress, « En cours » state, empty circles, compact ⚡ mini-défi badges, cinema mode, next-lesson overlay, per-lesson « Reprendre à », smaller video shade and the play shortcut hint in the native tooltip. No API/database change. Course/player/security tests 50/50.

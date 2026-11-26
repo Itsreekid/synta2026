@@ -1496,11 +1496,9 @@ button.lesson-icon.quiz:focus-visible { outline: 2px solid #6d28d9; outline-offs
     color: var(--cd-body); font-size: .8rem; font-weight: 700; white-space: nowrap;
 }
 
-/* Video: full width of the column, 16:9, never taller than the screen allows. */
+/* Video: full width of the column, 16:9. On desktop its height is fitted to the screen by
+   fitLessonLayout() (course-details.js); extra width becomes letterbox space inside the player. */
 .lesson-player-view .course-player-frame { margin-inline: auto; }
-@media (min-width: 1024px) {
-    .lesson-player-view .course-player-frame { width: min(100%, calc((100dvh - 250px) * 16 / 9)); }
-}
 
 /* Resume chip and next-lesson overlay (inside the player frame) */
 .lesson-resume-chip {
@@ -1609,22 +1607,104 @@ button.lesson-icon.quiz:focus-visible { outline: 2px solid #6d28d9; outline-offs
 .course-outline button.lesson-icon.quiz .quiz-label { display: none; }
 @media (pointer: coarse) { .course-outline button.lesson-icon.quiz { width: 40px; min-width: 40px; height: 40px; } }
 
-/* Desktop (≥1024px): sticky outline with its own scroll, aligned with the top of the video. */
+/* Desktop (≥1024px): two independent panes filling the screen.
+   The page itself no longer scrolls; the lesson column and the course outline each
+   have their own scrollbar, so the outline stays fully visible while the lesson scrolls. */
 .lesson-outline-jump { display: none; }
 .lesson-theater-toggle { display: none; }
 @media (min-width: 1024px) {
     .lesson-theater-toggle { display: inline-flex; }
-    .course-details-page.is-lesson-player .course-layout { grid-template-columns: minmax(0, 1fr) 320px; gap: 1.25rem; }
-    .course-details-page.is-lesson-player .course-sidebar.is-outline {
-        position: sticky; top: 1rem; margin-top: calc(var(--lesson-header-h, 0px) + .85rem);
-        max-height: calc(100dvh - 70px - 2rem); overflow-y: auto; overscroll-behavior: contain; scrollbar-width: thin;
-        padding-right: .15rem;
+    .course-details-page.is-lesson-player { overflow: hidden; }
+    /* Use the whole screen width; the outline grows with the screen. */
+    .course-details-page.is-lesson-player .course-details-container {
+        display: flex; flex-direction: column; width: 100%; max-width: none; height: 100%; min-height: 0;
+        box-sizing: border-box; padding: 1rem 1.25rem 0;
     }
+    .course-details-page.is-lesson-player .course-layout {
+        flex: 1 1 auto; min-height: 0; align-items: stretch;
+        grid-template-columns: minmax(0, 1fr) clamp(300px, 22vw, 400px); grid-template-rows: minmax(0, 1fr); gap: 1.25rem;
+    }
+
+    /* The lesson column is one screen tall: header, video, nav bar and the details card fill it exactly. */
+    .course-details-page.is-lesson-player .lesson-player-view { height: 100%; gap: .75rem; }
+    .lesson-player-view .course-player-frame { flex: none; max-height: var(--frame-max-h, none); }
+    .lesson-player-view .lesson-details-card {
+        flex: 1 1 auto; min-height: 140px; display: flex; flex-direction: column; gap: .6rem; overflow: hidden;
+        padding-top: .35rem; padding-bottom: .9rem;
+    }
+    .course-layout.is-theater .lesson-player-view .lesson-details-card { min-height: 60px; }
+    .lesson-player-view .lesson-tab-panel {
+        flex: 1 1 auto; min-height: 0; overflow-y: auto; overscroll-behavior: contain;
+        scrollbar-width: thin; scrollbar-color: #cbd5e1 transparent; padding-right: .25rem;
+    }
+
+    /* Wide screens: the details card sits beside the video (decided in fitLessonLayout). */
+    .lesson-player-view.is-side-details {
+        display: grid; grid-template-columns: var(--frame-w) minmax(0, 1fr);
+        grid-template-rows: auto auto auto minmax(0, 1fr); column-gap: 1rem; align-content: start;
+    }
+    .lesson-player-view.is-side-details > .lesson-header { grid-column: 1 / -1; }
+    .lesson-player-view.is-side-details > :not(.lesson-header):not(.lesson-details-card) { grid-column: 1; }
+    .lesson-player-view.is-side-details > .lesson-details-card { grid-column: 2; grid-row: 2 / span 2; min-height: 0; box-sizing: border-box; }
+    .lesson-player-view.is-side-details .course-player-frame { width: var(--frame-w); }
+
+    /* LessonHeader on one compact line: back · chapter / title · counter · tools. */
+    .lesson-player-view .lesson-header {
+        display: grid; grid-template-columns: auto minmax(0, 1fr) auto auto;
+        grid-template-areas: "back chapter counter tools" "back title counter tools";
+        align-items: center; column-gap: .9rem; row-gap: .05rem;
+    }
+    .lesson-player-view .lesson-header-row,
+    .lesson-player-view .lesson-header .lesson-title-row { display: contents; }
+    .lesson-player-view .lesson-back-link { grid-area: back; }
+    .lesson-player-view .lesson-header-sep { display: none; }
+    .lesson-player-view .lesson-header .lesson-chapter-label {
+        grid-area: chapter; align-self: end; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+        color: var(--cd-muted); font-size: .78rem; font-weight: 600;
+    }
+    .lesson-player-view .lesson-header .course-player-title {
+        grid-area: title; align-self: start; min-width: 0; margin: 0; font-size: 1.3rem; line-height: 1.25;
+        display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden;
+    }
+    .lesson-player-view .lesson-counter { grid-area: counter; }
+    .lesson-player-view .lesson-header-tools { grid-area: tools; margin-left: 0; flex-wrap: nowrap; }
+}
+/* Narrower laptops: the title gets its own full-width line under the controls. */
+@media (min-width: 1024px) and (max-width: 1279px) {
+    .lesson-player-view .lesson-header {
+        grid-template-areas: "back chapter counter tools" "title title title title"; row-gap: .45rem;
+    }
+    .lesson-player-view .lesson-header .lesson-chapter-label { align-self: center; }
+    .lesson-player-view .lesson-header .course-player-title { font-size: 1.15rem; }
+}
+@media (min-width: 1024px) {
+    .course-details-page.is-lesson-player .course-main,
+    .course-details-page.is-lesson-player .course-sidebar.is-outline {
+        min-height: 0; overflow-y: auto; overscroll-behavior: contain;
+        scrollbar-width: thin; scrollbar-color: #cbd5e1 transparent;
+    }
+    .course-details-page.is-lesson-player .course-main { padding: 0 .6rem 1rem 0; scrollbar-gutter: stable; }
+    .course-details-page.is-lesson-player .course-sidebar.is-outline {
+        position: relative; top: auto; margin-top: 0; max-height: none; padding: 0 .35rem 1.5rem 0;
+    }
+    /* Title and progress stay pinned at the top of the outline while chapters scroll beneath. */
+    .course-details-page.is-lesson-player .course-outline > .player-chapters-heading,
+    .course-details-page.is-lesson-player .course-outline > .course-outline-progress {
+        position: sticky; z-index: 2;
+    }
+    .course-details-page.is-lesson-player .course-outline > .player-chapters-heading {
+        top: 0; margin: 0; padding: .1rem 0 .5rem; background: var(--cd-bg, #f8fafc);
+    }
+    .course-details-page.is-lesson-player .course-outline > .course-outline-progress {
+        /* The first shadow paints the page background over the gap under the heading. */
+        top: 2.25rem; box-shadow: 0 -14px 0 0 var(--cd-bg), 0 6px 12px -8px rgba(15, 23, 42, .18);
+    }
+    .course-details-page.is-lesson-player .course-main::-webkit-scrollbar,
+    .course-details-page.is-lesson-player .course-sidebar.is-outline::-webkit-scrollbar { width: 8px; }
+    .course-details-page.is-lesson-player .course-main::-webkit-scrollbar-thumb,
+    .course-details-page.is-lesson-player .course-sidebar.is-outline::-webkit-scrollbar-thumb { border-radius: 999px; background: #cbd5e1; }
     .course-details-page.is-lesson-player .course-layout.is-theater { grid-template-columns: minmax(0, 1fr); }
     .course-details-page.is-lesson-player .course-layout.is-theater .course-sidebar { display: none; }
-}
-@media (min-width: 1200px) {
-    .course-details-page.is-lesson-player .course-layout { grid-template-columns: minmax(0, 1fr) 340px; }
 }
 
 /* Below 1024px the outline follows the lesson details; a header button jumps to it. */

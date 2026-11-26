@@ -44,7 +44,14 @@ Executed: complete PostgreSQL+Chrome suite191/191, zero failures/skips (179.7s; 
 
 New260005 and base250004 remain in database/pending-migrations; NO promotion, commit, push, deploy or production SQL. Supplied20 production hashes unchanged; no unrelated migration changes. Earlier free-session/multi-audience conflict is resolved in local matrix tests, not asserted production-repaired. Production remains NO-GO pending separate migration/release authorization and actual environment verification. Local journey ready for controlled hosted validation after authorized test-environment activation. Next TASK-FREE-FUNNEL: owner-reviewed migration promotion/isolated environment and real email/OAuth/Zoom checks. Full report/files: FREE_SESSION_FINAL_FLOW_IMPLEMENTATION.md.
 
-### 2026-11-26 — Course player focus layout (local, uncommitted, front-end only)
+### 2026-11-26 — Course player fit-to-screen layout (local, uncommitted, front-end only)
+
+- Desktop (≥1024px) lesson view no longer scrolls as a page: the lesson column and the « Chapitres du cours » outline are two full-height panes with their own scrollbars (outline title + progress pinned). Container uses the full width; outline width `clamp(300px, 22vw, 400px)`.
+- `fitLessonLayout()` in `public/js/course-details.js` (ResizeObserver on the column, header and nav) sizes the video so header + video + nav + details card fit the screen (`--frame-max-h`, letterboxed when wide). On wide screens, when it gives a ≥10% larger video, the Aperçu/Ressources card moves beside the video (`.is-side-details`, `--frame-w`). Cinema mode keeps only the tab bar visible below the video. The header is one compact line from 1280px; between 1024 and 1279px the title gets its own line.
+- Phones/tablets (<1024px) are unchanged (stacked, normal page scroll). Asset versions: CSS `?v=20261126-fit`, `course-details.js?v=12`.
+- Validation: synthetic local course at 1920×910, 2560×1080, 1536×864, 1366×768, 1280×720, 1024×768 (no column scroll, no horizontal overflow), cinema mode at 1920, 900px and 375px regressions; player/course tests 7/7. Not checked on physical devices or with very long lesson descriptions (those scroll inside the details card).
+
+### 2026-11-26 — Course player focus layout (committed in 088c011, front-end only)
 
 - Files: `public/js/course-details.js`, `public/js/learning-player.js` (?v=3), `public/css/course-details.css` (new block at the end, ?v=20261126-player via `views/partials/head.ejs`), `views/pages/courses/details.ejs`. No route/API/database change; data text is rendered unchanged.
 - Behavior kept on purpose: when a mini-défi follows the lesson, the quiz still opens as soon as the video ends (tested learning checkpoint); the next-lesson overlay (5 s, Continuer/Annuler) appears when no mini-défi follows. Server resume still runs; the device-stored position adds « Reprendre à … » (or « Recommencer au début »). The center button keeps its existing handler/labels (« Passer au quiz » / « Leçon suivante »).
