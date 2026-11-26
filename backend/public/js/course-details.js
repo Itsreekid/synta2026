@@ -173,7 +173,12 @@ async function initCourseDetailsPage() {
     }
 }
 
-/** Focus mode: collapse/expand the app menu to an icon rail on this page (remembered). */
+/** The app menu is open by default; cinema mode collapses it to an icon rail (setCourseRail). */
+function setCourseRail(on) {
+    document.body.classList.toggle('course-rail', on);
+    document.getElementById('course-rail-toggle')?.dispatchEvent(new Event('course-rail-change'));
+}
+
 function setupCourseRail() {
     const button = document.getElementById('course-rail-toggle');
     if (!button || button.dataset.ready) return;
@@ -187,11 +192,8 @@ function setupCourseRail() {
         button.querySelector('.course-rail-toggle-label').textContent = label;
         button.querySelector('i').className = 'fas fa-angles-' + (expanded ? 'left' : 'right');
     };
-    button.addEventListener('click', () => {
-        const expanded = document.body.classList.toggle('course-rail') === false;
-        try { localStorage.setItem('synta:course-menu-expanded', expanded ? '1' : '0'); } catch { /* storage optional */ }
-        sync();
-    });
+    button.addEventListener('click', () => setCourseRail(!document.body.classList.contains('course-rail')));
+    button.addEventListener('course-rail-change', sync);
     sync();
 }
 
@@ -1405,6 +1407,7 @@ function setupTheaterToggle(root) {
     if (!button || !layout) return;
     const apply = on => {
         layout.classList.toggle('is-theater', on);
+        setCourseRail(on); // cinema mode = menu as icon rail; normal mode = menu open
         button.setAttribute('aria-pressed', String(on));
         // Icon-only button: the name shows on hover (title) and is read by screen readers (aria-label).
         const label = on ? 'Quitter le mode cinéma' : 'Mode cinéma';
@@ -1634,6 +1637,7 @@ function enterCoursePlayer(courseMain, courseSidebar, returnTab) {
     // Only the lesson view uses the focused layout; replays keep the standard player layout.
     document.querySelector('.course-details-page')?.classList.remove('is-lesson-player');
     document.querySelector('.course-layout')?.classList.remove('is-theater');
+    setCourseRail(false);
     courseSidebar?.classList.remove('is-outline');
     hideNextLessonOverlay();
     if (!courseOverview) {
@@ -1656,6 +1660,7 @@ function restoreCourseContent() {
     lessonShortcutVideo = null;
     document.querySelector('.course-details-page')?.classList.remove('is-lesson-player');
     document.querySelector('.course-layout')?.classList.remove('is-theater');
+    setCourseRail(false);
     document.querySelector('.course-layout')?.style.removeProperty('--lesson-header-h');
     document.querySelector('.course-sidebar')?.classList.remove('is-outline');
     const courseMain = document.querySelector('.course-main');

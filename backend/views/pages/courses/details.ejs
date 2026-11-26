@@ -8,11 +8,8 @@
 <link rel="stylesheet" href="/css/learning-player.css?v=3">
 <link rel="stylesheet" href="/vendor/videojs/10.6.0/global.css">
 </head>
-<body class="course-rail">
-    <script>
-        // Focus mode: on this page the app menu starts as an icon rail; the choice is remembered.
-        try { if (localStorage.getItem('synta:course-menu-expanded') === '1') document.body.classList.remove('course-rail'); } catch (e) {}
-    </script>
+<body class="">
+    <%# The app menu starts open; course-details.js collapses it to an icon rail only in cinema mode. %>
     <%- include('../../partials/header') %>
 
     <div class="content-wrapper">
@@ -123,6 +120,6 @@
     <script src="/js/learning-player.js?v=4"></script>
     <script src="/js/replay-player.js"></script>
     <script src="/js/course-markdown.js?v=2"></script>
-    <script src="/js/course-details.js?v=19"></script>
+    <script src="/js/course-details.js?v=20"></script>
 </body>
 </html>
