@@ -1,3 +1,7 @@
+### TASK-FREE-FUNNEL — readiness review, 2026-11-26
+
+Alias promotion completed locally with exact approved checksum; supplied production metadata verified. Hosted staging explicitly waived. Final combined regressions and operational runbook: PRODUCTION_RELEASE_READINESS_20261126.md. Deployment still requires final owner approval and verified backup; do not promote held funnel or unrelated migrations.
+
 ### TASK-FREE-FUNNEL — campaign flexibility COMPLETED LOCALLY 2026-11-26
 
 Verified multiple same-class campaigns; completed read-only/authoritative profile targeting, strict open-profile validation, held alias ownership/redirects and rename-safe drafts. Tests: FREE_CAMPAIGN_FLEXIBILITY_IMPLEMENTATION.md. Production NO-GO; next is authorized staging and explicit promotion review, not deployment.

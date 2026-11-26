@@ -3,6 +3,7 @@
 // =====================================================
 
 let currentCourse = null;
+let currentCourseHasAccess = false;
 let currentCourseProgress = { completedIds: [] };
 const lessonCompletionSaves = new Map();
 let currentEnrollment = null;
@@ -194,6 +195,7 @@ async function loadCourseDetails(courseId) {
         }
 
         currentCourse = course;
+        currentCourseHasAccess = Boolean(hasAccess);
 
         let liveSessions = [];
         currentLiveSessions = [];
@@ -933,17 +935,40 @@ async function showLessonInMainArea(lesson, videoUrl, pdfUrl, practiceFiles = []
     const hasQuiz = linkedQuiz?.type === 'quiz';
     const chapterLabel = chapterIndex >= 0 ? `Chapitre ${chapterIndex + 1} · ${currentCourse.modules[chapterIndex].title || ''}` : 'Leçon';
 
+    // Front-end only: position of this lesson in its chapter and its neighbours in course order.
+    const position = lessonPosition(lesson.id);
+    const backHref = window.location.pathname + window.location.search;
+    document.querySelector('.course-details-page')?.classList.add('is-lesson-player');
+
     // Replace main content with the video (when present), lesson resources, and actions.
+    // LessonHeader · video · LessonNavBar · LessonDetailsTabs
     courseMain.innerHTML = `
-        <div class="video-section-wrapper">
-            <div class="course-player-heading"><span class="course-player-mode"><i class="fas fa-play-circle" aria-hidden="true"></i> <span dir="auto">${escapeQuizHtml(chapterLabel)}</span></span>${currentLiveSessions.length ? `<button class="course-player-switch" type="button" onclick="switchCoursePlayerTo('live')"><i class="fas fa-video" aria-hidden="true"></i> Replays</button>` : ''}</div>
+        <div class="video-section-wrapper lesson-player-view">
+            <header class="lesson-header">
+                <div class="lesson-header-row">
+                    <a href="${escapeQuizHtml(backHref)}" class="lesson-back-link" data-lesson-back>
+                        <i class="fas fa-arrow-left" aria-hidden="true"></i> <span>Retour au cours</span>
+                    </a>
+                    <span class="lesson-header-sep" aria-hidden="true">·</span>
+                    <span class="course-player-mode lesson-chapter-label"><span dir="auto">${escapeQuizHtml(chapterLabel)}</span></span>
+                    <span class="lesson-header-tools">
+                        ${currentLiveSessions.length ? `<button class="course-player-switch" type="button" onclick="switchCoursePlayerTo('live')"><i class="fas fa-video" aria-hidden="true"></i> Replays</button>` : ''}
+                        <button class="course-player-switch lesson-outline-jump" type="button" data-outline-jump><i class="fas fa-list-ul" aria-hidden="true"></i> Chapitres</button>
+                        ${videoUrl ? `<button class="course-player-switch lesson-theater-toggle" type="button" data-theater-toggle aria-pressed="false" title="Mode cinéma : masquer les chapitres pour agrandir la vidéo"><i class="fas fa-expand" aria-hidden="true"></i> <span>Mode cinéma</span></button>` : ''}
+                    </span>
+                </div>
+                <div class="lesson-title-row">
+                    <h2 class="course-player-title" dir="auto">${escapeQuizHtml(lesson.title)}</h2>
+                    ${position.total ? `<span class="lesson-counter">Leçon ${position.number} / ${position.total}</span>` : ''}
+                </div>
+            </header>
             ${videoUrl ? `<div class="video-container course-player-frame">
-                <video 
+                <video
                     id="current-lesson-video"
                     data-lesson-id="${lesson.id}"
                     data-resume-position="${Number(lesson.last_position) || 0}"
                     data-last-saved-position="${Number(lesson.last_position) || 0}"
-                    controls 
+                    controls
                     controlsList="nodownload"
                     class="course-lesson-player"
                 >
@@ -951,19 +976,45 @@ async function showLessonInMainArea(lesson, videoUrl, pdfUrl, practiceFiles = []
                 </video>
             </div>` : '<div class="course-video-status" data-lesson-media-status role="status"></div>'}
 
-            <div class="lesson-details-content">
-                <div class="lesson-title-row">
-                    <h2 class="course-player-title" dir="auto">${escapeQuizHtml(lesson.title)}</h2>
-                    <div class="lesson-actions${hasQuiz ? ' lesson-actions-quiz' : ''}">
-                        <button type="button" class="btn-complete-next${hasQuiz ? ' btn-lesson-quiz' : ''}" onclick="completeLessonAndNext('${escapeQuizHtml(lesson.id)}')">
-                            <i class="fas fa-${hasQuiz ? 'bolt' : 'arrow-right'}" aria-hidden="true"></i> ${hasQuiz ? 'Passer au quiz' : 'Leçon suivante'}
-                        </button>
-                    </div>
+            <nav class="lesson-nav" aria-label="Navigation entre les leçons">
+                <button type="button" class="lesson-nav-btn is-prev" data-lesson-nav="prev"
+                    ${position.previous ? `title="${escapeQuizHtml('Leçon précédente : ' + position.previous.title)}"` : 'disabled aria-disabled="true"'}>
+                    <i class="fas fa-chevron-left" aria-hidden="true"></i> <span>Précédent</span>
+                </button>
+                <div class="lesson-actions${hasQuiz ? ' lesson-actions-quiz' : ''}">
+                    <button type="button" class="btn-complete-next${hasQuiz ? ' btn-lesson-quiz' : ''}" onclick="completeLessonAndNext('${escapeQuizHtml(lesson.id)}')">
+                        <i class="fas fa-${hasQuiz ? 'bolt' : 'arrow-right'}" aria-hidden="true"></i> ${hasQuiz ? 'Passer au quiz' : 'Leçon suivante'}
+                    </button>
                 </div>
-                <p class="lesson-description" dir="auto">${escapeQuizHtml(lesson.description || 'Aucune description pour cette leçon.')}</p>
-            </div>
+                <button type="button" class="lesson-nav-btn is-next" data-lesson-nav="next"
+                    ${position.next ? `title="${escapeQuizHtml('Leçon suivante : ' + position.next.title)}"` : 'disabled aria-disabled="true"'}>
+                    <span>Suivant</span> <i class="fas fa-chevron-right" aria-hidden="true"></i>
+                </button>
+            </nav>
+
+            <section class="lesson-details-content lesson-details-card" aria-label="Détails de la leçon">
+                <div class="lesson-tabs" role="tablist" aria-label="Détails de la leçon">
+                    <button type="button" class="lesson-tab is-active" role="tab" id="lesson-tab-overview" aria-selected="true" aria-controls="lesson-panel-overview" data-lesson-tab="overview">Aperçu</button>
+                    <button type="button" class="lesson-tab" role="tab" id="lesson-tab-resources" aria-selected="false" tabindex="-1" aria-controls="lesson-panel-resources" data-lesson-tab="resources">Ressources (${practiceFiles.length})</button>
+                </div>
+                <div class="lesson-tab-panel" role="tabpanel" id="lesson-panel-overview" aria-labelledby="lesson-tab-overview">
+                    <p class="lesson-description" dir="auto">${escapeQuizHtml(lesson.description || 'Aucune description pour cette leçon.')}</p>
+                </div>
+                <div class="lesson-tab-panel" role="tabpanel" id="lesson-panel-resources" aria-labelledby="lesson-tab-resources" hidden>
+                    ${practiceFiles.length ? '' : '<p class="lesson-resources-empty">Aucune ressource pour cette leçon.</p>'}
+                </div>
+            </section>
         </div>
     `;
+    courseMain.querySelector('[data-lesson-nav="prev"]')?.addEventListener('click', () => position.previous && playLesson(position.previous.id));
+    courseMain.querySelector('[data-lesson-nav="next"]')?.addEventListener('click', () => position.next && playLesson(position.next.id));
+    setupLessonDetailsTabs(courseMain);
+    setupTheaterToggle(courseMain);
+    courseMain.querySelector('[data-outline-jump]')?.addEventListener('click', () => {
+        const outline = document.querySelector('.course-sidebar .course-outline');
+        outline?.scrollIntoView({ behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth', block: 'start' });
+        outline?.focus({ preventScroll: true });
+    });
     const mediaStatus = courseMain.querySelector('[data-lesson-media-status]');
     if (mediaStatus) {
         mediaStatus.textContent = videoUnavailable ? 'La vidéo est temporairement indisponible.' :
@@ -982,19 +1033,28 @@ async function showLessonInMainArea(lesson, videoUrl, pdfUrl, practiceFiles = []
     }
 
     if (practiceFiles.length) {
-        const details = courseMain.querySelector('.lesson-details-content');
-        details?.appendChild(createResourceSection(practiceFiles, 'Ressources de la leçon'));
+        courseMain.querySelector('#lesson-panel-resources')?.appendChild(createResourceSection(practiceFiles, 'Ressources de la leçon'));
     }
 
-    // Replace sidebar with modules section
+    // Replace sidebar with the course outline: CourseProgress + chapters (CourseOutline)
     if (modulesContainer && courseSidebar) {
         const modulesClone = modulesContainer.cloneNode(true);
         modulesClone.removeAttribute('id');
         modulesClone.style.cssText = '';
+        const outline = document.createElement('div');
+        outline.className = 'course-outline';
+        outline.tabIndex = -1;
         const heading = document.createElement('h2');
         heading.className = 'player-chapters-heading';
         heading.innerHTML = '<i class="fas fa-list-ul" aria-hidden="true"></i> Chapitres du cours';
-        courseSidebar.replaceChildren(heading, modulesClone);
+        outline.append(heading, createCourseProgressBlock(), modulesClone);
+        courseSidebar.classList.add('is-outline');
+        courseSidebar.replaceChildren(outline);
+
+        // Compact mini-défi badges in the outline; the full name stays in the accessible label.
+        modulesClone.querySelectorAll('button.lesson-icon.quiz').forEach(button => {
+            button.title = button.disabled ? 'Mini-défi verrouillé' : 'Mini-défi';
+        });
 
         // Highlight the current lesson and open its chapter
         const current = [...modulesClone.querySelectorAll('.lesson-item')].find(item => item.dataset.lessonId === String(lesson.id));
@@ -1005,10 +1065,21 @@ async function showLessonInMainArea(lesson, videoUrl, pdfUrl, practiceFiles = []
             });
             current.classList.add('is-current');
             current.setAttribute('aria-current', 'true');
+            const nowLabel = document.createElement('span');
+            nowLabel.className = 'lesson-now-badge';
+            nowLabel.innerHTML = '<i class="fas fa-play" aria-hidden="true"></i> En cours';
+            current.querySelector('.lesson-details')?.prepend(nowLabel);
             const card = current.closest('.module-card');
             card?.classList.add('open');
             card?.querySelector('.module-header')?.setAttribute('aria-expanded', 'true');
+            // Keep the current lesson visible inside the outline's own scroll area.
+            requestAnimationFrame(() => {
+                if (courseSidebar.scrollHeight <= courseSidebar.clientHeight + 1) return;
+                const offset = current.getBoundingClientRect().top - courseSidebar.getBoundingClientRect().top;
+                courseSidebar.scrollTop += offset - courseSidebar.clientHeight / 3;
+            });
         }
+        refreshSavedLessonProgress();
     }
 
     // Disable right-click on video
@@ -1044,13 +1115,18 @@ async function showLessonInMainArea(lesson, videoUrl, pdfUrl, practiceFiles = []
                 if (!video.isConnected || checkpointOpened) return;
                 checkpointOpened = true;
                 saveWatchedLesson(true);
-                if (hasQuiz) {
-                    if (document.fullscreenElement?.contains(video)) await document.exitFullscreen().catch(()=>{});
-                    if (video.isConnected) void playLesson(linkedQuiz.id);
-                }
+                if (document.fullscreenElement && (hasQuiz || position.next)) await document.exitFullscreen().catch(()=>{});
+                if (!video.isConnected) return;
+                // A mini-défi right after the lesson still opens immediately (learning checkpoint);
+                // otherwise propose the next lesson with a cancellable countdown.
+                if (hasQuiz) void playLesson(linkedQuiz.id);
+                else if (position.next) showNextLessonOverlay(video, position.next);
             });
+            video.addEventListener('play', () => { checkpointOpened = false; hideNextLessonOverlay(); });
+            rememberLessonPosition(video, lesson.id);
             prepareCourseVideo(video, videoUrl, () => playLesson(lesson.id));
             window.enhanceLearningPlayer?.(video, { autoplay });
+            enableLessonShortcuts(video);
         }
     }
 
@@ -1067,10 +1143,239 @@ async function showLessonInMainArea(lesson, videoUrl, pdfUrl, practiceFiles = []
     }, 150);
 }
 
+// =====================================================
+// Lesson player layout helpers (front-end only; computed from data already on the page)
+// =====================================================
+
+/** Video lessons in course order (quizzes excluded), with the student's access. */
+function orderedVideoLessons() {
+    return (currentCourse?.modules || []).flatMap((module, chapterIndex) =>
+        (module.lessons || []).filter(item => item.type !== 'quiz').map(item => ({ ...item, chapterIndex })));
+}
+
+/** "Leçon n / total" inside the chapter, plus the previous/next accessible lessons across chapters. */
+function lessonPosition(lessonId) {
+    const lessons = orderedVideoLessons();
+    const index = lessons.findIndex(item => item.id === lessonId);
+    if (index === -1) return { number: 0, total: 0, previous: null, next: null };
+    const chapter = lessons.filter(item => item.chapterIndex === lessons[index].chapterIndex);
+    const open = item => currentCourseHasAccess || item.is_preview;
+    return {
+        number: chapter.findIndex(item => item.id === lessonId) + 1,
+        total: chapter.length,
+        previous: lessons.slice(0, index).reverse().find(open) || null,
+        next: lessons.slice(index + 1).find(open) || null,
+    };
+}
+
+/** Completed / total video lessons and percentage, from the progress already loaded. */
+function courseProgressSummary() {
+    const completed = new Set(currentCourseProgress.completedIds);
+    const lessons = orderedVideoLessons();
+    const count = lessons.filter(item => completed.has(item.id)).length;
+    return { count, total: lessons.length, percent: lessons.length ? Math.round(100 * count / lessons.length) : 0 };
+}
+
+/** CourseProgress block shown at the top of the outline. */
+function createCourseProgressBlock() {
+    const block = document.createElement('div');
+    block.className = 'course-outline-progress';
+    block.innerHTML = `
+        <div class="course-outline-progress-head"><span>Progression du cours</span><strong data-outline-percent></strong></div>
+        <div class="course-outline-track" role="progressbar" aria-label="Progression du cours" aria-valuemin="0" aria-valuemax="100"><span data-outline-bar></span></div>
+        <p class="course-outline-count" data-outline-count></p>`;
+    return block;
+}
+
+/** LessonDetailsTabs: Aperçu / Ressources with arrow-key support. */
+function setupLessonDetailsTabs(root) {
+    const tabs = [...root.querySelectorAll('[data-lesson-tab]')];
+    const select = tab => {
+        tabs.forEach(item => {
+            const active = item === tab;
+            item.classList.toggle('is-active', active);
+            item.setAttribute('aria-selected', String(active));
+            item.tabIndex = active ? 0 : -1;
+            root.querySelector('#' + item.getAttribute('aria-controls')).hidden = !active;
+        });
+    };
+    tabs.forEach((tab, index) => {
+        tab.addEventListener('click', () => select(tab));
+        tab.addEventListener('keydown', event => {
+            const next = { ArrowLeft: index - 1, ArrowRight: index + 1, Home: 0, End: tabs.length - 1 }[event.key];
+            if (next === undefined) return;
+            event.preventDefault();
+            const target = tabs[(next + tabs.length) % tabs.length];
+            select(target);
+            target.focus();
+        });
+    });
+}
+
+const THEATER_KEY = 'synta:course-theater';
+/** Theater / wide mode: hides the outline so the video uses the full width. Remembered per device. */
+function setupTheaterToggle(root) {
+    const button = root.querySelector('[data-theater-toggle]');
+    const layout = document.querySelector('.course-layout');
+    if (!button || !layout) return;
+    const apply = on => {
+        layout.classList.toggle('is-theater', on);
+        button.setAttribute('aria-pressed', String(on));
+        button.querySelector('span').textContent = on ? 'Quitter le mode cinéma' : 'Mode cinéma';
+        button.querySelector('i').className = 'fas fa-' + (on ? 'compress' : 'expand');
+    };
+    let stored = false;
+    try { stored = localStorage.getItem(THEATER_KEY) === '1'; } catch { /* storage optional */ }
+    apply(stored);
+    button.addEventListener('click', () => {
+        const on = !layout.classList.contains('is-theater');
+        apply(on);
+        try { localStorage.setItem(THEATER_KEY, on ? '1' : '0'); } catch { /* storage optional */ }
+    });
+}
+
+function formatClock(seconds) {
+    const total = Math.max(0, Math.floor(seconds));
+    const hours = Math.floor(total / 3600), minutes = Math.floor(total / 60) % 60, secs = total % 60;
+    return (hours ? hours + ':' + String(minutes).padStart(2, '0') : String(minutes)) + ':' + String(secs).padStart(2, '0');
+}
+
+/**
+ * Remembers the playback position of each lesson on this device and offers to resume.
+ * The existing server-side resume still runs first; this adds "Reprendre à …" when the
+ * device knows a later position, or "Recommencer" when the server resumed mid-lesson.
+ */
+function rememberLessonPosition(video, lessonId) {
+    const owner = window.__SYNTA_PROFILE__?.id || 'anonymous';
+    const key = 'synta:lesson-position:' + owner + ':' + lessonId;
+    const read = () => { try { return Number(localStorage.getItem(key)) || 0; } catch { return 0; } };
+    const write = value => { try { value > 0 ? localStorage.setItem(key, String(Math.floor(value))) : localStorage.removeItem(key); } catch { /* storage optional */ } };
+    let lastWrite = 0;
+    video.addEventListener('timeupdate', () => {
+        if (Math.abs(video.currentTime - lastWrite) < 5) return;
+        lastWrite = video.currentTime;
+        write(video.currentTime);
+    });
+    video.addEventListener('pause', () => { if (!video.ended) write(video.currentTime); });
+    video.addEventListener('ended', () => write(0));
+    video.addEventListener('loadedmetadata', () => {
+        const duration = video.duration, server = Number(video.dataset.resumePosition) || 0, local = read();
+        if (!Number.isFinite(duration) || duration <= 0) return;
+        if (local > server + 5 && local < duration - 3) {
+            showResumeChip(video, `Reprendre à ${formatClock(local)}`, () => { video.currentTime = local; void video.play().catch(() => {}); });
+        } else if (server > 5 && server < duration - 3) {
+            showResumeChip(video, 'Recommencer au début', () => { video.currentTime = 0; }, `Reprise à ${formatClock(server)}`);
+        }
+    }, { once: true });
+}
+
+function showResumeChip(video, label, action, note = '') {
+    const frame = video.closest('.course-player-frame');
+    if (!frame) return;
+    frame.querySelector('.lesson-resume-chip')?.remove();
+    const chip = document.createElement('div');
+    chip.className = 'lesson-resume-chip';
+    chip.setAttribute('role', 'status');
+    if (note) {
+        const text = document.createElement('span');
+        text.textContent = note;
+        chip.append(text);
+    }
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.innerHTML = '<i class="fas fa-history" aria-hidden="true"></i> ';
+    button.append(label);
+    button.addEventListener('click', () => { action(); chip.remove(); });
+    const close = document.createElement('button');
+    close.type = 'button';
+    close.className = 'lesson-resume-close';
+    close.setAttribute('aria-label', 'Masquer');
+    close.innerHTML = '<i class="fas fa-times" aria-hidden="true"></i>';
+    close.addEventListener('click', () => chip.remove());
+    chip.append(button, close);
+    frame.append(chip);
+    setTimeout(() => chip.remove(), 10000);
+}
+
+/** NextLessonOverlay: non-blocking card with a 5 s countdown, Continuer and Annuler. */
+let nextLessonTimer = null;
+function hideNextLessonOverlay() {
+    clearInterval(nextLessonTimer);
+    nextLessonTimer = null;
+    document.querySelector('.next-lesson-overlay')?.remove();
+}
+
+function showNextLessonOverlay(video, next) {
+    hideNextLessonOverlay();
+    const frame = video.closest('.course-player-frame');
+    if (!frame) return;
+    const card = document.createElement('div');
+    card.className = 'next-lesson-overlay';
+    card.setAttribute('role', 'region');
+    card.setAttribute('aria-label', 'Leçon suivante');
+    card.innerHTML = `
+        <p class="next-lesson-eyebrow">Leçon suivante</p>
+        <p class="next-lesson-title" dir="auto"></p>
+        <p class="next-lesson-countdown" aria-live="polite"></p>
+        <div class="next-lesson-actions">
+            <button type="button" class="next-lesson-continue"><i class="fas fa-play" aria-hidden="true"></i> Continuer</button>
+            <button type="button" class="next-lesson-cancel">Annuler</button>
+        </div>`;
+    card.querySelector('.next-lesson-title').textContent = next.title;
+    const countdown = card.querySelector('.next-lesson-countdown');
+    let seconds = 5;
+    const render = () => { countdown.textContent = `Lecture dans ${seconds} s`; };
+    const go = () => { hideNextLessonOverlay(); void playLesson(next.id); };
+    card.querySelector('.next-lesson-continue').addEventListener('click', go);
+    card.querySelector('.next-lesson-cancel').addEventListener('click', hideNextLessonOverlay);
+    render();
+    frame.append(card);
+    card.querySelector('.next-lesson-continue').focus({ preventScroll: true });
+    nextLessonTimer = setInterval(() => {
+        if (!card.isConnected) return hideNextLessonOverlay();
+        seconds -= 1;
+        if (seconds <= 0) go(); else render();
+    }, 1000);
+}
+
+/**
+ * Page-level shortcuts while a lesson video is open and focus is not in a field, button
+ * or the player (the player handles its own keys): K / Espace, ← → 5 s, F, M.
+ */
+let lessonShortcutVideo = null;
+function enableLessonShortcuts(video) {
+    lessonShortcutVideo = video;
+    if (window.__syntaLessonShortcuts) return;
+    window.__syntaLessonShortcuts = true;
+    document.addEventListener('keydown', event => {
+        const media = lessonShortcutVideo;
+        if (!media?.isConnected || event.defaultPrevented || event.ctrlKey || event.metaKey || event.altKey) return;
+        const target = event.target;
+        if (target.closest?.('input, textarea, select, button, a, [contenteditable="true"], [role="tab"], .learning-player, .quiz-modal, dialog')) return;
+        const key = event.key.length === 1 ? event.key.toLowerCase() : event.key;
+        const player = media.closest('.learning-player');
+        if (key === 'k' || key === ' ') media.paused ? void media.play().catch(() => {}) : media.pause();
+        else if (key === 'ArrowLeft') media.currentTime = Math.max(0, media.currentTime - 5);
+        else if (key === 'ArrowRight') media.currentTime = Math.min(media.duration || Infinity, media.currentTime + 5);
+        else if (key === 'm') media.muted = !media.muted;
+        else if (key === 'f') {
+            const surface = player?.querySelector('.synta-video-skin') || media;
+            if (document.fullscreenElement) void document.exitFullscreen().catch(() => {});
+            else void surface.requestFullscreen?.().catch(() => {});
+        } else return;
+        event.preventDefault();
+    });
+}
+
 /**
  * Restore course content
  */
 function enterCoursePlayer(courseMain, courseSidebar, returnTab) {
+    // Only the lesson view uses the focused layout; replays keep the standard player layout.
+    document.querySelector('.course-details-page')?.classList.remove('is-lesson-player');
+    document.querySelector('.course-layout')?.classList.remove('is-theater');
+    courseSidebar?.classList.remove('is-outline');
+    hideNextLessonOverlay();
     if (!courseOverview) {
         courseOverview = { main: [...courseMain.childNodes], sidebar: [...courseSidebar.childNodes] };
     }

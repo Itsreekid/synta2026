@@ -47,13 +47,14 @@ async function initializeCalendar() {
 
         // Fetch events from the server
         try {
-            const res = await fetch('/api/live/upcoming', { credentials: 'include' });
-            if (res.ok) {
-                const apiEvents = await res.json();
-                window.upcomingEvents = apiEvents.map(calendarEventFromSession);
-            } else {
-                window.upcomingEvents = [];
+            // Reuse the live-session reminder's request; fetch directly only if it has no fresh data.
+            let apiEvents = null;
+            try { apiEvents = await window.syntaLiveReminders?.upcoming(); } catch { apiEvents = null; }
+            if (!apiEvents) {
+                const res = await fetch('/api/live/upcoming', { credentials: 'include' });
+                apiEvents = res.ok ? await res.json() : [];
             }
+            window.upcomingEvents = (Array.isArray(apiEvents) ? apiEvents : []).map(calendarEventFromSession);
         } catch (e) {
             console.error('Failed to load events', e);
             window.upcomingEvents = [];

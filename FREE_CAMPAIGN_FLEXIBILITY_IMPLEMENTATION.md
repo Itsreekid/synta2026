@@ -1,3 +1,5 @@
+> Readiness update, 2026-11-26: hosted staging was explicitly waived. Alias migration is locally promoted unchanged. Earlier staging/HELD status below is historical; see PRODUCTION_RELEASE_READINESS_20261126.md and latest CURRENT_STATE.md for current tests and release gates. Production execution still requires explicit approval.
+
 # Independent free campaigns — implementation and validation, 26 November 2026
 
 **Local implementation complete. Production remains NO-GO. No push, deployment or production database operation.**

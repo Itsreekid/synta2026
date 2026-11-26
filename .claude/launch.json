@@ -1,0 +1,22 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "synta-local-preview",
+      "runtimeExecutable": "C:\\Users\\abidi\\.cache\\codex-runtimes\\codex-primary-runtime\\dependencies\\node\\bin\\node.exe",
+      "runtimeArgs": [
+        "C:\\Users\\abidi\\AppData\\Local\\Temp\\claude\\2152a8558a6baff6\\473d5ebf-09ad-4d17-bf6d-a9ee17ddc0f5\\scratchpad\\run-preview.mjs",
+        "D:\\Work\\Synta\\Website\\synta academy new\\backend"
+      ],
+      "port": 3100
+    },
+    {
+      "name": "synta-qa-media",
+      "runtimeExecutable": "C:\\Users\\abidi\\.cache\\codex-runtimes\\codex-primary-runtime\\dependencies\\node\\bin\\node.exe",
+      "runtimeArgs": [
+        "C:\\Users\\abidi\\AppData\\Local\\Temp\\claude\\2152a8558a6baff6\\473d5ebf-09ad-4d17-bf6d-a9ee17ddc0f5\\scratchpad\\qa-media.mjs"
+      ],
+      "port": 3101
+    }
+  ]
+}

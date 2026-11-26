@@ -322,11 +322,22 @@ function loadReplays() {
     }, () => { list.innerHTML = '<div class="dash-empty">Impossible de charger les replays.</div>'; });
 }
 
+// The live-session reminder already loads /api/live/upcoming on every page: reuse its data
+// and fall back to a direct request only when it is unavailable.
+async function fetchUpcomingSessions(callback, errorCallback) {
+    if (window.syntaLiveReminders?.upcoming) {
+        try {
+            return callback(await window.syntaLiveReminders.upcoming());
+        } catch { /* fall through to a direct request */ }
+    }
+    return fetchDashboardData('/api/live/upcoming', callback, errorCallback);
+}
+
 function loadEvents() {
     const eventsList = document.getElementById('events-list');
     if (!eventsList) return;
 
-    fetchDashboardData('/api/live/upcoming', (events) => {
+    fetchUpcomingSessions((events) => {
         if (!Array.isArray(events) || events.length === 0) {
             eventsList.innerHTML = '<div class="dash-empty">Aucun événement à venir</div>';
             return;

@@ -817,3 +817,7 @@ Exact draft: database/pending-migrations/202611250004_free_session_funnel.sql. A
 ### Approved for release — campaign slug aliases (2026-11-26)
 
 `database/migrations/202611260002_free_session_slug_aliases.sql` (owner confirmed for the release on 2026-11-26; applied by the next deployment): `free_session_slug_aliases(slug TEXT PK, free_session_id UUID FK free_sessions ON DELETE RESTRICT, created_at TIMESTAMPTZ)`. Reserves canonical and historical links in one namespace, backfills existing slugs, and enforces atomic ownership and immutable aliases with triggers. No new user, payment or enrollment fields. Applied only in disposable PostgreSQL so far. See FREE_CAMPAIGN_FLEXIBILITY_IMPLEMENTATION.md.
+
+### Production alias metadata verification — 2026-11-26
+
+Owner-supplied metadata confirms UUID free_sessions key and unique non-null text slug. Alias SQL is promoted unchanged; no reservation-table dependency. Production legacy free_session_registrations (id/user_id UUID, academic_level/assigned_group TEXT, quiz_score INT4, quiz_details JSONB, registered_at TIMESTAMPTZ) is separate from session_registrations and preserved verbatim. target_branch remains scalar TEXT with its existing CHECK: one section or NULL/Toutes; arrays/comma lists are rejected. See final readiness runbook for exact combined migration inventory.

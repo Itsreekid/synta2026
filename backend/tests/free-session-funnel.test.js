@@ -22,6 +22,21 @@ test('campaign return paths remain restricted to local known URLs', () => {
   for (const value of ['//evil.test', '/session/../admin', '/session/admin', '/session/login', '/session/register', '/session/api', '/session/admin/questions', '/session/slug#evil', '/session/%2fadmin']) assert.equal(safeReturnPath(value), null);
 });
 
+test('aborted visual transitions are handled on outgoing and incoming navigation', async () => {
+  const listeners = {};
+  vm.runInNewContext(await readFile(new URL('../public/js/auth-transitions.js', import.meta.url), 'utf8'), {
+    window: { addEventListener: (name, handler) => { listeners[name] = handler; } },
+    location: { origin: 'https://synthetic.test' }, URL
+  });
+  for (const name of ['pageswap', 'pagereveal']) {
+    let handled = 0, skipped = 0;
+    listeners[name]({ viewTransition: { ready: { catch: () => { handled++; } }, skipTransition: () => { skipped++; } },
+      activation: { entry: { url: 'https://synthetic.test/session/3eme-info' } } });
+    assert.ok(handled > 0);
+    assert.equal(skipped, name === 'pageswap' ? 1 : 0);
+  }
+});
+
 test('free funnel on disposable PostgreSQL: guest proof, ownership, occurrences and public UI', {
   skip: !process.env.BUGI_QA_POSTGRES_PORT, timeout: 120000
 }, async t => {
@@ -370,6 +385,7 @@ test('free funnel on disposable PostgreSQL: guest proof, ownership, occurrences 
       await withTimedOfferBrowser(process.env.TIMED_QA_CHROME, origin, async ({ open, evaluate, until, errors, screenshot,pressKey,command }) => {
         await open('/session/' + campaign.slug, '', 390);
         await until(() => evaluate("document.querySelector('#challenge-start').textContent==='Commencer le défi gratuit'"), 'campaign ready');
+        assert.equal(await evaluate("performance.getEntriesByType('resource').some(r=>new URL(r.name).pathname==='/api/session/status')"),false,'new guest does not probe protected placement status');
         await evaluate("document.querySelector('#challenge-start').click()");
         await until(() => evaluate("document.querySelectorAll('.option-card').length===2"), 'question cards');
         await evaluate("document.querySelector('.option-card input').click();document.querySelector('#btn-next').click()");

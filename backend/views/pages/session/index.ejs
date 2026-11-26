@@ -189,9 +189,9 @@
 <button class="button primary" id="btn-confirm-password">Créer mon compte et réserver</button>
 </form>
 </dialog>
-<script>window.__SESSION__=<%- JSON.stringify(campaign ? {slug:campaign.slug,member:Boolean(viewer&&viewer.isStudent),preview:Boolean(viewer&&!viewer.isStudent)}:null).replace(/</g,'\\u003c') %>;</script>
+<script>window.__SESSION__=<%- JSON.stringify(campaign ? {slug:campaign.slug,member:Boolean(viewer&&viewer.isStudent),preview:Boolean(viewer&&!viewer.isStudent),hasPlacement:Boolean(locals.hasPlacement)}:null).replace(/</g,'\\u003c') %>;</script>
 <% if(campaign) { %>
-<script src="/js/session.js?v=5" defer>
+<script src="/js/session.js?v=6" defer>
 </script>
 <% } %>
 </body>

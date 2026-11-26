@@ -494,7 +494,7 @@ document.addEventListener('DOMContentLoaded',()=>{
             ;
             const params=new URLSearchParams(location.hash.slice(1)),proof=params.get('placement');
             if(proof)history.replaceState(null,'',location.pathname+location.search);
-            if(proof||!config.member){
+            if(proof||(!config.member&&config.hasPlacement)){
                 try{
                     const data=await request(proof?'/verify':'/status',proof?{
                         token:proof

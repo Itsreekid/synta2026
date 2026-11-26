@@ -1,3 +1,7 @@
+### Readiness clarification — 2026-11-26
+
+Alias migration is promoted, not held. Existing runner/ESM/vanilla architecture retained. Public campaign bootstrap sends only placement-cookie presence to avoid an anonymous protected-status probe; capability validation remains server-side. Player navigation stores the existing API-derived access result in client state; backend authorization remains authoritative. No new runtime variable. See final release runbook.
+
 ### Campaign slug resolution and targeted onboarding — 2026-11-26, local only
 
 services/free-campaigns.js centralizes canonical/alias resolution. Held alias table provides a unique immutable namespace and transaction-safe slug reservation. Page redirects are temporary/no-store; API lookup returns the same campaign ID. Normal and campaign Google onboarding reuse services/learner-onboarding.js. JWT-protected /api/session/member/profile also verifies the existing HttpOnly guest capability without widening its /api/session cookie path. Draft keys use campaign UUIDs. Existing auth/Zoom/quiz/paid authorization architecture retained; no new runtime variable. See FREE_CAMPAIGN_FLEXIBILITY_IMPLEMENTATION.md.

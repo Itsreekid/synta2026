@@ -1,3 +1,5 @@
+> Readiness update, 2026-11-26: hosted staging was explicitly waived. Alias migration is locally promoted unchanged. Earlier staging/HELD status below is historical; see PRODUCTION_RELEASE_READINESS_20261126.md and latest CURRENT_STATE.md for current tests and release gates. Production execution still requires explicit approval.
+
 # Session migration compatibility — 26 November 2026
 
 Local correction validated. **Production remains NO-GO pending schema verification, intermittent-test classification, authorized staging rehearsal and explicit deployment approval.** Nothing was pushed, deployed or executed against production. The funnel migration remains held.

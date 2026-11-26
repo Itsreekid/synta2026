@@ -57,6 +57,10 @@ function addToCalendar(title,start,end){
 }
 let sessions=[],request=null,wake=null,releaseLock=null,activeKey=null,validUntil=0;
 let profileId=window.__SYNTA_PROFILE__?.id||null;
+// lastOkAt: when /api/live/upcoming last succeeded. anonymous: this page was checked and nobody is
+// signed in (signing in always loads a new page, so the answer holds for this page's lifetime).
+let lastOkAt=0,anonymous=false;
+const FRESH_MS=15000;
 const tabId=crypto.randomUUID(),memorySeen=new Set();
 const phase=event=>clock()>=Date.parse(event.scheduled_at)?'live':'upcoming';
 const key=event=>'synta-live:'+profileId+':'+event.id+':'+event.scheduled_at+':'+phase(event);
@@ -107,10 +111,16 @@ async function refresh(){
  const hydrated=window.__SYNTA_PROFILE__?.id;if(hydrated&&hydrated!==profileId){closeAutomatic();release();sessions=[];profileId=hydrated;}
  request=(async()=>{
  try{
- if(!profileId){const response=await fetch('/api/user/me',{credentials:'include',cache:'no-store'});if(!response.ok)return;const data=await response.json();if(data.user?.role!=='user')return;profileId=data.user.id;}
+ if(!profileId){
+  if(anonymous)return;
+  // Anonymous-safe check: answers 200 {authenticated:false} instead of an expected 401.
+  const response=await fetch('/api/user/session',{credentials:'include',cache:'no-store'});if(!response.ok)return;
+  const data=await response.json();if(!data.authenticated){anonymous=true;return;}if(data.user?.role!=='user')return;profileId=data.user.id;
+ }
  const response=await fetch('/api/live/upcoming',{credentials:'include',cache:'no-store'});
  if(!response.ok){sessions=[];closeAutomatic();return;}
  sessions=await response.json();if(!Array.isArray(sessions)){sessions=[];return;}
+ lastOkAt=Date.now();
  const serverTime=Date.parse(sessions[0]?.server_now||response.headers.get('Date'));if(Number.isFinite(serverTime))clockOffset=serverTime-Date.now();
  validUntil=Date.now()+45000;
  document.dispatchEvent(new CustomEvent('synta:live-sessions',{detail:sessions}));
@@ -131,11 +141,25 @@ function joinZoomSession(link){
 const closePrevious=window.closeModal;
 window.closeModal=function(){closePrevious();release();activeKey=null;document.dispatchEvent(new Event('synta:popup-available'));setTimeout(()=>present(),100);};
 window.showEventDetails=showEventDetails;window.addToCalendar=addToCalendar;
-window.syntaLiveReminders={refresh,hasPriority:()=>automatic||candidates().length>0,close:closeAutomatic};
-const start=()=>refresh();
+/**
+ * Upcoming sessions for page scripts (dashboard, calendar), shared with the reminder's own
+ * request so a page never fetches /api/live/upcoming twice. Rejects when no fresh data could
+ * be loaded (e.g. hidden tab), so callers can fall back to their own request.
+ */
+async function upcoming(){
+ if(request)await request;
+ if(Date.now()-lastOkAt>FRESH_MS)await refresh();
+ if(Date.now()-lastOkAt>FRESH_MS)throw new Error('Upcoming sessions unavailable');
+ return sessions.slice();
+}
+window.syntaLiveReminders={refresh,upcoming,hasPriority:()=>automatic||candidates().length>0,close:closeAutomatic};
+// Lifecycle signals may fire together (script run, DOMContentLoaded, pageshow, focus): reuse
+// data that is still fresh instead of sending the same request again. Timers call refresh directly.
+const start=()=>{if(Date.now()-lastOkAt>FRESH_MS)refresh();};
 document.addEventListener('DOMContentLoaded',start);document.addEventListener('turbo:load',start);
 window.addEventListener('pagehide',()=>{clearTimeout(wake);closeAutomatic();release();});
-window.addEventListener('pageshow',start);window.addEventListener('online',start);window.addEventListener('focus',start);
+window.addEventListener('pageshow',event=>{if(event.persisted){anonymous=false;lastOkAt=0;}start();});
+window.addEventListener('online',start);window.addEventListener('focus',start);
 document.addEventListener('focusout',()=>setTimeout(()=>present(),100));
 document.addEventListener('close',()=>setTimeout(()=>present(),100),true);
 document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='hidden'){clearTimeout(wake);closeAutomatic();release();}else refresh();});

@@ -120,6 +120,7 @@ async function renderCampaignPage(req, res, next, slug) {
         dateRaw: nextOccurrence?.scheduled_at ? new Date(nextOccurrence.scheduled_at).toISOString() : "",
       },
       viewer: viewer ? { name: viewer.name || "", isStudent: viewer.role !== "admin" } : null,
+      hasPlacement: Boolean(req.cookies?.synta_placement),
     });
   } catch (err) {
     return next(err);

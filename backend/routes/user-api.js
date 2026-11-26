@@ -6,7 +6,7 @@ import { randomUUID } from "node:crypto";
 import { liveSessionAccess } from "../utils/offerAccess.js";
 import { normalizeTunisianPhone, validateLearnerProfile } from "../utils/learnerProfile.js";
 import pool from "../config/db.js";
-import { authApiMiddleware } from "../middleware/requireAuth.js";
+import { accountAllowed, authApiMiddleware, verifyToken } from "../middleware/requireAuth.js";
 import { createOfferQuote } from "../services/timed-offers.js";
 import { decodeReceiptDataUrl } from "../utils/courseImages.js";
 import { saveLearnerProfile } from '../services/learner-onboarding.js';
@@ -103,6 +103,25 @@ router.post("/api/user/notifications/:id/read", authApiMiddleware, async (req, r
     console.error("Error marking notification read:", error);
     res.status(500).json({ error: "Internal server error" });
   }
+});
+
+/**
+ * GET /api/user/session — PUBLIC, never 401.
+ * Lets pages that can be visited anonymously (homepage) ask "is someone signed in?"
+ * without an expected 401 on every visit. Reveals only the caller's own id and role;
+ * every protected route still enforces authentication on its own.
+ */
+router.get("/api/user/session", async (req, res) => {
+  res.set("Cache-Control", "private, no-store");
+  const payload = verifyToken(req.cookies?.synta_access);
+  if (!payload) return res.json({ authenticated: false });
+  try {
+    if (!(await accountAllowed(payload.id))) return res.json({ authenticated: false });
+  } catch (error) {
+    console.error("[user/session] Account check failed:", error.code || error.name);
+    return res.status(503).json({ error: "Service momentanément indisponible." });
+  }
+  return res.json({ authenticated: true, user: { id: payload.id, role: payload.role || "user" } });
 });
 
 /**
