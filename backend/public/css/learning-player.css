@@ -2,6 +2,8 @@
 .learning-player{position:relative;width:100%;height:100%;background:#071b2b;color:#fff;overflow:hidden;border-radius:inherit;min-width:0}
 .learning-player video{display:block;width:100%;height:100%;object-fit:contain;background:#071b2b}
 .learning-player video-player{display:contents}
+/* Nothing shows before the Video.js custom elements upgrade (no flash of an unstyled player). */
+video-player:not(:defined),video-skin:not(:defined),media-i18n:not(:defined){visibility:hidden}
 .synta-video-skin{display:block;width:100%;height:100%;min-width:0;--media-accent-color:#f97316;--media-accent-text-color:#fff;--media-border-color:#2dd4bf26;--media-border-radius:14px;--media-font-family:Tajawal,system-ui,sans-serif;--media-object-fit:contain;--media-scale-unit:1rem;color-scheme:dark}
 .course-player-frame>.learning-player,.calendar-replay-frame>.learning-player{position:absolute;inset:0;height:100%}
 .learning-player .synta-video-skin:fullscreen{width:100vw;height:100dvh;--media-border-radius:0}

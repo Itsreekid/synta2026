@@ -40,6 +40,10 @@ Executed: complete PostgreSQL+Chrome suite191/191, zero failures/skips (179.7s; 
 
 New260005 and base250004 remain in database/pending-migrations; NO promotion, commit, push, deploy or production SQL. Supplied20 production hashes unchanged; no unrelated migration changes. Earlier free-session/multi-audience conflict is resolved in local matrix tests, not asserted production-repaired. Production remains NO-GO pending separate migration/release authorization and actual environment verification. Local journey ready for controlled hosted validation after authorized test-environment activation. Next TASK-FREE-FUNNEL: owner-reviewed migration promotion/isolated environment and real email/OAuth/Zoom checks. Full report/files: FREE_SESSION_FINAL_FLOW_IMPLEMENTATION.md.
 
+### 2026-11-26 — Refresh keeps the lesson; player no longer jumps while loading
+
+The open lesson is now in the URL (`?id=…&lesson=…`), so refreshing reopens the same course and lesson at the saved position; a missing course id falls back to the last course opened on the device, and the legacy `/course-details.html` redirect keeps its query string. The video frame is a fixed 16:9 box, the loading message is an overlay inside it, and the browser's native controls no longer flash before the player skin appears.
+
 ### 2026-11-26 — Course player fits the screen (front-end only)
 
 On desktop the lesson page now fills the screen without page scrolling: the lesson and the chapter outline scroll independently, the outline stays fully visible, the video is sized to the screen height, and on wide screens the Aperçu/Ressources card sits beside the video. Phone and tablet layouts are unchanged.

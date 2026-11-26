@@ -1496,9 +1496,29 @@ button.lesson-icon.quiz:focus-visible { outline: 2px solid #6d28d9; outline-offs
     color: var(--cd-body); font-size: .8rem; font-weight: 700; white-space: nowrap;
 }
 
-/* Video: full width of the column, 16:9. On desktop its height is fitted to the screen by
-   fitLessonLayout() (course-details.js); extra width becomes letterbox space inside the player. */
-.lesson-player-view .course-player-frame { margin-inline: auto; }
+/* Video: always a true 16:9 box whose size never changes while the video loads.
+   On desktop fitLessonLayout() (course-details.js) sets --frame-w so header + video + nav + details fit the screen. */
+.lesson-player-view .course-player-frame { margin-inline: auto; aspect-ratio: 16 / 9; max-height: none; }
+.lesson-player-view .course-player-frame > .learning-player,
+.lesson-player-view .course-player-frame video-player,
+.lesson-player-view .course-player-frame video-skin,
+.lesson-player-view .course-player-frame video.course-lesson-player { position: absolute; inset: 0; width: 100%; height: 100%; }
+.lesson-player-view .course-player-frame video.course-lesson-player { object-fit: contain; }
+
+/* Loading / error status as an overlay inside the frame (never in page flow). */
+.course-video-status.is-overlay {
+    position: absolute; inset: 0; z-index: 25; display: flex; flex-direction: column; align-items: center; justify-content: center;
+    gap: .75rem; margin: 0; padding: 1rem; border: 0; border-radius: inherit; background: rgba(7, 27, 43, .55);
+    color: #fff; font-size: .9rem; font-weight: 600; text-align: center; pointer-events: none;
+}
+.course-video-status.is-overlay::before {
+    content: ""; width: 36px; height: 36px; border: 3px solid rgba(255, 255, 255, .3); border-top-color: var(--cd-orange);
+    border-radius: 50%; animation: course-video-spin .8s linear infinite;
+}
+.course-video-status.is-overlay.is-failed { background: #071b2b; pointer-events: auto; }
+.course-video-status.is-overlay.is-failed::before { display: none; }
+.course-video-status.is-overlay[hidden] { display: none; }
+@keyframes course-video-spin { to { transform: rotate(360deg); } }
 
 /* Resume chip and next-lesson overlay (inside the player frame) */
 .lesson-resume-chip {
@@ -1627,7 +1647,9 @@ button.lesson-icon.quiz:focus-visible { outline: 2px solid #6d28d9; outline-offs
 
     /* The lesson column is one screen tall: header, video, nav bar and the details card fill it exactly. */
     .course-details-page.is-lesson-player .lesson-player-view { height: 100%; gap: .75rem; }
-    .lesson-player-view .course-player-frame { flex: none; max-height: var(--frame-max-h, none); }
+    .lesson-player-view .course-player-frame { flex: none; width: var(--frame-w, min(100%, calc((100dvh - 330px) * 16 / 9))); }
+    /* Précédent / Suivant line up with the edges of the video. */
+    .lesson-player-view:not(.is-side-details) > .lesson-nav { width: var(--frame-w, 100%); max-width: 100%; margin-inline: auto; box-sizing: border-box; }
     .lesson-player-view .lesson-details-card {
         flex: 1 1 auto; min-height: 140px; display: flex; flex-direction: column; gap: .6rem; overflow: hidden;
         padding-top: .35rem; padding-bottom: .9rem;
@@ -1733,4 +1755,5 @@ button.lesson-icon.quiz:focus-visible { outline: 2px solid #6d28d9; outline-offs
 
 @media (prefers-reduced-motion: reduce) {
     .sidebar, .main-section, .course-rail-toggle, .course-outline-track span, body.course-rail .nav-text { transition: none; }
+    .course-video-status.is-overlay::before { animation-duration: 2.4s; }
 }

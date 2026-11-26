@@ -47,7 +47,11 @@ router.get("/dashboard.html",       (req, res) => res.redirect(301, "/dashboard"
 router.get("/login.html",           (req, res) => res.redirect(301, "/login"));
 router.get("/register.html",        (req, res) => res.redirect(301, "/register"));
 router.get("/courses.html",         (req, res) => res.redirect(301, "/app/courses"));
-router.get("/course-details.html",  (req, res) => res.redirect(301, "/app/course-details"));
+// Keep ?id= (and ?lesson=) so legacy links still open the right course.
+router.get("/course-details.html",  (req, res) => {
+  const query = req.originalUrl.indexOf("?");
+  res.redirect(301, "/app/course-details" + (query === -1 ? "" : req.originalUrl.slice(query)));
+});
 router.get("/profile.html",         (req, res) => res.redirect(301, "/app/profile"));
 router.get("/paiement.html",        (req, res) => res.redirect(301, "/app/paiement"));
 router.get("/offers.html",          (req, res) => res.redirect(301, "/app/offers"));

@@ -5,7 +5,10 @@
     const load = () => library ||= import(BASE+'locales/fr.js').then(()=>Promise.all([import(BASE+'video.js'),import(BASE+'orientation-support.js')]));
     window.enhanceLearningPlayer = function (video, { autoplay = false, storageKey = '' } = {}) {
         if (!(video instanceof HTMLVideoElement) || video.dataset.learningPlayer) return;
-        video.dataset.learningPlayer='loading';video.playsInline=true;video.controls=true;
+        // No native controls while the Video.js skin loads (avoids a flash of the browser's controls);
+        // they come back only if the skin fails or takes unusually long.
+        video.dataset.learningPlayer='loading';video.playsInline=true;video.controls=false;video.removeAttribute('controls');
+        const slowSkin=setTimeout(()=>{if(video.dataset.learningPlayer==='loading')video.controls=true;},8000);
         const wrapper=document.createElement('div');wrapper.className='learning-player';video.before(wrapper);wrapper.append(video);
         const owner=window.__SYNTA_PROFILE__?.id || 'anonymous';
         const key=storageKey ? 'synta:video:'+owner+':'+storageKey : '';
@@ -35,7 +38,7 @@
             },{once:true});
             wrapper.append(locale);locale.append(player);player.append(skin);
             if(typeof skin.moveBefore==='function')skin.moveBefore(video,null);else skin.append(video);
-            video.controls=false;video.dataset.learningPlayer='ready';
+            clearTimeout(slowSkin);video.controls=false;video.dataset.learningPlayer='ready';
             // The library attaches its native adapter asynchronously after custom-element connection.
             // Restore after that first attachment as well as after a reparent-triggered metadata load.
             requestAnimationFrame(()=>{
@@ -77,7 +80,7 @@
             const observer=new MutationObserver(()=>{if(!wrapper.isConnected){save();controller.abort();lock.unlock();observer.disconnect();}});
             observer.observe(document.body,{childList:true,subtree:true});
             if(video.readyState>=1&&autoplay)void play();
-        }).catch(()=>{video.controls=true;video.dataset.learningPlayer='fallback';if(video.readyState>=1&&autoplay)void play();});
+        }).catch(()=>{clearTimeout(slowSkin);video.controls=true;video.dataset.learningPlayer='fallback';if(video.readyState>=1&&autoplay)void play();});
         return wrapper;
     };
 })();

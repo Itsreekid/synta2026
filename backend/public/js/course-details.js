@@ -20,18 +20,92 @@ const COURSE_CATEGORY_LABELS = {
     'general': 'Général'
 };
 
+// The open lesson lives in the URL (?id=<course>&lesson=<lesson>) so a refresh reopens it.
+const LAST_COURSE_KEY = 'synta:last-course';
+
+/** Course page URL for the current course, with or without the open lesson. */
+function courseDetailsUrl(lessonId = null) {
+    const params = new URLSearchParams(window.location.search);
+    if (currentCourse?.id) params.set('id', currentCourse.id);
+    if (lessonId) params.set('lesson', lessonId);
+    else params.delete('lesson');
+    return window.location.pathname + '?' + params.toString();
+}
+
+/** Writes the open lesson into the current history entry, keeping Turbo's state. */
+function syncLessonUrl(lessonId = null) {
+    const url = courseDetailsUrl(lessonId);
+    const state = { ...(history.state || {}) };
+    if (lessonId) state.lessonId = lessonId;
+    else delete state.lessonId;
+    if (url === window.location.pathname + window.location.search && state.lessonId === history.state?.lessonId) return;
+    history.replaceState(state, '', url);
+}
+
+function rememberLastCourse(courseId) {
+    try { localStorage.setItem(LAST_COURSE_KEY, courseId); } catch { /* storage optional */ }
+}
+
 window.addEventListener('popstate', event => {
     if (courseOverview && !event.state?.coursePlayer) {
         switchCoursePlayerTo(playerReturnTab, false);
+    } else if (!courseOverview && event.state?.coursePlayer && currentCourse) {
+        // Forward into a lesson entry: reopen it (paused, so the resume prompt can show).
+        if (event.state.lessonId && findCourseLesson(event.state.lessonId)) playLesson(event.state.lessonId, { autoplay: false });
+        else syncLessonUrl(null);
     }
 });
 
+/** Lesson (or mini-défi) of the current course, or null. */
+function findCourseLesson(lessonId) {
+    for (const module of currentCourse?.modules || []) {
+        const lesson = (module.lessons || []).find(item => String(item.id) === String(lessonId));
+        if (lesson) return lesson;
+    }
+    return null;
+}
+
+/** Opens the lesson named in ?lesson= when it exists and is open to this student; otherwise shows the chapters. */
+async function openLessonFromUrl(lessonId) {
+    const lesson = findCourseLesson(lessonId);
+    const row = document.querySelector(`.lesson-item[data-lesson-id="${CSS.escape(String(lessonId))}"]`);
+    const locked = !lesson || !row || row.classList.contains('locked');
+    if (locked) {
+        syncLessonUrl(null);
+        return;
+    }
+    // Refresh or back/forward: this entry already is the lesson, so mark it and add no history entry.
+    // New link (shared or typed): this entry becomes the chapter list and the lesson gets its own entry, so Back returns to the list.
+    const navigationType = performance.getEntriesByType?.('navigation')?.[0]?.type;
+    if (navigationType === 'reload' || navigationType === 'back_forward') {
+        history.replaceState({ ...(history.state || {}), coursePlayer: true, lessonId: lesson.id }, '', window.location.href);
+    } else if (!history.state?.coursePlayer) {
+        syncLessonUrl(null);
+    }
+    await playLesson(lesson.id, { autoplay: false });
+    if (!courseOverview) {
+        // The lesson could not open (access, network): stay on the chapters with a clean entry.
+        const { coursePlayer, lessonId: _lesson, ...state } = history.state || {};
+        history.replaceState(state, '', courseDetailsUrl(null));
+    }
+}
+
 async function initCourseDetailsPage() {
     const urlParams = new URLSearchParams(window.location.search);
-    const courseId = urlParams.get('id');
+    let courseId = urlParams.get('id');
     // Simple check to ensure we are actually on the course details page
     if (!document.querySelector('.course-details-page-marker') && !window.location.pathname.includes('course-details')) {
         return;
+    }
+
+    if (!courseId) {
+        // Fallback: reopen the last course this student opened on this device.
+        try { courseId = localStorage.getItem(LAST_COURSE_KEY); } catch { courseId = null; }
+        if (courseId) {
+            urlParams.set('id', courseId);
+            urlParams.delete('lesson');
+            history.replaceState(history.state, '', window.location.pathname + '?' + urlParams.toString());
+        }
     }
 
     if (!courseId) {
@@ -46,6 +120,11 @@ async function initCourseDetailsPage() {
     window.matchMedia(COURSE_WIDE_LAYOUT).addEventListener('change', positionCourseHero);
     positionCourseHero();
     await loadCourseDetails(courseId);
+    if (!currentCourse) return;
+    rememberLastCourse(currentCourse.id);
+    const lessonId = urlParams.get('lesson');
+    if (lessonId && !urlParams.get('replay')) await openLessonFromUrl(lessonId);
+    else if (lessonId) syncLessonUrl(null);
     const replayId = urlParams.get('replay');
     if (replayId) {
         urlParams.delete('replay');
@@ -182,6 +261,7 @@ function switchCoursePlayerTo(panelName, leaveHistory = true) {
     restoreCourseContent();
     setCourseContentTab(panelName);
     if (leaveHistory && history.state?.coursePlayer) history.back();
+    else syncLessonUrl(null);
     document.getElementById(panelName === 'live' ? 'live-tab' : 'chapters-tab')?.focus({ preventScroll: true });
     document.querySelector('.course-content-tabs')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
@@ -545,6 +625,7 @@ function openReplayPlayer(replayUrl, title, resources = [], sessionId = '', { pa
     const courseSidebar = document.querySelector('.course-sidebar');
     if (!courseMain || !courseSidebar) return;
     enterCoursePlayer(courseMain, courseSidebar, 'live');
+    syncLessonUrl(null);
 
     const wrapper = document.createElement('div');
     wrapper.className = 'video-section-wrapper course-replay-view';
@@ -930,9 +1011,17 @@ function prepareCourseVideo(video, source, retry, recover = () => false) {
         try { await retry(); } finally { button.disabled = false; }
     });
     status.append(message, button);
-    video.parentElement.before(status);
+    // Inside the 16:9 frame the status is an overlay, so loading never moves the player or the buttons below it.
+    const frame = video.closest('.course-player-frame');
+    if (frame) {
+        status.classList.add('is-overlay');
+        frame.append(status);
+    } else {
+        video.parentElement.before(status);
+    }
     const showFailure = () => {
         status.hidden = false;
+        status.classList.add('is-failed');
         message.textContent = 'La vidéo ne se charge pas. Vérifiez votre connexion puis réessayez.';
         button.hidden = false;
     };
@@ -942,11 +1031,13 @@ function prepareCourseVideo(video, source, retry, recover = () => false) {
     video.addEventListener('loadeddata', () => {
         clearTimeout(timeout);
         status.hidden = true;
+        status.classList.remove('is-failed');
     });
     video.addEventListener('error', () => {
         clearTimeout(timeout);
         if (recover()) return;
-        video.parentElement.hidden = true;
+        // The overlay is opaque on failure; hiding the player would collapse the frame.
+        if (!frame) video.parentElement.hidden = true;
         showFailure();
     });
     video.src = source;
@@ -969,7 +1060,8 @@ async function showLessonInMainArea(lesson, videoUrl, pdfUrl, practiceFiles = []
 
     // Front-end only: position of this lesson in its chapter and its neighbours in course order.
     const position = lessonPosition(lesson.id);
-    const backHref = window.location.pathname + window.location.search;
+    if (lesson.id) syncLessonUrl(lesson.id);
+    const backHref = courseDetailsUrl(null);
     document.querySelector('.course-details-page')?.classList.add('is-lesson-player');
 
     // Replace main content with the video (when present), lesson resources, and actions.
@@ -1000,7 +1092,6 @@ async function showLessonInMainArea(lesson, videoUrl, pdfUrl, practiceFiles = []
                     data-lesson-id="${lesson.id}"
                     data-resume-position="${Number(lesson.last_position) || 0}"
                     data-last-saved-position="${Number(lesson.last_position) || 0}"
-                    controls
                     controlsList="nodownload"
                     class="course-lesson-player"
                 >
@@ -1292,14 +1383,14 @@ function fitLessonLayout(courseMain) {
         const frame = view.querySelector('.course-player-frame');
         if (!desktop.matches || !frame) {
             view.classList.remove('is-side-details');
-            view.style.removeProperty('--frame-max-h');
             view.style.removeProperty('--frame-w');
             return;
         }
         const mainStyle = getComputedStyle(courseMain);
         const gap = parseFloat(getComputedStyle(view).rowGap) || 12;
         const avail = courseMain.clientHeight - parseFloat(mainStyle.paddingTop) - parseFloat(mainStyle.paddingBottom);
-        const status = view.querySelector('.course-video-status');
+        // Only a status shown outside the player frame takes room in the column.
+        const status = view.querySelector(':scope > .course-video-status');
         const statusH = status && !status.hidden && status.offsetHeight ? status.offsetHeight + gap : 0;
         const fixed = header.offsetHeight + nav.offsetHeight + statusH;
         const colW = view.clientWidth;
@@ -1310,14 +1401,9 @@ function fitLessonLayout(courseMain) {
         const sideW = Math.floor(Math.min(colW - LESSON_SIDE_DETAILS_MIN - gap, (avail - fixed - 2 * gap) * 16 / 9));
         const side = sideW >= 560 && sideW > stackedVideoW * 1.1;
 
+        // The frame stays a true 16:9 box; its size is set through its width only.
         view.classList.toggle('is-side-details', side);
-        if (side) {
-            view.style.setProperty('--frame-w', sideW + 'px');
-            view.style.removeProperty('--frame-max-h');
-        } else {
-            view.style.setProperty('--frame-max-h', Math.floor(stackedH) + 'px');
-            view.style.removeProperty('--frame-w');
-        }
+        view.style.setProperty('--frame-w', Math.floor(side ? sideW : stackedVideoW) + 'px');
     };
 
     let queued = false;
@@ -1489,7 +1575,7 @@ function enterCoursePlayer(courseMain, courseSidebar, returnTab) {
     }
     const backLink = document.querySelector('.course-details-container > .back-link');
     if (backLink) {
-        backLink.setAttribute('href', window.location.pathname + window.location.search);
+        backLink.setAttribute('href', courseDetailsUrl(null));
         backLink.querySelector('span').textContent = 'Retour au cours';
     }
 }
