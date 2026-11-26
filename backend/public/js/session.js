@@ -8,7 +8,7 @@ document.addEventListener('DOMContentLoaded',()=>{
     }
     ,orders={
     }
-    ,index=0,busy=false,verified=false;
+    ,index=0,busy=false,verified=false,deferredEmail=false,deferredRegistrationReady=false;
     const classNames={
         '1ere':'1ère année','2eme':'2ème année','3eme':'3ème année',bac:'Baccalauréat',other:'Autre'
     }
@@ -92,6 +92,7 @@ document.addEventListener('DOMContentLoaded',()=>{
     function prepareIdentity(){
         if(config.member)return;
         show('identity-panel');
+        $('skip-email-confirmation').hidden=!meta.funnel||verified||!attempt?.submitted;
         $('identity-title').textContent=meta.session?'Dernière étape : réserve ta place gratuite !':'Dernière étape : enregistre ton résultat';
         $('identity-description').textContent=meta.session?'Ton défi est terminé. Crée ton compte pour enregistrer ton résultat et rejoindre ta séance gratuite.':'Ton défi est terminé. Crée ton compte pour garder ton résultat. La prochaine séance sera annoncée bientôt.';
         const c=meta.campaign;
@@ -387,6 +388,8 @@ document.addEventListener('DOMContentLoaded',()=>{
     ;
     $('save-result').onclick=async()=>{
         if(verified){
+            deferredEmail=false;
+            $('password-verification-state').textContent='E-mail confirmé';
             $('password-modal').showModal();
             return;
         }
@@ -441,13 +444,21 @@ document.addEventListener('DOMContentLoaded',()=>{
         const button=$('identity-submit');
         if(button.disabled)return;
         button.disabled=true;
+        deferredRegistrationReady=false;
         notice('identity-error','');
+        $('identity-notice').hidden=true;
+        $('skip-email-confirmation').hidden=true;
         try{
             await request('/register',{
                 slug,full_name:$('full_name').value.trim(),email:$('email').value.trim(),phone:$('phone').value.trim(),track:$('profile-class').value,branch:$('profile-branch').value,occurrenceId:currentOccurrence()
             }
             );
-            notice('identity-notice','Si cette adresse peut être utilisée, un lien de confirmation vient d’être envoyé. Ton résultat reste enregistré pendant la vérification. Tu as déjà un compte ? Connecte-toi avec cette adresse.');
+            notice('identity-notice-message','Si cette adresse peut être utilisée, un lien de confirmation vient d’être envoyé. Ton résultat reste enregistré. Tu as déjà un compte ? Connecte-toi avec cette adresse.');
+            $('identity-notice').hidden=false;
+            $('identity-notice').focus({preventScroll:true});
+            $('identity-notice').scrollIntoView({block:'nearest',behavior:'smooth'});
+            $('skip-email-confirmation').hidden=!meta.funnel;
+            deferredRegistrationReady=true;
         }
         catch(error){
             notice('identity-error',error.message);
@@ -458,6 +469,18 @@ document.addEventListener('DOMContentLoaded',()=>{
     }
     ;
     $('close-password').onclick=()=>$('password-modal').close();
+    $('identity-form').addEventListener('input',()=>{deferredRegistrationReady=false;});
+    $('skip-email-confirmation').onclick=async()=>{
+        if(!$('identity-form').reportValidity())return;
+        if(!deferredRegistrationReady){
+            await $('identity-form').onsubmit({preventDefault(){}});
+            if(!deferredRegistrationReady)return;
+        }
+        deferredEmail=true;
+        $('password-verification-state').textContent='E-mail à confirmer plus tard';
+        notice('modal-error','');
+        $('password-modal').showModal();
+    };
     $('password-form').onsubmit=async event=>{
         event.preventDefault();
         const button=$('btn-confirm-password');
@@ -468,12 +491,14 @@ document.addEventListener('DOMContentLoaded',()=>{
         }
         button.disabled=true;
         try{
-            const saved=await request('/set-password',{password:$('modal-password').value});
+            const saved=await request(deferredEmail?'/guest/activate':'/set-password',{password:$('modal-password').value,...(deferredEmail?{slug}:{})});
             $('password-modal').close();
+            show('result-panel');
             notice('reservation-confirmation',saved.reserved?'Ta place est réservée ! 🎉 '+saved.session.title+' · '+date(saved.session.scheduled_at):'Ton compte et ton résultat sont enregistrés. La prochaine séance sera annoncée bientôt.');
             $('save-result').hidden=true;$('member-session-link').hidden=false;
             $('confirmed-calendar').hidden=!saved.reserved;
             if(saved.reserved)$('result-session-summary').textContent=sessionSummary(saved.session);
+            if(saved.emailVerified===false)$('reservation-confirmation').textContent+=' Tu pourras confirmer ton e-mail plus tard depuis ton profil.';
             setTimeout(()=>window.location.assign('/dashboard'),6000);
         }
         catch(error){

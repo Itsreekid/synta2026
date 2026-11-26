@@ -1,3 +1,7 @@
+### TASK-FREE-FUNNEL — optional email confirmation COMPLETED LOCALLY2026-11-26
+
+Owner-approved direct skip preserves an unverified account, normal password login for free-session signups, secure guest result/reservation ownership and later profile verification.193 complete regressions and18 final affected checks pass. No migration needed; not published/deployed. See latest CURRENT_STATE.md.
+
 ### TASK-FREE-FUNNEL — final student journey implemented locally, 2026-11-26
 
 Admin publication/section controls, read-only date card, quiz-first final registration, automatic member reservations and secure email/login/Google recovery implemented. Pending250004 and260005 remain held; no production activation. Validation/results and remaining gates: FREE_SESSION_FINAL_FLOW_IMPLEMENTATION.md and latest CURRENT_STATE.md.

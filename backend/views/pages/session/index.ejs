@@ -116,11 +116,15 @@
 </div>
 <div id="identity-error" class="notice error" role="alert" hidden>
 </div>
-<p id="identity-notice" class="notice" role="status" hidden>
-</p>
+<div id="identity-notice" class="notice" role="status" tabindex="-1" hidden>
+<strong>📩 Tu peux confirmer ton e-mail maintenant ou continuer et le faire plus tard.</strong>
+<p id="identity-notice-message"></p>
+<span class="hint">Tu ne vois pas le message ? Vérifie aussi les spams / courriers indésirables.</span>
+</div>
 <button class="button primary" id="identity-submit">Recevoir mon lien de confirmation</button>
+<button class="button secondary" type="button" id="skip-email-confirmation" hidden>Continuer sans confirmer pour le moment</button>
 </form>
-<p class="hint">Ton mot de passe sera créé après vérification de ton adresse. <a href="/login?next=<%= encodeURIComponent('/session/'+campaign.slug) %>">Déjà inscrit ? Connecte-toi</a>.</p>
+<p class="hint">Tu peux créer ton compte maintenant et confirmer ton e-mail plus tard depuis ton profil. <a href="/login?next=<%= encodeURIComponent('/session/'+campaign.slug) %>">Déjà inscrit ? Connecte-toi</a>.</p>
 </div>
 <div id="quiz-panel" hidden>
 <div class="quiz-header">
@@ -180,7 +184,7 @@
 <dialog id="password-modal" aria-labelledby="password-title">
 <form id="password-form">
 <button class="dialog-close" type="button" id="close-password" aria-label="Fermer">×</button>
-<span class="step-label">E-mail confirmé</span>
+<span class="step-label" id="password-verification-state">E-mail confirmé</span>
 <h2 id="password-title">Garde ton résultat avec toi.</h2>
 <label>Mot de passe<input id="modal-password" type="password" autocomplete="new-password" minlength="6" maxlength="72" required>
 </label>
@@ -193,7 +197,7 @@
 </dialog>
 <script>window.__SESSION__=<%- JSON.stringify(campaign ? {slug:campaign.slug,member:Boolean(viewer&&viewer.isStudent),preview:Boolean(viewer&&!viewer.isStudent),hasPlacement:Boolean(locals.hasPlacement)}:null).replace(/</g,'\\u003c') %>;</script>
 <% if(campaign) { %>
-<script src="/js/session.js?v=8" defer>
+<script src="/js/session.js?v=10" defer>
 </script>
 <% } %>
 </body>

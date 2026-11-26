@@ -95,8 +95,13 @@ test('free funnel on disposable PostgreSQL: guest proof, ownership, occurrences 
       const source = new vm.SourceTextModule(await readFile(new URL('../routes/' + file + '.js', import.meta.url), 'utf8'), { context, initializeImportMeta:meta=>{meta.url=new URL('../routes/'+file+'.js',import.meta.url).href;} });
       await source.link(async specifier => {
         const values = specifier === '../config/db.js' ? { default: db }
-          : specifier === '../services/email.js' ? { sendPlacementVerificationEmail: async (email, token) => emails.push({ email, token }) }
-          : specifier === '../services/sessions.js' ? { startSession: async (_db, res, user) => res.cookie('synta_access', jwt.sign(user, process.env.JWT_SECRET)) }
+          : specifier === '../services/email.js' ? {
+              sendPlacementVerificationEmail: async (email, token) => emails.push({ email, token }),
+              generateVerificationToken:()=>({token:randomUUID().replaceAll('-','').repeat(2),expiresAt:new Date(Date.now()+86400000)}),
+              sendVerificationEmail:async(email,name,token)=>emails.push({email,token,accountVerification:true}),
+              sendPasswordResetEmail:async()=>{},sendPasswordChangedEmail:async()=>{}
+            }
+          : specifier === '../services/sessions.js' ? { ...await import('../services/sessions.js'), startSession: async (_db, res, user) => res.cookie('synta_access', jwt.sign(user, process.env.JWT_SECRET)) }
           : specifier === '../utils/zoomClient.js' ? zoom
           : specifier === 'google-auth-library' ? { OAuth2Client: class { async verifyIdToken() { return { getPayload: () => googlePayload }; } } }
           : await import(specifier.startsWith('.') ? new URL(specifier, new URL('../routes/' + file + '.js', import.meta.url)).href : specifier);
@@ -108,7 +113,7 @@ test('free funnel on disposable PostgreSQL: guest proof, ownership, occurrences 
     app.use('/api/session', await loadRoute('session')); app.use(await loadRoute('google-auth'));
     routePool = (await import('../config/db.js')).default;
     await (await import('../services/live-features.js')).detectLiveFeatures(db);
-    app.use((await import('../routes/auth-api.js')).default);
+    app.use(await loadRoute('auth-api'));
     app.use('/api/live', (await import('../routes/live.js')).default);
     app.use((await import('../routes/user-api.js')).default);
     app.use(express.static(fileURLToPath(new URL('../public', import.meta.url))));
@@ -584,7 +589,9 @@ test('free funnel on disposable PostgreSQL: guest proof, ownership, occurrences 
         await evaluate("document.querySelector('#challenge-start').click()");await until(()=>evaluate("!!document.querySelector('.option-card input')"),'new student quiz');
         await evaluate("document.querySelector('.option-card input').click();document.querySelector('#btn-submit').click()");await until(()=>evaluate("!document.querySelector('#result-panel').hidden"),'new student result');
         await evaluate("document.querySelector('#save-result').click();document.querySelector('#full_name').value='Browser student';document.querySelector('#email').value='browser-final@example.invalid';document.querySelector('#phone').value='22112236';document.querySelector('#profile-branch').value='sciences';document.querySelector('#identity-form').requestSubmit()");
-        await until(()=>evaluate("document.querySelector('#identity-notice').textContent.includes('confirmation')"),'verification email sent');
+        await until(()=>evaluate("!document.querySelector('#identity-notice').hidden && document.querySelector('#identity-notice').textContent.includes('confirmation')"),'verification email sent');
+        assert.match(await evaluate("document.querySelector('#identity-notice strong').textContent"),/confirmer ton e-mail.*plus tard/);
+        assert.match(await evaluate("document.querySelector('#identity-notice').textContent"),/spams/);
         assert.equal(emails.at(-1).email,'browser-final@example.invalid');
         await command('Page.navigate',{url:origin+'/session/'+c.slug+'#placement='+encodeURIComponent(emails.at(-1).token)});
         await until(()=>evaluate("!document.querySelector('#result-panel').hidden || document.querySelector('#experience-error').textContent"),'email preserves result');
@@ -645,6 +652,64 @@ test('free funnel on disposable PostgreSQL: guest proof, ownership, occurrences 
       const undatedActivation=await call('/api/session/set-password',undatedVerified,{password:'no-date-final-password'});assert.equal(undatedActivation.status,200);
       const undatedResult=await undatedActivation.json();assert.equal(undatedResult.reserved,false);assert.equal(undatedResult.session,null,'unpublished dates never leak through activation response');
       if(process.env.TIMED_QA_CHROME)await withTimedOfferBrowser(process.env.TIMED_QA_CHROME,origin,async({open,evaluate,until})=>{await open('/session/'+c.slug,'',390);await until(()=>evaluate("document.querySelector('#upcoming-date').textContent.includes('annoncée bientôt')"),'no published date');assert.equal(await evaluate("document.querySelector('#occurrence-select')"),null);});
+    });
+    await t.test('optional email confirmation retains unverified status, safe login and later verification without account takeover',async()=>{
+      const response=await call('/api/session/admin/campaigns',adminJar,{slug:'deferred-email',title:'Séance découverte',subject:'Informatique',target_class:'3eme',target_branch:'informatique',scheduled_at:null,duration_minutes:90,is_active:true,is_default:false});
+      assert.equal(response.status,201);const c=(await response.json()).campaign;
+      const question=(await db.query(`INSERT INTO session_questions(text,type,options,correct_answer,free_session_id) VALUES('Combien ?','multiple_choice','["a","b"]','"a"',$1) RETURNING id`,[c.id])).rows[0].id;
+      const occurrenceResponse=await call('/api/session/admin/campaigns/'+c.id+'/occurrences',adminJar,{id:randomUUID(),startTime:new Date(Date.now()+8*86400000).toISOString(),duration:90});assert.equal(occurrenceResponse.status,201);const occurrence=(await occurrenceResponse.json()).session;
+      assert.equal((await call('/api/session/admin/campaigns/'+c.id+'/public-occurrence',adminJar,{occurrenceId:occurrence.id},'PUT')).status,200);
+      const activation='/api/session/guest/activate',password='deferred-secure-password';
+      assert.equal((await call(activation,jar(),{slug:c.slug,password,userId:admin.id,registrationId:randomUUID(),email_verified:true})).status,401);
+      const visitor=jar();await call(startPath,visitor,{slug:c.slug});
+      assert.equal((await call(activation,visitor,{slug:c.slug,password})).status,409,'unfinished quiz cannot skip verification');
+      await call(submitPath,visitor,{slug:c.slug,answers:{[question]:'a'}});
+      assert.equal((await call(activation,visitor,{slug:c.slug,password})).status,409,'unbound guest cannot activate an arbitrary registration');
+      assert.equal((await call('/api/session/register',visitor,{slug:c.slug,full_name:'Deferred student',email:'deferred@example.invalid',phone:'22113344',track:'1ere',branch:'lettres'})).status,202);
+      const results=await Promise.all([1,2].map(()=>call(activation,visitor,{slug:c.slug,password,userId:admin.id,role:'admin',email_verified:true})));
+      assert.deepEqual(results.map(result=>result.status).sort(),[200,409]);
+      const result=await results.find(res=>res.status===200).json();assert.equal(result.emailVerified,false);assert.equal(result.reserved,true);assert.equal(result.session.id,occurrence.id);
+      const user=(await db.query("SELECT * FROM users WHERE email='deferred@example.invalid'")).rows[0];
+      assert.equal(user.email_verified,false);assert.equal(user.role,'user');assert.equal(user.class,'3eme');assert.equal(user.branch,'informatique');assert.match(user.verification_token,/^[a-f0-9]{64}$/);
+      assert.equal((await db.query('SELECT count(*)::int n FROM enrollments WHERE user_id=$1',[user.id])).rows[0].n,0);
+      assert.equal((await call('/api/live/session/'+occurrence.id,visitor)).status,200);
+      assert.equal((await call('/api/session/guest/claim',visitor,{slug:c.slug})).status,200,'deferred account retains its authenticated guest result');
+      const loginJar=jar();assert.equal((await call('/api/auth/login',loginJar,{email:user.email,password})).status,200,'optional free account can reconnect');
+      assert.equal((await call('/api/auth/login',jar(),{email:user.email,password:'wrong-password'})).status,401);
+      const bcrypt=(await import('bcrypt')).default;
+      const regular=await createUser('regular-unverified@example.invalid','user',false);await db.query('UPDATE users SET password_hash=$2 WHERE id=$1',[regular.id,await bcrypt.hash(password,4)]);
+      assert.equal((await call('/api/auth/login',jar(),{email:regular.email,password})).status,403,'normal unverified signup rules are preserved');
+      googlePayload={sub:'deferred-unverified-google',email:user.email,email_verified:true,name:'Different identity'};
+      assert.equal((await call('/api/auth/google',jar(),{credential:'mock-google-token'})).status,409,'Google cannot link an unverified local account');
+      const strangerAttempt=jar();await call(startPath,strangerAttempt,{slug:c.slug});await call(submitPath,strangerAttempt,{slug:c.slug,answers:{[question]:'b'}});
+      assert.equal((await call('/api/session/register',strangerAttempt,{slug:c.slug,full_name:'Impostor',email:user.email,phone:'22113345'})).status,202);
+      assert.equal((await call(activation,strangerAttempt,{slug:c.slug,password:'attacker-password',registrationId:user.id})).status,409);
+      assert.equal((await db.query('SELECT password_hash FROM users WHERE id=$1',[user.id])).rows[0].password_hash,user.password_hash);
+      assert.equal((await call('/api/auth/verification/status')).status,401);
+      assert.equal((await call('/api/auth/verification/reminder',jar(),{})).status,401);
+      assert.equal((await(await call('/api/auth/verification/status',loginJar)).json()).emailVerified,false);
+      const adminBefore=(await db.query('SELECT to_jsonb(u) row FROM users u WHERE id=$1',[admin.id])).rows;
+      assert.equal((await call('/api/auth/verification/reminder',loginJar,{email:admin.email,userId:admin.id})).status,200);
+      assert.equal(emails.at(-1).email,user.email);const laterToken=emails.at(-1).token;
+      assert.deepEqual((await db.query('SELECT to_jsonb(u) row FROM users u WHERE id=$1',[admin.id])).rows,adminBefore);
+      assert.equal((await db.query('SELECT email_verified FROM users WHERE id=$1',[user.id])).rows[0].email_verified,false,'sending a reminder is not verification');
+      assert.equal((await call('/auth/verify-email?token='+laterToken)).status,200);
+      assert.equal((await(await call('/api/auth/verification/status',loginJar)).json()).emailVerified,true);
+      const verifiedUser=(await db.query('SELECT * FROM users WHERE id=$1',[user.id])).rows[0];assert.equal(verifiedUser.password_hash,user.password_hash);assert.equal(verifiedUser.balance,user.balance);assert.equal(verifiedUser.verification_token,null);
+      if(process.env.TIMED_QA_CHROME)await withTimedOfferBrowser(process.env.TIMED_QA_CHROME,origin,async({open,evaluate,until,command,errors})=>{
+        await open('/session/'+c.slug,'',390);await until(()=>evaluate("!document.querySelector('#challenge-start').disabled"),'deferred landing');await evaluate("document.querySelector('#challenge-start').click()");await until(()=>evaluate("!!document.querySelector('.option-card input')"),'deferred quiz');
+        await evaluate("document.querySelector('.option-card input').click();document.querySelector('#btn-submit').click()");await until(()=>evaluate("!document.querySelector('#result-panel').hidden"),'deferred result');
+        await evaluate("document.querySelector('#save-result').click();document.querySelector('#full_name').value='Browser deferred';document.querySelector('#email').value='browser-deferred@example.invalid';document.querySelector('#phone').value='22113346'");
+        assert.equal(await evaluate("document.querySelector('#skip-email-confirmation').hidden"),false,'skip is available without manually requesting an email');
+        await evaluate("document.querySelector('#skip-email-confirmation').click()");await until(()=>evaluate("document.querySelector('#password-modal').open"),'direct skip creates pending registration');assert.match(await evaluate("document.querySelector('#password-verification-state').textContent"),/plus tard/);
+        await evaluate("document.querySelector('#modal-password').value='browser-deferred-password';document.querySelector('#modal-password-confirm').value='browser-deferred-password';document.querySelector('#password-form').requestSubmit()");await until(()=>evaluate("!document.querySelector('#result-panel').hidden&&document.querySelector('#reservation-confirmation').textContent.includes('Ta place est réservée')"),'deferred account and reservation');
+        assert.match(await evaluate("document.querySelector('#reservation-confirmation').textContent"),/confirmer ton e-mail plus tard/);
+        assert.equal((await db.query("SELECT email_verified FROM users WHERE email='browser-deferred@example.invalid'")).rows[0].email_verified,false);
+        await command('Page.navigate',{url:origin+'/app/profile'});await until(()=>evaluate("document.querySelector('#email-verification-reminder')?.hidden===false"),'optional profile verification');
+        await evaluate("document.querySelector('#send-email-verification').click()");await until(()=>evaluate("document.querySelector('#email-verification-feedback').textContent.includes('confirmation')"),'later reminder sent');
+        assert.equal(emails.at(-1).email,'browser-deferred@example.invalid');
+        assert.deepEqual(errors,[]);
+      });
     });
     assert.equal((await db.query('SELECT balance FROM users WHERE id=$1', [existing.id])).rows[0].balance, '300.00');
     assert.equal((await db.query('SELECT signup_source FROM users WHERE id=$1', [existing.id])).rows[0].signup_source, null);

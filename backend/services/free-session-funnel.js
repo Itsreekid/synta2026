@@ -103,6 +103,15 @@ export async function guestStatus(db, campaignId, cookies) {
   return { attempt: resultOf(attempt), questions: publicQuestions(attempt.question_snapshot) };
 }
 
+// Deferral proves only ownership of this completed guest attempt, never email ownership.
+export async function deferredRegistration(db,campaignId,cookies,{lock=false}={}) {
+  const attempt=await ownedGuest(db,campaignId,cookies,{submitted:true,lock});
+  if(!attempt.registration_id||attempt.user_id)fail(409,'Connecte-toi si tu as déjà un compte, ou recommence ton inscription.');
+  const registration=(await db.query('SELECT id FROM session_registrations WHERE id=$1 AND free_session_id=$2 AND NOT account_activated',[attempt.registration_id,campaignId])).rows[0];
+  if(!registration)fail(409,'Connecte-toi si tu as déjà un compte, ou recommence ton inscription.');
+  return registration.id;
+}
+
 /** Same profile persistence as normal onboarding, with server-owned campaign targets.
  * Kept under /api/session because the existing guest capability is scoped to that path.
  */
@@ -133,11 +142,11 @@ export async function completeCampaignProfile(db, userId, campaign, cookies, inp
 export async function bindGuestRegistration(db, campaignId, registrationId, cookies) {
   if (!cookies?.[tokenName(campaignId)]) return false;
   return transaction(db, async client => {
+    const registration=(await client.query('SELECT completed,free_session_id FROM session_registrations WHERE id=$1 FOR UPDATE',[registrationId])).rows[0];
     const attempt = await ownedGuest(client, campaignId, cookies, { lock: true, submitted: true });
     if (attempt.user_id || (attempt.registration_id && String(attempt.registration_id) !== String(registrationId))) {
       fail(409, 'Ce résultat est déjà associé à une inscription.');
     }
-    const registration=(await client.query('SELECT completed,free_session_id FROM session_registrations WHERE id=$1 FOR UPDATE',[registrationId])).rows[0];
     if(!registration || registration.free_session_id!==campaignId || (registration.completed&&!attempt.registration_id))fail(409,'Cette inscription possède déjà un résultat.');
     await client.query('UPDATE free_session_attempts SET registration_id=$2 WHERE id=$1', [attempt.id, registrationId]);
     await client.query('UPDATE session_registrations SET completed=true,score=$2,quiz_total=$3,tier=$4,"group"=$5 WHERE id=$1',
@@ -182,8 +191,9 @@ async function reserve(client, userId, campaign, attempt, occurrenceId) {
 async function claim(client, userId, campaign, attempt, occurrenceId) {
   if (!attempt?.submitted_at || new Date(attempt.claim_expires_at) <= new Date()) fail(409, 'Le délai pour enregistrer ce résultat a expiré.');
   if (attempt.user_id && String(attempt.user_id) !== String(userId)) fail(403, 'Ce résultat appartient à un autre compte.');
-  const user = (await client.query("SELECT id,email,email_verified,created_at,signup_source,phone,class,branch,created_at >= (SELECT created_at FROM free_session_attempts WHERE id=$2) AS campaign_signup FROM users WHERE id=$1 AND role='user' FOR UPDATE", [userId,attempt.id])).rows[0];
-  if (!user || !user.email_verified) fail(403, 'Confirme ton adresse e-mail pour enregistrer le résultat.');
+  const user = (await client.query("SELECT id,email,email_verified,created_at,signup_source,signup_free_session_id,phone,class,branch,created_at >= (SELECT created_at FROM free_session_attempts WHERE id=$2) AS campaign_signup FROM users WHERE id=$1 AND role='user' FOR UPDATE", [userId,attempt.id])).rows[0];
+  const deferredFreeAccount=user?.signup_source==='free_session'&&user?.signup_free_session_id;
+  if (!user || (!user.email_verified&&!deferredFreeAccount)) fail(403, 'Confirme ton adresse e-mail pour enregistrer le résultat.');
   if(user.campaign_signup&&(!user.phone||!user.class||!user.branch))fail(409,'Complète ton profil avant de réserver ta séance.');
   if (attempt.registration_id) {
     const registration = (await client.query('SELECT email FROM session_registrations WHERE id=$1', [attempt.registration_id])).rows[0];

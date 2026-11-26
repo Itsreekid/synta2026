@@ -23,6 +23,7 @@ import { authApiMiddleware } from "../middleware/requireAuth.js";
 import { startSession } from "../services/sessions.js";
 import { authRateLimit } from "../middleware/authRateLimit.js";
 import { sendPlacementVerificationEmail } from "../services/email.js";
+import * as verificationEmail from "../services/email.js";
 import { createZoomMeeting, deleteZoomMeeting, rescheduleZoomMeeting } from "../utils/zoomClient.js";
 import { liveSessionAccess } from "../utils/offerAccess.js";
 
@@ -333,7 +334,8 @@ router.post("/submit", requirePlacement, async (req, res) => {
 });
 
 // POST /api/session/set-password — creates the account in `users` and makes the student a participant.
-router.post("/set-password", authRateLimit(10), requirePlacement, async (req, res) => {
+router.post("/set-password", authRateLimit(10), requirePlacement, activateRegistration);
+async function activateRegistration(req, res) {
   const { password } = req.body || {};
   if (typeof password !== "string" || password.length < 6 || Buffer.byteLength(password) > 72) {
     return res.status(400).json({ error: "Le mot de passe doit contenir au moins 6 caractères et au plus 72 octets." });
@@ -355,17 +357,22 @@ router.post("/set-password", authRateLimit(10), requirePlacement, async (req, re
       return res.status(409).json({ error: "Termine le quiz ou connecte-toi à ton compte." });
     }
     const reg = registration.rows[0];
+    if(req.deferredEmail){
+      const owned=await funnel.deferredRegistration(client,reg.free_session_id,req.cookies,{lock:true});
+      if(String(owned)!==String(req.placementId))throw Object.assign(new Error('Inscription indisponible.'),{status:409});
+    }
     const registrationPolicy=await campaignPublicPolicy(client,reg.free_session_id);
     if(registrationPolicy.target_branches&&!registrationPolicy.target_branches.includes(reg.target_branch||reg.filier)){
       await client.query('ROLLBACK');return res.status(409).json({error:'Les sections de cette campagne ont changé. Contacte Synta Academy avant de terminer ton inscription.'});
     }
+    const verification=req.deferredEmail?verificationEmail.generateVerificationToken():null;
     const result = await client.query(
       `INSERT INTO users (email, password_hash, name, phone, role, email_verified, class, branch,
-                          signup_source, signup_free_session_id)
-       SELECT $1, $2, $3, $4, 'user', true, $5, $6, 'free_session', $7
+                          signup_source, signup_free_session_id, verification_token, token_expires_at)
+       SELECT $1, $2, $3, $4, 'user', $8, $5, $6, 'free_session', $7, $9, $10
        WHERE NOT EXISTS (SELECT 1 FROM users WHERE lower(email) = $1)
        ON CONFLICT (email) DO NOTHING RETURNING id, email, name, role`,
-      [reg.email, passwordHash, reg.full_name, reg.phone, reg.target_class || reg.track, reg.target_branch || reg.filier, reg.free_session_id]
+      [reg.email, passwordHash, reg.full_name, reg.phone, reg.target_class || reg.track, reg.target_branch || reg.filier, reg.free_session_id,!req.deferredEmail,verification?.token||null,verification?.expiresAt||null]
     );
     if (!result.rowCount) {
       await client.query("ROLLBACK");
@@ -387,19 +394,20 @@ router.post("/set-password", authRateLimit(10), requirePlacement, async (req, re
     );
     const savedFree = await funnel.claimRegistration(client, user.id, req.placementId, reg.free_session_id, req.placementOccurrenceId);
     await client.query("COMMIT");
+    if(verification)verificationEmail.sendVerificationEmail(user.email,user.name,verification.token).catch(()=>console.error('[placement] Deferred verification delivery failed'));
     res.clearCookie("synta_placement", placementCookie);
     await startSession(pool, res, user);
     // Open the campaign session in the student calendar (its popup has the Join button).
     const session = savedFree ? (savedFree.reserved ? savedFree.session : null) : await upcomingCampaignSession(pool, reg.free_session_id).catch(() => null);
-    return res.json({ success: true, redirectUrl: "/dashboard", session: savedFree?.session || session, reserved: savedFree?.reserved === true });
+    return res.json({ success: true, emailVerified:!req.deferredEmail, redirectUrl: "/dashboard", session: savedFree?.session || session, reserved: savedFree?.reserved === true });
   } catch (err) {
     if (client) await client.query("ROLLBACK").catch(() => {});
     console.error("[placement] Activation failed:", err.code);
-    return res.status(500).json({ error: "Erreur serveur." });
+    return res.status(err.status||500).json({ error: err.status?err.message:"Erreur serveur." });
   } finally {
     client?.release();
   }
-});
+}
 
 // =====================================================
 // LOGGED-IN STUDENTS (existing accounts)
@@ -883,6 +891,13 @@ router.get('/campaign',async(req,res)=>{
 });
 router.post('/guest/start',authRateLimit(12,60*60*1000),requireJson,funnelHandler(async(req,res)=>{
  const campaign=await campaignFor(req);res.json(await funnel.startGuest(pool,campaign,req.body.restart===true?{}:req.cookies,res));
+}));
+// Explicit short-lived guest capability authentication; body IDs/email flags are ignored.
+router.post('/guest/activate',authRateLimit(10),requireJson,funnelHandler(async(req,res)=>{
+ const campaign=await campaignFor(req);
+ req.placementId=await funnel.deferredRegistration(pool,campaign.id,req.cookies);
+ req.deferredEmail=true;
+ await activateRegistration(req,res);
 }));
 router.get('/guest/status',authRateLimit(120),funnelHandler(async(req,res)=>{const campaign=await campaignFor(req);res.json(await funnel.guestStatus(pool,campaign.id,req.cookies));}));
 router.post('/guest/submit',authRateLimit(30),requireJson,funnelHandler(async(req,res)=>{const campaign=await campaignFor(req);res.json({attempt:await funnel.submitGuest(pool,campaign,req.cookies,req.body.answers,scoreAnswers)});}));

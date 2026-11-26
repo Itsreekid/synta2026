@@ -1,3 +1,7 @@
+### Deferred free-session email confirmation —26 November2026, local
+
+POST/api/session/guest/activate is authenticated by the existing short-lived HttpOnly completed guest-attempt capability and its immutable bound registration, not a body userId/registrationId. It reuses the same transactional password/account/reservation handler as the verified path, but writes email_verified=false and normal verification-token fields. Registration-first/attempt-second row-lock ordering matches bind/activation. Authenticated verification/status and verification/reminder endpoints derive identity solely from req.user.id. Existing email helper/verification page are reused; profile adds a non-blocking resend control. No new schema/package/deployment variable.
+
 ### Admin-owned public occurrence — local implementation 2026-11-26
 
 Existing free-campaigns/funnel services, session routes, auth and vanilla UI are reused. Published occurrence lookup is campaign-owned; publication and reservation lock the campaign before the live row. Composite FK enforces ownership. API metadata uses to_jsonb for safe pending-schema detection and HttpOnly capability-presence hints at the existing narrow cookie path; private/no-store caching. No new providers, packages or environment variables. No polling or parallel reservation system. See FREE_SESSION_FINAL_FLOW_IMPLEMENTATION.md.

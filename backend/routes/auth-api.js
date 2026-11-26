@@ -14,6 +14,7 @@ import { clearSessionCookies, revokeAllUserSessions, revokeRefreshToken, startSe
 import { generateVerificationToken, sendPasswordChangedEmail, sendPasswordResetEmail, sendVerificationEmail } from "../services/email.js";
 import { createResetToken, readResetToken, resetTokenMatches } from "../services/password-reset.js";
 import { DEACTIVATED_MESSAGE } from "../services/account-status.js";
+import { authApiMiddleware } from '../middleware/requireAuth.js';
 
 const router = express.Router();
 const JWT_SECRET  = process.env.JWT_SECRET;
@@ -110,6 +111,8 @@ router.post("/api/auth/login", authRateLimit(30), async (req, res) => {
 
     const result = await pool.query(
       `SELECT id, email, name, role, password_hash, email_verified,
+              to_jsonb(users)->>'signup_source' AS signup_source,
+              to_jsonb(users)->>'signup_free_session_id' AS signup_free_session_id,
               to_jsonb(users)->>'deactivated_at' AS deactivated_at
        FROM users WHERE email = $1`,
       [email.toLowerCase().trim()]
@@ -131,7 +134,8 @@ router.post("/api/auth/login", authRateLimit(30), async (req, res) => {
       return res.status(403).json({ error: DEACTIVATED_MESSAGE, deactivated: true });
     }
 
-    if (!user.email_verified) {
+    const deferredFreeAccount=user.role==='user'&&user.signup_source==='free_session'&&user.signup_free_session_id;
+    if (!user.email_verified&&!deferredFreeAccount) {
       return res.status(403).json({ error: "يرجى التحقق من بريدك الإلكتروني لتفعيل حسابك قبل تسجيل الدخول.", unverified: true });
     }
 
@@ -146,6 +150,28 @@ router.post("/api/auth/login", authRateLimit(30), async (req, res) => {
     console.error("[auth/login] Error:", err.message);
     return res.status(500).json({ error: "Internal server error" });
   }
+});
+
+// Later verification belongs to the signed-in account, never an email supplied in the body.
+router.get('/api/auth/verification/status',authApiMiddleware,async(req,res)=>{
+  res.set('Cache-Control','private, no-store');
+  try{
+    const user=(await pool.query('SELECT email_verified FROM users WHERE id=$1',[req.user.id])).rows[0];
+    if(!user)return res.status(404).json({error:'Compte introuvable.'});
+    res.json({emailVerified:user.email_verified});
+  }catch{res.status(500).json({error:'Impossible de vérifier ton adresse pour le moment.'});}
+});
+router.post('/api/auth/verification/reminder',authApiMiddleware,authRateLimit(5,15*60*1000,req=>req.user.id),async(req,res)=>{
+  res.set('Cache-Control','private, no-store');
+  try{
+    const user=(await pool.query('SELECT id,email,name,email_verified FROM users WHERE id=$1',[req.user.id])).rows[0];
+    if(!user)return res.status(404).json({error:'Compte introuvable.'});
+    if(user.email_verified)return res.json({success:true,alreadyVerified:true});
+    const verification=generateVerificationToken();
+    await pool.query('UPDATE users SET verification_token=$2,token_expires_at=$3 WHERE id=$1 AND NOT email_verified',[req.user.id,verification.token,verification.expiresAt]);
+    await sendVerificationEmail(user.email,user.name,verification.token);
+    res.json({success:true});
+  }catch{res.status(500).json({error:'Impossible d’envoyer le lien. Réessaie plus tard.'});}
 });
 
 /**

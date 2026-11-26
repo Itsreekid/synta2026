@@ -20,6 +20,12 @@
 
                 <div class="profile-content">
                     <div class="profile-main">
+                        <section class="profile-section" id="email-verification-reminder" hidden aria-labelledby="email-verification-title">
+                            <h2 id="email-verification-title">📩 Confirmer mon adresse e-mail</h2>
+                            <p>Tu peux continuer à utiliser ton espace. Confirme ton e-mail quand tu le souhaites pour sécuriser ton compte.</p>
+                            <button type="button" class="btn btn-primary" id="send-email-verification">Recevoir un lien de confirmation</button>
+                            <p id="email-verification-feedback" role="status"></p>
+                        </section>
                         <!-- Personal Information
                              Fields are pre-filled server-side. JS (profile.js) may
                              update them after Supabase client auth resolves, but the
@@ -100,5 +106,6 @@
     <script src="/js/authentication.js"></script>
     <script src="/js/user.js?v=20261125-emphasis"></script>
     <script src="/js/profile.js"></script>
+<script src="/js/email-verification-reminder.js?v=1" defer></script>
 </body>
 </html>
