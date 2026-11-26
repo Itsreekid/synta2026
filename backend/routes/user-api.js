@@ -8,6 +8,7 @@ import pool from "../config/db.js";
 import { authApiMiddleware } from "../middleware/requireAuth.js";
 import { createOfferQuote } from "../services/timed-offers.js";
 import { decodeReceiptDataUrl } from "../utils/courseImages.js";
+import { saveLearnerProfile } from '../services/learner-onboarding.js';
 
 const router = express.Router();
 
@@ -166,23 +167,12 @@ router.post("/api/auth/complete-profile", authApiMiddleware, async (req, res) =>
     const userId = req.user.id;
     const { phone, user_class, user_branch } = req.body || {};
 
-    const profileError = validateLearnerProfile({ phone, userClass: user_class, userBranch: user_branch });
-    if (profileError) return res.status(400).json({ error: profileError });
-
-    // --- Persist ---
-    await pool.query(
-      `UPDATE users
-          SET phone      = $1,
-              class      = $2,
-              branch     = $3,
-              updated_at = NOW()
-        WHERE id = $4`,
-      [normalizeTunisianPhone(phone), user_class, user_branch, userId]
-    );
+    await saveLearnerProfile(pool, userId, { phone, userClass: user_class, userBranch: user_branch });
 
     console.log("[complete-profile] Profile completed for user:", userId);
     return res.json({ success: true });
   } catch (err) {
+    if ([400,404].includes(err.status)) return res.status(err.status).json({ error: err.message });
     console.error("[complete-profile] Error:", err.message);
     return res.status(500).json({ error: "حدث خطأ أثناء حفظ البيانات. يرجى المحاولة مرة أخرى." });
   }

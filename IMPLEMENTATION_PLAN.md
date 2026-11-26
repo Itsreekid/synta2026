@@ -1,3 +1,15 @@
+### TASK-FREE-FUNNEL — campaign flexibility COMPLETED LOCALLY 2026-11-26
+
+Verified multiple same-class campaigns; completed read-only/authoritative profile targeting, strict open-profile validation, held alias ownership/redirects and rename-safe drafts. Tests: FREE_CAMPAIGN_FLEXIBILITY_IMPLEMENTATION.md. Production NO-GO; next is authorized staging and explicit promotion review, not deployment.
+
+### TASK-FREE-FUNNEL — compatibility fix COMPLETED LOCALLY 2026-11-26
+
+Original migration immutable; exact replacement/repair works with original pending/applied and audience migrations before/after. Supplied production ledger hashes all match. No held promotion. Remaining production gates: current schema evidence, restored-backup staging rehearsal, hosted smoke tests and separate deployment approval. See SESSION_MIGRATION_COMPATIBILITY.md.
+
+### TASK-FREE-FUNNEL — local implementation COMPLETED 2026-11-26; production BLOCKED
+
+Guest quiz, signup recovery, exact-date reservations, admin controls and held migration implemented/tested. Next: ledger-aware free/multi-audience compatibility repair, combined migration rehearsal and separately approved hosted validation. Full suite retains 14 related live failures. See FREE_SESSION_FUNNEL_IMPLEMENTATION.md.
+
 # IMPLEMENTATION_PLAN.md — Synta Academy
 
 > **Last updated:** 2026-11-05  
@@ -42,7 +54,7 @@
 - **Priority:** CRITICAL
 - **Status:** COMPLETED 2026-11-20 (Batch 2B, uncommitted; dormant until the owner approves `database/pending-migrations/202611200001_create_refresh_tokens.sql`). Implemented as server-side renewal middleware with rotating, hashed refresh tokens instead of a client-called `/api/auth/refresh` endpoint, so no client change was needed. See `ARCHITECTURE.md` Section 7.
 - **Objective:** Prevent users from being logged out every hour
-- **Current situation:** Server middleware consumes rotating refresh tokens with a 14-day inactivity window and 30-day absolute cap. Deployment requires owner approval of the held refresh-token migration; missing storage falls back to one-hour access. Local HTTP/PostgreSQL and browser regressions passed 2026-11-22.
+- **Current situation:** Server middleware consumes rotating refresh tokens with a 30-day inactivity window and 90-day absolute cap. Deployment requires owner approval of the held refresh-token migration; missing storage falls back to one-hour access. Local HTTP/PostgreSQL and browser regressions passed 2026-11-22.
 - **Required changes:**
   1. Add `POST /api/auth/refresh` endpoint in `auth-api.js`
   2. Verify `synta_refresh` cookie, issue new `synta_access`
@@ -177,9 +189,10 @@
 
 ### TASK-012: Password Reset Flow
 - **Priority:** HIGH
-- **Status:** NOT STARTED
+- **Status:** COMPLETED 2026-11-26 (local, uncommitted)
 - **Objective:** Allow students to reset forgotten passwords
-- **Current situation:** A `password-reset` page exists (`views/pages/auth/password-reset.ejs`) but no backend endpoints were found to implement the actual reset flow.
+- **Implemented:** No schema change: stateless 1-hour token signed with a key derived from `JWT_SECRET` and bound to a fingerprint of the current password hash + email (single use, invalid after any password change). Link uses the URL fragment (`/password-reset#token=…`). Endpoints `POST /api/auth/forgot-password` (generic reply, IP + per-email rate limits), `POST /api/auth/reset-password/check`, `POST /api/auth/reset-password` (revokes all refresh tokens, confirms email, sends a "password changed" notice). Branded emails share the verification layout. Steps 1–4 below are superseded.
+- **Previous situation:** A `password-reset` page existed (`views/pages/auth/password-reset.ejs`) but no backend endpoints implemented the actual reset flow.
 - **Required changes:**
   1. Add `password_reset_token` and `reset_token_expires_at` columns to `users`
   2. Create `POST /api/auth/forgot-password` — generates token, sends email

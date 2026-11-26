@@ -1,3 +1,49 @@
+### 2026-11-26 — Independent campaign flexibility completed locally
+
+No per-class campaign cap exists; verified five campaigns, four targeting 3ème. New read-only configured profile fields, strict open-profile validation and server-authoritative Google onboarding reuse the normal profile saver. Existing complete users are preserved. Owner-approved held 202611260002_free_session_slug_aliases.sql reserves old/current links globally; 302 no-store redirects, immutable ownership and stable-ID drafts preserve rename/reuse behavior. No alias/funnel promotion or production action.
+
+Focused 68/68 (Chrome/mobile plus disposable PostgreSQL), full current workspace 150 pass /0 fail /14 browser skips (164 total). Mocked Google/email/Zoom; real hosted validation pending. Concurrent renewal/live-join work was preserved; its refresh-token promotion was not this task's action. See FREE_CAMPAIGN_FLEXIBILITY_IMPLEMENTATION.md. Next TASK-FREE-FUNNEL: authorized combined staging and separate migration-promotion review; production remains NO-GO.
+
+
+Final repeat evidence: non-browser suite 159 tests /143 passed /2 failed /14 skipped; failures were one exact five-minute join-boundary assertion plus parent, while isolated live suite passed 17/17 and full Chrome run passed that case. Full Chrome run remains 164 /163 pass /1 intermittent Video.js speed failure; isolated Video.js rerun passed 1/1. Compatibility suite 10/10, original CHECK conflict absent. These intermittent results remain explicit NO-GO risks; no player/join logic or security assertions changed. See SESSION_MIGRATION_COMPATIBILITY.md.
+
+
+Validation update for the compatibility fix: final full PostgreSQL+Chrome run 164 tests /163 passed /1 failed /0 skipped. All former migration failures pass. Remaining intermittent Video.js speed assertion passed on isolated rerun (1/1); precise cause unproven, player code/tests unchanged. Dedicated compatibility 10/10, corrected replay-management fixture/browser 5/5. Keep production NO-GO pending this test classification, schema evidence and hosted staging. No production changes.
+
+### 2026-11-26 — Password reset by email + log out everywhere (BUG-006, local, uncommitted)
+
+- Students request a link at `/password-reset`; `POST /api/auth/forgot-password` always gives the same reply (no account enumeration), limited to 5/15 min per IP and 3/hour per email. Email is sent with Resend using the shared verification layout (`renderEmailLayout` in `services/email.js`; verification HTML verified byte-identical after the refactor).
+- Token (`services/password-reset.js`): JWT signed with an HMAC key derived from `JWT_SECRET` (cannot act as a session token), 1-hour expiry, bound to a fingerprint of id + email + current password hash → single use and invalid after any password change. No migration. It travels in the URL fragment, is stripped from the address bar on load, and the page sends `no-store` + `no-referrer`.
+- `POST /api/auth/reset-password` re-checks the token under `FOR UPDATE`, sets the bcrypt hash, marks the email verified (the link proves ownership), revokes every refresh token (`revokeAllUserSessions`, safe if the table is missing), clears cookies on this device and sends a "mot de passe modifié" notice. Admin `change-student-password` now also revokes the student's sessions (no notice email). Access tokens already issued still expire within 1 hour.
+- Login shows « Ton mot de passe a été changé » via `/login?reset=done`. `authentication.js` `resetPassword()` now calls the API.
+- Validation: security suite 40/40 (reset flow: enumeration, forged/tampered/expired/reused tokens, revocation, notice, email escaping). Page checked in Chrome at 375px against a stub API (request, sent, mismatch error, success, expired). NOT tested: real Resend delivery and the PostgreSQL-backed suites (no local DB). Test a real reset on staging before announcing it.
+
+### 2026-11-26 — Three student UX fixes (local, uncommitted)
+
+- Hourly logouts: owner approved promoting `202611200001_create_refresh_tokens.sql` into `database/migrations/` (header comment updated before any application). The next deploy applies it; existing renewal code then keeps students signed in. Owner then set the policy to 30 days without a visit (`REFRESH_IDLE_MS`, was 14) and 90 days after sign-in at most (`SESSION_MAX_MS`, was 30). Existing refresh cookies keep their original expiry until renewed. Not yet done: revoke sessions on password change, "log out all devices". Tests that read it from `pending-migrations/` now read `migrations/`; the production-ledger compatibility test expects refresh + repair as the two files the next deploy applies.
+- Join link: `GET /api/live/:sessionId/join` now redirects a signed-out or expired student to `/login?next=/app/calendar?session=<id>` (plus `reason=expired`) instead of a JSON 401. No DB read before authentication; authorization and join window unchanged.
+- Rate limiting behind proxy: `server.js` defaults `trust proxy` to 1 hop when `NODE_ENV=production` and `TRUST_PROXY_HOPS` is unset; an explicit value (including 0) wins. Startup logs the effective hops. `.env.example` documents Coolify = 1, +1 if Cloudflare proxies in front. Verify the real topology in Coolify.
+- Validation: security suite 38/38 (new join-redirect test). PostgreSQL-backed suites (session-renewal, live, migration compatibility, readiness) SKIPPED locally: no `BUGI_QA_POSTGRES_PORT`. Run them before deploying.
+- Next: run the DB suites, deploy, confirm `[sessions] Automatic renewal ready` and `[proxy] Trusted proxy hops` in startup logs. Remaining audit items (password reset BUG-006, receipt bucket privacy, monthly→annual enrollment conversion, events timezone) are still open.
+
+### 2026-11-26 — Session migration compatibility corrected locally; production NO-GO
+
+The conflicting direct-course CHECK is replaced by an exact-hash-pinned compatibility SQL at the original dependency position. Original 202611250002 SQL/checksum and existing ledger rows remain unchanged. Fresh/unapplied databases use a compatible bootstrap; already-applied originals receive constraint-only repair. OR relationship triggers and student authorization remain unchanged. No held migration promoted.
+
+Owner supplied the production ledger: all 20 filenames/checksums match local source, including original free campaigns and custom installments. Production therefore needs only the constraint repair, not a repeated bootstrap/backfill. Missing pending ledger entries do not prove physical schema absence; deployment still requires schema verification, staging and approval.
+
+The former 14 live failures are resolved in local regression. See SESSION_MIGRATION_COMPATIBILITY.md for final test results, supported ledger states, safe sequencing and rollback. Original BROKEN notes below are historical. No production SQL, push or deployment. TASK-FREE-FUNNEL compatibility coding completed locally; remaining work is authorized staging/promotion review.
+
+### 2026-11-26 — Free-session funnel: implemented locally; production NO-GO
+
+Guest-first French quiz, private immutable server-scored attempts, verified email/Google result recovery, exact-date reservations and admin occurrence/reuse controls implemented in existing pages. Historical memberships, paid rights, profiles and acquisition sources preserved. Unverified Google email linking blocked.
+
+Owner approved database/pending-migrations/202611250004_free_session_funnel.sql for local implementation/testing only. Applied/repeated with actual runner on disposable PostgreSQL; remains HELD, not promoted. No new dependencies/environment variables, production SQL, commit, push or deployment.
+
+Validation: focused integration/security/readiness/browser run 70/70; final affected funnel rerun 11/11. Chrome public 320/375/390/430/768/1440px; admin 360/390/1440px. Mocked email/Google/Zoom and synthetic data only. Full final regression: 145 tests, 117 passed, 14 failed, 14 skipped.
+
+BROKEN: remaining 13 live leaf failures plus parent trace to the existing free-session/multi-audience constraint conflict. Existing any_selected rows can block the free migration, or valid creation fails afterward. Do not waive security assertions or rewrite applied checksums. Next TASK-FREE-FUNNEL: approve ledger-aware compatibility repair, rehearse combined manifest, then separately authorized hosted provider validation. See FREE_SESSION_FUNNEL_IMPLEMENTATION.md.
+
 ### 2026-11-25 — Shared-course annual/monthly live access fixed locally
 
 - User reported an active annual buyer cannot see lives on Info Progress when an older session names the monthly offer. Root cause: legacy live authorization required the exact primary offer, despite legitimate access to the same course through another offer.

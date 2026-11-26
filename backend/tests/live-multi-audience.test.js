@@ -19,6 +19,8 @@ import * as access from '../utils/offerAccess.js';
 import * as features from '../services/live-features.js';
 import * as learnerProfile from '../utils/learnerProfile.js';
 import * as courseImages from '../utils/courseImages.js';
+import * as onboarding from '../services/learner-onboarding.js';
+import { loginUrlFor } from '../utils/returnPath.js';
 import { withTimedOfferBrowser } from './timed-offer-browser.js';
 
 test('OR session migration, API access and admin browser on disposable PostgreSQL', {
@@ -90,18 +92,21 @@ test('OR session migration, API access and admin browser on disposable PostgreSQ
       assert.equal(await allowed(legacy,guest),false);
       assert.equal(features.liveFeatures.multiAudience,true);
     });
-    const {authApiMiddleware,isAccessPayload}=await import('../middleware/requireAuth.js');
+    const {authApiMiddleware,isAccessPayload,verifyToken}=await import('../middleware/requireAuth.js');
     const {requireAdmin}=await import('../middleware/requireAdmin.js');
     let zoomCalls=0, zoomDeletes=0,failReschedule=false;
     const storageDeletes=[];
     let failStorageDelete=false;
     const previousImportFlag=process.env.ZOOM_RECORDING_IMPORT_ENABLED;process.env.ZOOM_RECORDING_IMPORT_ENABLED='true';t.after(()=>{if(previousImportFlag===undefined)delete process.env.ZOOM_RECORDING_IMPORT_ENABLED;else process.env.ZOOM_RECORDING_IMPORT_ENABLED=previousImportFlag;});
     const env={LIVE_MULTI_AUDIENCE_ENABLED:'true'};
+    let routeNow=null;
+    class RouteDate extends Date { static now(){return routeNow??Date.now();} }
     let historicalMetadata=null;
     const dependencies={
       '../services/recording-discovery.js':{createRecordingDiscovery},'../services/recording-jobs.js':recordingJobs,'../services/zoom-recordings.js':recordingHelpers,
       express:{default:express}, jsonwebtoken:{default:jwt}, '../config/db.js':{default:db}, '../utils/offerAccess.js':access,
-      '../middleware/requireAuth.js':{authApiMiddleware,isAccessPayload}, '../middleware/requireAdmin.js':{requireAdmin},
+      '../middleware/requireAuth.js':{authApiMiddleware,isAccessPayload,verifyToken}, '../middleware/requireAdmin.js':{requireAdmin},
+      '../utils/returnPath.js':{loginUrlFor},
       './requireAuth.js':{isAccessPayload},
       '../services/live-features.js':features, '../services/recording-worker.js':{recordingStorage:{
         delete:async key=>{if(failStorageDelete)throw new Error('Synthetic storage outage');storageDeletes.push(key);},
@@ -112,10 +117,11 @@ test('OR session migration, API access and admin browser on disposable PostgreSQ
       '@aws-sdk/client-s3':{GetObjectCommand:class{}},
       '../config/r2.js':{r2Client:{send:async()=>({Body:{transformToString:async()=> 'print(42)'}})},R2_BUCKET:'synthetic'},
       '../utils/learnerProfile.js':learnerProfile,'../utils/courseImages.js':courseImages,
+      '../services/learner-onboarding.js':onboarding,
       '../services/timed-offers.js':{createOfferQuote:async()=>{}},
     };
     const load=async (file,directory='routes')=>{
-      const context=vm.createContext({process:{env},console,Buffer,URL,Date,setTimeout,clearTimeout});
+      const context=vm.createContext({process:{env},console,Buffer,URL,Date:RouteDate,setTimeout,clearTimeout});
       const source=new vm.SourceTextModule(await readFile(new URL('../'+directory+'/'+file+'.js',import.meta.url),'utf8'),{context});
       await source.link(specifier=>{const exports=dependencies[specifier];assert.ok(exports,specifier);return new vm.SyntheticModule(Object.keys(exports),function(){for(const [k,v] of Object.entries(exports))this.setExport(k,v);},{context});});
       await source.evaluate();return directory==='middleware'?source.namespace:source.namespace.default;
@@ -461,17 +467,25 @@ test('OR session migration, API access and admin browser on disposable PostgreSQ
       assert.equal((await db.query('SELECT replay_url FROM live_sessions WHERE id=$1',[id])).rows[0].replay_url,original.replay_url);
       assert.equal((await request('/api/live/'+id,admin,undefined,'DELETE')).status,200);
     });
-    await t.test('one five-minute timing rule gates metadata and joining, including manual completion',async()=>{
+    await t.test('one five-minute timing rule gates metadata and joining, including manual completion',async boundary=>{
+      boundary.after(()=>{routeNow=null;});
       const id=await schedule({courseIds:[c2]});
-      await db.query("UPDATE live_sessions SET scheduled_at=NOW()+interval '20 minutes' WHERE id=$1",[id]);
+      // Define exact boundaries on the same clock used by the route, rather than
+      // assuming independent PostgreSQL and Node wall clocks agree to a millisecond.
+      const start=Date.now()+20*60*1000;routeNow=start-20*60*1000;
+      await db.query('UPDATE live_sessions SET scheduled_at=$2 WHERE id=$1',[id,new Date(start)]);
       let detail=await(await request('/api/live/session/'+id,enrolled)).json();
       assert.equal(detail.join_url,null);assert.equal(Date.parse(detail.scheduled_at)-Date.parse(detail.join_opens_at),300000);
       assert.equal((await request('/api/live/'+id+'/join',enrolled)).status,403);
-      await db.query("UPDATE live_sessions SET scheduled_at=NOW()+interval '5 minutes 1 second' WHERE id=$1",[id]);
+      routeNow=start-300000-1;
+      detail=await(await request('/api/live/session/'+id,enrolled)).json();
+      assert.equal(Date.parse(detail.server_now),routeNow);assert.equal(detail.join_url,null);
       assert.equal((await request('/api/live/'+id+'/join',enrolled)).status,403);
-      await db.query("UPDATE live_sessions SET scheduled_at=NOW()+interval '5 minutes' WHERE id=$1",[id]);
+      routeNow=start-300000;
       detail=await(await request('/api/live/session/'+id,enrolled)).json();assert.equal(detail.join_url,'/api/live/'+id+'/join');
+      assert.equal(Date.parse(detail.server_now),Date.parse(detail.join_opens_at));
       assert.equal((await request('/api/live/'+id+'/join',enrolled)).status,302);
+      routeNow=null;
       await db.query("UPDATE live_sessions SET scheduled_at=NOW()-interval '1 minute' WHERE id=$1",[id]);
       assert.equal((await request('/api/live/'+id+'/finish',admin,{},'PATCH')).status,200);
       assert.equal((await request('/api/live/'+id+'/join',enrolled)).status,410);

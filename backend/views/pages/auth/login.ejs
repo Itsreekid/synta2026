@@ -12,7 +12,7 @@
             <header class="auth-topbar"><a class="mobile-brand brand" href="/"><img class="brand-logo" src="/source/logo.webp" alt="Synta Academy" width="94" height="87"></a><a class="back-home" href="/">↖ Retour à l’accueil</a><span class="topbar-note">Ton espace d’apprentissage</span></header>
             <div class="auth-card">
                 <nav class="auth-tabs" aria-label="Accès à ton compte"><a href="/login" aria-current="page">Connexion</a><a href="/register" data-auth-link>Inscription</a></nav>
-                <div id="authMessageMount" aria-live="polite" aria-atomic="true"><% if (typeof sessionNotice !== 'undefined' && sessionNotice) { %><p class="message"><%= sessionNotice === 'expired' ? 'Ta session a expiré. Reconnecte-toi pour reprendre là où tu t’étais arrêté.' : 'Connecte-toi pour accéder à cette page.' %></p><% } %></div>
+                <div id="authMessageMount" aria-live="polite" aria-atomic="true"><% if (typeof sessionNotice !== 'undefined' && sessionNotice) { %><p class="message"><%= sessionNotice === 'expired' ? 'Ta session a expiré. Reconnecte-toi pour reprendre là où tu t’étais arrêté.' : sessionNotice === 'reset' ? 'Ton mot de passe a été changé. Connecte-toi avec ton nouveau mot de passe.' : 'Connecte-toi pour accéder à cette page.' %></p><% } %></div>
                 <section id="loginFormPanel">
                     <div class="form-intro"><span class="eyebrow">Heureux de te retrouver</span><h1>On reprend ?</h1><p>Connecte-toi et continue à faire des progrès.</p></div>
                     <div class="google-signin-container"><div id="googleSignInBtn" data-client-id="<%= googleClientId || '' %>" data-button-text="continue_with"></div></div>

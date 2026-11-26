@@ -3,6 +3,7 @@ import pool from "../config/db.js";
 import { authApiMiddleware } from "../middleware/requireAuth.js";
 import { requireAdmin } from "../middleware/requireAdmin.js";
 import { authRateLimit } from "../middleware/authRateLimit.js";
+import { requireActiveAccount } from "../services/account-status.js";
 import {
   UUID, createOfferQuote, buyTimedOffer, createInstallment, confirmInstallment,
   collectInstallment, changeInstallmentDeadline, reverseInstallmentPayment
@@ -13,6 +14,7 @@ import { quoteOfferUpgrade, confirmOfferUpgrade, saveUpgradePolicy, correctUpgra
 
 const router = express.Router();
 const quoteLimit = authRateLimit(30, 60000, req => req.user.id);
+const activeAccount = requireActiveAccount(pool);
 const calendarLimit = authRateLimit(4, 60000, req => req.user.id);
 const installmentAdviceLimit = authRateLimit(4, 60000, req => req.user.id);
 const reply = work => async (req, res) => {
@@ -27,7 +29,7 @@ const reply = work => async (req, res) => {
   }
 };
 
-router.post("/api/purchase/offer/quote", authApiMiddleware, quoteLimit, reply(req =>
+router.post("/api/purchase/offer/quote", authApiMiddleware, activeAccount, quoteLimit, reply(req =>
   createOfferQuote(pool, req.user.id, req.body?.offerId)
 ));
 async function upgradeSources(targetId, studentId) {
@@ -46,13 +48,13 @@ async function upgradeSources(targetId, studentId) {
 router.get("/api/purchase/offer-upgrade/:targetId/sources", authApiMiddleware, reply(req =>
   upgradeSources(req.params.targetId, req.user.id)
 ));
-router.post("/api/purchase/offer-upgrade/quote", authApiMiddleware, quoteLimit, reply(req =>
+router.post("/api/purchase/offer-upgrade/quote", authApiMiddleware, activeAccount, quoteLimit, reply(req =>
   quoteOfferUpgrade(pool, req.user.id, req.body ?? {})
 ));
-router.post("/api/purchase/offer-upgrade/confirm", authApiMiddleware, reply(req =>
+router.post("/api/purchase/offer-upgrade/confirm", authApiMiddleware, activeAccount, reply(req =>
   confirmOfferUpgrade(pool, req.user.id, req.body ?? {})
 ));
-router.post("/api/purchase/offer-installments/:arrangementId/pay", authApiMiddleware, reply(req =>
+router.post("/api/purchase/offer-installments/:arrangementId/pay", authApiMiddleware, activeAccount, reply(req =>
   collectInstallment(pool, req.user.id, req.params.arrangementId, req.user.id,
     { amount: req.body?.amount, position: req.body?.position, requestId: req.body?.requestId, source: "wallet" }, true)
 ));
@@ -71,7 +73,7 @@ router.put("/api/admin/offers/:offerId/upgrade-policy", requireAdmin, reply(req 
 ));
 router.post("/api/purchase/offer", (req, _res, next) =>
   req.body?.quote != null || req.body?.requestId != null ? next() : next("route"),
-authApiMiddleware, reply(req => buyTimedOffer(pool, req.user.id, req.body)));
+authApiMiddleware, activeAccount, reply(req => buyTimedOffer(pool, req.user.id, req.body)));
 
 router.get("/api/purchase/offer/history", authApiMiddleware, reply(async req => {
   const before = req.query.before;

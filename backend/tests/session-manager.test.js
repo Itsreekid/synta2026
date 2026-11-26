@@ -218,14 +218,20 @@ test('session management dialog uses existing replay and resource actions on des
  const fixture=await createSessionManagerFixture();
  try{await withTimedOfferBrowser(process.env.TIMED_QA_CHROME,'http://127.0.0.1:'+fixture.server.address().port,async({open,evaluate,until,errors})=>{
  for(const width of [360,390,1440]){
- fixture.sessions[1].access_policy=width===390?'any_selected':'legacy';fixture.sessions[1].course_ids=[fixture.sessions[1].course_id||fixture.sessions[0].course_id];
+ const multi=width===390;fixture.setMultiAudience(multi);
+ // Match the real API: OR sessions have complete relationship arrays and NULL primary fields.
+ Object.assign(fixture.sessions[1],{access_policy:multi?'any_selected':'legacy',
+   course_ids:[fixture.sessions[0].course_id],offer_ids:[fixture.sessions[0].offer_id],
+   course_id:multi?null:fixture.sessions[0].course_id,offer_id:multi?null:fixture.sessions[0].offer_id});
  await open('/admin/pages/sessions.html','synthetic-admin',width);await until(()=>evaluate('allSessions.length===3'),'sessions');
  await evaluate(`openSessionManager('${fixture.singleId}')`);await until(()=>evaluate("!document.querySelector('[data-refresh]').disabled"),'ready');
- await evaluate("document.querySelector('[data-tab=details]').click();document.querySelector('[data-edit-details]').click()");
+ await evaluate("document.querySelector('[data-tab=details]').click()");
+ await until(()=>evaluate("Boolean(document.querySelector('[data-edit-details]')) && !document.querySelector('[data-edit-details]').disabled"),'details controls ready');
+ await evaluate("document.querySelector('[data-edit-details]').click()");
  assert.ok(await evaluate("document.querySelector('#session-edit-title')!==null"),JSON.stringify({width,errors,html:await evaluate("document.querySelector('#manager-details').innerHTML")}));
  if(width===390)assert.ok(await evaluate("document.querySelector('#session-edit-courses input[type=checkbox]')!==null"));
  await evaluate("document.querySelector('#session-edit-title').value='Titre replay corrigé';document.querySelector('.session-details-form').requestSubmit()");
- await until(()=>evaluate("document.querySelector('#manager-details').textContent.includes('Titre replay corrigé') && !document.querySelector('.session-details-form')"),'saved');
+ await until(()=>evaluate("document.querySelector('#manager-details').textContent.includes('Titre replay corrigé') && !document.querySelector('.session-details-form') && !document.querySelector('[data-refresh]').disabled && !document.querySelector('[data-edit-details]').disabled"),'saved');
  assert.equal(fixture.sessions[1].zoom_meeting_id,'synthetic-meeting');assert.equal(fixture.sessions[1].replay_url,'live-replays/single.mp4');
  assert.ok(await evaluate("document.querySelector('.session-manager').getBoundingClientRect().right<=innerWidth"));
  }assert.deepEqual(errors,[]);

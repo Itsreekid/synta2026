@@ -5,13 +5,15 @@ import express from "express";
 import pool from "../config/db.js";
 import { authApiMiddleware } from "../middleware/requireAuth.js";
 import { matchesOfferTarget, offerEntitlement } from "../utils/offerAccess.js";
+import { requireActiveAccount } from "../services/account-status.js";
 
 const router = express.Router();
+const activeAccount = requireActiveAccount(pool);
 
 /**
  * POST /api/purchase/course
  */
-router.post("/course", authApiMiddleware, async (req, res) => {
+router.post("/course", authApiMiddleware, activeAccount, async (req, res) => {
   let client;
   try {
     const { courseId } = req.body;
@@ -104,7 +106,7 @@ router.post("/course", authApiMiddleware, async (req, res) => {
 /**
  * POST /api/purchase/offer
  */
-router.post("/offer", authApiMiddleware, async (req, res) => {
+router.post("/offer", authApiMiddleware, activeAccount, async (req, res) => {
   const { offerId } = req.body || {};
   const userId = req.user.id;
   if (!offerId) return res.status(400).json({ error: "Missing required field: offerId" });

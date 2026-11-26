@@ -11,7 +11,7 @@
                 <div class="form-intro"><span class="eyebrow">Ton compte Google est connecté</span><h1>Un profil qui<br>te ressemble.</h1><p>Précise ton parcours pour retrouver les formations adaptées à ton niveau.</p></div>
                 <p class="account-badge"><span class="status-dot"></span><%= user.email %></p>
                 <div id="authMessageMount" aria-live="polite" aria-atomic="true"></div>
-                <form id="completeProfileForm" method="post" novalidate>
+                <form id="completeProfileForm" data-next="<%= typeof nextPath !== 'undefined' ? nextPath || '' : '' %>" method="post" novalidate>
                     <%- include('../../partials/auth-profile-fields') %>
                     <button type="submit" class="button button-primary" data-idle="Commencer à apprendre">Commencer à apprendre <span aria-hidden="true">↗</span></button>
                     <p class="field-hint account-note">Tu pourras modifier ces informations dans ton profil.</p>
@@ -21,6 +21,6 @@
             <footer class="auth-footer"><span>Un peu de curiosité. Beaucoup de possibilités.</span><a href="mailto:contact@syntaacademy.tn">Besoin d’aide ?</a></footer>
         </main>
     </div>
-    <script src="/js/auth-entry.js?v=1" defer></script>
+    <script src="/js/auth-entry.js?v=2" defer></script>
 </body>
 </html>

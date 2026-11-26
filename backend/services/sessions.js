@@ -8,8 +8,9 @@ import jwt from "jsonwebtoken";
 const HOUR_MS = 60 * 60 * 1000;
 const DAY_MS = 24 * HOUR_MS;
 export const ACCESS_TTL_MS = HOUR_MS;
-export const REFRESH_IDLE_MS = 14 * DAY_MS;
-export const SESSION_MAX_MS = 30 * DAY_MS;
+// Owner decision 2026-11-26: signed out after 30 days without a visit, and at most 90 days after signing in.
+export const REFRESH_IDLE_MS = 30 * DAY_MS;
+export const SESSION_MAX_MS = 90 * DAY_MS;
 // Parallel requests from several tabs may present the same token right after it rotates.
 export const ROTATION_GRACE_MS = 20 * 1000;
 
@@ -98,8 +99,16 @@ export async function startSession(pool, res, user, { renewable = true, previous
 }
 
 async function loadUser(db, userId) {
-  const result = await db.query("SELECT id, email, name, role FROM users WHERE id = $1", [userId]);
-  return result.rows[0] || null;
+  // to_jsonb keeps this working before the deactivation migration adds the column.
+  const result = await db.query(
+    "SELECT id, email, name, role, to_jsonb(users)->>'deactivated_at' AS deactivated_at FROM users WHERE id = $1",
+    [userId]
+  );
+  const user = result.rows[0];
+  // A deactivated account renews nothing: its refresh family is revoked like a deleted user's.
+  if (!user || user.deactivated_at) return null;
+  const { deactivated_at, ...active } = user;
+  return active;
 }
 
 function verifyLegacyRefreshToken(token) {
@@ -186,6 +195,21 @@ export async function revokeRefreshToken(pool, presented) {
        AND family_id = (SELECT family_id FROM refresh_tokens WHERE token_hash = $1)`,
     [hashToken(presented)]
   );
+}
+
+/**
+ * End every renewable session of a user (password change: "log out everywhere").
+ * Access tokens already issued expire within ACCESS_TTL_MS. Returns false when the
+ * refresh-token table is not deployed yet (nothing to revoke then).
+ */
+export async function revokeAllUserSessions(db, userId) {
+  // Checked first (not caught) so this is safe inside a caller's transaction.
+  if (!(await sessionRenewalReady(db))) return false;
+  await db.query(
+    "UPDATE refresh_tokens SET revoked_at = NOW() WHERE user_id = $1 AND revoked_at IS NULL",
+    [userId]
+  );
+  return true;
 }
 
 /**

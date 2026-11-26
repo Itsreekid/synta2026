@@ -4,11 +4,31 @@
 
     const form = document.querySelector('#loginForm, #registerForm, #completeProfileForm');
     if (!form) return;
-    // The server only renders validated /dashboard or /app/ paths into data-next.
+    // The server supplies a validated same-site student/campaign return path.
     window.syntaReturnPath = () => {
         const next = form.dataset.next || '';
-        return /^\/(dashboard|app\/)/.test(next) && !next.startsWith('//') ? next : '';
+        return /^\/(dashboard|app\/|session(?:\/|$))/.test(next) && !next.startsWith('//') ? next : '';
     };
+    let campaignOnboardingSlug = null;
+    let campaignProfileReady = Promise.resolve();
+    if(form.id==='completeProfileForm' && /^\/session(?:\/|$)/.test(form.dataset.next||'')){
+        const slug=(form.dataset.next||'').split('?')[0].split('/')[2]||'';
+        campaignProfileReady=Promise.all(['/campaign','/guest/status'].map(path=>fetch('/api/session'+path+'?slug='+encodeURIComponent(slug),{credentials:'include',cache:'no-store'}).then(response=>response.ok?response.json():null))).then(([data,guest])=>{
+            if(!data?.funnel || !guest?.attempt?.submitted)return;
+            campaignOnboardingSlug=data.campaign.slug;
+            const fixed=[];
+            for(const [id,value]of [['userClass',data.campaign.target_class],['userBranch',data.campaign.target_branch]]){
+                const field=document.getElementById(id);
+                if(field&&value){field.value=value;field.dataset.campaignTarget='true';field.disabled=true;field.closest('.form-group').hidden=true;fixed.push(field.selectedOptions[0].textContent);}
+            }
+            if(fixed.length){
+                form.querySelector('[name="learnerType"][value="school"]').checked=true;
+                form.querySelector('.profile-choice').hidden=true;
+                const info=document.createElement('p');info.className='message';info.dataset.campaignProfile='';info.textContent='Parcours de la séance : '+fixed.join(' · ');form.prepend(info);
+                syncProfile();
+            }
+        }).catch(()=>{});
+    }
     const register = form.id === 'registerForm';
     const profileOnly = form.id === 'completeProfileForm';
     let step = 1;
@@ -108,8 +128,8 @@
     function syncProfile() {
         const independent = form.querySelector('[name="learnerType"]:checked')?.value === 'independent';
         byId('schoolFields').hidden = independent;
-        byId('userClass').disabled = independent;
-        byId('userBranch').disabled = independent;
+        byId('userClass').disabled = independent || byId('userClass').dataset.campaignTarget === 'true';
+        byId('userBranch').disabled = independent || byId('userBranch').dataset.campaignTarget === 'true';
         byId('section-hint').textContent = independent
             ? 'Pour tes études ou tes projets, découvre les formations ouvertes à tous.'
             : 'Choisis ton niveau actuel pour retrouver les formations qui te correspondent.';
@@ -201,6 +221,8 @@
     form.addEventListener('submit', async event => {
         event.preventDefault();
         if (busy) return;
+        await campaignProfileReady;
+        if (busy) return;
         if (register && step === 1) {
             if (validateFields(accountFields)) setStep(2);
             return;
@@ -221,11 +243,12 @@
             } : null;
             let result;
             if (profileOnly) {
-                const response = await fetch('/api/auth/complete-profile', {
+                const response = await fetch(campaignOnboardingSlug ? '/api/session/member/profile' : '/api/auth/complete-profile', {
                     method: 'POST', headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ phone: profile.phone, user_class: profile.userClass, user_branch: profile.userBranch }),
+                    body: JSON.stringify({ phone: profile.phone, user_class: profile.userClass, user_branch: profile.userBranch, ...(campaignOnboardingSlug && {slug:campaignOnboardingSlug}) }),
                 });
-                result = { success: response.ok };
+                const data = await response.json().catch(()=>({}));
+                result = { success: response.ok, message: data.error };
                 if (response.status === 401) {
                     message('Ta session a expiré. Reconnecte-toi pour terminer ton profil.');
                     return;

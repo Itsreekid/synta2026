@@ -368,7 +368,7 @@ test("live access and Zoom recording imports on disposable PostgreSQL", { skip: 
       st.after(() => appPool.end());
       recordingWorker.kick = () => {};
       await detectLiveFeatures(appPool);
-      assert.deepEqual({ ...liveFeatures }, { extendedAccess: true, recordingsTable: true, multiAudience: false });
+      assert.deepEqual({ ...liveFeatures }, { extendedAccess: true, recordingsTable: true, multiAudience: false, freeSessions:true });
       const app = express();
       app.use(router);
       const server = app.listen(0, "127.0.0.1");

@@ -10,6 +10,10 @@
 //  - Participants see the campaign's Zoom session through the normal live-session system.
 // =====================================================
 import express from "express";
+import {findActiveCampaign, slugAliasesReady, SLUG_PATTERN, RESERVED_SLUGS, CAMPAIGN_COLUMNS} from "../services/free-campaigns.js";
+export {findActiveCampaign, SLUG_PATTERN, RESERVED_SLUGS};
+import { normalizeTunisianPhone, validateLearnerProfile } from "../utils/learnerProfile.js";
+import * as funnel from '../services/free-session-funnel.js';
 import pool from "../config/db.js";
 import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
@@ -28,9 +32,6 @@ const SALT_ROUNDS = 12;
 const placementKey = () => crypto.createHmac("sha256", JWT_SECRET).update("synta-placement-v1").digest();
 const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
-export const SLUG_PATTERN = /^[a-z0-9]+(-[a-z0-9]+)*$/;
-// Must match the CHECK constraint in migration 202611250002.
-export const RESERVED_SLUGS = new Set(["admin", "api", "verify", "status", "questions", "submit", "register"]);
 const SCHOOL_YEARS = ["1ere", "2eme", "3eme", "bac", "other"];
 const SCHOOL_SECTIONS = ["lettres", "mathematiques", "informatique", "sciences", "technique", "economie", "other"];
 const QUESTION_TYPES = ["multiple_choice", "drag_drop"];
@@ -57,6 +58,7 @@ function requirePlacement(req, res, next) {
   const proof = readPlacementToken(req.cookies?.synta_placement, "placement-verified");
   if (!proof?.sub) return res.status(401).json({ error: "Confirme ton adresse e-mail pour continuer." });
   req.placementId = proof.sub;
+  req.placementOccurrenceId = proof.occurrenceId || null;
   next();
 }
 
@@ -123,23 +125,9 @@ function publicCampaign(row) {
   };
 }
 
-const CAMPAIGN_COLUMNS = `id, slug, title, description, subject, target_class, target_branch,
-  scheduled_at, duration_minutes, is_active, is_default, created_at, updated_at`;
-
-/** Active campaign by slug; no slug means the default campaign served at /session. */
-export async function findActiveCampaign(db, slug) {
-  if (slug == null || slug === "") {
-    const result = await db.query(`SELECT ${CAMPAIGN_COLUMNS} FROM free_sessions WHERE is_default AND is_active`);
-    return result.rows[0] || null;
-  }
-  if (typeof slug !== "string" || !SLUG_PATTERN.test(slug)) return null;
-  const result = await db.query(`SELECT ${CAMPAIGN_COLUMNS} FROM free_sessions WHERE slug = $1 AND is_active`, [slug]);
-  return result.rows[0] || null;
-}
-
 async function activeQuestions(db, campaignId, withAnswers = false) {
   const result = await db.query(
-    `SELECT id, text, type, options, order_index, explanation${withAnswers ? ", correct_answer" : ""}
+    `SELECT id, text, type, options, order_index${withAnswers ? ", explanation, correct_answer" : ""}
      FROM session_questions
      WHERE is_active = true AND free_session_id = $1
      ORDER BY order_index ASC, created_at ASC`,
@@ -184,6 +172,13 @@ router.post("/register", authRateLimit(10), async (req, res) => {
   try {
     const campaign = await findActiveCampaign(pool, slug);
     if (!campaign) return res.status(404).json({ error: "Cette séance gratuite n’est plus disponible." });
+    if (req.body.track || req.body.branch) {
+      if (!SCHOOL_YEARS.includes(campaign.target_class || req.body.track) || !SCHOOL_SECTIONS.includes(campaign.target_branch || req.body.branch)) {
+        return res.status(400).json({ error: 'Choisis ta classe et ta section.' });
+      }
+    }
+    const profileError=validateLearnerProfile({phone,userClass:campaign.target_class||req.body.track,userBranch:campaign.target_branch||req.body.branch},true);
+    if(profileError)return res.status(400).json({error:profileError});
     const address = email.trim().toLowerCase();
     // A pending registration may move to another campaign only while its quiz is unfinished.
     // Name and phone of an existing registration are never overwritten from this public form.
@@ -195,7 +190,7 @@ router.post("/register", authRateLimit(10), async (req, res) => {
          updated_at = NOW()
        WHERE NOT session_registrations.account_activated AND NOT session_registrations.completed
          AND session_registrations.free_session_id IS DISTINCT FROM EXCLUDED.free_session_id`,
-      [full_name.trim(), address, phone.trim(), campaign.id, campaign.target_class, campaign.target_branch]
+      [full_name.trim(), address, normalizeTunisianPhone(phone), campaign.id, campaign.target_class || req.body.track || null, campaign.target_branch || req.body.branch || null]
     );
     const result = await pool.query(
       `SELECT r.id, r.updated_at::text AS revision, f.slug
@@ -206,7 +201,12 @@ router.post("/register", authRateLimit(10), async (req, res) => {
     );
     const registration = result.rows[0];
     if (registration) {
-      const token = jwt.sign({ revision: registration.revision }, placementKey(), {
+      if (await funnel.funnelReady(pool)) await funnel.bindGuestRegistration(pool, campaign.id, registration.id, req.cookies);
+      const occurrenceId = req.body.occurrenceId;
+      if (occurrenceId && !(await funnel.campaignOccurrences(pool, campaign.id)).some(row => row.id === occurrenceId)) {
+        return res.status(409).json({ error: 'Choisis une séance disponible.' });
+      }
+      const token = jwt.sign({ revision: registration.revision, ...(occurrenceId && { occurrenceId }) }, placementKey(), {
         issuer: "synta-placement", audience: "placement-email", subject: registration.id,
         jwtid: crypto.randomUUID(), expiresIn: "30m",
       });
@@ -236,7 +236,7 @@ router.post("/verify", authRateLimit(20), async (req, res) => {
       [proof.sub, proof.revision]
     );
     if (!result.rowCount) return res.status(400).json({ error: "Lien invalide ou déjà utilisé." });
-    const token = jwt.sign({}, placementKey(), {
+    const token = jwt.sign({ ...(proof.occurrenceId && { occurrenceId: proof.occurrenceId }) }, placementKey(), {
       issuer: "synta-placement", audience: "placement-verified", subject: proof.sub, expiresIn: "1h",
     });
     res.cookie("synta_placement", token, { ...placementCookie, maxAge: 3600000 });
@@ -295,7 +295,7 @@ router.post("/submit", requirePlacement, async (req, res) => {
     // Campaigns with a target class/branch fix them; open campaigns keep the student's choice.
     const finalTrack = campaign.target_class || (typeof track === "string" ? track.slice(0, 40) : null);
     const finalFilier = campaign.target_branch || (typeof filier === "string" ? filier.slice(0, 80) : null);
-    if (!finalTrack) return res.status(400).json({ error: "Données manquantes." });
+    if (!SCHOOL_YEARS.includes(finalTrack) || !SCHOOL_SECTIONS.includes(finalFilier)) return res.status(400).json({ error: "Données manquantes." });
 
     const questions = await activeQuestions(pool, campaign.free_session_id, true);
     const result = scoreAnswers(questions, answers);
@@ -337,7 +337,7 @@ router.post("/set-password", authRateLimit(10), requirePlacement, async (req, re
     client = await pool.connect();
     await client.query("BEGIN");
     const registration = await client.query(
-      `SELECT r.email, r.full_name, r.phone, r.free_session_id, r.score, r.quiz_total, r.tier, r."group",
+      `SELECT r.email, r.full_name, r.phone, r.track, r.filier, r.free_session_id, r.score, r.quiz_total, r.tier, r."group",
               f.target_class, f.target_branch
        FROM session_registrations r JOIN free_sessions f ON f.id = r.free_session_id
        WHERE r.id = $1 AND r.completed AND NOT r.account_activated FOR UPDATE OF r`, [req.placementId]
@@ -353,7 +353,7 @@ router.post("/set-password", authRateLimit(10), requirePlacement, async (req, re
        SELECT $1, $2, $3, $4, 'user', true, $5, $6, 'free_session', $7
        WHERE NOT EXISTS (SELECT 1 FROM users WHERE lower(email) = $1)
        ON CONFLICT (email) DO NOTHING RETURNING id, email, name, role`,
-      [reg.email, passwordHash, reg.full_name, reg.phone, reg.target_class, reg.target_branch, reg.free_session_id]
+      [reg.email, passwordHash, reg.full_name, reg.phone, reg.target_class || reg.track, reg.target_branch || reg.filier, reg.free_session_id]
     );
     if (!result.rowCount) {
       await client.query("ROLLBACK");
@@ -373,12 +373,13 @@ router.post("/set-password", authRateLimit(10), requirePlacement, async (req, re
        ON CONFLICT (free_session_id, user_id) DO NOTHING`,
       [reg.free_session_id, user.id, reg.score, reg.quiz_total, reg.tier, reg.group, req.placementId]
     );
+    const savedFree = await funnel.claimRegistration(client, user.id, req.placementId, reg.free_session_id, req.placementOccurrenceId);
     await client.query("COMMIT");
     res.clearCookie("synta_placement", placementCookie);
     await startSession(pool, res, user);
     // Open the campaign session in the student calendar (its popup has the Join button).
     const session = await upcomingCampaignSession(pool, reg.free_session_id).catch(() => null);
-    return res.json({ success: true, redirectUrl: session?.calendar_link || "/dashboard" });
+    return res.json({ success: true, redirectUrl: "/dashboard", session: savedFree?.session || session, reserved: savedFree?.reserved === true });
   } catch (err) {
     if (client) await client.query("ROLLBACK").catch(() => {});
     console.error("[placement] Activation failed:", err.code);
@@ -543,6 +544,10 @@ export async function syncCampaignZoom(db, campaignId, zoom = { createZoomMeetin
     const found = await client.query(`SELECT ${CAMPAIGN_COLUMNS} FROM free_sessions WHERE id = $1 FOR UPDATE`, [campaignId]);
     const campaign = found.rows[0];
     if (!campaign) { await client.query("ROLLBACK"); return { status: "missing" }; }
+    if(await funnel.funnelReady(client)){
+      const managed=await client.query('SELECT 1 FROM live_sessions WHERE free_session_id=$1 AND free_reservation_required LIMIT 1',[campaignId]);
+      if(managed.rowCount){await client.query('COMMIT');return {status:'managed',error:'Les dates sont gérées dans les séances de cette campagne.'};}
+    }
     const current = (await client.query(
       `SELECT id, title, description, scheduled_at, duration_minutes, zoom_meeting_id
        FROM live_sessions WHERE free_session_id = $1 AND status IN ('scheduled', 'live') FOR UPDATE`, [campaignId]
@@ -659,8 +664,12 @@ async function saveCampaign(req, res, id) {
   try {
     await client.query("BEGIN");
     if (id) {
-      const current = await client.query("SELECT is_default FROM free_sessions WHERE id = $1 FOR UPDATE", [id]);
+      const current = await client.query("SELECT is_default,slug FROM free_sessions WHERE id = $1 FOR UPDATE", [id]);
       if (!current.rowCount) { await client.query("ROLLBACK"); return res.status(404).json({ error: "Séance gratuite introuvable." }); }
+      if (current.rows[0].slug !== value.slug && !await slugAliasesReady(client)) {
+        await client.query("ROLLBACK");
+        return res.status(409).json({ error: "La modification du lien n’est pas encore disponible. Le lien actuel reste valide." });
+      }
       if (current.rows[0].is_default && !value.is_default) {
         await client.query("ROLLBACK");
         return res.status(409).json({ error: "Pour changer le lien /session, définis une autre séance comme séance par défaut." });
@@ -832,6 +841,62 @@ router.delete("/admin/questions", requireAdmin, requireJson, adminHandler(async 
   }
   await pool.query("DELETE FROM session_questions WHERE id = $1", [id]);
   return res.json({ success: true });
+}));
+
+
+// Public guest endpoints use short-lived cookie capabilities; claim endpoints require JWT authentication.
+const funnelHandler=work=>async(req,res)=>{
+ try{if(!await funnel.funnelReady(pool))return res.status(503).json({error:'Le défi invité sera bientôt disponible.'});
+   res.set('Cache-Control','private, no-store');await work(req,res);
+ }catch(error){if(!error.status)console.error('[free-funnel] Request failed:',error.code||error.name);res.status(error.status||500).json({error:error.status?error.message:'Impossible de terminer cette opération. Réessaie.'});}
+};
+const campaignFor=async req=>{const campaign=await findActiveCampaign(pool,req.body?.slug??req.query.slug);if(!campaign)throw Object.assign(new Error('Campagne indisponible.'),{status:404});return (await pool.query('SELECT * FROM free_sessions WHERE id=$1',[campaign.id])).rows[0];};
+router.get('/campaign',async(req,res)=>{
+ try{const campaign=await findActiveCampaign(pool,req.query.slug);if(!campaign)return res.status(404).json({error:'Campagne indisponible.'});
+ const questions=await activeQuestions(pool,campaign.id);res.set('Cache-Control','no-store');
+ res.json({campaign:publicCampaign(campaign),count:questions.length,minutes:Math.max(2,Math.ceil(questions.length*.75)),
+   funnel:await funnel.funnelReady(pool),occurrences:await funnel.campaignOccurrences(pool,campaign.id)});
+ }catch{res.status(503).json({error:'Le défi est momentanément indisponible.'});}
+});
+router.post('/guest/start',authRateLimit(12,60*60*1000),requireJson,funnelHandler(async(req,res)=>{
+ const campaign=await campaignFor(req);res.json(await funnel.startGuest(pool,campaign,req.body.restart===true?{}:req.cookies,res));
+}));
+router.get('/guest/status',authRateLimit(120),funnelHandler(async(req,res)=>{const campaign=await campaignFor(req);res.json(await funnel.guestStatus(pool,campaign.id,req.cookies));}));
+router.post('/guest/submit',authRateLimit(30),requireJson,funnelHandler(async(req,res)=>{const campaign=await campaignFor(req);res.json({attempt:await funnel.submitGuest(pool,campaign,req.cookies,req.body.answers,scoreAnswers)});}));
+router.post('/guest/claim',authApiMiddleware,authRateLimit(30,900000,req=>req.user.id),requireJson,funnelHandler(async(req,res)=>{
+ const campaign=await campaignFor(req);res.json(await funnel.claimGuest(pool,req.user.id,campaign,req.cookies,req.body.occurrenceId));
+}));
+router.get('/member/result',authApiMiddleware,funnelHandler(async(req,res)=>{
+ const campaign=await campaignFor(req);
+ const row=(await pool.query('SELECT id,score,total,level,submitted_at FROM free_session_attempts WHERE user_id=$1 AND campaign_id=$2 AND claimed_at IS NOT NULL ORDER BY submitted_at DESC LIMIT 1',[req.user.id,campaign.id])).rows[0];
+ res.json({attempt:row?{...row,submitted:true,claimed:true,fromAccount:true}:null,reuseAllowed:campaign.allow_result_reuse});
+}));
+router.post('/member/profile',authApiMiddleware,authRateLimit(20,900000,req=>req.user.id),requireJson,funnelHandler(async(req,res)=>{
+ const campaign=await campaignFor(req);res.json(await funnel.completeCampaignProfile(pool,req.user.id,campaign,req.cookies,req.body));
+}));
+router.post('/member/reserve',authApiMiddleware,authRateLimit(30,900000,req=>req.user.id),requireJson,funnelHandler(async(req,res)=>{
+ const campaign=await campaignFor(req);res.json(await funnel.reservePrevious(pool,req.user.id,campaign,req.body.occurrenceId));
+}));
+router.get('/admin/campaigns/:id/occurrences',requireAdmin,funnelHandler(async(req,res)=>{
+ if(!uuidPattern.test(req.params.id))return res.status(400).json({error:'Campagne invalide.'});
+ const occurrences=(await pool.query('SELECT id,title,scheduled_at,duration_minutes,status,free_reservation_required,zoom_meeting_id IS NOT NULL AS has_zoom FROM live_sessions WHERE free_session_id=$1 ORDER BY scheduled_at DESC',[req.params.id])).rows;
+ const policy=(await pool.query('SELECT allow_result_reuse,diagnostic_rules FROM free_sessions WHERE id=$1',[req.params.id])).rows[0];
+ const participants=(await pool.query('SELECT r.live_session_id,r.user_id,r.reserved_at,r.status,u.name,a.score,a.total,a.level FROM free_session_reservations r LEFT JOIN free_session_attempts a ON a.id=r.attempt_id JOIN users u ON u.id=r.user_id JOIN live_sessions ls ON ls.id=r.live_session_id WHERE ls.free_session_id=$1 ORDER BY r.reserved_at DESC',[req.params.id])).rows;
+ const attempts=(await pool.query('SELECT a.id,a.user_id,a.score,a.total,a.level,a.created_at,a.submitted_at,u.name FROM free_session_attempts a LEFT JOIN users u ON u.id=a.user_id WHERE a.campaign_id=$1 ORDER BY a.created_at DESC LIMIT 100',[req.params.id])).rows;
+ res.json({occurrences,policy,participants,attempts});
+}));
+router.post('/admin/campaigns/:id/occurrences',requireAdmin,requireJson,funnelHandler(async(req,res)=>{
+ if(!uuidPattern.test(req.params.id))return res.status(400).json({error:'Campagne invalide.'});
+ res.status(201).json({session:await funnel.createOccurrence(pool,req.params.id,req.user.id,req.body,{createZoomMeeting,deleteZoomMeeting})});
+}));
+router.patch('/admin/campaigns/:id/occurrences/:sessionId',requireAdmin,requireJson,funnelHandler(async(req,res)=>{
+ if(!uuidPattern.test(req.params.id))return res.status(400).json({error:'Campagne invalide.'});
+ res.json(await funnel.changeOccurrence(pool,req.params.id,req.params.sessionId,req.user.id,req.body,{deleteZoomMeeting,rescheduleZoomMeeting},liveSessionAccess));
+}));
+router.put('/admin/campaigns/:id/funnel-settings',requireAdmin,requireJson,funnelHandler(async(req,res)=>{
+ const {reuse,intermediate,advanced}=req.body;
+ if(!uuidPattern.test(req.params.id)||typeof reuse!=='boolean'||!Number.isInteger(intermediate)||!Number.isInteger(advanced)||intermediate<1||advanced>100||advanced<=intermediate)return res.status(400).json({error:'Vérifie les seuils et la réutilisation.'});
+ await pool.query('UPDATE free_sessions SET allow_result_reuse=$2,diagnostic_rules=$3 WHERE id=$1',[req.params.id,reuse,JSON.stringify({intermediate,advanced})]);res.json({success:true});
 }));
 
 export default router;

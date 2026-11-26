@@ -33,7 +33,7 @@
                 button.inert = false;
                 return;
             }
-            window.location.assign(result.needsOnboarding ? '/auth/complete-profile' : window.syntaReturnPath?.() || '/dashboard');
+            window.location.assign(result.needsOnboarding ? '/auth/complete-profile'+(window.syntaReturnPath?.()?'?next='+encodeURIComponent(window.syntaReturnPath()):'') : window.syntaReturnPath?.() || '/dashboard');
         } catch {
             status.textContent = 'Connexion interrompue. Réessaie dans un instant.';
             button.inert = false;

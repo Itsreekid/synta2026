@@ -503,9 +503,9 @@ test("timed offers on disposable PostgreSQL", { skip: !process.env.BUGI_QA_POSTG
                       featured:cards.filter(card=>card.classList.contains('featured')).length,
                       badges:document.querySelectorAll('.discount-badge').length,
                       labels:action, disabled:cards.map(card=>card.querySelector('.acheter-btn').disabled),
-                      terms: cards[1].querySelector('.validity-box').textContent === 'Abonnement annuel 2026/2027',
+                      terms: cards[1].querySelector('.annual-access-title').textContent === 'Abonnement annuel 2026/2027',
                       namesHidden: cards.every((card,index)=>!card.textContent.includes(cases[index].title)),
-                      monthlyTerms: cards[4].textContent.includes('DT / mois') && cards[5].textContent.includes('Renouvellement manuel')
+                      monthlyTerms: cards[4].textContent.includes('DT / mois') && cards[5].textContent.toLowerCase().includes('renouvellement manuel')
                     };
                   })()`);
                   assert.deepEqual(layout, {
@@ -550,7 +550,8 @@ test("timed offers on disposable PostgreSQL", { skip: !process.env.BUGI_QA_POSTG
                     await evaluate("document.querySelector('dialog [data-wallet]').click()");
                   }
                   const confirmation = await until(() => evaluate("window.lastConfirmation || ''"), "checkout confirmation");
-                  assert.match(confirmation, /Fin d’accès.*Tunis/);
+                  assert.match(confirmation, /Fin d’accès/);
+                  assert.doesNotMatch(confirmation, /heure de Tunis/);
                   const formattedExpiry = new Intl.DateTimeFormat("fr-FR", {
                     timeZone: "Africa/Tunis", dateStyle: "long", timeStyle: "short"
                   }).format(new Date(expected.expires_at));
@@ -691,9 +692,12 @@ test("timed offers on disposable PostgreSQL", { skip: !process.env.BUGI_QA_POSTG
                     })()`);
                     const quote = await until(() => evaluate("document.querySelector('dialog [data-quote]')?.textContent"), "upgrade quote");
                     assert.match(quote, useCredit ? /Crédit : 180.00 DT.*À payer maintenant : 0.00 DT.*113.34 DT/s : /Crédit : 0.00 DT.*146.67 DT/s);
-                    assert.match(quote, /Aucune échéance définie/);
-                    assert.match(quote, /Dernier jour inclus.*Fin d’accès.*00:00 \(Tunis\).*Accès restant/s);
-                    assert.doesNotMatch(quote, /Accès restant : environ \d+ j/);
+                    const expectedPlan=await quoteOfferUpgrade(db,id,{targetId:upgradeTarget,sourceId:useCredit?legacy:null,count:3});
+                    const formatDay=new Intl.DateTimeFormat('fr-FR',{timeZone:'UTC',dateStyle:'long'});
+                    for(const row of expectedPlan.schedule){if(row.remaining!=='0.00')assert.ok(quote.includes(formatDay.format(new Date(row.dueDate+'T00:00:00Z'))));}
+                    assert.match(quote,/Dernier jour inclus.*Fin d’accès.*00:00.*Accès restant/s);
+                    assert.ok(quote.includes('Accès restant : environ '+Math.floor(expectedPlan.remainingMinutes/1440)+' j'));
+                    assert.doesNotMatch(quote,/heure de Tunis/);
                     assert.equal(await count("SELECT count(*) FROM offer_access_grants WHERE user_id=$1", [id]), 0);
                     await evaluate("document.querySelector('dialog form').requestSubmit()");
                     await until(async () => await count("SELECT count(*) FROM offer_access_grants WHERE user_id=$1", [id]) === 1, "confirmed scheduled grant");

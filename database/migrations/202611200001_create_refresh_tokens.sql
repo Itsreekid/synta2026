@@ -1,6 +1,6 @@
 -- Server-side refresh tokens with rotation and reuse detection.
 -- Additive only: no existing table or row is modified.
--- HELD: move into database/migrations/ only with the owner's explicit approval; the next deploy then applies it.
+-- Owner approved promotion on 2026-11-26; the next deploy applies it.
 CREATE TABLE IF NOT EXISTS refresh_tokens (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id uuid NOT NULL REFERENCES users(id) ON DELETE CASCADE,

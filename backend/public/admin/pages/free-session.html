@@ -89,7 +89,7 @@
             </div>
         </div>
         <div class="card-body">
-            <p class="section-hint">Chaque séance gratuite a son propre lien, son quiz, sa classe et sa réunion Zoom. La séance « par défaut » est aussi accessible via <span class="campaign-link">/session</span>. Clique sur une séance pour gérer son quiz et ses étudiants.</p>
+            <p class="section-hint">Crée autant de campagnes que nécessaire, même pour une seule classe. Chaque lien garde son quiz, ses dates et ses participants. La campagne « par défaut » est aussi accessible via <span class="campaign-link">/session</span>. Clique sur une campagne pour la gérer et copier son lien.</p>
             <div id="campaign-list" class="campaign-list"><p>Chargement...</p></div>
         </div>
     </div>
@@ -157,6 +157,7 @@
                 <div class="input-group">
                     <label for="c-slug">Lien public</label>
                     <div class="slug-field"><span>/session/</span><input type="text" id="c-slug" maxlength="60" placeholder="3eme-info" autocomplete="off"></div>
+                    <small class="muted">Les liens déjà partagés sont conservés lors d’une modification.</small>
                 </div>
             </div>
             <div class="grid-2">
@@ -189,7 +190,7 @@
                 <div class="input-group">
                     <label for="c-date">Date &amp; heure (heure de Tunis)</label>
                     <input type="datetime-local" id="c-date">
-                    <small class="muted">Laisse vide pour ne pas encore créer de réunion Zoom. Vider la date annule la réunion.</small>
+                    <small class="muted">Laisse vide pour ne pas encore créer de réunion Zoom. Pour les prochaines séances sur le même lien, utilise « Dates et réservations » afin de conserver l’historique.</small>
                 </div>
                 <div class="input-group">
                     <label for="c-duration">Durée (minutes)</label>
@@ -382,6 +383,7 @@
             document.getElementById('btnNewQuestion').disabled = !campaign;
             if (!campaign) return;
             await Promise.all([fetchQuestions(), fetchStudents()]);
+            window.loadCampaignFunnel?.(id);
         }
 
         function openCampaignModal(campaign = null) {
@@ -686,5 +688,6 @@
 
         document.addEventListener('DOMContentLoaded', fetchCampaigns);
     </script>
+<script src="/admin/js/free-session-funnel.js?v=1" defer></script>
 </body>
 </html>

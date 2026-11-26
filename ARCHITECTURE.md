@@ -1,3 +1,15 @@
+### Campaign slug resolution and targeted onboarding — 2026-11-26, local only
+
+services/free-campaigns.js centralizes canonical/alias resolution. Held alias table provides a unique immutable namespace and transaction-safe slug reservation. Page redirects are temporary/no-store; API lookup returns the same campaign ID. Normal and campaign Google onboarding reuse services/learner-onboarding.js. JWT-protected /api/session/member/profile also verifies the existing HttpOnly guest capability without widening its /api/session cookie path. Draft keys use campaign UUIDs. Existing auth/Zoom/quiz/paid authorization architecture retained; no new runtime variable. See FREE_CAMPAIGN_FLEXIBILITY_IMPLEMENTATION.md.
+
+### Exact migration supersession — 2026-11-26
+
+One hash-pinned original/replacement mapping executes session compatibility at the original dependency position. Applied originals stay immutable; unapplied originals are superseded without fake receipts. Ledger stores actual correction execution. Advisory locking, transactional files and fail-closed startup retained; inventory checksums are prevalidated. No new ledger columns. See SESSION_MIGRATION_COMPATIBILITY.md.
+
+### Free-session guest funnel — 2026-11-26, local only
+
+Existing session router/page/admin editor reused. free-session-funnel service uses the central database client. Hashed HttpOnly guest capabilities bind immutable private snapshots to verified registration/JWT identity. Exact-date reservations protect new occurrences through shared liveSessionAccess; old campaign membership remains valid. Existing Zoom/notifications reused, no recording polling. See FREE_SESSION_FUNNEL_IMPLEMENTATION.md.
+
 ### Calendar presentation refresh — 2026-11-25
 
 Calendar cards and date controls retain the existing vanilla renderer and timetable lane positioning. The shared LIVE reminder controller publishes its already-authorized upcoming response as a browser synta:live-sessions CustomEvent. Calendar revision comparison reuses that data without another polling loop, preserves scroll/focus and updates changed times/statuses. No API/schema/authorization change. Scoped calendar CSS preserves mobile agenda, tablet week rows and desktop timetable.
@@ -381,7 +393,7 @@ sequenceDiagram
 - Refresh token: opaque 32-byte random value; only its SHA-256 hash is stored in `refresh_tokens`. All sign-in paths (password, Google popup and iPhone callback, placement `/set-password`) call `startSession()` in `services/sessions.js`.
 - Both cookies are HttpOnly, `Secure` in production and `SameSite=Lax` (links from WhatsApp or email keep the student signed in; cross-site POSTs carry no cookie).
 - Renewal: `sessionRenewal(pool)` from `middleware/requireAuth.js` is mounted in `server.js` before all routes. When the access token is missing or expired and a refresh cookie is present (outside `/api/auth/*`), it rotates the token in a transaction and continues the request with the new access token, so `requireAuth`, `authApiMiddleware`, `requireAdmin` and `auth.js` need no changes.
-- Rotation rules: each refresh token works once; a token reused within 20 seconds (parallel tabs) gets an access token only; a reuse after that revokes the whole family. Refresh inactivity window 14 days, absolute cap 30 days after sign-in. The window advances on successful renewal, not every page click. Startup checks report missing refresh-token storage without creating it. Fixed-session countdowns are cleared when Turbo navigation enters a renewable session. Logout revokes the family. Failed renewals are throttled per IP (30 per 15 minutes).
+- Rotation rules: each refresh token works once; a token reused within 20 seconds (parallel tabs) gets an access token only; a reuse after that revokes the whole family. Refresh inactivity window 30 days, absolute cap 90 days after sign-in (owner decision 2026-11-26; was 14 / 30). The window advances on successful renewal, not every page click. Startup checks report missing refresh-token storage without creating it. Fixed-session countdowns are cleared when Turbo navigation enters a renewable session. Logout revokes the family. Failed renewals are throttled per IP (30 per 15 minutes).
 - Pre-2B refresh JWTs (`type="refresh"`) are accepted once, recorded as used, and converted into a new family.
 - Fail-safe: if the database or table is unavailable, renewal is skipped without clearing the refresh cookie (the student sees the normal login redirect or 401), and sign-in falls back to a plain one-hour session.
 - Magic login: Admin can generate a 5-minute JWT to log in as any user (no audit log). These sessions are not renewable: no refresh token is issued and the admin's own refresh family in that browser is revoked. Only non-renewable sessions get the `synta-session-expires-in` warning meta.

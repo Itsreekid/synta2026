@@ -41,8 +41,13 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 const app = express();
-const proxyHops = Number(process.env.TRUST_PROXY_HOPS || 0);
+// Production runs behind Coolify's reverse proxy (one hop). Without trusting it, every
+// visitor shares the proxy IP and one busy moment trips the login rate limit for everyone.
+// An explicit TRUST_PROXY_HOPS (including 0) always wins.
+const proxyHopsSetting = process.env.TRUST_PROXY_HOPS?.trim();
+const proxyHops = Number(proxyHopsSetting || (process.env.NODE_ENV === "production" ? 1 : 0));
 if (Number.isInteger(proxyHops) && proxyHops > 0) app.set("trust proxy", proxyHops);
+console.log(`[proxy] Trusted proxy hops: ${Number.isInteger(proxyHops) && proxyHops > 0 ? proxyHops : 0}${proxyHopsSetting ? "" : " (default)"}`);
 const PORT = process.env.PORT || 3000;
 
 // =====================================================
@@ -231,7 +236,7 @@ process.on("SIGTERM", () => {
 });
 
 sessionRenewalReady(pool).then(ready => {
-  if(ready)console.log('[sessions] Automatic renewal ready: 14-day idle window, 30-day maximum.');
+  if(ready)console.log('[sessions] Automatic renewal ready: 30-day idle window, 90-day maximum.');
   else console.warn('[sessions] Automatic renewal unavailable: apply approved migration 202611200001_create_refresh_tokens.sql. Logins currently fall back to one-hour access.');
 }).catch(error=>console.error('[sessions] Cannot verify renewal storage:',error.code??error.name));
 

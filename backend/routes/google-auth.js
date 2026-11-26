@@ -9,6 +9,7 @@ import { OAuth2Client } from "google-auth-library";
 import pool from "../config/db.js";
 import { startSession } from "../services/sessions.js";
 import { safeReturnPath } from "../utils/returnPath.js";
+import { DEACTIVATED_MESSAGE, isAccountActive } from "../services/account-status.js";
 
 const router = express.Router();
 const GOOGLE_CALLBACK_PATH = "/api/auth/google/callback";
@@ -70,7 +71,7 @@ async function authenticateWithGoogleCredential(credential) {
          email_verified = true,
          updated_at = NOW()
        WHERE users.google_id = EXCLUDED.google_id
-          OR (users.google_id IS NULL AND $4)
+          OR (users.google_id IS NULL AND users.email_verified = true AND $4)
        RETURNING id, email, name, role, phone, class, branch`,
       [normalizedEmail, name || normalizedEmail.split("@")[0], googleId, canLinkByEmail]
     );
@@ -80,6 +81,12 @@ async function authenticateWithGoogleCredential(credential) {
       error.status = 409;
       throw error;
     }
+  }
+
+  if (await isAccountActive(pool, user.id) === false) {
+    const error = new Error(DEACTIVATED_MESSAGE);
+    error.status = 403;
+    throw error;
   }
 
   const needsOnboarding = !user.phone || !user.class || !user.branch;
@@ -141,7 +148,7 @@ router.post(GOOGLE_CALLBACK_PATH, async (req, res) => {
     await startSession(pool, res, result.user, { previousRefreshToken: req.cookies?.synta_refresh });
     const returnTo = safeReturnPath(req.cookies?.synta_next);
     res.clearCookie("synta_next", { path: GOOGLE_CALLBACK_PATH });
-    const next = result.needsOnboarding ? "/auth/complete-profile" : returnTo || "/dashboard";
+    const next = result.needsOnboarding ? "/auth/complete-profile"+(returnTo?"?next="+encodeURIComponent(returnTo):"") : returnTo || "/dashboard";
     return res.redirect(303, next);
   } catch (err) {
     if (!err.status || err.status >= 500) console.error("[google-auth] Callback failure:", err.code || 500);

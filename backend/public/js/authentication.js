@@ -142,8 +142,18 @@
     }
 
     async function resetPassword(email) {
-        // Mocked or point to an API if you implement password reset emails via Node.js
-        return { success: false, message: "إعادة تعيين كلمة المرور غير مدعومة حالياً. يرجى التواصل مع الإدارة." };
+        // Sends the reset link email; the answer never reveals whether the account exists.
+        try {
+            const response = await fetch('/api/auth/forgot-password', {
+                method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email }),
+            });
+            const data = await response.json().catch(() => ({}));
+            return response.ok
+                ? { success: true, message: data.message }
+                : { success: false, message: data.error || "Le lien n’a pas pu être envoyé. Réessaie dans un instant." };
+        } catch {
+            return { success: false, message: "La connexion a été interrompue. Réessaie." };
+        }
     }
 
     async function getCurrentUser() {

@@ -540,11 +540,11 @@ Placement email proofs bind this registration ID, purpose and the exact `updated
 | `token_hash` | TEXT | NOT NULL UNIQUE, CHECK 64 lowercase hex chars | SHA-256 of the token |
 | `created_at` | TIMESTAMPTZ | NOT NULL DEFAULT NOW() | |
 | `expires_at` | TIMESTAMPTZ | NOT NULL | Idle limit: 7 days after issue, never beyond `family_expires_at` |
-| `family_expires_at` | TIMESTAMPTZ | NOT NULL, CHECK `expires_at <= family_expires_at` | Absolute cap: 30 days after sign-in |
+| `family_expires_at` | TIMESTAMPTZ | NOT NULL, CHECK `expires_at <= family_expires_at` | Absolute cap: 90 days after sign-in (was 30 before 2026-11-26); `expires_at` = 30 days of inactivity |
 | `used_at` | TIMESTAMPTZ | NULLABLE | Set when exchanged; a reuse more than 20 s later revokes the family |
 | `revoked_at` | TIMESTAMPTZ | NULLABLE | Set on logout, reuse detection, or a new sign-in from the same browser |
 
-**Not yet in production.** Created by `database/pending-migrations/202611200001_create_refresh_tokens.sql` (additive; no existing data touched). It is held outside `database/migrations/` so the Docker runner cannot apply it before owner approval. Expired rows for a user are deleted when that user next signs in. If the table is missing, sign-in still works as a plain one-hour session.
+**Not yet in production.** Created by `database/migrations/202611200001_create_refresh_tokens.sql` (additive; no existing data touched). The owner approved promotion on 2026-11-26; the Docker runner applies it on the next deployment. Expired rows for a user are deleted when that user next signs in. If the table is missing, sign-in still works as a plain one-hour session.
 
 ---
 
@@ -598,7 +598,7 @@ Discarded imports retain their `object_key` as a deletion tombstone. They are ex
 | `202611050002_create_course_modules.sql` | Adds reusable course/module mapping and backfills placements | ✅ Applied by deployment runner |
 | `202611050003_add_lesson_quiz_content.sql` | Adds JSONB `lessons.content` for interactive quiz payloads | ⏳ Runs automatically on the next deployment; not applied yet |
 | `202611050004_create_learning_resources.sql` | Adds multiple file attachments for lessons and live sessions | ⏳ Runs automatically on the next deployment; not applied yet |
-| `pending-migrations/202611200001_create_refresh_tokens.sql` | Creates `refresh_tokens` for rotating session renewal (Batch 2B) | ⏸️ Held for owner approval; not in `migrations/`, so deployments do not apply it |
+| `202611200001_create_refresh_tokens.sql` | Creates `refresh_tokens` for rotating session renewal (Batch 2B) | ⏳ Owner approved 2026-11-26; promoted to `migrations/`, runs on the next deployment |
 | `pending-migrations/202611200002_extend_live_session_access.sql` | Adds `live_sessions.additional_offer_ids` and `granted_student_ids` | ⏸️ Held for owner approval; verified on disposable PostgreSQL 17.6 only |
 | `pending-migrations/202611200003_create_zoom_recording_imports.sql` | Creates `zoom_recording_imports` for automatic Zoom → R2 replays | ⏸️ Held for owner approval; verified on disposable PostgreSQL 17.6 only |
 | `add_offers_targeting.sql` | Adds `target_classes`, `target_branches` arrays to offers | ✅ Required |
@@ -758,3 +758,14 @@ Migration: database/migrations/202611250003_custom_installment_amounts.sql; depe
 - offers.installment_custom_amounts JSONB nullable. Keys "2"/"3" map to exact two-decimal positive string arrays. NULL/missing count retains equal splitting. CHECK with immutable valid_offer_custom_installments validates count, length, sum=fixed_price and first amount >= minimum_initial_payment. Price/minimum/max changes are constrained too.
 - offers.installment_deadline_mode TEXT NOT NULL DEFAULT 'automatic', CHECK automatic/manual. Existing offset arrays retained. Future automatic annual quotes spread payments over remaining coverage, bounded by inclusive cutoff minus one calendar month. Manual quotes validate offsets against the same buffer. Too late => full payment only.
 - Existing financial rows, confirmed schedules, access expiry and progress remain untouched. Existing NULL deadlines remain valid historical data. No new schedule/grant/payment columns. See CUSTOM_INSTALLMENT_AMOUNTS_PLAN.md.
+
+### APPROVED LOCALLY / HELD — free-session guest attempts and occurrence reservations (2026-11-26)
+
+Exact draft: database/pending-migrations/202611250004_free_session_funnel.sql. Approved for local implementation/testing; applied only on disposable PostgreSQL, not promoted or production-applied. Adds free_session_attempts (private snapshots, hashed guest capability/expiry, score and once-only verified owner), free_session_reservations (user + live-session PK), free_session_occurrence_events (admin audit), free_sessions.allow_result_reuse / diagnostic_rules and live_sessions.free_reservation_required. Reuses live_sessions for occurrences, retains old campaign membership and no fabricated history. Replaces the one-active-occurrence index after approval. See FREE_SESSION_FUNNEL_PLAN.md for migration dependencies, guest claims and legacy authorization transition.
+
+### Approved focused session-shape compatibility correction — local validation 2026-11-26
+
+202611260001_live_session_shape_compatibility.sql replaces the restrictive live_sessions_course_or_free_session CHECK: direct course, free campaign, or explicitly any_selected with no free campaign. Optional policy is read through the whole-row JSON projection so held audience migration may run before or after it without adding columns early. Existing policy-shape and deferred audience-link triggers continue enforcing OR audiences. The combined CHECK additionally rejects mixed free/OR policy; the original free-session shape CHECK and all audience-link triggers remain unchanged. No new tables/columns, financial changes or row backfills beyond the approved original campaign migration. Original SQL/checksum retained. Runner executes an explicitly pinned replacement at the original dependency position for unapplied originals; existing applied originals keep their ledger rows and receive constraint-only repair. Ledger records the actual replacement file; no fake original entry or checksum rewrite. Owner-supplied production ledger: all 20 hashes match, including the original; production takes the constraint-only branch. Physical schema/staging validation remains pending; production NO-GO.
+### Approved locally / held — campaign slug aliases (2026-11-26)
+
+`database/pending-migrations/202611260002_free_session_slug_aliases.sql`: proposed `free_session_slug_aliases(slug TEXT PK, free_session_id UUID FK free_sessions ON DELETE RESTRICT, created_at TIMESTAMPTZ)`. Reserves canonical and historical links in one namespace, backfills existing slugs, and enforces atomic ownership and immutable aliases with triggers. No new user, payment or enrollment fields. Owner approved local implementation/testing; applied only in disposable PostgreSQL and still held. See FREE_CAMPAIGN_FLEXIBILITY_IMPLEMENTATION.md.

@@ -22,9 +22,10 @@ export async function createSessionManagerFixture() {
     let failFeatures=false;
     let importStatus='ready';
     let discoveryMode='direct';
+    let multiAudience=false;
     const app=express();app.use(express.json());
     app.use('/api', (req,res,next)=>{calls.push({method:req.method,path:req.path,body:req.body});next();});
-    app.get('/api/live/admin/features',(req,res)=>failFeatures?res.sendStatus(503):res.json({recordings:true,extendedAccess:true,multiAudience:false,recordingDiagnostics:{status:importStatus}}));
+    app.get('/api/live/admin/features',(req,res)=>failFeatures?res.sendStatus(503):res.json({recordings:true,extendedAccess:true,multiAudience,recordingDiagnostics:{status:importStatus}}));
     app.post('/api/live/admin/recordings/discover',(req,res)=>{
         if(discoveryMode==='choices'&&!req.body.occurrenceUuid)return res.json({state:'choose_occurrence',message:'Plusieurs occurrences trouvées. Veuillez sélectionner la séance correspondante.',occurrences:[
             {uuid:'old-uuid-technical',sessionName:'Python <b>texte</b>',start:'2026-10-01T18:00:00Z',durationSeconds:null,segmentCount:null,totalSize:null},
@@ -83,5 +84,5 @@ export async function createSessionManagerFixture() {
     });
     app.use(express.static(fileURLToPath(new URL('../../public',import.meta.url))));
     const server=app.listen(0,'127.0.0.1');await once(server,'listening');
-    return {server,calls,sessions,recordings,emptyId,singleId,multiId,setDiscoveryMode(value){discoveryMode=value;},setRecordingsFailure(value){failRecordings=value;},setFeaturesFailure(value){failFeatures=value;},setImportStatus(value){importStatus=value;}};
+    return {server,calls,sessions,recordings,emptyId,singleId,multiId,setMultiAudience(value){multiAudience=value;},setDiscoveryMode(value){discoveryMode=value;},setRecordingsFailure(value){failRecordings=value;},setFeaturesFailure(value){failFeatures=value;},setImportStatus(value){importStatus=value;}};
 }

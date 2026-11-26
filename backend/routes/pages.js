@@ -1,3 +1,4 @@
+import {campaignOccurrences} from '../services/free-session-funnel.js';
 // =====================================================
 // PAGE ROUTES
 // Serves all HTML pages via EJS views.
@@ -96,7 +97,15 @@ function formatTunisDate(value) {
 async function renderCampaignPage(req, res, next, slug) {
   try {
     const campaign = await findActiveCampaign(pool, slug);
+    if (campaign && slug && slug !== campaign.slug) {
+      const queryAt = req.originalUrl.indexOf('?');
+      const query = queryAt === -1 ? '' : req.originalUrl.slice(queryAt);
+      // Renames can be reversed later: permanent cached redirects could form a loop.
+      res.set('Cache-Control', 'private, no-store');
+      return res.redirect(302, '/session/' + campaign.slug + query);
+    }
     const viewer = verifyToken(req.cookies?.synta_access);
+    const nextOccurrence=campaign?(await campaignOccurrences(pool,campaign.id))[0]:null;
     res.set("Cache-Control", "private, no-store");
     if (!campaign) res.status(404);
     return renderPage(res, "pages/session/index", {
@@ -107,8 +116,8 @@ async function renderCampaignPage(req, res, next, slug) {
         subject: campaign.subject,
         hasTarget: Boolean(campaign.target_class),
         hasBranch: Boolean(campaign.target_branch),
-        date: formatTunisDate(campaign.scheduled_at),
-        dateRaw: campaign.scheduled_at ? new Date(campaign.scheduled_at).toISOString() : "",
+        date: formatTunisDate(nextOccurrence?.scheduled_at),
+        dateRaw: nextOccurrence?.scheduled_at ? new Date(nextOccurrence.scheduled_at).toISOString() : "",
       },
       viewer: viewer ? { name: viewer.name || "", isStudent: viewer.role !== "admin" } : null,
     });
@@ -141,7 +150,9 @@ function redirectIfLoggedIn(req, res, next) {
 
 router.get("/login", redirectIfLoggedIn, (req, res) => {
   const nextPath = safeReturnPath(req.query.next);
-  const sessionNotice = req.query.reason === "expired" ? "expired" : nextPath ? "required" : null;
+  const sessionNotice = req.query.reason === "expired" ? "expired"
+    : req.query.reset === "done" ? "reset"
+    : nextPath ? "required" : null;
   renderPage(res, "pages/auth/login", { googleClientId, nextPath, sessionNotice });
 });
 
@@ -150,6 +161,9 @@ router.get("/register", redirectIfLoggedIn, (req, res) => {
 });
 
 router.get("/password-reset", (req, res) => {
+  // The reset token lives in the URL fragment; keep the page out of caches and Referer headers anyway.
+  res.set("Cache-Control", "no-store");
+  res.set("Referrer-Policy", "no-referrer");
   renderPage(res, "pages/auth/password-reset");
 });
 
@@ -169,10 +183,11 @@ router.get("/auth/complete-profile", requireAuth, async (req, res) => {
 
     // If the user already completed onboarding, send them to the dashboard
     if (u && u.phone && u.class && u.branch) {
-      return res.redirect("/dashboard");
+      return res.redirect(safeReturnPath(req.query.next) || "/dashboard");
     }
 
     renderPage(res, "pages/auth/complete-profile", {
+      nextPath: safeReturnPath(req.query.next),
       user: {
         name:  u?.name  || req.user.name  || "",
         email: u?.email || req.user.email || "",

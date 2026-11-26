@@ -49,6 +49,9 @@ test('Video.js mobile gestures, speeds, captions and simulated fullscreen/orient
                 await evaluate(`Array.from(root().querySelectorAll('media-menu-item')).find(item=>item.querySelector('media-text[token="menu.speed"]')).click()`);
                 await until(()=>evaluate('root().querySelector("media-playback-rate-radio-group").closest("media-menu-content").hasAttribute("data-open")'),'speed submenu opens');
                 await evaluate('Array.from(root().querySelector("media-playback-rate-radio-group").querySelectorAll("media-menu-radio-item")).find(el=>el.textContent.trim()==="1.75×" || el.textContent.trim()==="1.75x" || el.textContent.trim()==="1.75").click()');
+                // The component request reaches the media adapter asynchronously.
+                // Still require the actual video property, without assigning it in the test.
+                await until(()=>evaluate('document.querySelector("video").playbackRate===1.75'),'selected playback rate applied');
                 assert.equal(await evaluate('document.querySelector("video").playbackRate'),1.75);
                 await evaluate('root().querySelector(".video-controls-settings-button").click()');
                 await until(()=>evaluate('!Array.from(root().querySelectorAll("media-menu-content")).some(el=>el.hasAttribute("data-open"))'),'settings close');

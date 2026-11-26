@@ -1,3 +1,4 @@
+import {runMigrations} from './migration-runner-fixture.js';
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import vm from 'node:vm';
@@ -14,34 +15,6 @@ const root = new URL('../../database/', import.meta.url);
 
 // Execute the actual runner against a disposable pool. The virtual file inventory lets
 // us validate held files without promoting them or editing the deployment manifest.
-async function runMigrations(db, files) {
-  let finish;
-  const finished = new Promise(resolve => { finish = resolve; });
-  const logs = [];
-  const context = vm.createContext({ process: {}, console: {
-    log: (...args) => logs.push(args.join(' ')), error: (...args) => logs.push(args.join(' '))
-  } });
-  const file = new URL('../scripts/migrate.js', import.meta.url);
-  const module = new vm.SourceTextModule(await readFile(file, 'utf8'), {
-    context, initializeImportMeta: meta => { meta.url = file.href; }
-  });
-  await module.link(async specifier => {
-    const values = specifier === '../config/db.js' ? { default: { connect: () => db.connect(), end: async () => finish() } }
-      : specifier === '../loadEnv.js' ? {}
-      : specifier === 'node:fs/promises' ? {
-        access: async () => {}, readdir: async () => [...files.keys()],
-        readFile: async path => files.get(String(path).split(/[\\/]/).at(-1))
-      } : await import(specifier);
-    return new vm.SyntheticModule(Object.keys(values), function () {
-      for (const [key, value] of Object.entries(values)) this.setExport(key, value);
-    }, { context });
-  });
-  await module.evaluate();
-  await finished;
-  await new Promise(resolve => setTimeout(resolve, 0));
-  return { code: context.process.exitCode || 0, logs };
-}
-
 test('production readiness: migration compatibility, financial preservation and runner failure safety', {
   skip: !process.env.BUGI_QA_POSTGRES_PORT, timeout: 90000
 }, async t => {
@@ -53,11 +26,13 @@ test('production readiness: migration compatibility, financial preservation and 
     if (file.endsWith('.sql')) approved.set(file, await readFile(new URL('migrations/' + file, root), 'utf8'));
   }
   const held = new Map();
-  for (const file of (await readdir(new URL('pending-migrations/', root))).sort()) {
+  for (const file of ['202611200002_extend_live_session_access.sql','202611200004_live_session_multi_audience.sql']) {
     if (file.endsWith('.sql')) held.set(file, await readFile(new URL('pending-migrations/' + file, root), 'utf8'));
   }
   const freeFile = '202611250002_free_session_campaigns.sql';
   const customFile = '202611250003_custom_installment_amounts.sql';
+  const compatibilityFile = '202611260001_live_session_shape_compatibility.sql';
+  const aliasFile = '202611260002_free_session_slug_aliases.sql';
   try {
     for (const heldFirst of [true, false]) {
       await t.test(heldFirst ? 'held access migrations before free/custom' : 'free/custom before held access migrations', async () => {
@@ -66,7 +41,7 @@ test('production readiness: migration compatibility, financial preservation and 
         const db = new pg.Pool({ ...connection, database: name });
         try {
           await db.query(await readFile(new URL('schema_postgres.sql', root), 'utf8'));
-          const before = new Map([...approved].filter(([file]) => ![freeFile, customFile].includes(file)));
+          const before = new Map([...approved].filter(([file]) => ![freeFile, customFile, compatibilityFile, aliasFile].includes(file)));
           assert.equal((await runMigrations(db, before)).code, 0);
           const user = (await db.query("INSERT INTO users(email,password_hash,name,balance) VALUES('readiness@example.invalid','synthetic','Readiness',123.45) RETURNING id")).rows[0].id;
           const course = (await db.query("INSERT INTO courses(title) VALUES('Readiness') RETURNING id")).rows[0].id;
@@ -112,12 +87,14 @@ test('production readiness: migration compatibility, financial preservation and 
               await client.query('INSERT INTO live_session_courses(session_id,course_id) VALUES($1,$2)',[existing,course]);
               await client.query('COMMIT');
             }finally{client.release();}
-            const conflict=await runMigrations(db,new Map([...approved,...held]));
-            assert.equal(conflict.code,1);
-            assert.ok(conflict.logs.some(line=>line.includes('live_sessions_course_or_free_session')));
-            assert.equal((await db.query("SELECT to_regclass('free_sessions') AS value")).rows[0].value,null);
+            const sessionBefore=(await db.query('SELECT to_jsonb(ls) AS row FROM live_sessions ls WHERE id=$1',[existing])).rows[0].row;
+            const compatible=await runMigrations(db,new Map([...approved,...held]));
+            assert.equal(compatible.code,0,compatible.logs.join('\n'));
+            assert.ok((await db.query("SELECT to_regclass('free_sessions') AS value")).rows[0].value);
+            const sessionAfter=(await db.query('SELECT to_jsonb(ls) AS row FROM live_sessions ls WHERE id=$1',[existing])).rows[0].row;
+            assert.deepEqual(sessionAfter,{...sessionBefore,free_session_id:null});
+            assert.equal((await db.query('SELECT count(*)::int AS n FROM live_session_courses WHERE session_id=$1',[existing])).rows[0].n,1);
             assert.deepEqual(await snapshot(),original);
-            await db.query('DELETE FROM live_sessions WHERE id=$1',[existing]);
           }
           const all = new Map([...approved, ...held]);
           assert.equal((await runMigrations(db, all)).code, 0);
@@ -130,12 +107,19 @@ test('production readiness: migration compatibility, financial preservation and 
           assert.equal((await db.query('SELECT count(*)::int AS n FROM readiness_once_probe')).rows[0].n,1);
           const repeated=await runMigrations(db,all);assert.equal(repeated.code,0);
           assert.equal(repeated.logs.some(line=>line.startsWith('[migrate] applied:')),false);
-          assert.equal((await db.query('SELECT count(*)::int AS n FROM schema_migrations')).rows[0].n, all.size);
+          assert.equal((await db.query('SELECT count(*)::int AS n FROM schema_migrations')).rows[0].n, all.size-1); // original is superseded, never falsely recorded as executed
           assert.deepEqual(await snapshot(), original);
 
-          // Confirm the real conflict; no deployed SQL or application code is changed here.
+          // Valid OR rows now pass; deferred authorization-shape checks still reject no audience.
           await assert.rejects(db.query(`INSERT INTO live_sessions(title,scheduled_at,access_policy)
-            VALUES('OR conflict',now(),'any_selected')`), { code: '23514', constraint: 'live_sessions_course_or_free_session' });
+            VALUES('Missing OR audience',now(),'any_selected')`), /Select at least one course or offer/);
+          const valid=await db.connect();
+          try {await valid.query('BEGIN');
+            const id=(await valid.query(`INSERT INTO live_sessions(title,scheduled_at,access_policy)
+              VALUES('New OR',now(),'any_selected') RETURNING id`)).rows[0].id;
+            await valid.query('INSERT INTO live_session_courses(session_id,course_id) VALUES($1,$2)',[id,course]);
+            await valid.query('COMMIT');
+          } finally {valid.release();}
 
           const failing = new Map([...all, ['299901010001_probe.sql', 'CREATE TABLE readiness_probe(id INT); SELECT 1/0;']]);
           assert.equal((await runMigrations(db, failing)).code, 1);
@@ -154,7 +138,7 @@ test('production readiness: migration compatibility, financial preservation and 
   } finally { await maintenance.end(); }
 });
 
-test('readiness: real campaign API preserves credentials, rejects replayed proofs and reproduces open-campaign profile loss', {
+test('readiness: real campaign API preserves credentials, rejects replayed proofs and preserves open-campaign profile choices', {
   skip: !process.env.BUGI_QA_POSTGRES_PORT, timeout: 45000
 }, async () => {
   const connection = { host: '127.0.0.1', port: Number(process.env.BUGI_QA_POSTGRES_PORT),
@@ -200,7 +184,7 @@ test('readiness: real campaign API preserves credentials, rejects replayed proof
     const call = (path, body, cookie = '') => fetch(`http://127.0.0.1:${server.address().port}/api/session${path}`, {
       method: body ? 'POST' : 'GET', headers: { 'Content-Type': 'application/json', Cookie: cookie }, body: body && JSON.stringify(body)
     });
-    const register = email => call('/register', { email, full_name: 'New learner', phone: '12345678' });
+    const register = email => call('/register', { email, full_name: 'New learner', phone: '22123456', track:'2eme', branch:'informatique' });
     assert.equal((await register(existing.email)).status, 202);
     assert.equal(emails.length, 0);
     assert.equal((await call('/set-password', { password: 'new-password' })).status, 401);
@@ -223,8 +207,8 @@ test('readiness: real campaign API preserves credentials, rejects replayed proof
     assert.equal(registration.track, '2eme'); assert.equal(registration.filier, 'informatique');
     const created = (await db.query('SELECT id,class,branch,password_hash FROM users WHERE id=$1', [registration.auth_user_id])).rows[0];
     assert.notEqual(created.password_hash, 'new-password');
-    // Known defect observation, deliberately named as such; this is NOT an acceptable product expectation.
-    assert.equal(created.class, null); assert.equal(created.branch, null);
+    // Account activation must preserve the verified registration’s chosen school profile.
+    assert.equal(created.class, '2eme'); assert.equal(created.branch, 'informatique');
     const member = await call('/member/submit', { answers: { [question]: 'A' }, userId: created.id }, studentCookie);
     assert.equal(member.status, 200);
     assert.equal((await call('/member/submit', { answers: { [question]: 'A' } }, studentCookie)).status, 409);

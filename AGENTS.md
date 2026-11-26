@@ -219,10 +219,10 @@ synta academy new/
 |----|----------|-------------|
 | BUG-001 | FIXED 2026-11-05 | Purchase endpoints require JWT auth and derive user ID from `req.user.id` |
 | BUG-002 | FIXED 2026-11-05 | `/api/ai/debug` requires JWT auth |
-| BUG-003 | FIXED 2026-11-20 | Rotating refresh tokens renew sessions (`services/sessions.js`); active only after the owner approves `database/pending-migrations/202611200001_create_refresh_tokens.sql` |
+| BUG-003 | FIXED 2026-11-20 | Rotating refresh tokens renew sessions (`services/sessions.js`); migration `database/migrations/202611200001_create_refresh_tokens.sql` approved 2026-11-26, active after the next deploy |
 | BUG-004 | HIGH | `users.debt`, `offers.*`, `transactions.*` columns added at runtime (schema drift risk) |
 | BUG-005 | HIGH | `session_registrations.auth_user_id` never set after account creation |
-| BUG-006 | HIGH | No password reset flow implemented despite page existing |
+| BUG-006 | FIXED 2026-11-26 | Email password reset (`/password-reset`, `services/password-reset.js`); password changes revoke all sessions |
 | BUG-007 | HIGH | `user_weak_topics` table is never populated by any code |
 | BUG-008 | MEDIUM | Admin HTML served as static file with no server-side auth |
 | BUG-009 | MEDIUM | No rate limiting on any endpoint |

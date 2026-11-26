@@ -2,7 +2,7 @@
 // EMAIL SERVICE — Resend integration
 // backend/services/email.js
 //
-// Exports a single function: sendVerificationEmail(to, name, token)
+// Verification, password-reset, password-changed and placement emails.
 // All email logic is isolated here so routes stay thin.
 // =====================================================
 import { Resend } from "resend";
@@ -39,11 +39,21 @@ function escapeEmailHtml(value) {
   }[char]));
 }
 
-function buildVerificationEmailHtml(name, email, verifyUrl) {
-  const firstName = escapeEmailHtml(name?.trim().split(/\s+/)[0] || "toi");
-  const address = escapeEmailHtml(email);
-  const link = escapeEmailHtml(verifyUrl);
+/**
+ * Shared Synta email layout (logo, icon tile, eyebrow, heading, orange button).
+ * Every *Html argument must already be escaped; plain values are escaped here.
+ */
+function renderEmailLayout({ title, preheader, icon, eyebrow, headingHtml, greetingHtml, introHtml, address, button, noteHtml, footerHtml }) {
   const logo = escapeEmailHtml(new URL("/source/logo.png", BASE_URL).href);
+  const addressRow = address
+    ? `\n          <p style="margin:14px 0 30px;color:#013047;font-size:14px;line-height:24px;font-weight:bold;word-break:break-word">${escapeEmailHtml(address)}</p>`
+    : `\n          <p style="margin:0 0 30px"></p>`;
+  const buttonRow = button ? `
+          <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="width:100%">
+            <tr><td align="center" bgcolor="#F6851F" style="background-color:#F6851F;border-radius:10px;mso-padding-alt:17px 20px">
+              <a href="${escapeEmailHtml(button.url)}" style="display:block;padding:17px 20px;border:1px solid #F6851F;border-radius:10px;color:#013047;font-size:14px;line-height:20px;font-weight:bold;text-decoration:none;text-align:center">${escapeEmailHtml(button.label)}&nbsp; &#8594;</a>
+            </td></tr>
+          </table>` : "";
 
   // Tables and inline styles keep the registration page's visual language in email clients.
   return `<!DOCTYPE html>
@@ -53,7 +63,7 @@ function buildVerificationEmailHtml(name, email, verifyUrl) {
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="color-scheme" content="light">
   <meta name="supported-color-schemes" content="light">
-  <title>Confirme ton adresse e-mail · Synta Academy</title>
+  <title>${escapeEmailHtml(title)} · Synta Academy</title>
   <style>
     @media screen and (max-width: 480px) {
       .email-content { padding-left: 22px !important; padding-right: 22px !important; }
@@ -62,7 +72,7 @@ function buildVerificationEmailHtml(name, email, verifyUrl) {
   </style>
 </head>
 <body style="margin:0;padding:0;background-color:#f8fafc;color:#013047;font-family:Tajawal,Arial,Helvetica,sans-serif;-webkit-text-size-adjust:100%">
-  <div style="display:none;max-height:0;overflow:hidden;opacity:0;mso-hide:all">Ton compte est créé. Confirme ton adresse e-mail et commence à apprendre avec Synta Academy.</div>
+  <div style="display:none;max-height:0;overflow:hidden;opacity:0;mso-hide:all">${escapeEmailHtml(preheader)}</div>
   <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="#f8fafc" style="width:100%;background-color:#f8fafc">
     <tr><td align="center" style="padding:32px 0 40px">
       <!--[if mso]><table role="presentation" width="520" cellpadding="0" cellspacing="0" border="0"><tr><td><![endif]-->
@@ -72,21 +82,15 @@ function buildVerificationEmailHtml(name, email, verifyUrl) {
         </td></tr>
         <tr><td class="email-content" align="center" style="padding:0 40px">
           <table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin:0 auto 25px">
-            <tr><td align="center" width="64" height="64" bgcolor="#edf6fa" style="width:64px;height:64px;background-color:#edf6fa;border-radius:20px;color:#013047;font-size:28px;line-height:64px">&#9993;</td></tr>
+            <tr><td align="center" width="64" height="64" bgcolor="#edf6fa" style="width:64px;height:64px;background-color:#edf6fa;border-radius:20px;color:#013047;font-size:28px;line-height:64px">${icon}</td></tr>
           </table>
-          <p style="margin:0 0 18px;color:#167c99;font-size:10px;line-height:18px;font-weight:bold;letter-spacing:1.8px;text-transform:uppercase">Ton compte est créé</p>
-          <h1 class="email-heading" style="margin:0 0 24px;color:#013047;font-size:34px;line-height:1.25;font-weight:bold;letter-spacing:-0.6px">Un dernier clic,<br>et c’est parti.</h1>
-          <p style="margin:0 0 12px;color:#013047;font-size:15px;line-height:24px">Bienvenue, ${firstName}.</p>
-          <p style="margin:0;color:#64748b;font-size:14px;line-height:24px">Confirme ton adresse e-mail pour activer ton compte et commencer à apprendre.</p>
-          <p style="margin:14px 0 30px;color:#013047;font-size:14px;line-height:24px;font-weight:bold;word-break:break-word">${address}</p>
-          <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="width:100%">
-            <tr><td align="center" bgcolor="#F6851F" style="background-color:#F6851F;border-radius:10px;mso-padding-alt:17px 20px">
-              <a href="${link}" style="display:block;padding:17px 20px;border:1px solid #F6851F;border-radius:10px;color:#013047;font-size:14px;line-height:20px;font-weight:bold;text-decoration:none;text-align:center">Confirmer mon adresse e-mail&nbsp; &#8594;</a>
-            </td></tr>
-          </table>
-          <p style="margin:22px 0 0;color:#64748b;font-size:12px;line-height:21px">Ce lien est valable 24 heures.<br>Une fois ton adresse confirmée, connecte-toi pour retrouver tes formations.</p>
+          <p style="margin:0 0 18px;color:#167c99;font-size:10px;line-height:18px;font-weight:bold;letter-spacing:1.8px;text-transform:uppercase">${escapeEmailHtml(eyebrow)}</p>
+          <h1 class="email-heading" style="margin:0 0 24px;color:#013047;font-size:34px;line-height:1.25;font-weight:bold;letter-spacing:-0.6px">${headingHtml}</h1>
+          <p style="margin:0 0 12px;color:#013047;font-size:15px;line-height:24px">${greetingHtml}</p>
+          <p style="margin:0;color:#64748b;font-size:14px;line-height:24px">${introHtml}</p>${addressRow}${buttonRow}
+          <p style="margin:22px 0 0;color:#64748b;font-size:12px;line-height:21px">${noteHtml}</p>
           <p style="margin:22px 0 0;font-size:12px;line-height:20px"><a href="mailto:contact@syntaacademy.tn" style="color:#013047;text-decoration:underline">Besoin d’aide ? Contacte l’équipe Synta</a></p>
-          <p style="margin:30px 0 0;padding-top:22px;border-top:1px solid #e2e8f0;color:#64748b;font-size:11px;line-height:19px">Tu n’as pas créé de compte ? Tu peux ignorer cet e-mail.<br>Un peu de curiosité. Beaucoup de possibilités.</p>
+          <p style="margin:30px 0 0;padding-top:22px;border-top:1px solid #e2e8f0;color:#64748b;font-size:11px;line-height:19px">${footerHtml}<br>Un peu de curiosité. Beaucoup de possibilités.</p>
         </td></tr>
       </table>
       <!--[if mso]></td></tr></table><![endif]-->
@@ -94,6 +98,58 @@ function buildVerificationEmailHtml(name, email, verifyUrl) {
   </table>
 </body>
 </html>`;
+}
+
+function firstNameOf(name) {
+  return escapeEmailHtml(name?.trim().split(/\s+/)[0] || "toi");
+}
+
+function buildVerificationEmailHtml(name, email, verifyUrl) {
+  return renderEmailLayout({
+    title: "Confirme ton adresse e-mail",
+    preheader: "Ton compte est créé. Confirme ton adresse e-mail et commence à apprendre avec Synta Academy.",
+    icon: "&#9993;",
+    eyebrow: "Ton compte est créé",
+    headingHtml: "Un dernier clic,<br>et c’est parti.",
+    greetingHtml: `Bienvenue, ${firstNameOf(name)}.`,
+    introHtml: "Confirme ton adresse e-mail pour activer ton compte et commencer à apprendre.",
+    address: email,
+    button: { url: verifyUrl, label: "Confirmer mon adresse e-mail" },
+    noteHtml: "Ce lien est valable 24 heures.<br>Une fois ton adresse confirmée, connecte-toi pour retrouver tes formations.",
+    footerHtml: "Tu n’as pas créé de compte ? Tu peux ignorer cet e-mail.",
+  });
+}
+
+export function buildPasswordResetEmailHtml(name, email, resetUrl) {
+  return renderEmailLayout({
+    title: "Réinitialise ton mot de passe",
+    preheader: "Tu as demandé un nouveau mot de passe pour ton compte Synta Academy. Ce lien est valable 1 heure.",
+    icon: "&#128273;",
+    eyebrow: "Mot de passe oublié",
+    headingHtml: "On te remet<br>sur les rails.",
+    greetingHtml: `Bonjour, ${firstNameOf(name)}.`,
+    introHtml: "Tu as demandé à réinitialiser le mot de passe de ton compte. Clique sur le bouton pour en choisir un nouveau.",
+    address: email,
+    button: { url: resetUrl, label: "Choisir un nouveau mot de passe" },
+    noteHtml: "Ce lien est valable 1 heure et ne fonctionne qu’une seule fois.<br>Après le changement, tu seras déconnecté de tous tes appareils.",
+    footerHtml: "Tu n’as rien demandé ? Ignore cet e-mail : ton mot de passe actuel reste inchangé.",
+  });
+}
+
+export function buildPasswordChangedEmailHtml(name, email) {
+  return renderEmailLayout({
+    title: "Ton mot de passe a été modifié",
+    preheader: "Le mot de passe de ton compte Synta Academy vient d’être modifié.",
+    icon: "&#10003;",
+    eyebrow: "Sécurité du compte",
+    headingHtml: "Mot de passe<br>modifié.",
+    greetingHtml: `Bonjour, ${firstNameOf(name)}.`,
+    introHtml: "Le mot de passe de ton compte vient d’être changé. Par sécurité, tous tes appareils ont été déconnectés.",
+    address: email,
+    button: { url: new URL("/login", BASE_URL).href, label: "Me connecter" },
+    noteHtml: "Si c’est bien toi, tu n’as rien d’autre à faire.",
+    footerHtml: "Ce n’était pas toi ? Demande un nouveau lien depuis « Mot de passe oublié » et contacte l’équipe Synta.",
+  });
 }
 
 // ── Main export ────────────────────────────────────────────────────────────
@@ -125,6 +181,37 @@ export async function sendVerificationEmail(to, name, token) {
   }
 
   console.log("[email] Verification email sent to:", to);
+}
+
+/**
+ * Send the password-reset link. The token travels in the URL fragment, so it never
+ * reaches server logs, proxies or Referer headers.
+ */
+export async function sendPasswordResetEmail(to, name, token) {
+  const url = new URL("/password-reset", BASE_URL);
+  url.hash = new URLSearchParams({ token }).toString();
+  const resetUrl = url.href;
+
+  const { error } = await resend.emails.send({
+    from:    FROM_ADDRESS,
+    to:      [to],
+    subject: "Réinitialise ton mot de passe · Synta Academy",
+    html:    buildPasswordResetEmailHtml(name, to, resetUrl),
+    text:    `Bonjour, ${name || "toi"}.\n\nTu as demandé à réinitialiser le mot de passe de ton compte Synta Academy. Choisis un nouveau mot de passe ici :\n${resetUrl}\n\nCe lien est valable 1 heure et ne fonctionne qu’une seule fois. Après le changement, tu seras déconnecté de tous tes appareils.\n\nTu n’as rien demandé ? Ignore cet e-mail : ton mot de passe actuel reste inchangé.\nBesoin d’aide ? contact@syntaacademy.tn`,
+  });
+  if (error) throw new Error("Password reset email delivery failed");
+}
+
+/** Security notice sent after any successful password change. */
+export async function sendPasswordChangedEmail(to, name) {
+  const { error } = await resend.emails.send({
+    from:    FROM_ADDRESS,
+    to:      [to],
+    subject: "Ton mot de passe a été modifié · Synta Academy",
+    html:    buildPasswordChangedEmailHtml(name, to),
+    text:    `Bonjour, ${name || "toi"}.\n\nLe mot de passe de ton compte Synta Academy vient d’être changé. Par sécurité, tous tes appareils ont été déconnectés.\n\nCe n’était pas toi ? Demande un nouveau lien depuis « Mot de passe oublié » sur ${new URL("/password-reset", BASE_URL).href} et contacte contact@syntaacademy.tn.`,
+  });
+  if (error) throw new Error("Password changed email delivery failed");
 }
 
 export async function sendPlacementVerificationEmail(to, token, pagePath = "/session") {

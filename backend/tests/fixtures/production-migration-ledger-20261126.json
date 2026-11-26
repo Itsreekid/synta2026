@@ -1,0 +1,85 @@
+{
+  "source": "Owner-supplied read-only production ledger, 2026-11-26; filenames/checksums only, no production rows or credentials",
+  "migrations": [
+    {
+      "filename": "202611050001_create_notifications.sql",
+      "checksum": "de0da3ee7d9830826eee1db99d863f5f89f275e99d1b4aadc0ae6c32cdadb869"
+    },
+    {
+      "filename": "202611050002_create_course_modules.sql",
+      "checksum": "fe819a040ebde964d17ab46413f9d36c6ca637015fdd7d91954c9ea9c6d0efdc"
+    },
+    {
+      "filename": "202611050003_add_lesson_quiz_content.sql",
+      "checksum": "258fa9949c35a9428edda5896150ad4281d84b666d63aae9051df626b96f68da"
+    },
+    {
+      "filename": "202611050004_create_learning_resources.sql",
+      "checksum": "5272ab3d72d59a715464bf96144c1998736d29ead700249cbc22e369716d510f"
+    },
+    {
+      "filename": "202611100001_add_live_session_audience.sql",
+      "checksum": "91db0ab6a0c191d29ac1bc3ca878d133ad24390c171df9b9ab6e84bcbc74f024"
+    },
+    {
+      "filename": "202611100002_ensure_google_auth_schema.sql",
+      "checksum": "d1f16307e8a559d506f82d278e52dda5a7d55e295c02a679409f8f60bb4aae7f"
+    },
+    {
+      "filename": "202611100002_ensure_offer_payment_status.sql",
+      "checksum": "bdf4348a8da803b7a7760f866f8cb6201b2a918b3782ddc59f91c33183b854c2"
+    },
+    {
+      "filename": "202611100003_unique_active_offer_payments.sql",
+      "checksum": "d1af2f9cded219ca72a308a0a0a59f40136d10ab10dc02a12b351ae8f13bb531"
+    },
+    {
+      "filename": "202611110001_create_bugi_messages.sql",
+      "checksum": "a4f48a0709e40a4e13dfe598609ab20e9f46c5f9163ba20f5cdb2f38d9200648"
+    },
+    {
+      "filename": "202611110002_create_bugi_learning_evidence.sql",
+      "checksum": "68bf51293cbbac7399130746ce5a47bbe2aa87e4f6f886b0985738d8b83dad38"
+    },
+    {
+      "filename": "202611110003_add_bugi_history_revision.sql",
+      "checksum": "586cc2628607c63da745eabf9fcf64c4a06a4995e1800caaf9873f571073229a"
+    },
+    {
+      "filename": "202611110004_add_timed_offer_access.sql",
+      "checksum": "0b81a7c0c3c6103196f6f3d916d515b0595c6c1e89399d858af85773a89ff99a"
+    },
+    {
+      "filename": "202611120001_reconcile_timed_offer_terms.sql",
+      "checksum": "e16b7cf56235ff02e5d8df9cc434b8661d30564a475d2d45f4d3c0ff5e3a76a3"
+    },
+    {
+      "filename": "202611120002_offer_upgrade_credit.sql",
+      "checksum": "9a9366aec4b4e60a493b2c1fdd415e2abf8e1eabdd2f0842445ed2561c6a240f"
+    },
+    {
+      "filename": "202611200003_create_zoom_recording_imports.sql",
+      "checksum": "d8cca7532ef0b822f2d7049938050c75ca6ed90681d739e6093b559e20659451"
+    },
+    {
+      "filename": "202611240001_zoom_recording_reliability.sql",
+      "checksum": "66f3ca7e5591985245a829420ab8938734e08d08409af405b08f8641adf9dddf"
+    },
+    {
+      "filename": "202611240002_recording_trash_retention.sql",
+      "checksum": "40733a1793e5d4e91c67d9291c6ded2b97f677d028129dd7fbd6e5b613945be9"
+    },
+    {
+      "filename": "202611250001_notification_popup_acknowledgment.sql",
+      "checksum": "f77e41d2034ea4237fe79fca04b63b5725552bcc534b34f8ba6da386a65a7c9a"
+    },
+    {
+      "filename": "202611250002_free_session_campaigns.sql",
+      "checksum": "889fbb8098cdfb605ce11ee063cd4251515d3dc34f7d97cf3b64c5acbeb844e1"
+    },
+    {
+      "filename": "202611250003_custom_installment_amounts.sql",
+      "checksum": "05dc1be7bcc00e733234350b8146b82647b75241b065fdfcfc158bf8eaa04ff7"
+    }
+  ]
+}

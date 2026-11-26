@@ -10,7 +10,7 @@ import pg from 'pg';
 import * as sessions from '../services/sessions.js';
 import { withTimedOfferBrowser } from './timed-offer-browser.js';
 
-test('14-day renewal works across actual HTTP requests and PostgreSQL, and requires the held migration',{
+test('30-day renewal works across actual HTTP requests and PostgreSQL, and requires the held migration',{
     skip:!process.env.BUGI_QA_POSTGRES_PORT,timeout:60000,
 },async()=>{
     const connection={host:'127.0.0.1',port:Number(process.env.BUGI_QA_POSTGRES_PORT),user:'bugi_qa',password:'bugi-synthetic-local-only',ssl:false};
@@ -26,10 +26,10 @@ test('14-day renewal works across actual HTTP requests and PostgreSQL, and requi
         const fallback=jar();await sessions.startSession(db,fallback,user);
         assert.equal(fallback.cookies.synta_refresh.cleared,true);
         const access=jwt.verify(fallback.cookies.synta_access.value,process.env.JWT_SECRET);assert.equal(access.exp-access.iat,3600);
-        await db.query(await readFile(new URL('../../database/pending-migrations/202611200001_create_refresh_tokens.sql',import.meta.url),'utf8'));
+        await db.query(await readFile(new URL('../../database/migrations/202611200001_create_refresh_tokens.sql',import.meta.url),'utf8'));
         assert.equal(await sessions.sessionRenewalReady(db),true);
         const login=jar();await sessions.startSession(db,login,user);
-        assert.ok(Math.abs(login.cookies.synta_refresh.options.maxAge-14*24*60*60*1000)<5000);
+        assert.ok(Math.abs(login.cookies.synta_refresh.options.maxAge-30*24*60*60*1000)<5000);
         const {sessionRenewal,authApiMiddleware}=await import('../middleware/requireAuth.js');
         const app=express();app.use(cookieParser());app.use(sessionRenewal(db));
         app.get('/api/activity',authApiMiddleware,(req,res)=>res.json({id:req.user.id}));
@@ -42,7 +42,7 @@ test('14-day renewal works across actual HTTP requests and PostgreSQL, and requi
         const renewedCookie=responses.flatMap(response=>response.headers.getSetCookie()).find(cookie=>cookie.startsWith('synta_refresh='));
         assert.ok(renewedCookie);const next=renewedCookie.split(';')[0].slice('synta_refresh='.length);
         const row=(await db.query('SELECT expires_at,family_expires_at FROM refresh_tokens WHERE token_hash=$1',[sessions.hashToken(next)])).rows[0];
-        assert.ok(Math.abs(row.expires_at.getTime()-Date.now()-14*24*60*60*1000)<5000);
+        assert.ok(Math.abs(row.expires_at.getTime()-Date.now()-30*24*60*60*1000)<5000);
         assert.equal((await activity(next)).status,200,'continued browsing renews again without a login prompt');
         const latest=(await db.query('SELECT token_hash FROM refresh_tokens WHERE used_at IS NULL AND revoked_at IS NULL')).rows;
         assert.equal(latest.length,1);

@@ -9,6 +9,8 @@ import jwt from "jsonwebtoken";
 import { createR2UploadUrl, deleteFromR2, listRecentR2Objects, readR2ObjectMetadata, uploadToR2 } from "../utils/r2Utils.js";
 import { offerEntitlement, legacyOfferEntitlement, matchesOfferTarget } from "../utils/offerAccess.js";
 import { liveFeatures } from "../services/live-features.js";
+import { revokeAllUserSessions } from "../services/sessions.js";
+import { accountDeactivationReady, deleteStudentSafely, setStudentActive } from "../services/account-status.js";
 
 import { COURSE_IMAGE_PREFIX, courseImagePath, decodeCourseImage, decodeReceiptDataUrl, isCourseImageKey } from "../utils/courseImages.js";
 
@@ -189,7 +191,8 @@ router.get("/api/admin/students", requireAdmin, async (req, res) => {
                 FROM free_session_participants p JOIN free_sessions f ON f.id = p.free_session_id
                 WHERE p.user_id = u.id), '[]'::json) AS free_sessions` : "";
     
-    let queryStr = `SELECT u.id, u.name as fullname, u.email, u.phone as number, u.class, u.branch, u.balance, u.created_at${freeColumns}
+    let queryStr = `SELECT u.id, u.name as fullname, u.email, u.phone as number, u.class, u.branch, u.balance, u.created_at,
+      to_jsonb(u)->>'deactivated_at' AS deactivated_at${freeColumns}
       FROM users u WHERE u.role = 'user'`;
     let countStr = `SELECT count(*) FROM users u WHERE u.role = 'user'`;
     let params = [];
@@ -265,6 +268,9 @@ router.post("/api/admin/change-student-password", requireAdmin, async (req, res)
        WHERE id = $2 AND role = 'user'`, [hash, studentId]
     );
     if (!result.rowCount) return res.status(404).json({ success: false, error: "Student not found" });
+    // A new password logs the student out of every device.
+    await revokeAllUserSessions(pool, studentId).catch(err =>
+      console.error("Could not revoke student sessions after password change:", err.code || err.message));
     return res.json({ success: true });
   } catch (err) {
     console.error("Error changing password:", err.message);
@@ -290,7 +296,8 @@ async function ensureUsersSchema() {
 router.get("/api/admin/student/:id", requireAdmin, async (req, res) => {
   try {
     await ensureUsersSchema();
-    const studentRes = await pool.query(`SELECT id, name, email, phone, class, branch, balance, debt, created_at FROM users WHERE id = $1 AND role = 'user'`, [req.params.id]);
+    const studentRes = await pool.query(`SELECT id, name, email, phone, class, branch, balance, debt, created_at,
+      to_jsonb(users)->>'deactivated_at' AS deactivated_at FROM users WHERE id = $1 AND role = 'user'`, [req.params.id]);
     if (studentRes.rowCount === 0) return res.status(404).json({ success: false, error: "Student not found" });
 
     const offersRes = await pool.query(
@@ -303,7 +310,8 @@ router.get("/api/admin/student/:id", requireAdmin, async (req, res) => {
       EXISTS (SELECT 1 FROM offer_courses oc WHERE oc.offer_id = offers.id) AS has_linked_courses
       FROM offers WHERE is_active AND (valid_from IS NULL OR valid_from <= NOW())
       AND (valid_until IS NULL OR valid_until > NOW()) ORDER BY fixed_price, created_at DESC`);
-    return res.json({ success: true, student, offers: offersRes.rows,
+    const deactivationAvailable = await accountDeactivationReady(pool).catch(() => false);
+    return res.json({ success: true, student, offers: offersRes.rows, deactivationAvailable,
       eligibleOffers: catalog.rows.filter(offer => matchesOfferTarget(offer, student)) });
   } catch (err) {
     console.error("Error fetching student details:", err.message);
@@ -315,12 +323,35 @@ router.get("/api/admin/student/:id", requireAdmin, async (req, res) => {
  * DELETE /api/admin/student/:id
  */
 router.delete("/api/admin/student/:id", requireAdmin, async (req, res) => {
+  if (!UUID.test(req.params.id)) return res.status(400).json({ success: false, error: "Étudiant invalide." });
   try {
-    await pool.query(`DELETE FROM users WHERE id = $1 AND role = 'user'`, [req.params.id]);
+    // Refuses whenever money or audit history would be lost; the admin deactivates instead.
+    await deleteStudentSafely(pool, req.params.id);
+    console.log(`[admin/students] Deleted student ${req.params.id} (no financial history) by ${req.user?.id}`);
     return res.json({ success: true });
   } catch (err) {
-    console.error("Error deleting student:", err.message);
-    return res.status(500).json({ success: false, error: "Internal server error" });
+    if (err.status) return res.status(err.status).json({ success: false, error: err.message, canDeactivate: err.status === 409 });
+    console.error("Error deleting student:", err.code || err.message);
+    return res.status(500).json({ success: false, error: "La suppression a échoué. Aucune donnée n’a été modifiée." });
+  }
+});
+
+/**
+ * PATCH /api/admin/student/:id/status  { active: boolean }
+ * Deactivation blocks sign-in and ends sessions; all records are kept.
+ */
+router.patch("/api/admin/student/:id/status", requireAdmin, async (req, res) => {
+  if (!UUID.test(req.params.id) || typeof req.body?.active !== "boolean") {
+    return res.status(400).json({ success: false, error: "Requête invalide." });
+  }
+  try {
+    const result = await setStudentActive(pool, req.params.id, req.body.active, req.user?.id);
+    console.log(`[admin/students] ${req.body.active ? "Reactivated" : "Deactivated"} student ${req.params.id} by ${req.user?.id}`);
+    return res.json({ success: true, ...result });
+  } catch (err) {
+    if (err.status) return res.status(err.status).json({ success: false, error: err.message });
+    console.error("Error changing student status:", err.code || err.message);
+    return res.status(500).json({ success: false, error: "Le statut du compte n’a pas pu être modifié." });
   }
 });
 
@@ -329,8 +360,9 @@ router.delete("/api/admin/student/:id", requireAdmin, async (req, res) => {
  */
 router.post("/api/admin/student/:id/generate-token", requireAdmin, async (req, res) => {
   try {
-    const studentRes = await pool.query(`SELECT id, role FROM users WHERE id = $1 AND role = 'user'`, [req.params.id]);
+    const studentRes = await pool.query(`SELECT id, role, to_jsonb(users)->>'deactivated_at' AS deactivated_at FROM users WHERE id = $1 AND role = 'user'`, [req.params.id]);
     if (studentRes.rowCount === 0) return res.status(404).json({ success: false, error: "Student not found" });
+    if (studentRes.rows[0].deactivated_at) return res.status(409).json({ success: false, error: "Ce compte est désactivé. Réactivez-le avant de vous y connecter." });
 
     const token = jwt.sign(
       { id: req.params.id, magic: true },

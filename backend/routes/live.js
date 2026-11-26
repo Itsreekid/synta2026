@@ -4,7 +4,8 @@
 import express from "express";
 import { GetObjectCommand } from "@aws-sdk/client-s3";
 import pool from "../config/db.js";
-import { authApiMiddleware } from "../middleware/requireAuth.js";
+import { authApiMiddleware, verifyToken } from "../middleware/requireAuth.js";
+import { loginUrlFor } from "../utils/returnPath.js";
 import { requireAdmin } from "../middleware/requireAdmin.js";
 import { rescheduleZoomMeeting, createZoomMeeting, deleteZoomMeeting, getZoomOccurrenceRecordings, getZoomPastInstances } from "../utils/zoomClient.js";
 import { createR2UploadUrl, generateSignedUrl } from "../utils/r2Utils.js";
@@ -428,10 +429,29 @@ function joinNotice(res, status, message) {
 }
 
 /**
+ * Students open the join link as a page, so a missing/expired session sends them to the
+ * login page (then back to this session in the calendar) instead of showing a JSON 401.
+ */
+function requireJoinSession(req, res, next) {
+  const accessToken = req.cookies?.synta_access;
+  const payload = accessToken ? verifyToken(accessToken) : null;
+  if (payload) {
+    req.user = payload;
+    return next();
+  }
+  if (accessToken) res.clearCookie("synta_access", { path: "/" });
+  res.set("Cache-Control", "private, no-store");
+  const returnTo = uuidPattern.test(req.params.sessionId)
+    ? "/app/calendar?session=" + req.params.sessionId // validated UUID: URL-safe as is
+    : "/app/calendar";
+  return res.redirect(302, loginUrlFor(returnTo, Boolean(accessToken || req.cookies?.synta_refresh)));
+}
+
+/**
  * GET /api/live/:sessionId/join — PROTECTED
  * Redirects to Zoom only for authorized students inside the join window.
  */
-router.get("/:sessionId/join", authApiMiddleware, async (req, res) => {
+router.get("/:sessionId/join", requireJoinSession, async (req, res) => {
   if (!uuidPattern.test(req.params.sessionId)) return joinNotice(res, 404, "Séance introuvable.");
   try {
     const { rows: [session] } = await pool.query(

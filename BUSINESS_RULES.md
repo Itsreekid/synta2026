@@ -1,3 +1,15 @@
+### Independent campaigns and permanent links — locally approved 2026-11-26
+
+No one-campaign-per-class limit. Targeted new registrations use campaign class/section; configured fields are read-only, unconfigured fields require normal valid choices. Existing saved profiles remain unchanged by campaign participation. Single-section and Toutes campaigns retain existing semantics. Canonical/historical slugs stay permanently owned by one campaign, even inactive; rename-back is allowed only by that owner. Redirects use current same-site canonical path and no-store temporary responses. No paid enrollment is granted. Held migration and verification: FREE_CAMPAIGN_FLEXIBILITY_IMPLEMENTATION.md.
+
+### Session-shape compatibility — 2026-11-26, local validation
+
+Standard course, any_selected relationship audiences and course-less free-campaign occurrences must coexist. Repairing storage shape never grants course/offer access. Existing OR authorization, explicit free reservations, paid isolation, Zoom references and confirmed payment terms remain unchanged. See SESSION_MIGRATION_COMPATIBILITY.md.
+
+### Free-session funnel — locally approved 2026-11-26
+
+Guest quiz precedes signup; server scoring uses frozen questions and campaign thresholds (default 50/80). No invented topic or attendance claims. Verified users reserve exact dates; result reuse requires admin permission. Existing users retain profile/acquisition source; paid enrollment is never granted. Guest capabilities last two hours and verified-registration claims 48 hours; expiry does not block account creation. Submitted results and ownership are immutable; occurrence audit is append-only. See FREE_SESSION_FUNNEL_IMPLEMENTATION.md.
+
 ### Shared-course session eligibility — owner requested 2026-11-25
 
 For an older course-linked session, active paid access to that same course through another linked offer (annual or monthly) qualifies even if the session names a different primary offer. Active timed course snapshots qualify independently of later offer edits. This supersedes the legacy exact-primary-offer restriction for these shared-course students. Explicit selected-student audiences still restrict access; cancelled sessions and expired, revoked or not-yet-started grants remain unavailable. Course/offer associations alone never grant access. Offer-only multi-audience sessions and free-campaign participant rules are unchanged. No purchase, enrollment or expiry is modified.
@@ -169,7 +181,9 @@ Two roles exist: `user` (student) and `admin`.
 | Behavior | Status | Evidence |
 |----------|--------|----------|
 | Access token lasts 1 hour | ✅ | `services/sessions.js`: `ACCESS_TTL_MS` |
-| A signed-in student stays signed in while active: normal sessions renew with a 14-day refresh inactivity window and a 30-day absolute cap (owner decision 2026-11-22; requires refresh-token migration) | ✅ | `services/sessions.js`: `REFRESH_IDLE_MS`, `SESSION_MAX_MS` (2026-11-20, Batch 2B) |
+| A signed-in student stays signed in while active: normal sessions renew silently with a 30-day inactivity window and a 90-day absolute cap (owner decision 2026-11-26; previously 14-day idle / 30-day cap; requires refresh-token migration) | ✅ | `services/sessions.js`: `REFRESH_IDLE_MS`, `SESSION_MAX_MS` (2026-11-20, Batch 2B) |
+| A student who forgot their password receives an emailed reset link (valid 1 hour, single use). The request page never reveals whether an account exists. Completing a reset confirms the email address | ✅ | `routes/auth-api.js` forgot/reset endpoints, `services/password-reset.js` (2026-11-26) |
+| Any password change (student reset or admin change) logs the account out of every device; a reset also emails a "password changed" notice | ✅ | `revokeAllUserSessions` in `services/sessions.js` (2026-11-26) |
 | Refresh token auto-renews access token when it expires, on any page or API request, with no client-side code | ✅ | `sessionRenewal` in `middleware/requireAuth.js`, mounted in `server.js` (2026-11-20). Active only after `database/pending-migrations/202611200001_create_refresh_tokens.sql` is approved and applied; until then sessions last one hour and the 2A expiry handling applies |
 | Each refresh token works once. Reusing an old token more than 20 seconds after it was exchanged ends every session from that sign-in | ✅ | `rotateRefreshToken` in `services/sessions.js` |
 | Session cookies are HttpOnly, Secure in production and `SameSite=Lax`, so links opened from WhatsApp or email keep the student signed in (owner decision 2026-11-20) | ✅ | `services/sessions.js` `cookieBase()` |

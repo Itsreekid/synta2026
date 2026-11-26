@@ -1,3 +1,42 @@
+## 2026-11-26 — Independent free campaigns and preserved public links (local only)
+
+Retained unlimited per-class campaigns and existing admin/quiz/Zoom flow. Added authoritative Google onboarding via shared profile saver, read-only targeting, complete open-profile validation, held immutable slug aliases, temporary canonical redirects and rename-safe guest drafts. Focused 68 passed; full regression 150 passed /0 failed /14 skips. No alias/funnel promotion, push or production change. See FREE_CAMPAIGN_FLEXIBILITY_IMPLEMENTATION.md.
+
+
+### 2026-11-26 — Password reset by email (BUG-006)
+
+- Students can reset a forgotten password from « Mot de passe oublié ? »: branded email with a button and link (valid 1 hour, single use), new-password page, and a "password changed" security notice.
+- Any password change (reset or admin) logs the account out of every device. No database migration needed.
+
+### 2026-11-26 — Student UX fixes: staying signed in, join link, proxy-aware rate limits
+
+- Promoted (owner approved) `202611200001_create_refresh_tokens.sql` to `database/migrations/`; session renewal activates after the next deploy. Students stay signed in until 30 days without a visit, and at most 90 days after signing in (was 14 / 30).
+- Live join link redirects signed-out/expired students to login and back to the session in the calendar instead of returning JSON 401.
+- Production defaults `trust proxy` to 1 hop when `TRUST_PROXY_HOPS` is unset, so login rate limits apply per student rather than to everyone behind the proxy.
+
+Final repeat evidence: non-browser suite 159 tests /143 passed /2 failed /14 skipped; failures were one exact five-minute join-boundary assertion plus parent, while isolated live suite passed 17/17 and full Chrome run passed that case. Full Chrome run remains 164 /163 pass /1 intermittent Video.js speed failure; isolated Video.js rerun passed 1/1. Compatibility suite 10/10, original CHECK conflict absent. These intermittent results remain explicit NO-GO risks; no player/join logic or security assertions changed. See SESSION_MIGRATION_COMPATIBILITY.md.
+
+
+Validation update for the compatibility fix: final full PostgreSQL+Chrome run 164 tests /163 passed /1 failed /0 skipped. All former migration failures pass. Remaining intermittent Video.js speed assertion passed on isolated rerun (1/1); precise cause unproven, player code/tests unchanged. Dedicated compatibility 10/10, corrected replay-management fixture/browser 5/5. Keep production NO-GO pending this test classification, schema evidence and hosted staging. No production changes.
+
+### 2026-11-26 — Session migration compatibility corrected locally; production NO-GO
+
+The conflicting direct-course CHECK is replaced by an exact-hash-pinned compatibility SQL at the original dependency position. Original 202611250002 SQL/checksum and existing ledger rows remain unchanged. Fresh/unapplied databases use a compatible bootstrap; already-applied originals receive constraint-only repair. OR relationship triggers and student authorization remain unchanged. No held migration promoted.
+
+Owner supplied the production ledger: all 20 filenames/checksums match local source, including original free campaigns and custom installments. Production therefore needs only the constraint repair, not a repeated bootstrap/backfill. Missing pending ledger entries do not prove physical schema absence; deployment still requires schema verification, staging and approval.
+
+The former 14 live failures are resolved in local regression. See SESSION_MIGRATION_COMPATIBILITY.md for final test results, supported ledger states, safe sequencing and rollback. Original BROKEN notes below are historical. No production SQL, push or deployment. TASK-FREE-FUNNEL compatibility coding completed locally; remaining work is authorized staging/promotion review.
+
+### 2026-11-26 — Free-session funnel: implemented locally; production NO-GO
+
+Guest-first French quiz, private immutable server-scored attempts, verified email/Google result recovery, exact-date reservations and admin occurrence/reuse controls implemented in existing pages. Historical memberships, paid rights, profiles and acquisition sources preserved. Unverified Google email linking blocked.
+
+Owner approved database/pending-migrations/202611250004_free_session_funnel.sql for local implementation/testing only. Applied/repeated with actual runner on disposable PostgreSQL; remains HELD, not promoted. No new dependencies/environment variables, production SQL, commit, push or deployment.
+
+Validation: focused integration/security/readiness/browser run 70/70; final affected funnel rerun 11/11. Chrome public 320/375/390/430/768/1440px; admin 360/390/1440px. Mocked email/Google/Zoom and synthetic data only. Full final regression: 145 tests, 117 passed, 14 failed, 14 skipped.
+
+BROKEN: remaining 13 live leaf failures plus parent trace to the existing free-session/multi-audience constraint conflict. Existing any_selected rows can block the free migration, or valid creation fails afterward. Do not waive security assertions or rewrite applied checksums. Next TASK-FREE-FUNNEL: approve ledger-aware compatibility repair, rehearse combined manifest, then separately authorized hosted provider validation. See FREE_SESSION_FUNNEL_IMPLEMENTATION.md.
+
 ## 2026-11-25 — Custom installment amounts and automatic deadline buffer (local only)
 
 - Existing offer editor gains independent custom 2/3-payment plans and automatic/manual dates.

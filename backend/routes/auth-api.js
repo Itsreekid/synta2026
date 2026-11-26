@@ -10,8 +10,10 @@ import { normalizeTunisianPhone, validateLearnerProfile } from "../utils/learner
 import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
 import pool from "../config/db.js";
-import { clearSessionCookies, revokeRefreshToken, startSession } from "../services/sessions.js";
-import { generateVerificationToken, sendVerificationEmail } from "../services/email.js";
+import { clearSessionCookies, revokeAllUserSessions, revokeRefreshToken, startSession } from "../services/sessions.js";
+import { generateVerificationToken, sendPasswordChangedEmail, sendPasswordResetEmail, sendVerificationEmail } from "../services/email.js";
+import { createResetToken, readResetToken, resetTokenMatches } from "../services/password-reset.js";
+import { DEACTIVATED_MESSAGE } from "../services/account-status.js";
 
 const router = express.Router();
 const JWT_SECRET  = process.env.JWT_SECRET;
@@ -107,7 +109,9 @@ router.post("/api/auth/login", authRateLimit(30), async (req, res) => {
     }
 
     const result = await pool.query(
-      "SELECT id, email, name, role, password_hash, email_verified FROM users WHERE email = $1",
+      `SELECT id, email, name, role, password_hash, email_verified,
+              to_jsonb(users)->>'deactivated_at' AS deactivated_at
+       FROM users WHERE email = $1`,
       [email.toLowerCase().trim()]
     );
 
@@ -120,6 +124,11 @@ router.post("/api/auth/login", authRateLimit(30), async (req, res) => {
 
     if (!valid) {
       return res.status(401).json({ error: "البريد الإلكتروني أو كلمة المرور غير صحيحة" });
+    }
+
+    // Only after a correct password, so this never reveals account state to a guesser.
+    if (user.deactivated_at) {
+      return res.status(403).json({ error: DEACTIVATED_MESSAGE, deactivated: true });
     }
 
     if (!user.email_verified) {
@@ -206,6 +215,129 @@ router.post("/api/auth/resend-verification", authRateLimit(10), async (req, res)
   }
 });
 
+// =====================================================
+// PASSWORD RESET
+// =====================================================
+const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const normalizedEmail = value => (typeof value === "string" ? value.toLowerCase().trim() : "");
+const FORGOT_REPLY = {
+  success: true,
+  message: "Si un compte existe avec cette adresse, tu vas recevoir un lien pour choisir un nouveau mot de passe.",
+};
+
+function passwordProblem(password) {
+  if (typeof password !== "string" || password.length < 6) return "Choisis un mot de passe d’au moins 6 caractères.";
+  if (Buffer.byteLength(password) > 72) return "Le mot de passe est trop long.";
+  return null;
+}
+
+/**
+ * POST /api/auth/forgot-password  { email }
+ * Always answers the same way, so it never reveals whether an account exists.
+ */
+router.post("/api/auth/forgot-password",
+  authRateLimit(5),
+  authRateLimit(3, 60 * 60 * 1000, req => "email:" + normalizedEmail(req.body?.email).slice(0, 254)),
+  async (req, res) => {
+    const email = normalizedEmail(req.body?.email);
+    if (!EMAIL_PATTERN.test(email) || email.length > 254) {
+      return res.status(400).json({ error: "Vérifie ton adresse e-mail." });
+    }
+    try {
+      const result = await pool.query(
+        `SELECT id, email, name, password_hash, to_jsonb(users)->>'deactivated_at' AS deactivated_at
+         FROM users WHERE email = $1`,
+        [email]
+      );
+      const user = result.rows[0];
+      // Deactivated accounts get the same reply but no link (they could not sign in anyway).
+      if (user && !user.deactivated_at) {
+        // Not awaited: the reply time must not depend on whether the account exists.
+        sendPasswordResetEmail(user.email, user.name, createResetToken(user)).catch(err =>
+          console.error("[auth/forgot-password] Email not sent:", err.message));
+      }
+      return res.json(FORGOT_REPLY);
+    } catch (err) {
+      console.error("[auth/forgot-password] Error:", err.code || err.message);
+      return res.status(500).json({ error: "Impossible d’envoyer le lien pour le moment. Réessaie dans un instant." });
+    }
+  }
+);
+
+/**
+ * POST /api/auth/reset-password/check  { token }
+ * Lets the page say "link expired" before the student types a new password.
+ */
+router.post("/api/auth/reset-password/check", authRateLimit(30), async (req, res) => {
+  res.set("Cache-Control", "no-store");
+  const claims = readResetToken(req.body?.token);
+  if (!claims) return res.json({ valid: false });
+  try {
+    const result = await pool.query("SELECT id, email, password_hash FROM users WHERE id = $1", [claims.userId]);
+    return res.json({ valid: resetTokenMatches(claims, result.rows[0]) });
+  } catch (err) {
+    console.error("[auth/reset-password/check] Error:", err.code || err.message);
+    return res.status(500).json({ error: "Vérification impossible. Réessaie dans un instant." });
+  }
+});
+
+/**
+ * POST /api/auth/reset-password  { token, password }
+ * Sets the new password, confirms the email (the link proves ownership) and logs the
+ * account out of every device.
+ */
+router.post("/api/auth/reset-password", authRateLimit(10), async (req, res) => {
+  res.set("Cache-Control", "no-store");
+  const { token, password } = req.body || {};
+  const problem = passwordProblem(password);
+  if (problem) return res.status(400).json({ error: problem });
+  const claims = readResetToken(token);
+  const expired = () => res.status(400).json({
+    error: "Ce lien n’est plus valable. Demande un nouveau lien de réinitialisation.", expired: true,
+  });
+  if (!claims) return expired();
+
+  let client;
+  try {
+    const passwordHash = await bcrypt.hash(password, SALT_ROUNDS);
+    client = await pool.connect();
+    await client.query("BEGIN");
+    const found = await client.query(
+      "SELECT id, email, name, password_hash, to_jsonb(users)->>'deactivated_at' AS deactivated_at FROM users WHERE id = $1 FOR UPDATE",
+      [claims.userId]
+    );
+    const user = found.rows[0];
+    if (!resetTokenMatches(claims, user)) {
+      await client.query("ROLLBACK");
+      return expired();
+    }
+    if (user.deactivated_at) {
+      await client.query("ROLLBACK");
+      return res.status(403).json({ error: DEACTIVATED_MESSAGE, deactivated: true });
+    }
+    await client.query(
+      `UPDATE users SET password_hash = $1, email_verified = true,
+              verification_token = NULL, token_expires_at = NULL, updated_at = NOW()
+       WHERE id = $2`,
+      [passwordHash, user.id]
+    );
+    await revokeAllUserSessions(client, user.id);
+    await client.query("COMMIT");
+
+    clearSessionCookies(res);
+    sendPasswordChangedEmail(user.email, user.name).catch(err =>
+      console.error("[auth/reset-password] Notice not sent:", err.message));
+    console.log("[auth/reset-password] Password reset for user:", user.id);
+    return res.json({ success: true });
+  } catch (err) {
+    if (client) await client.query("ROLLBACK").catch(() => {});
+    console.error("[auth/reset-password] Error:", err.code || err.message);
+    return res.status(500).json({ error: "Le mot de passe n’a pas pu être changé. Réessaie dans un instant." });
+  } finally {
+    client?.release();
+  }
+});
+
 /**
  * GET /api/auth/magic-login
  * Used by admin to login as a user via a generated 5-minute token
@@ -221,12 +353,15 @@ router.get("/api/auth/magic-login", async (req, res) => {
     }
 
     const result = await pool.query(
-      "SELECT id, email, name, role FROM users WHERE id = $1",
+      "SELECT id, email, name, role, to_jsonb(users)->>'deactivated_at' AS deactivated_at FROM users WHERE id = $1",
       [decoded.id]
     );
 
     if (result.rowCount === 0) {
       return res.status(404).send("User not found");
+    }
+    if (result.rows[0].deactivated_at) {
+      return res.status(403).send("Ce compte est désactivé.");
     }
 
     const user = result.rows[0];

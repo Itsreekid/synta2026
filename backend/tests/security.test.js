@@ -14,6 +14,10 @@ import * as offerUpgrades from "../services/offer-upgrades.js";
 import * as timedOffers from "../services/timed-offers.js";
 import * as returnPath from "../utils/returnPath.js";
 import * as sessions from "../services/sessions.js";
+import * as freeCampaigns from "../services/free-campaigns.js";
+import * as onboarding from "../services/learner-onboarding.js";
+import * as passwordReset from "../services/password-reset.js";
+import * as emailService from "../services/email.js";
 
 const SECRET = "local-test-secret";
 const USER = "10000000-0000-0000-0000-000000000001";
@@ -45,14 +49,21 @@ async function loadRoute(name, doubles, env = {}) {
     "node:crypto": { randomUUID: crypto.randomUUID },
     "../utils/courseImages.js": courseImages,
     "../services/timed-offers.js": timedOffers,
+    "../services/free-campaigns.js": freeCampaigns,
+    "../services/learner-onboarding.js": onboarding,
+    "../services/free-session-funnel.js": {funnelReady:async()=>false,claimRegistration:async()=>null,bindGuestRegistration:async()=>false},
+    "../utils/zoomClient.js": {createZoomMeeting:async()=>({}),deleteZoomMeeting:async()=>{},rescheduleZoomMeeting:async()=>{}},
     "../services/offer-upgrades.js": offerUpgrades,
     "../middleware/requireAdmin.js": { requireAdmin: admin },
-    "../middleware/requireAuth.js": { authApiMiddleware: guard },
+    "../middleware/requireAuth.js": { authApiMiddleware: guard, verifyToken: () => null },
+    "../utils/returnPath.js": returnPath,
     "../services/sessions.js": {
       startSession: async (pool, res, user) => res.cookie("synta_access", jwt.sign({ id: user.id }, SECRET)),
       revokeRefreshToken: async () => {},
       clearSessionCookies: res => { res.clearCookie("synta_access"); res.clearCookie("synta_refresh"); },
+      revokeAllUserSessions: async () => true,
     },
+    "../services/password-reset.js": passwordReset,
     "../middleware/authRateLimit.js": { authRateLimit },
     "../services/recording-discovery.js": {createRecordingDiscovery:()=>({search:async()=>({files:[]}),invalidate:()=>{}})},
     "../services/recording-jobs.js": {restoreRecording:async()=>{},lockOccurrence:async()=>{},queueRecordingEvent:async()=>{},resolveOccurrence:async()=>{},requestRecordingDeletion:async()=>{},recordingLog:()=>{}},
@@ -106,10 +117,14 @@ test("placement keeps existing credentials private and requires a fresh verified
   let revision = 0;
   const query = async (sql, args = []) => {
     if (["BEGIN", "COMMIT", "ROLLBACK"].includes(sql)) return { rows: [] };
+    if(sql.trim().startsWith('SELECT')&&sql.includes('FROM free_sessions'))return {rows:[{id:OTHER_OFFER,slug:'test-campaign',is_active:true,target_class:'bac',target_branch:'informatique'}]};
+    if(sql.includes('SELECT r.free_session_id'))return {rows:[{free_session_id:OTHER_OFFER,is_active:true,target_class:'bac',target_branch:'informatique'}]};
+    if(sql.includes('INSERT INTO free_session_participants'))return {rows:[]};
+    if(sql.includes('FROM live_sessions'))return {rows:[]};
     if (sql.includes("INSERT INTO session_registrations")) {
       assert.match(sql, /NOT EXISTS.*users/);
       if (!users.has(args[1]) && !registration) {
-        registration = { id: DATES[0], full_name: args[0], email: args[1], phone: args[2] };
+        registration = { id: DATES[0], full_name: args[0], email: args[1], phone: args[2],free_session_id:OTHER_OFFER,target_class:"bac",target_branch:"informatique" };
       }
       return { rows: [] };
     }
@@ -153,7 +168,7 @@ test("placement keeps existing credentials private and requires a fresh verified
     "../config/db.js": { default: pool },
     "../services/email.js": { sendPlacementVerificationEmail: async (email, token) => emails.push({ email, token }) },
   });
-  const register = email => call("post /register", { body: { email, full_name: "Test Learner", phone: "12345678" } });
+  const register = email => call("post /register", { body: { email, full_name: "Test Learner", phone: "22123456" } });
   const response = await register("EXISTING@example.invalid");
   assert.equal(response.statusCode, 202);
   assert.equal(emails.length, 0);
@@ -400,7 +415,7 @@ test("admin installment enrollment grants an overlapping offer once and enforces
 
 test("the placement page renders with its real route locals and both changed pages have valid inline scripts", async () => {
   const page = await ejs.renderFile(fileURLToPath(new URL("../views/pages/session/index.ejs", import.meta.url)), {
-    sessionConfig: { session_date: "", session_matiere: "Test" },
+    campaign: { slug:"test-campaign",title:"Test",subject:"Informatique",description:"",date:"" },viewer:null,
   });
   const adminPage = await readFile(new URL("../public/admin/pages/sessions.html", import.meta.url), "utf8");
   for (const html of [page, adminPage]) {
@@ -668,6 +683,7 @@ test("admin rows encode harmless HTML-like text and bind original action data as
   }
   let passwordArgs;
   context.openPassModal = (...args) => { passwordArgs = args; };
+  loadFunction(studentPage, "freeSessionBadge", "renderStudents");
   loadFunction(studentPage, "renderStudents", "openPassModal");
   context.renderStudents([{ id: "student-id", fullname: value, email: value }]);
   assert.ok(!table.innerHTML.includes(value));
@@ -714,7 +730,8 @@ test("placement records, questions and answers are serialized as text and action
   const row = { querySelector: selector => ({ addEventListener: (_event, fn) => actions.set(selector, fn) }) };
   const ids = {
     "questions-list": { children: [row] },
-    "students-list": { rows: [row] },
+    "participants-list": {querySelectorAll:()=>[{addEventListener:(_event,fn)=>actions.set("[data-view]",fn)}]},
+    "pending-list": {querySelectorAll:()=>[]},
     studentModalTitle: {},
     studentModalContent: {},
     studentModalOverlay: { classList: { add() {} } }
@@ -734,17 +751,18 @@ test("placement records, questions and answers are serialized as text and action
   });
   vm.runInContext(helper, sandbox);
   vm.runInContext(`const questions = [{id:value,text:value,correct_answer:value,is_active:true,type:"multiple_choice"}];
-    const studentsData = [{id:value,full_name:value,email:value,phone:value,filier:value,track:value,score:0,
-      quiz_details:{[value]:{user_answer:value,correct_answer:value}}}];`, sandbox);
-  vm.runInContext(page.slice(page.indexOf("function renderQuestions()"), page.indexOf("// --- Modals & Actions")), sandbox);
-  vm.runInContext(page.slice(page.indexOf("function renderStudents()"), page.indexOf("function closeStudentModal()")), sandbox);
+    const CLASS_LABELS={},BRANCH_LABELS={};
+    const studentsData = {participants:[{id:value,full_name:value,email:value,phone:value,branch:value,class:value,score:0,
+      answers:{[value]:{answer:value,is_correct:false}}}],pending:[]};`, sandbox);
+  vm.runInContext(page.slice(page.indexOf("function renderQuestions()"), page.indexOf("function openModal()")), sandbox);
+  vm.runInContext(page.slice(page.indexOf("function groupBadge("), page.indexOf("function closeStudentModal()")), sandbox);
   sandbox.renderQuestions();
   sandbox.renderStudents();
   actions.get("[data-toggle-question]")();
   assert.deepEqual(toggled, [value, true]);
-  actions.get("[data-view-placement]")();
+  actions.get("[data-view]")();
   assert.ok(ids.studentModalTitle.textContent.includes(value));
-  for (const node of [ids["questions-list"], ids["students-list"], ids.studentModalContent]) {
+  for (const node of [ids["questions-list"], ids["participants-list"], ids.studentModalContent]) {
     assert.ok(!node.innerHTML.includes(value));
     assert.match(node.innerHTML, /&lt;b data-marker=&quot;synthetic&quot;&gt;O&#39;Reilly &amp; friends&lt;\/b&gt;/);
   }
@@ -948,6 +966,27 @@ test("upcoming live sessions stay listed until their scheduled duration ends", a
   assert.doesNotMatch(listed, /ls\.scheduled_at >= NOW\(\)/);
 });
 
+test("live join link sends signed-out students to login and back to the session", async () => {
+  let queried = false;
+  const call = await loadRoute("live", {
+    "../config/db.js": { default: { query: async () => { queried = true; return { rows: [] }; } } },
+    "@aws-sdk/client-s3": { GetObjectCommand: class {} },
+    "../config/r2.js": { r2Client: {}, R2_BUCKET: "test" },
+    "../utils/r2Utils.js": { createR2UploadUrl() {}, generateSignedUrl() {} },
+    "../utils/zoomClient.js": { rescheduleZoomMeeting() {}, createZoomMeeting() {}, deleteZoomMeeting() {}, getZoomPastInstances() {}, getZoomOccurrenceRecordings() {} },
+  });
+  const id = "11111111-1111-4111-8111-111111111111";
+  const signedOut = await call("get /:sessionId/join", { params: { sessionId: id }, cookies: {} });
+  assert.equal(signedOut.statusCode, 302);
+  assert.equal(signedOut.headers.Location, "/login?next=" + encodeURIComponent("/app/calendar?session=" + id));
+  const expired = await call("get /:sessionId/join", { params: { sessionId: id }, cookies: { synta_access: "expired-token" } });
+  assert.equal(expired.statusCode, 302);
+  assert.match(expired.headers.Location, /&reason=expired$/);
+  const invalid = await call("get /:sessionId/join", { params: { sessionId: "not-a-uuid" }, cookies: {} });
+  assert.equal(invalid.headers.Location, "/login?next=" + encodeURIComponent("/app/calendar"));
+  assert.equal(queried, false, "no session data is read before authentication");
+});
+
 test("post-login return paths only allow student pages", () => {
   for (const safe of ["/dashboard", "/app/courses", "/app/course-details?id=abc&replay=1", "/app/code-pratique?source=lesson-file"]) {
     assert.equal(returnPath.safeReturnPath(safe), safe);
@@ -1088,14 +1127,15 @@ test("refresh tokens rotate once and a replayed old token ends the whole session
   assert.equal(await sessions.rotateRefreshToken(db, rotated.refresh.token), null);
 });
 
-test("refresh tokens expire after 14 idle days and never outlive the 30-day session cap", async () => {
+test("refresh tokens expire after 30 idle days and never outlive the 90-day session cap", async () => {
   process.env.JWT_SECRET = SECRET;
   const db = refreshTokenDb();
   const login = cookieJar();
   await sessions.startSession(db, login, SESSION_USER);
   const [row] = db.rows;
   const now = Date.now();
-  assert.equal(sessions.REFRESH_IDLE_MS,14*24*60*60*1000);
+  assert.equal(sessions.REFRESH_IDLE_MS,30*24*60*60*1000);
+  assert.equal(sessions.SESSION_MAX_MS,90*24*60*60*1000);
   assert.ok(Math.abs(row.expires_at - (now + sessions.REFRESH_IDLE_MS)) < 5000);
   assert.ok(Math.abs(row.family_expires_at - (now + sessions.SESSION_MAX_MS)) < 5000);
 
@@ -1122,7 +1162,7 @@ test("refresh tokens expire after 14 idle days and never outlive the 30-day sess
   assert.equal(await sessions.rotateRefreshToken(db, "x".repeat(3000)), null);
 });
 
-test('active renewal extends the 14-day window, and missing storage is detectable',async()=>{
+test('active renewal extends the 30-day window, and missing storage is detectable',async()=>{
   process.env.JWT_SECRET=SECRET;
   const db=refreshTokenDb(),login=cookieJar();
   await sessions.startSession(db,login,SESSION_USER);
@@ -1130,9 +1170,9 @@ test('active renewal extends the 14-day window, and missing storage is detectabl
   db.rows[0].expires_at=new Date(Date.now()+60*60*1000);
   const refreshed=await sessions.rotateRefreshToken(db,login.cookies.synta_refresh.value);
   assert.ok(refreshed.refresh);
-  assert.ok(Math.abs(refreshed.refresh.expiresAt.getTime()-Date.now()-14*24*60*60*1000)<5000);
+  assert.ok(Math.abs(refreshed.refresh.expiresAt.getTime()-Date.now()-30*24*60*60*1000)<5000);
   const renewed=cookieJar();sessions.applyRotation(renewed,refreshed);
-  assert.ok(Math.abs(renewed.cookies.synta_refresh.options.maxAge-14*24*60*60*1000)<5000);
+  assert.ok(Math.abs(renewed.cookies.synta_refresh.options.maxAge-30*24*60*60*1000)<5000);
   assert.equal(await sessions.sessionRenewalReady({query:async()=>({rows:[{ready:true}]})}),true);
   assert.equal(await sessions.sessionRenewalReady({query:async()=>({rows:[{ready:false}]})}),false);
 });
@@ -1252,13 +1292,14 @@ test("login starts a rotating session, logout revokes it, and magic login is not
     startSession: async (pool, res, user, options = {}) => { calls.push(["start", user.id, { ...options }]); res.cookie("synta_access", "access"); },
     revokeRefreshToken: async (pool, token) => calls.push(["revoke", token]),
     clearSessionCookies: res => { res.clearCookie("synta_access"); res.clearCookie("synta_refresh"); },
+    revokeAllUserSessions: async () => true,
   };
   const user = { ...SESSION_USER, password_hash: "stored", email_verified: true };
   const call = await loadRoute("auth-api", {
     bcrypt: { default: { hash: async password => `hash:${password}`, compare: async () => true } },
     "../config/db.js": { default: { query: async () => ({ rows: [user], rowCount: 1 }) } },
     "../services/sessions.js": sessionDouble,
-    "../services/email.js": { generateVerificationToken() {}, async sendVerificationEmail() {} },
+    "../services/email.js": { generateVerificationToken() {}, async sendVerificationEmail() {}, async sendPasswordResetEmail() {}, async sendPasswordChangedEmail() {} },
   });
 
   const login = await call("post /api/auth/login", {
@@ -1275,6 +1316,86 @@ test("login starts a rotating session, logout revokes it, and magic login is not
   const magicToken = jwt.sign({ id: USER, magic: true }, SECRET, { expiresIn: "5m" });
   await call("get /api/auth/magic-login", { query: { token: magicToken }, cookies: { synta_refresh: "admin" } });
   assert.deepEqual(calls.shift(), ["start", USER, { renewable: false, previousRefreshToken: "admin" }]);
+});
+
+test("password reset never reveals accounts, uses single-use links and logs out every device", async () => {
+  process.env.JWT_SECRET = SECRET;
+  const user = { id: USER, email: "student@example.invalid", name: "Amira <b>", password_hash: "old-hash", email_verified: false };
+  const sent = [], changed = [], revoked = [];
+  const query = async (sql, args = []) => {
+    if (["BEGIN", "COMMIT", "ROLLBACK"].includes(sql)) return { rows: [] };
+    if (sql.includes("FROM users WHERE email = $1")) return { rows: args[0] === user.email ? [{ ...user }] : [] };
+    if (sql.includes("FROM users WHERE id = $1")) return { rows: args[0] === user.id ? [{ ...user }] : [] };
+    if (sql.includes("UPDATE users SET password_hash")) {
+      assert.equal(args[1], USER);
+      Object.assign(user, { password_hash: args[0], email_verified: true });
+      return { rows: [], rowCount: 1 };
+    }
+    throw new Error("Unexpected SQL: " + sql);
+  };
+  const call = await loadRoute("auth-api", {
+    "../config/db.js": { default: { query, connect: async () => ({ query, release() {} }) } },
+    "../services/sessions.js": {
+      startSession: async () => {}, revokeRefreshToken: async () => {},
+      clearSessionCookies: res => { res.clearCookie("synta_access"); res.clearCookie("synta_refresh"); },
+      revokeAllUserSessions: async (db, id) => { revoked.push(id); return true; },
+    },
+    "../services/email.js": {
+      generateVerificationToken() {}, async sendVerificationEmail() {},
+      async sendPasswordResetEmail(to, name, token) { sent.push({ to, token }); },
+      async sendPasswordChangedEmail(to) { changed.push(to); },
+    },
+  });
+
+  assert.equal((await call("post /api/auth/forgot-password", { ip: "a", body: { email: "not-an-email" } })).statusCode, 400);
+  const unknown = await call("post /api/auth/forgot-password", { ip: "b", body: { email: "nobody@example.invalid" } });
+  const known = await call("post /api/auth/forgot-password", { ip: "c", body: { email: " Student@Example.invalid " } });
+  assert.equal(unknown.statusCode, 200);
+  assert.deepEqual(known.body, unknown.body, "same reply whether or not the account exists");
+  await new Promise(resolve => setImmediate(resolve));
+  assert.equal(sent.length, 1);
+  assert.equal(sent[0].to, user.email);
+  const { token } = sent[0];
+
+  assert.throws(() => jwt.verify(token, SECRET), "a reset link can never act as a session token");
+  assert.equal(JSON.stringify(jwt.decode(token)).includes("old-hash"), false, "the token never carries the hash");
+  assert.equal((await call("post /api/auth/reset-password/check", { body: { token } })).body.valid, true);
+  assert.equal((await call("post /api/auth/reset-password/check", { body: { token: token.slice(0, -2) + "xx" } })).body.valid, false);
+  const forged = jwt.sign({ sub: USER, purpose: "password_reset", fp: "x" }, SECRET);
+  assert.equal((await call("post /api/auth/reset-password/check", { body: { token: forged } })).body.valid, false);
+
+  assert.equal((await call("post /api/auth/reset-password", { body: { token, password: "123" } })).statusCode, 400);
+  assert.equal(user.password_hash, "old-hash");
+  const reset = await call("post /api/auth/reset-password", {
+    body: { token, password: "new-secret" }, cookies: { synta_access: "a", synta_refresh: "r" },
+  });
+  assert.equal(reset.statusCode, 200);
+  assert.equal(user.password_hash, "hash:new-secret");
+  assert.equal(user.email_verified, true, "the emailed link proves address ownership");
+  assert.deepEqual(revoked, [USER], "every renewable session is revoked");
+  assert.equal(reset.cookies.synta_access, undefined);
+  await new Promise(resolve => setImmediate(resolve));
+  assert.deepEqual(changed, [user.email], "a security notice is sent");
+
+  const reused = await call("post /api/auth/reset-password", { body: { token, password: "another-secret" } });
+  assert.equal(reused.statusCode, 400);
+  assert.equal(reused.body.expired, true, "a link works only once");
+  assert.equal(user.password_hash, "hash:new-secret");
+
+  const expiredToken = jwt.sign({ sub: USER, purpose: "password_reset", fp: passwordReset.credentialFingerprint(user) },
+    crypto.createHmac("sha256", SECRET).update("synta-password-reset-v1").digest(), { expiresIn: -1 });
+  assert.equal((await call("post /api/auth/reset-password", { body: { token: expiredToken, password: "new-secret-2" } })).body.expired, true);
+});
+
+test("password reset email matches the verification design and escapes user data", () => {
+  const html = emailService.buildPasswordResetEmailHtml('Amira <script>', "a@example.invalid",
+    "https://syntaacademy.tn/password-reset#token=abc");
+  assert.match(html, /href="https:\/\/syntaacademy\.tn\/password-reset#token=abc"/);
+  assert.match(html, /Choisir un nouveau mot de passe/);
+  assert.match(html, /background-color:#F6851F/);
+  assert.match(html, /valable 1 heure/);
+  assert.doesNotMatch(html, /<script>/);
+  assert.match(emailService.buildPasswordChangedEmailHtml("Amira", "a@example.invalid"), /tous tes appareils ont été déconnectés/);
 });
 
  test('session reschedule validates admin, stale dates, retries and Zoom rollback',async()=>{

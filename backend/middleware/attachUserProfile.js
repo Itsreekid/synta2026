@@ -36,9 +36,17 @@ export async function attachUserProfile(req, res, next) {
 
   try {
     const result = await pool.query(
-      `SELECT name, phone, class, branch, balance FROM users WHERE id = $1`,
+      `SELECT name, phone, class, branch, balance, to_jsonb(users)->>'deactivated_at' AS deactivated_at
+       FROM users WHERE id = $1`,
       [req.user.id]
     );
+
+    // A deactivated account loses page access at once, without waiting for its access token to expire.
+    if (result.rows[0]?.deactivated_at) {
+      res.clearCookie("synta_access", { path: "/" });
+      res.clearCookie("synta_refresh", { path: "/" });
+      return res.redirect("/login");
+    }
 
     req.userProfile = buildProfile(req.user, result.rows[0] ?? null);
   } catch (err) {

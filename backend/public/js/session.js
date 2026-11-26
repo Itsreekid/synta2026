@@ -1,520 +1,575 @@
-document.addEventListener('DOMContentLoaded', () => {
-    // Campaign rendered by the server (slug, schedule, fixed class/branch, logged-in student).
-    const config = window.__SESSION__ || {};
-    const slug = config.slug || '';
-    const member = config.member === true;
-    // State
-    let currentStep = 1;
-    let track = null;
-    let filier = null;
-    let questions = [];
-    let currentQuestionIndex = 0;
-    let answers = {}; // { question_id: answer_value }
-    let timerInterval = null;
-    let timeRemaining = 300; // 5 minutes in seconds
-
-    // DOM Elements
-    const step1 = document.getElementById('step-1');
-    const step2 = document.getElementById('step-2');
-    const step3 = document.getElementById('step-3');
-    const step4 = document.getElementById('step-4');
-    const step5 = document.getElementById('step-5');
-
-    const identityForm = document.getElementById('identity-form');
-    const identityError = document.getElementById('identity-error');
-    const identitySubmit = document.getElementById('identity-submit');
-
-    const trackBtns = document.querySelectorAll('.track-btn:not(.filier-btn)');
-    const filierBtns = document.querySelectorAll('.filier-btn');
-    
-    const questionContainer = document.getElementById('question-container');
-    const btnPrev = document.getElementById('btn-prev');
-    const btnNext = document.getElementById('btn-next');
-    const btnSubmit = document.getElementById('btn-submit');
-    const quizProgressText = document.getElementById('quiz-progress-text');
-    const quizProgressBar = document.getElementById('quiz-progress-bar');
-    const quizTrackBadge = document.getElementById('quiz-track-badge');
-    const quizError = document.getElementById('quiz-error');
-    const quizTimer = document.getElementById('quiz-timer');
-
-    const successTierName = document.getElementById('success-tier-name');
-    const successScore = document.getElementById('success-score');
-    const successPerks = document.getElementById('success-perks');
-
-    // Campaigns with a fixed class (and section) skip the matching choice steps.
-    function startQuizFlow() {
-        if (!config.hasTarget) return goToStep(2);
-        if (!config.hasBranch) return goToStep(3);
-        return loadQuestions();
+/* Campaign discovery UI. Scores, ownership and reservations are always server-authoritative. */
+document.addEventListener('DOMContentLoaded',()=>{
+    const config=window.__SESSION__;
+    if(!config)return;
+    const $=id=>document.getElementById(id),slug=config.slug,path='/session/'+slug;
+    const panels=['start-panel','identity-panel','quiz-panel','result-panel'];
+    let meta,mode='guest',attempt,questions=[],answers={
     }
-
-    // --- Logged-in students: quiz only, account details unchanged ---
-    async function restoreMember() {
-        const memberError = document.getElementById('member-error');
-        const start = document.getElementById('member-start');
-        try {
-            const response = await fetch('/api/session/member/status?slug=' + encodeURIComponent(slug), { credentials: 'include', cache: 'no-store' });
-            if (response.status === 401) { window.location.href = '/login?next=' + encodeURIComponent('/dashboard'); return; }
-            const data = await response.json();
-            if (!response.ok) throw new Error(data.error || 'Séance indisponible.');
-            if (data.participant) { showMemberResult(data.participant, data.session, true); return; }
-            start?.addEventListener('click', () => loadQuestions());
-        } catch (err) {
-            if (memberError) showError(memberError, err.message);
+    ,orders={
+    }
+    ,index=0,busy=false,verified=false;
+    const classNames={
+        '1ere':'1ère année','2eme':'2ème année','3eme':'3ème année',bac:'Baccalauréat',other:'Autre'
+    }
+    ;
+    const date=value=>new Intl.DateTimeFormat('fr-FR',{
+        dateStyle:'full',timeStyle:'short',timeZone:'Africa/Tunis'
+    }
+    ).format(new Date(value));
+    const notice=(id,text)=>{
+        const node=$(id);
+        node.textContent=text||'';
+        node.hidden=!text;
+    }
+    ;
+    const show=id=>{
+        const label=$('occurrence-select').closest('label');
+        if(id==='result-panel')$('result-panel').insertBefore(label,$('reservation-confirmation'));
+        else if(id==='identity-panel')$('identity-panel').insertBefore(label,$('identity-form'));
+        document.querySelector('.campaign-shell').classList.toggle('is-playing',id!=='start-panel');
+        panels.forEach(name=>$(name).hidden=name!==id);
+        $('experience').scrollIntoView({
+            block:'nearest',behavior:'smooth'
+        }
+        );
+    }
+    ;
+    async function request(url,body){
+        const response=await fetch('/api/session'+url,{
+            credentials:'include',cache:'no-store',...(body&&{
+                method:'POST',headers:{
+                    'Content-Type':'application/json'
+                }
+                ,body:JSON.stringify(body)
+            }
+            )
+        }
+        );
+        const data=await response.json().catch(()=>null);
+        if(!response.ok)throw Object.assign(new Error(data?.error||'Le serveur est momentanément indisponible. Réessaie.'),{
+            status:response.status,data
+        }
+        );
+        return data;
+    }
+    function key(){
+        return 'synta-free-draft:'+(meta?.campaign?.id||slug)+':'+(attempt?.id||'verified');
+    }
+    function store(){
+        try{
+            sessionStorage.setItem(key(),JSON.stringify({
+                answers,index,orders,savedAt:Date.now()
+            }
+            ));
+        }
+        catch{
         }
     }
-
-    function showMemberResult(participant, session, isReturning) {
-        showSuccess(participant.score, participant.tier, isReturning, participant.group, participant.total);
-        const link = document.getElementById('member-session-link');
-        const note = document.getElementById('member-session-note');
-        if (link && session?.calendar_link) link.href = session.calendar_link;
-        if (note && !session) note.textContent = 'سيتم الإعلان عن موعد الحصة قريباً في لوحة التحكم.';
+    function restore(){
+        try{
+            // Campaign UUID survives renames. Recover older slug-keyed drafts only
+            // for this exact server-issued attempt, never another campaign's quiz.
+            const oldKey=attempt?.id?Object.keys(sessionStorage).find(name=>name.startsWith('synta-free-draft:')&&name.endsWith(':'+attempt.id)):null;
+            const data=JSON.parse(sessionStorage.getItem(key())||(oldKey&&sessionStorage.getItem(oldKey))||(!attempt?.id&&sessionStorage.getItem('synta-free-draft:'+slug+':verified'))||'null');
+            if(data&&Date.now()-data.savedAt<48*3600000){
+                const ids=new Set(questions.map(q=>q.id));
+                answers=Object.fromEntries(Object.entries(data.answers||{
+                }
+                ).filter(([id])=>ids.has(id)));
+                orders=data.orders||{
+                }
+                ;
+                index=Math.min(Math.max(Number(data.index)||0,0),Math.max(0,questions.length-1));
+            }
+        }
+        catch{
+        }
     }
-
-    async function restorePlacement() {
-        const params = new URLSearchParams(window.location.hash.slice(1));
-        const token = params.get('placement');
-        if (token) window.history.replaceState(null, '', window.location.pathname + window.location.search);
-        try {
-            const response = await fetch(token ? '/api/session/verify' : '/api/session/status', token ? {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ token })
-            } : {});
-            if (!token && (response.status === 401 || response.status === 404)) return;
-            const data = await response.json();
-            if (!response.ok) throw new Error(data.error || 'Impossible de reprendre le quiz.');
-            const registration = data.registration;
-            // The confirmation belongs to another campaign link: continue there (the cookie follows).
-            if (registration.slug && registration.slug !== slug) {
-                window.location.replace('/session/' + encodeURIComponent(registration.slug));
+    function currentOccurrence(){
+        return $('occurrence-select').value||null;
+    }
+    function prepareIdentity(){
+        show('identity-panel');
+        const c=meta.campaign;
+        const fixed=[];
+        for(const [id,value]of [['profile-class',c.target_class],['profile-branch',c.target_branch]]){
+            if(value){
+                $(id).value=value;
+                $(id).disabled=true;
+                $(id).closest('label').hidden=true;
+                fixed.push($(id).selectedOptions[0].textContent);
+            }
+        }
+        $('campaign-profile-info').textContent='Parcours de la séance : '+fixed.join(' · ');
+        $('campaign-profile-info').hidden=!fixed.length;
+        $('full_name').focus();
+    }
+    function present(result){
+        attempt=mode==='guest'?{
+            ...attempt,...result
+        }
+        :attempt;
+        show('result-panel');
+        const total=Number(result.total||result.quiz_total)||0,score=Number(result.score)||0;
+        const level=result.level||(result.tier==='elite'?'advanced':result.tier==='challenger'?'intermediate':'beginner');
+        const levels={
+            beginner:['Débutant','Tu as posé les premières bases. Chaque exercice compte.','Commence par les notions essentielles et essaie les leçons en aperçu gratuit.'],intermediate:['Intermédiaire','Tu as déjà des acquis sur lesquels construire.','Consolide les notions moins familières avec des exemples et des exercices.'],advanced:['Avancé','De bons repères sur ce défi. Continue à approfondir.','Mets tes acquis en pratique et prépare tes questions pour la séance.']
+        }
+        ;
+        const info=levels[level]||levels.beginner;
+        $('success-tier-name').textContent=info[0];
+        $('success-score').textContent=score+' / '+total;
+        $('result-percent').textContent=total?(result.percentage??Math.round(score*1000/total)/10)+' %':'';
+        $('result-message').textContent=info[1];
+        $('result-recommendation').textContent=info[2];
+        $('save-result').textContent=config.member?'Enregistrer et réserver ma séance gratuite':verified?'Créer mon compte et réserver':'Enregistrer mon résultat et réserver ma séance gratuite';
+        $('save-result').hidden=config.preview;
+        $('retry-challenge').hidden=verified;
+        notice('reservation-confirmation','');
+    }
+    async function start(restart=false){
+        if(busy)return;
+        busy=true;
+        $('challenge-start').disabled=true;
+        notice('experience-error','');
+        try{
+            if(config.preview)throw new Error('Utilise un compte étudiant pour participer.');
+            if(meta.funnel){
+                mode='guest';
+                const data=await request('/guest/start',{
+                    slug,restart
+                }
+                );
+                attempt=data.attempt;
+                questions=data.questions;
+                if(attempt.submitted){
+                    present(attempt);
+                    return;
+                }
+            }
+            else if(config.member){
+                mode='member';
+                questions=(await request('/questions?slug='+encodeURIComponent(slug))).questions;
+            }
+            else if(verified){
+                mode='verified';
+                questions=(await request('/questions?slug='+encodeURIComponent(slug))).questions;
+            }
+            else{
+                prepareIdentity();
                 return;
             }
-            if (registration.completed) showSuccess(registration.score, registration.tier, true, registration.group, registration.quiz_total);
-            else startQuizFlow();
-        } catch (err) {
-            showError(identityError, err.message);
+            if(!questions.length)throw new Error('Le défi est en préparation. Reviens bientôt.');
+            answers={
+            }
+            ;
+            orders={
+            }
+            ;
+            index=0;
+            restore();
+            show('quiz-panel');
+            render();
+        }
+        catch(error){
+            notice('experience-error',error.message);
+        }
+        finally{
+            busy=false;
+            $('challenge-start').disabled=false;
         }
     }
-    if (member) restoreMember();
-    else if (!config.preview) restorePlacement();
-
-    // --- STEP 1: Registration ---
-    identityForm?.addEventListener('submit', async (e) => {
-        e.preventDefault();
-        identityError.classList.add('hidden');
-        
-        const fullName = document.getElementById('full_name').value.trim();
-        const email = document.getElementById('email').value.trim();
-        const phone = document.getElementById('phone').value.trim();
-
-        if (!fullName || !email || !phone) {
-            showError(identityError, 'Tous les champs sont requis.');
+    function answered(q){
+        return answers[q.id]!==undefined&&(!Array.isArray(answers[q.id])||answers[q.id].length===q.options?.length);
+    }
+    function render(){
+        const q=questions[index],mount=$('question-container');
+        mount.replaceChildren();
+        notice('quiz-error','');
+        $('quiz-progress-text').textContent='Question '+(index+1)+' sur '+questions.length;
+        const percentage=index/questions.length*100;
+        $('quiz-progress-bar').style.width=percentage+'%';
+        document.querySelector('.progress-track').setAttribute('aria-valuenow',String(Math.round(percentage)));
+        const title=document.createElement('h2');
+        title.className='question-text';
+        title.dir='auto';
+        title.textContent=q.text;
+        mount.append(title);
+        if(!Array.isArray(q.options)||!q.options.length){
+            notice('quiz-error','Cette question est en préparation. Contacte Synta Academy.');
             return;
         }
-
-        const identitySubmitLabel = identitySubmit.textContent;
-        identitySubmit.textContent = 'Chargement...';
-        identitySubmit.disabled = true;
-
-        try {
-            const response = await fetch('/api/session/register', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ full_name: fullName, email, phone, slug })
-            });
-
-            const data = await response.json();
-
-            if (!response.ok) throw new Error(data.error || 'Erreur lors de l\'inscription');
-
-            const notice = document.getElementById('identity-notice');
-            notice.textContent = 'Si ton adresse peut être utilisée pour le quiz, tu recevras un lien de confirmation. Si tu as déjà un compte, connecte-toi.';
-            notice.hidden = false;
-        } catch (err) {
-            showError(identityError, err.message);
-        } finally {
-            identitySubmit.textContent = identitySubmitLabel;
-            identitySubmit.disabled = false;
+        const options=q.options.map(value=>({
+            id:typeof value==='object'&&value!==null?value.id:value,label:typeof value==='object'&&value!==null?value.label:value
         }
-    });
-
-    // --- STEP 2: Track Selection ---
-    trackBtns.forEach(btn => {
-        btn.addEventListener('click', () => {
-            track = btn.getAttribute('data-track');
-            quizTrackBadge.textContent = track.toUpperCase();
-            if (config.hasBranch) loadQuestions();
-            else goToStep(3); // Go to Filiere selection
-        });
-    });
-
-    // --- STEP 3: Filiere Selection ---
-    filierBtns.forEach(btn => {
-        btn.addEventListener('click', () => {
-            filier = btn.getAttribute('data-filier');
-            loadQuestions(); // Go to Quiz
-        });
-    });
-
-    // --- STEP 4: Quiz Logic ---
-    async function loadQuestions() {
-        goToStep(4);
-        questionContainer.innerHTML = '<div class="text-center py-8"><span class="loader"></span><p>Chargement des questions...</p></div>';
-        
-        try {
-            const response = await fetch('/api/session/questions?slug=' + encodeURIComponent(slug));
-            const data = await response.json();
-
-            if (!response.ok) throw new Error(data.error || 'Erreur lors du chargement des questions');
-            
-            questions = data.questions || [];
-            if (questions.length === 0) {
-                questionContainer.innerHTML = '<p class="text-center">لا توجد أسئلة متاحة حالياً.</p>';
-                return;
+        ));
+        if(q.type==='drag_drop'){
+            const hint=document.createElement('p');
+            hint.className='hint';
+            hint.textContent='Place les éléments dans le bon ordre. Glisse-les ou utilise les flèches Monter et Descendre.';
+            mount.append(hint);
+            if(!orders[q.id])orders[q.id]=options.map(o=>o.id).sort(()=>Math.random()-.5);
+            if(Array.isArray(answers[q.id]))orders[q.id]=answers[q.id].slice();
+            const list=document.createElement('ol');
+            list.className='order-list';
+            let dragging=null;
+            const move=(from,to)=>{
+                const values=orders[q.id];
+                if(to<0||to>=values.length)return;
+                values.splice(to,0,...values.splice(from,1));
+                answers[q.id]=values.slice();
+                store();
+                render();
+                const rows=$('question-container').querySelectorAll('.order-row');
+                rows[to]?.querySelector('button')?.focus();
             }
-
-            currentQuestionIndex = 0;
-            renderQuestion();
-            startTimer();
-        } catch (err) {
-            showError(quizError, err.message);
-            questionContainer.innerHTML = '';
-        }
-    }
-
-    function renderQuestion() {
-        quizError.classList.add('hidden');
-        const q = questions[currentQuestionIndex];
-        
-        // Update Progress
-        quizProgressText.textContent = `السؤال ${currentQuestionIndex + 1} من ${questions.length}`;
-        quizProgressBar.style.width = `${((currentQuestionIndex + 1) / questions.length) * 100}%`;
-
-        // Render Content
-        const esc = value => String(value ?? '').replace(/[&<>"']/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch]));
-        let html = `<h3 class="font-bold text-xl mb-6 text-white leading-relaxed">${esc(q.text)}</h3>`;
-        html += `<div class="space-y-4 options-container">`;
-        
-        if (q.options && Array.isArray(q.options)) {
-            q.options.forEach((opt, idx) => {
-                const val = typeof opt === 'object' && opt !== null ? opt.id : opt;
-                const label = typeof opt === 'object' && opt !== null ? opt.label : opt;
-                
-                // If it's a drag & drop, maybe we want a different UI? But for now it's radio/checkbox
-                const inputType = q.type === 'multiple' ? 'checkbox' : 'radio';
-                const isSelected = Array.isArray(answers[q.id]) 
-                    ? answers[q.id].includes(val) 
-                    : answers[q.id] === val;
-
-                html += `
-                    <label class="track-btn flex items-center cursor-pointer hover:bg-white/10" style="padding: 1.25rem; border-radius: 12px; background: rgba(255,255,255,0.05); transition: background 0.2s;">
-                        <input type="${inputType}" 
-                               name="q_${esc(q.id)}" 
-                               value="${esc(val)}" 
-                               ${isSelected ? 'checked' : ''}
-                               class="ml-4" style="transform: scale(1.5); accent-color: #f07e15; flex-shrink: 0;">
-                        <span class="text-white font-medium" style="font-size: 1.05rem;">${esc(label)}</span>
-                    </label>
-                `;
-            });
-        }
-        
-        html += `</div>`;
-        questionContainer.innerHTML = html;
-
-        // Attach event listeners to new inputs
-        const inputs = questionContainer.querySelectorAll('input');
-        inputs.forEach(input => {
-            input.addEventListener('change', () => {
-                if (q.type === 'multiple') {
-                    const checked = Array.from(questionContainer.querySelectorAll('input:checked')).map(el => el.value);
-                    answers[q.id] = checked;
-                } else {
-                    answers[q.id] = input.value;
+            ;
+            orders[q.id].forEach((id,i)=>{
+                const row=document.createElement('li');
+                row.className='order-row';
+                row.draggable=true;
+                const text=document.createElement('span');
+                text.dir='auto';
+                text.textContent=(i+1)+'. '+(options.find(o=>o.id===id)?.label||id);
+                row.append(text);
+                for(const [delta,symbol,label]of [[-1,'↑','Monter'],[1,'↓','Descendre']]){
+                    const button=document.createElement('button');
+                    button.type='button';
+                    button.textContent=symbol;
+                    button.setAttribute('aria-label',label+' l’élément '+(i+1));
+                    button.disabled=i+delta<0||i+delta>=options.length;
+                    button.onclick=()=>move(i,i+delta);
+                    button.onkeydown=event=>{
+                        if(['ArrowUp','ArrowDown'].includes(event.key)){
+                            event.preventDefault();
+                            move(i,i+(event.key==='ArrowUp'?-1:1));
+                        }
+                    }
+                    ;
+                    row.append(button);
                 }
-                updateNavButtons();
-            });
-        });
-
-        updateNavButtons();
-    }
-
-    function updateNavButtons() {
-        const q = questions[currentQuestionIndex];
-        const hasAnswer = answers[q.id] !== undefined && (Array.isArray(answers[q.id]) ? answers[q.id].length > 0 : answers[q.id] !== '');
-
-        if (currentQuestionIndex > 0) {
-            btnPrev.classList.remove('hidden');
-        } else {
-            btnPrev.classList.add('hidden');
-        }
-
-        if (currentQuestionIndex < questions.length - 1) {
-            btnNext.classList.remove('hidden');
-            btnSubmit.classList.add('hidden');
-            if (hasAnswer) {
-                btnNext.classList.remove('disabled');
-                btnNext.disabled = false;
-            } else {
-                btnNext.classList.add('disabled');
-                btnNext.disabled = true;
+                row.ondragstart=event=>{
+                    dragging=i;
+                    event.dataTransfer.setData('text/plain',String(i));
+                }
+                ;
+                row.ondragover=event=>event.preventDefault();
+                row.ondrop=event=>{
+                    event.preventDefault();
+                    if(dragging!==null)move(dragging,i);
+                }
+                ;
+                list.append(row);
             }
-        } else {
-            btnNext.classList.add('hidden');
-            btnSubmit.classList.remove('hidden');
-            if (hasAnswer) {
-                btnSubmit.classList.remove('disabled');
-                btnSubmit.disabled = false;
-            } else {
-                btnSubmit.classList.add('disabled');
-                btnSubmit.disabled = true;
+            );
+            mount.append(list);
+            const confirm=document.createElement('button');
+            confirm.className='button secondary';
+            confirm.type='button';
+            confirm.textContent='Valider cet ordre';
+            confirm.onclick=()=>{
+                answers[q.id]=orders[q.id].slice();
+                store();
+                navigation();
             }
+            ;
+            mount.append(confirm);
         }
-    }
-
-    btnPrev.addEventListener('click', () => {
-        if (currentQuestionIndex > 0) {
-            currentQuestionIndex--;
-            renderQuestion();
-        }
-    });
-
-    btnNext.addEventListener('click', () => {
-        if (currentQuestionIndex < questions.length - 1) {
-            currentQuestionIndex++;
-            renderQuestion();
-        }
-    });
-
-    btnSubmit.addEventListener('click', submitQuiz);
-
-    // --- Timer Logic ---
-    function startTimer() {
-        clearInterval(timerInterval);
-        timeRemaining = 300; // Reset to 5 mins
-        updateTimerDisplay();
-        
-        timerInterval = setInterval(() => {
-            timeRemaining--;
-            updateTimerDisplay();
-            
-            if (timeRemaining <= 0) {
-                clearInterval(timerInterval);
-                alert('انتهى الوقت! سيتم إرسال إجاباتك تلقائياً.');
-                submitQuiz();
+        else{
+            options.forEach(option=>{
+                const label=document.createElement('label');
+                label.className='option-card';
+                const input=document.createElement('input');
+                input.type='radio';
+                input.name='answer';
+                input.checked=answers[q.id]===option.id;
+                input.onchange=()=>{
+                    answers[q.id]=option.id;
+                    store();
+                    navigation();
+                }
+                ;
+                const text=document.createElement('span');
+                text.dir='auto';
+                text.textContent=option.label;
+                label.append(input,text);
+                mount.append(label);
             }
-        }, 1000);
+            );
+        }
+        navigation();
+        mount.focus({
+            preventScroll:true
+        }
+        );
+        store();
     }
-
-    function updateTimerDisplay() {
-        const mins = Math.floor(timeRemaining / 60);
-        const secs = timeRemaining % 60;
-        quizTimer.textContent = `⏱️ ${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
-        
-        if (timeRemaining <= 60) {
-            quizTimer.style.color = 'var(--error)';
-            quizTimer.classList.add('animate-pulse');
+    function navigation(){
+        const last=index===questions.length-1;
+        $('btn-prev').hidden=index===0;
+        $('btn-next').hidden=last;
+        $('btn-submit').hidden=!last;
+        $('btn-next').disabled=!answered(questions[index]);
+        $('btn-submit').disabled=!questions.every(answered);
+    }
+    $('btn-prev').onclick=()=>{
+        if(index>0){
+            index--;
+            render();
         }
     }
-
-    // --- Submission ---
-    async function submitQuiz() {
-        clearInterval(timerInterval);
-        btnSubmit.textContent = 'إرسال...';
-        btnSubmit.disabled = true;
-
-        try {
-            if (member) {
-                const response = await fetch('/api/session/member/submit', {
-                    method: 'POST',
-                    credentials: 'include',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ slug, answers })
-                });
-                const data = await response.json();
-                if (response.status === 409 && data.participant) { showMemberResult(data.participant, data.session, true); return; }
-                if (!response.ok) throw new Error(data.error || 'خطأ في الإرسال');
-                showMemberResult(data.participant, data.session, false);
-                return;
+    ;
+    $('btn-next').onclick=()=>{
+        if(index<questions.length-1){
+            index++;
+            render();
+        }
+    }
+    ;
+    $('btn-submit').onclick=async()=>{
+        if(busy)return;
+        busy=true;
+        $('btn-submit').disabled=true;
+        notice('quiz-error','');
+        try{
+            let data;
+            if(mode==='guest'){
+                data=await request('/guest/submit',{
+                    slug,answers
+                }
+                );
+                present(data.attempt);
             }
-            const response = await fetch('/api/session/submit', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ answers, track, branch: filier })
-            });
-
-            const data = await response.json();
-            if (!response.ok) throw new Error(data.error || 'خطأ في الإرسال');
-
-            showSuccess(data.score, data.tier, false, data.group, data.total);
-        } catch (err) {
-            showError(quizError, err.message);
-            btnSubmit.textContent = '🚀 إنهاء الاختبار';
-            btnSubmit.disabled = false;
-        }
-    }
-
-    // --- STEP 5: Success ---
-    function showSuccess(score, tier, isReturning = false, group = null, total = null) {
-        goToStep(5);
-
-        group ||= "beginner";
-        
-        // Throw confetti
-        if (typeof confetti === 'function' && !isReturning) {
-            confetti({
-                particleCount: 150,
-                spread: 80,
-                origin: { y: 0.6 },
-                colors: ['#f07e15', '#ffffff', '#fb923c']
-            });
-        }
-
-        successScore.textContent = `${score ?? 0} / ${total ?? (questions.length || '?')}`;
-        
-        const tiers = {
-            elite:      { name: 'النخبة',       icon: '💎', perks: ['أولوية الوصول إلى الدروس', 'حصة كوتش فردية', 'شارة النخبة على Discord'] },
-            challenger: { name: 'المتحدي',      icon: '⚔️', perks: ['الوصول إلى المجموعة الخاصة', 'خصم 20% على أول تكوين'] },
-            explorer:   { name: 'المستكشف',     icon: '🚀', perks: ['الوصول إلى الموارد الأساسية', 'دعوة إلى خادم المجتمع'] }
-        };
-
-        const t = tiers[tier] || tiers.explorer;
-        successTierName.textContent = t.name;
-        document.getElementById('success-icon').textContent = t.icon;
-
-        // Group routing message
-        const groupMsgEl = document.getElementById('group-message');
-        if (groupMsgEl) {
-            if (group === 'advanced') {
-                groupMsgEl.innerHTML = `<div style="background:rgba(240,126,21,0.15);border:1px solid rgba(240,126,21,0.4);border-radius:12px;padding:1rem;margin-bottom:1rem;">
-                    <p style="color:#f07e15;font-weight:800;margin:0 0 0.25rem;">🏆 مستوى متقدم!</p>
-                    <p style="color:rgba(255,255,255,0.7);font-size:0.875rem;margin:0;">أحسنت! أجبت على كل الأسئلة بشكل صحيح. مكانك محجوز في الحصة المجانية.</p>
-                </div>`;
-            } else {
-                groupMsgEl.innerHTML = `<div style="background:rgba(33,158,188,0.1);border:1px solid rgba(33,158,188,0.3);border-radius:12px;padding:1rem;margin-bottom:1rem;">
-                    <p style="color:#38bdf8;font-weight:800;margin:0 0 0.25rem;">📅 مكانك محجوز!</p>
-                    <p style="color:rgba(255,255,255,0.7);font-size:0.875rem;margin:0;">ستحضر الحصة المجانية مع باقي الطلاب. سنساعدك على التقدّم خطوة بخطوة.</p>
-                </div>`;
+            else{
+                data=await request(mode==='member'?'/member/submit':'/submit',{
+                    slug,answers,track:$('profile-class').value,branch:$('profile-branch').value
+                }
+                );
+                present(data.participant||data);
+            }
+            try{
+                sessionStorage.removeItem(key());
+            }
+            catch{
             }
         }
-
-        successPerks.innerHTML = t.perks.map(p => `<li>✅ ${p}</li>`).join('');
-
-        // Start countdown if session date is configured
-        startCountdown();
-    }
-
-    // --- Countdown Timer ---
-    function startCountdown() {
-        const rawDate = config.dateRaw;
-        if (!rawDate) return;
-
-        const targetDate = new Date(rawDate);
-        if (isNaN(targetDate.getTime())) return;
-
-        const container = document.getElementById('countdown-container');
-        if (container) container.style.display = 'block';
-
-        function tick() {
-            const now = new Date();
-            const diff = targetDate - now;
-
-            if (diff <= 0) {
-                document.getElementById('cd-days').textContent = '00';
-                document.getElementById('cd-hours').textContent = '00';
-                document.getElementById('cd-minutes').textContent = '00';
-                document.getElementById('cd-seconds').textContent = '00';
-                return;
-            }
-
-            const days = Math.floor(diff / (1000 * 60 * 60 * 24));
-            const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
-            const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
-            const seconds = Math.floor((diff % (1000 * 60)) / 1000);
-
-            document.getElementById('cd-days').textContent = String(days).padStart(2, '0');
-            document.getElementById('cd-hours').textContent = String(hours).padStart(2, '0');
-            document.getElementById('cd-minutes').textContent = String(minutes).padStart(2, '0');
-            document.getElementById('cd-seconds').textContent = String(seconds).padStart(2, '0');
+        catch(error){
+            if(error.status===409&&error.data?.participant)present(error.data.participant);
+            else notice('quiz-error',error.message);
         }
-
-        tick();
-        setInterval(tick, 1000);
+        finally{
+            busy=false;
+            $('btn-submit').disabled=false;
+        }
     }
-
-    // --- Helpers ---
-    function goToStep(step) {
-        step1.classList.add('hidden');
-        step2.classList.add('hidden');
-        step3.classList.add('hidden');
-        step4.classList.add('hidden');
-        if (step5) step5.classList.add('hidden');
-
-        if (step === 1) step1.classList.remove('hidden');
-        if (step === 2) step2.classList.remove('hidden');
-        if (step === 3) step3.classList.remove('hidden');
-        if (step === 4) step4.classList.remove('hidden');
-        if (step === 5 && step5) step5.classList.remove('hidden');
+    ;
+    $('challenge-start').onclick=()=>start();
+    $('retry-challenge').onclick=()=>{
+        try{
+            sessionStorage.removeItem(key());
+        }
+        catch{
+        }
+        start(true);
     }
-
-    function showError(element, msg) {
-        element.textContent = msg;
-        element.classList.remove('hidden');
+    ;
+    $('save-result').onclick=async()=>{
+        if(verified){
+            $('password-modal').showModal();
+            return;
+        }
+        if(!config.member){
+            prepareIdentity();
+            return;
+        }
+        if(busy)return;
+        busy=true;
+        $('save-result').disabled=true;
+        try{
+            let data;
+            if(meta.funnel)data=await request(attempt?.fromAccount?'/member/reserve':'/guest/claim',{
+                slug,occurrenceId:currentOccurrence()
+            }
+            );
+            else data={
+                reserved:false
+            }
+            ;
+            notice('reservation-confirmation',data.reserved?'Ta séance est réservée : '+date(data.session.scheduled_at)+'. Retrouve-la dans ton calendrier.':data.message||'Ton résultat est enregistré. La prochaine date sera annoncée dans ton espace.');
+            $('member-session-link').hidden=false;
+            $('save-result').hidden=true;
+        }
+        catch(error){
+            notice('experience-error',error.message);
+        }
+        finally{
+            busy=false;
+            $('save-result').disabled=false;
+        }
     }
-});
-
-// --- Password Modal (global scope for onclick) ---
-function openPasswordModal() {
-    const modal = document.getElementById('password-modal');
-    modal.style.display = 'flex';
-    document.getElementById('modal-password').focus();
+    ;
+    $('identity-form').onsubmit=async event=>{
+        event.preventDefault();
+        if(verified){
+            mode='verified';
+            questions=(await request('/questions?slug='+encodeURIComponent(slug))).questions;
+            show('quiz-panel');
+            render();
+            return;
+        }
+        const button=$('identity-submit');
+        if(button.disabled)return;
+        button.disabled=true;
+        notice('identity-error','');
+        try{
+            await request('/register',{
+                slug,full_name:$('full_name').value.trim(),email:$('email').value.trim(),phone:$('phone').value.trim(),track:$('profile-class').value,branch:$('profile-branch').value,occurrenceId:currentOccurrence()
+            }
+            );
+            notice('identity-notice','Si cette adresse peut être utilisée, un lien de confirmation vient d’être envoyé. Ton résultat reste enregistré pendant la vérification. Tu as déjà un compte ? Connecte-toi avec cette adresse.');
+        }
+        catch(error){
+            notice('identity-error',error.message);
+        }
+        finally{
+            button.disabled=false;
+        }
+    }
+    ;
+    $('close-password').onclick=()=>$('password-modal').close();
+    $('password-form').onsubmit=async event=>{
+        event.preventDefault();
+        const button=$('btn-confirm-password');
+        if(button.disabled)return;
+        if($('modal-password').value!==$('modal-password-confirm').value){
+            notice('modal-error','Les deux mots de passe doivent être identiques.');
+            return;
+        }
+        button.disabled=true;
+        try{
+            const saved=await request('/set-password',{password:$('modal-password').value});
+            $('password-modal').close();
+            notice('reservation-confirmation',saved.reserved?'Ton compte est prêt. Ta séance est réservée : '+date(saved.session.scheduled_at)+'.':'Ton compte et ton résultat sont enregistrés. Retrouve la suite dans ton tableau de bord.');
+            $('save-result').hidden=true;$('member-session-link').hidden=false;
+            setTimeout(()=>window.location.assign('/dashboard'),1800);
+        }
+        catch(error){
+            notice('modal-error',error.message);
+        }
+        finally{
+            button.disabled=false;
+        }
+    }
+    ;
+    async function boot(){
+        try{
+            meta=await request('/campaign?slug='+encodeURIComponent(slug));
+            $('challenge-count').textContent=meta.count+' questions';
+            $('challenge-duration').textContent='Environ '+meta.minutes+' minutes';
+            $('campaign-target').textContent=[meta.campaign.subject,classNames[meta.campaign.target_class],meta.campaign.target_branch].filter(Boolean).join(' · ');
+            $('challenge-start').textContent='Commencer le défi gratuit';
+            $('challenge-start').disabled=config.preview||meta.count===0;
+            $('guest-note').textContent=meta.funnel?'Essaie le défi, puis crée ton compte pour garder ton résultat.':'Confirme ton e-mail avant de commencer : le mode invité est en cours de préparation.';
+            const select=$('occurrence-select');
+            select.replaceChildren();
+            for(const occurrence of meta.occurrences)select.add(new Option(date(occurrence.scheduled_at),occurrence.id));
+            if(!select.options.length)select.add(new Option('Date bientôt annoncée',''));
+            try{
+                const saved=sessionStorage.getItem('synta-free-selection:'+meta.campaign.id)||sessionStorage.getItem('synta-free-selection:'+slug);
+                if([...select.options].some(option=>option.value===saved))select.value=saved;
+            }
+            catch{
+            }
+            select.disabled=meta.occurrences.length<2;
+            $('upcoming-date').textContent=meta.occurrences[0]?date(meta.occurrences[0].scheduled_at):'Date bientôt annoncée';
+            select.onchange=()=>{
+                $('upcoming-date').textContent=select.selectedOptions[0].textContent;
+                try{
+                    sessionStorage.setItem('synta-free-selection:'+meta.campaign.id,select.value);
+                }
+                catch{
+                }
+            }
+            ;
+            const params=new URLSearchParams(location.hash.slice(1)),proof=params.get('placement');
+            if(proof)history.replaceState(null,'',location.pathname+location.search);
+            if(proof||!config.member){
+                try{
+                    const data=await request(proof?'/verify':'/status',proof?{
+                        token:proof
+                    }
+                    :null);
+                    if(data.registration.slug&&data.registration.slug!==slug){
+                        location.replace('/session/'+encodeURIComponent(data.registration.slug));
+                        return;
+                    }
+                    verified=true;
+                    mode='verified';
+                    if(data.registration.completed){
+                        present({
+                            ...data.registration,total:data.registration.quiz_total
+                        }
+                        );
+                    }
+                    else{
+                        prepareIdentity();
+                        for(const id of ['full_name','email','phone']){
+                            $(id).required=false;
+                            $(id).closest('label').hidden=true;
+                        }
+                        $('identity-submit').textContent='Commencer le défi';
+                    }
+                    return;
+                }
+                catch(error){
+                    if(proof)throw error;
+                    if(![401,404].includes(error.status))throw error;
+                }
+            }
+            if(!meta.funnel&&config.member){
+                const data=await request('/member/status?slug='+encodeURIComponent(slug));
+                if(data.participant)present(data.participant);
+            }
+            if(meta.funnel){
+                try{
+                    const data=await request('/guest/status?slug='+encodeURIComponent(slug));
+                    attempt=data.attempt;
+                    questions=data.questions;
+                    if(attempt.submitted){
+                        present(attempt);
+                        if(config.member&&!attempt.claimed){
+                            await $('save-result').onclick();
+                            if($('save-result').hidden)setTimeout(()=>location.assign('/dashboard'),1800);
+                        }
+                    }
+                    else{
+                        restore();
+                        if(Object.keys(answers).length){
+                            show('quiz-panel');
+                            render();
+                        }
+                    }
+                }
+                catch(error){
+                    if(error.status!==401)throw error;
+                    if(config.member){
+                        const saved=await request('/member/result?slug='+encodeURIComponent(slug));
+                        if(saved.attempt){
+                            attempt=saved.attempt;
+                            present(attempt);
+                        }
+                    }
+                }
+            }
+        }
+        catch(error){
+            notice('experience-error',error.message);
+            $('challenge-start').textContent='Réessayer';
+            $('challenge-start').disabled=false;
+            $('challenge-start').onclick=boot;
+        }
+    }
+    boot();
 }
-
-function closePasswordModal() {
-    const modal = document.getElementById('password-modal');
-    modal.style.display = 'none';
-    document.getElementById('modal-error').classList.add('hidden');
-}
-
-async function submitPassword() {
-    const password = document.getElementById('modal-password').value;
-    const confirm = document.getElementById('modal-password-confirm').value;
-    const errBox = document.getElementById('modal-error');
-    const btn = document.getElementById('btn-confirm-password');
-
-    errBox.classList.add('hidden');
-
-    if (password.length < 6) {
-        errBox.textContent = 'يجب أن تحتوي كلمة المرور على 6 أحرف على الأقل.';
-        errBox.classList.remove('hidden');
-        return;
-    }
-    if (password !== confirm) {
-        errBox.textContent = 'كلمتا المرور غير متطابقتين.';
-        errBox.classList.remove('hidden');
-        return;
-    }
-
-    btn.textContent = 'جارٍ التفعيل...';
-    btn.disabled = true;
-
-    try {
-        const res = await fetch('/api/session/set-password', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ password })
-        });
-        const data = await res.json();
-
-        if (!res.ok) throw new Error(data.error || 'Erreur serveur');
-
-        window.location.href = data.redirectUrl || '/dashboard';
-    } catch (err) {
-        errBox.textContent = err.message;
-        errBox.classList.remove('hidden');
-        btn.textContent = 'تفعيل الحساب ←';
-        btn.disabled = false;
-    }
-}
+);

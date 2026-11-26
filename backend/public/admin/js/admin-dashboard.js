@@ -99,12 +99,28 @@ const AdminDashboard = {
 
     async deleteStudent(id) {
         try {
-            const response = await fetch(`/api/admin/student/${id}`, { method: 'DELETE' });
-            if (!response.ok) throw new Error('Failed to delete student');
-            return await response.json();
+            const response = await fetch(`/api/admin/student/${encodeURIComponent(id)}`, { method: 'DELETE' });
+            const data = await response.json().catch(() => ({}));
+            // The server refuses deletion when financial history exists and explains why in French.
+            if (!response.ok) return { success: false, error: data.error || 'La suppression a échoué.', canDeactivate: Boolean(data.canDeactivate) };
+            return data;
         } catch (error) {
             console.error(error);
-            return { success: false, error: error.message };
+            return { success: false, error: 'Connexion interrompue. Réessayez.' };
+        }
+    },
+
+    async setStudentActive(id, active) {
+        try {
+            const response = await fetch(`/api/admin/student/${encodeURIComponent(id)}/status`, {
+                method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ active }),
+            });
+            const data = await response.json().catch(() => ({}));
+            if (!response.ok) return { success: false, error: data.error || 'Le statut du compte n’a pas pu être modifié.' };
+            return data;
+        } catch (error) {
+            console.error(error);
+            return { success: false, error: 'Connexion interrompue. Réessayez.' };
         }
     },
 

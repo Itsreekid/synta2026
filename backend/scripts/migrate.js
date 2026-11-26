@@ -8,6 +8,14 @@ import pool from "../config/db.js";
 const here = path.dirname(fileURLToPath(import.meta.url));
 const migrationsDirs = [path.resolve(here, "../database/migrations"), path.resolve(here, "../../database/migrations")];
 const lockKey = "synta-academy-migrations-v1";
+// Reviewed, exact-content supersession. Never edit an applied migration or its ledger hash.
+// The replacement handles both an unapplied original and an already-applied schema.
+const sessionCompatibility = {
+  original: "202611250002_free_session_campaigns.sql",
+  originalChecksum: "889fbb8098cdfb605ce11ee063cd4251515d3dc34f7d97cf3b64c5acbeb844e1",
+  replacement: "202611260001_live_session_shape_compatibility.sql",
+  replacementChecksum: "033a143264e878cebdb76cb36d8ef6b5c56be97844dd387f3f8fae759b0256df"
+};
 
 async function migrate() {
   const client = await pool.connect();
@@ -27,15 +35,29 @@ async function migrate() {
     }
     if (!migrationsDir) throw new Error("Migration directory was not found in the deployment image or repository.");
     const files = (await readdir(migrationsDir)).filter((file) => /^\d+_[a-z0-9_-]+\.sql$/i.test(file)).sort();
+    const inventory = new Map();
+    // Validate the complete supplied inventory BEFORE applying anything. A checksum
+    // mismatch must not be discovered after an earlier pending file was committed.
     for (const filename of files) {
       // Checksums must match across Windows (CRLF) and Linux (LF) checkouts.
       const sql = (await readFile(path.join(migrationsDir, filename), "utf8")).replace(/\r\n/g, "\n");
       const checksum = createHash("sha256").update(sql).digest("hex");
       const previous = await client.query("SELECT checksum FROM schema_migrations WHERE filename = $1", [filename]);
-      if (previous.rowCount) {
-        if (previous.rows[0].checksum !== checksum) throw new Error(`Applied migration was edited: ${filename}`);
+      if (previous.rowCount && previous.rows[0].checksum !== checksum) throw new Error(`Applied migration was edited: ${filename}`);
+      inventory.set(filename, { sql, checksum, applied: previous.rowCount > 0 });
+    }
+    const compatibilityPresent = inventory.has(sessionCompatibility.original) || inventory.has(sessionCompatibility.replacement);
+    if (compatibilityPresent) {
+      if (inventory.get(sessionCompatibility.original)?.checksum !== sessionCompatibility.originalChecksum
+          || inventory.get(sessionCompatibility.replacement)?.checksum !== sessionCompatibility.replacementChecksum) {
+        throw new Error("Session compatibility migration inventory is incomplete or differs from its reviewed version.");
+      }
+    }
+    async function apply(filename) {
+      const { sql, checksum, applied } = inventory.get(filename);
+      if (applied) {
         console.log(`[migrate] already applied: ${filename}`);
-        continue;
+        return;
       }
 
       // Conservative guard for unapproved data-destructive operations; migrations remain reviewed code.
@@ -48,11 +70,22 @@ async function migrate() {
         await client.query(sql);
         await client.query("INSERT INTO schema_migrations (filename, checksum) VALUES ($1, $2)", [filename, checksum]);
         await client.query("COMMIT");
+        inventory.get(filename).applied = true;
         console.log(`[migrate] applied: ${filename}`);
       } catch (error) {
         await client.query("ROLLBACK");
         throw error;
       }
+    }
+    for (const filename of files) {
+      if (filename === sessionCompatibility.original) {
+        // Run at the ORIGINAL dependency position, before custom installments/funnel.
+        // A later repair alone cannot rescue the original CHECK on existing OR rows.
+        await apply(sessionCompatibility.replacement);
+        console.log(`[migrate] ${inventory.get(filename).applied ? "preserved original" : "superseded, not executed"}: ${filename}`);
+        continue;
+      }
+      await apply(filename);
     }
   } finally {
     if (locked) await client.query("SELECT pg_advisory_unlock(hashtext($1))", [lockKey]);

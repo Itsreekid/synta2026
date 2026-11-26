@@ -75,6 +75,8 @@ export function activeOfferAccess(user, offer) {
 }
 
 let freeSessionAccess = false;
+let freeReservationAccess = false;
+export function setFreeReservationAccess(enabled) { freeReservationAccess=Boolean(enabled); }
 
 /** Enabled at startup only when the free-session campaign migration (202611250002) is applied. */
 export function setFreeSessionAccess(enabled) { freeSessionAccess = Boolean(enabled); }
@@ -85,12 +87,13 @@ function freeSessionParticipantAccess(user) {
   return `(ls.status <> 'cancelled' AND ls.free_session_id IS NOT NULL AND EXISTS (
     SELECT 1 FROM free_session_participants fp
     WHERE fp.free_session_id = ls.free_session_id AND fp.user_id = ${user}
+      ${freeReservationAccess ? `AND (NOT ls.free_reservation_required OR EXISTS (SELECT 1 FROM free_session_reservations fr WHERE fr.live_session_id=ls.id AND fr.user_id=${user} AND fr.status='reserved'))` : ""}
   ))`;
 }
 
 export function liveSessionAccess(user) {
   const standard = standardLiveSessionAccess(user);
-  return freeSessionAccess ? `(${freeSessionParticipantAccess(user)} OR (${standard}))` : standard;
+  return freeSessionAccess ? `(${freeSessionParticipantAccess(user)} OR (ls.free_session_id IS NULL AND (${standard})))` : standard;
 }
 
 function standardLiveSessionAccess(user) {
