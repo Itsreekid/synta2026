@@ -1556,7 +1556,7 @@ button.lesson-icon.quiz:focus-visible { outline: 2px solid #6d28d9; outline-offs
 /* Breathing room between the video and Précédent / quiz / Suivant (padding counts in the fitted layout). */
 .lesson-player-view > .lesson-nav { padding-top: .6rem; }
 .lesson-nav .is-prev { justify-self: start; }
-.lesson-nav .is-next { justify-self: end; }
+.lesson-nav .is-next { justify-self: end; grid-column: 3; }
 .lesson-nav-btn {
     display: inline-flex; align-items: center; justify-content: center; gap: .45rem; min-height: 44px; padding: 0 1rem;
     border: 1px solid var(--cd-line); border-radius: 12px; background: var(--cd-card); color: var(--cd-body);

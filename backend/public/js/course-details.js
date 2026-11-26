@@ -1143,11 +1143,11 @@ async function showLessonInMainArea(lesson, videoUrl, pdfUrl, practiceFiles = []
                     ${position.previous ? '' : 'disabled aria-disabled="true"'}>
                     <i class="fas fa-chevron-left" aria-hidden="true"></i><span class="lesson-sr-only">Précédent</span>
                 </button>
-                <div class="lesson-actions${hasQuiz ? ' lesson-actions-quiz' : ''}">
+                ${videoUrl ? '' : /* A video proposes the quiz / next lesson in a popup at its end; other lessons keep this button. */ `<div class="lesson-actions${hasQuiz ? ' lesson-actions-quiz' : ''}">
                     <button type="button" class="btn-complete-next lesson-icon-btn${hasQuiz ? ' btn-lesson-quiz' : ''}" title="${hasQuiz ? 'Passer au quiz' : 'Leçon suivante'}" onclick="completeLessonAndNext('${escapeQuizHtml(lesson.id)}')">
                         <i class="fas fa-${hasQuiz ? 'bolt' : 'arrow-right'}" aria-hidden="true"></i><span class="lesson-sr-only">${hasQuiz ? 'Passer au quiz' : 'Leçon suivante'}</span>
                     </button>
-                </div>
+                </div>`}
                 <button type="button" class="lesson-nav-btn lesson-icon-btn is-next" data-lesson-nav="next"
                     title="${escapeQuizHtml(position.next ? 'Suivant : ' + position.next.title : 'Suivant')}"
                     ${position.next ? '' : 'disabled aria-disabled="true"'}>
@@ -1283,9 +1283,8 @@ async function showLessonInMainArea(lesson, videoUrl, pdfUrl, practiceFiles = []
                 saveWatchedLesson(true);
                 if (document.fullscreenElement && (hasQuiz || position.next)) await document.exitFullscreen().catch(()=>{});
                 if (!video.isConnected) return;
-                // A mini-défi right after the lesson still opens immediately (learning checkpoint);
-                // otherwise propose the next lesson with a cancellable countdown.
-                if (hasQuiz) void playLesson(linkedQuiz.id);
+                // Propose the mini-défi (or else the next lesson) with the same cancellable countdown card.
+                if (hasQuiz) showNextLessonOverlay(video, linkedQuiz, { eyebrow: 'Mini-défi', action: 'Ouverture' });
                 else if (position.next) showNextLessonOverlay(video, position.next);
             });
             video.addEventListener('play', () => { checkpointOpened = false; hideNextLessonOverlay(); });
@@ -1557,7 +1556,7 @@ function showResumeChip(video, label, action, note = '') {
     setTimeout(() => chip.remove(), 10000);
 }
 
-/** NextLessonOverlay: non-blocking card with a 5 s countdown, Continuer and Annuler. */
+/** NextLessonOverlay: non-blocking card with a 5 s countdown, Continuer and Annuler (next lesson or mini-défi). */
 let nextLessonTimer = null;
 function hideNextLessonOverlay() {
     clearInterval(nextLessonTimer);
@@ -1565,26 +1564,27 @@ function hideNextLessonOverlay() {
     document.querySelector('.next-lesson-overlay')?.remove();
 }
 
-function showNextLessonOverlay(video, next) {
+function showNextLessonOverlay(video, next, { eyebrow = 'Leçon suivante', action = 'Lecture' } = {}) {
     hideNextLessonOverlay();
     const frame = video.closest('.course-player-frame');
     if (!frame) return;
     const card = document.createElement('div');
     card.className = 'next-lesson-overlay';
     card.setAttribute('role', 'region');
-    card.setAttribute('aria-label', 'Leçon suivante');
+    card.setAttribute('aria-label', eyebrow);
     card.innerHTML = `
-        <p class="next-lesson-eyebrow">Leçon suivante</p>
+        <p class="next-lesson-eyebrow"></p>
         <p class="next-lesson-title" dir="auto"></p>
         <p class="next-lesson-countdown" aria-live="polite"></p>
         <div class="next-lesson-actions">
             <button type="button" class="next-lesson-continue"><i class="fas fa-play" aria-hidden="true"></i> Continuer</button>
             <button type="button" class="next-lesson-cancel">Annuler</button>
         </div>`;
+    card.querySelector('.next-lesson-eyebrow').textContent = eyebrow;
     card.querySelector('.next-lesson-title').textContent = next.title;
     const countdown = card.querySelector('.next-lesson-countdown');
     let seconds = 5;
-    const render = () => { countdown.textContent = `Lecture dans ${seconds} s`; };
+    const render = () => { countdown.textContent = `${action} dans ${seconds} s`; };
     const go = () => { hideNextLessonOverlay(); void playLesson(next.id); };
     card.querySelector('.next-lesson-continue').addEventListener('click', go);
     card.querySelector('.next-lesson-cancel').addEventListener('click', hideNextLessonOverlay);

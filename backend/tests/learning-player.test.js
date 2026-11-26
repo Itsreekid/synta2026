@@ -59,16 +59,19 @@ test('educational player and lesson quiz flow work on desktop/mobile without ext
                 assert.equal(await evaluate('document.querySelector("video").controls'),false);
                 assert.equal(await evaluate('document.querySelector("video").paused'),true);
                 await until(()=>evaluate('document.querySelector("video").currentTime>=.45'),'server lesson resume '+JSON.stringify(await evaluate('({time:document.querySelector("video").currentTime,duration:document.querySelector("video").duration,resume:document.querySelector("video").dataset.resumePosition})')));
-                assert.match(await evaluate('document.querySelector(".btn-complete-next").textContent'),/Passer au quiz/);
+                assert.equal(await evaluate('!!document.querySelector(".btn-complete-next")'),false,'video lessons propose the quiz at their end, not with a button');
                 await evaluate('document.querySelector("video-player").defaultPlaybackRates=[.75,1,1.25,1.5,1.75,2];document.querySelector("video").playbackRate=1.5');
                 assert.equal(await evaluate('document.querySelector("video").playbackRate'),1.5);
                 assert.equal(await evaluate('document.documentElement.scrollWidth>innerWidth'),false);
                 assert.equal(await evaluate('(()=>{const p=document.querySelector(".learning-player"),c=qaSkin().querySelector("media-container");return c.getBoundingClientRect().right<=p.getBoundingClientRect().right+1;})()'),true,'controls fit within player');
                 if(process.env.PLAYER_QA_SCREENSHOTS)await screenshot(process.env.PLAYER_QA_SCREENSHOTS+'-'+width+'.png');
-                // Actual decoded playback reaches its end and opens the quiz without navigation.
+                // Actual decoded playback reaches its end, proposes the mini-défi, and opens it without navigation.
                 await evaluate('qaSkin().querySelector(".video-controls-center-play").focus()');
                 await pressKey(' ',32);
-                await until(()=>evaluate('!!document.querySelector(".quiz-modal")'),'quiz at video end');
+                await until(()=>evaluate('document.querySelector(".next-lesson-overlay .next-lesson-eyebrow")?.textContent==="Mini-défi"'),'quiz popup at video end');
+                assert.equal(await evaluate('document.querySelector(".next-lesson-overlay .next-lesson-title").textContent'),'Pratique');
+                await evaluate('document.querySelector(".next-lesson-continue").click()');
+                await until(()=>evaluate('!!document.querySelector(".quiz-modal")'),'quiz opens from popup');
                 assert.equal(await evaluate('qaPositions.some(([id,position])=>id==="video" && position>=1)'),true,'existing lesson position save remains active');
                 assert.equal(await evaluate('!!document.querySelector(".learning-player")'),true,'lesson remains behind quiz');
                 const before=responses.length;
