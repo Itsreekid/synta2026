@@ -1441,8 +1441,6 @@ function setupTheaterToggle(root) {
 const LESSON_DETAILS_MIN = 140;          // tabs + about three lines of description
 const LESSON_DETAILS_MIN_THEATER = 60;   // cinema mode: only the tab bar stays visible
 const LESSON_SIDE_DETAILS_MIN = 300;     // minimum width of the details card beside the video
-const LESSON_CODE_PANEL_MIN = 420;       // minimum width of the Code Pratique editor beside the video
-const LESSON_CODE_SIDE_MIN_COLUMN = 900; // narrower lesson columns keep the editor below the video
 
 function fitLessonLayout(courseMain) {
     const view = courseMain.querySelector('.lesson-player-view');
@@ -1472,12 +1470,9 @@ function fitLessonLayout(courseMain) {
 
         const stackedH = Math.max(220, avail - fixed - detailsMin - 3 * gap);
         const stackedVideoW = Math.min(colW, stackedH * 16 / 9);
-        // Code Pratique open: the editor sits beside the video (when the column is wide enough) and gets
-        // about half of it, so the student can watch and code at the same time.
-        const coding = view.classList.contains('is-coding') && colW >= LESSON_CODE_SIDE_MIN_COLUMN;
-        const sideDetailsW = coding ? Math.min(760, Math.max(LESSON_CODE_PANEL_MIN, colW * 0.48)) : LESSON_SIDE_DETAILS_MIN;
-        const sideW = Math.floor(Math.min(colW - sideDetailsW - gap, (avail - fixed - 2 * gap) * 16 / 9));
-        const side = coding || (sideW >= 560 && sideW > stackedVideoW * 1.1);
+        // Code Pratique uses the same card as Aperçu and Ressources: switching tabs never resizes the video.
+        const sideW = Math.floor(Math.min(colW - LESSON_SIDE_DETAILS_MIN - gap, (avail - fixed - 2 * gap) * 16 / 9));
+        const side = sideW >= 560 && sideW > stackedVideoW * 1.1;
 
         // The frame stays a true 16:9 box; its size is set through its width only.
         view.classList.toggle('is-side-details', side);

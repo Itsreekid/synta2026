@@ -1689,10 +1689,8 @@ button.lesson-icon.quiz:focus-visible { outline: 2px solid #6d28d9; outline-offs
     }
     .lesson-player-view.is-side-details > .lesson-header { grid-column: 1 / -1; }
     .lesson-player-view.is-side-details > :not(.lesson-header):not(.lesson-details-card) { grid-column: 1; }
-    .lesson-player-view.is-side-details > .lesson-details-card { grid-column: 2; grid-row: 2 / span 2; min-height: 0; box-sizing: border-box; }
+    .lesson-player-view.is-side-details > .lesson-details-card { grid-column: 2; grid-row: 2 / -1; height: 100%; min-height: 0; box-sizing: border-box; }
     .lesson-player-view.is-side-details .course-player-frame { width: var(--frame-w); }
-    /* Coding beside the video: the editor uses the full height of the column. */
-    .lesson-player-view.is-side-details.is-coding > .lesson-details-card { grid-row: 2 / -1; height: 100%; }
     /* Narrow lesson column: the editor stays below the video with a usable height (the column scrolls). */
     .lesson-player-view.is-coding:not(.is-side-details) > .lesson-details-card { flex: none; height: 560px; }
 

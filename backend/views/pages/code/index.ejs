@@ -1177,6 +1177,14 @@
         body.cp-embed .content-wrapper { height: 100dvh !important; min-height: 0 !important; margin: 0 !important; padding: 0 !important; }
         body.cp-embed .main-section { height: 100% !important; margin: 0 !important; padding: 0 !important; overflow: hidden !important; }
         body.cp-embed .cp-page { height: 100% !important; min-height: 0 !important; padding: 0 !important; gap: 8px; background: transparent; }
+        /* Beside a lesson: the editor with the console under it, at every width (no Variables panel, no pane tabs). */
+        body.cp-embed .cp-workspace { display: flex !important; flex-direction: column; min-height: 0; }
+        body.cp-embed .mobile-workspace-tabs,
+        body.cp-embed #mode-python > [data-mobile-pane="visualizer"] { display: none !important; }
+        body.cp-embed #mode-python.mode-panel.active { display: flex !important; flex: 1 1 auto; flex-direction: column !important; gap: 10px !important; min-height: 0; }
+        body.cp-embed #mode-python > .cp-panel.mobile-hidden:not([data-mobile-pane="visualizer"]) { display: flex !important; }
+        body.cp-embed #mode-python > [data-mobile-pane="editor"] { flex: 1.7 1 0 !important; min-height: 0 !important; height: auto !important; max-height: none !important; }
+        body.cp-embed #mode-python > [data-mobile-pane="console"] { flex: 1 1 0 !important; min-height: 0 !important; height: auto !important; max-height: none !important; }
     </style>
 </head>
 <body<% if (typeof embed !== 'undefined' && embed) { %> class="cp-embed"<% } %>>
