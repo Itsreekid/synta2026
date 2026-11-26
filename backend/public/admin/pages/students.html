@@ -392,8 +392,11 @@
             <div id="studentDetailsContent">
                 <div style="text-align: center; padding: 2rem;"><div class="spinner" style="margin: 0 auto;"></div></div>
             </div>
-            <div class="modal-footer" style="justify-content: space-between;">
-                <button type="button" class="btn" style="background: #ef4444; color: white;" id="deleteUserBtn">Supprimer l'utilisateur</button>
+            <div class="modal-footer" style="justify-content: space-between; flex-wrap: wrap; gap: 0.75rem;">
+                <div style="display: flex; gap: 0.75rem; flex-wrap: wrap;">
+                    <button type="button" class="btn" style="background: #ef4444; color: white;" id="deleteUserBtn">Supprimer l'utilisateur</button>
+                    <button type="button" class="btn" style="background: #f8fafc; color: #013047; border: 1px solid #cbd5e1;" id="toggleActiveBtn" hidden>Désactiver le compte</button>
+                </div>
                 <div style="display: flex; gap: 1rem;">
                     <button type="button" class="btn btn-primary" id="generateTokenBtn">Lien de connexion (5min)</button>
                     <button type="button" class="btn" onclick="closeStudentDetailsModal()">Fermer</button>
@@ -585,8 +588,11 @@
             modal.style.display = 'flex';
             content.innerHTML = '<div style="text-align: center; padding: 2rem;"><div class="spinner" style="margin: 0 auto;"></div></div>';
             
+            const toggleActiveBtn = document.getElementById('toggleActiveBtn');
             deleteBtn.onclick = null;
             tokenBtn.onclick = null;
+            toggleActiveBtn.onclick = null;
+            toggleActiveBtn.hidden = true;
 
             const res = await window.AdminDashboard.getStudentDetails(id);
             if (!res.success) {
@@ -615,6 +621,9 @@
                 <div style="margin-bottom: 1rem;">
                     <strong>Email:</strong> ${adminText(s.email)}
                 </div>
+                ${s.deactivated_at ? `<div style="margin-bottom: 1rem; padding: 0.6rem 0.8rem; border-radius: 8px; background: #fff7ed; color: #9a3412; border: 1px solid #fed7aa;">
+                    <strong>Compte désactivé</strong> depuis le ${adminText(new Date(s.deactivated_at).toLocaleDateString('fr-FR', { timeZone: 'Africa/Tunis' }))}. L’étudiant ne peut plus se connecter ; son historique est conservé.
+                </div>` : ''}
                 <div style="margin-bottom: 1rem;">
                     <strong>Solde actuel:</strong> ${adminText(s.balance || '0.00')} DT
                 </div>
@@ -675,17 +684,37 @@
             loadTimedInstallments(content, id, activeOffers);
 
             deleteBtn.onclick = async () => {
-                if(confirm("Voulez-vous vraiment supprimer cet étudiant ? Cette action est irréversible.")) {
+                if(confirm("Voulez-vous vraiment supprimer cet étudiant ? Cette action est irréversible.\n\nLa suppression est refusée si l’étudiant a un solde, une dette ou un historique de paiements.")) {
                     const delRes = await window.AdminDashboard.deleteStudent(id);
                     if(delRes.success) {
                         alert("Étudiant supprimé avec succès.");
                         closeStudentDetailsModal();
                         fetchAndRenderStudents();
                     } else {
-                        alert("Erreur lors de la suppression.");
+                        alert(delRes.error || "Erreur lors de la suppression.");
                     }
                 }
             };
+
+            // Deactivation keeps every record and only blocks sign-in (needs migration 202611260003).
+            if (res.deactivationAvailable) {
+                const active = !s.deactivated_at;
+                toggleActiveBtn.hidden = false;
+                toggleActiveBtn.textContent = active ? 'Désactiver le compte' : 'Réactiver le compte';
+                toggleActiveBtn.onclick = async () => {
+                    const question = active
+                        ? "Désactiver ce compte ?\n\nL’étudiant sera déconnecté de tous ses appareils et ne pourra plus se connecter. Son solde, ses paiements et ses inscriptions sont conservés."
+                        : "Réactiver ce compte ? L’étudiant pourra de nouveau se connecter.";
+                    if (!confirm(question)) return;
+                    toggleActiveBtn.disabled = true;
+                    const result = await window.AdminDashboard.setStudentActive(id, !active);
+                    toggleActiveBtn.disabled = false;
+                    if (!result.success) { alert(result.error); return; }
+                    alert(active ? 'Compte désactivé.' : 'Compte réactivé.');
+                    openStudentDetailsModal(id);
+                    fetchAndRenderStudents();
+                };
+            }
 
             tokenBtn.onclick = async () => {
                 const tokRes = await window.AdminDashboard.generateLoginToken(id);
