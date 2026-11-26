@@ -109,7 +109,9 @@ function showLessonPdf(root, resource) {
     frame.className = 'lesson-pdf-frame';
     frame.title = name;
     frame.referrerPolicy = 'no-referrer';
-    frame.src = selected.preview_url;
+    // Reading view: no thumbnail sidebar / toolbar, pages fitted to the panel width (Chrome, Edge, Firefox).
+    // The fragment never reaches the server, so the signed link stays valid; « Nouvel onglet » keeps the full viewer.
+    frame.src = selected.preview_url.split('#')[0] + '#toolbar=0&navpanes=0&view=FitH';
     panel.append(bar, frame);
     panel.dataset.loaded = 'true';
     return true;
@@ -660,16 +662,20 @@ function renderCourseLiveSessions(sessions, hasAccess, loaded) {
     }).join('');
 }
 
-/** Replays in the order the replay list shows them (grouped by month, first month first). */
+/**
+ * Replays in date order, oldest first: « Replay 1 / n » is the first session and n / n the latest.
+ * Précédent = the older session, Suivant = the newer one (none after the latest),
+ * whatever order the replay list displays (it shows the newest first).
+ */
 function orderedReplaySessions() {
-    const groups = new Map();
-    (currentLiveSessions || []).filter(session => session.replay_url).forEach(session => {
-        const date = new Date(session.scheduled_at);
-        const key = `${date.getFullYear()}-${date.getMonth()}`;
-        if (!groups.has(key)) groups.set(key, []);
-        groups.get(key).push(session);
-    });
-    return [...groups.values()].flat();
+    const time = session => {
+        const value = new Date(session.scheduled_at).getTime();
+        return Number.isFinite(value) ? value : 0;
+    };
+    return (currentLiveSessions || []).filter(session => session.replay_url)
+        .map((session, index) => ({ session, index }))
+        .sort((a, b) => time(a.session) - time(b.session) || a.index - b.index)
+        .map(item => item.session);
 }
 
 function renderReplaySidebar(sidebar, sessions, selectedSessionId = '') {
@@ -751,14 +757,8 @@ function openReplayPlayer(replayUrl, title, resources = [], sessionId = '', { pa
     const replays = orderedReplaySessions();
     const replayIndex = replays.findIndex(item => item.id === sessionId);
     const replayLink = item => item && { title: item.title, open: () => openReplayPlayer(item.replay_url, item.title, item.resources || [], item.id) };
+    // Replays have no Aperçu tab (the date is in the header); the part buttons sit at the top of Ressources.
     const overviewNodes = [];
-    if (hasDate) {
-        const recordedAt = document.createElement('time');
-        recordedAt.className = 'course-replay-date';
-        recordedAt.dateTime = date.toISOString();
-        recordedAt.textContent = 'Séance du ' + dateLabel;
-        overviewNodes.push(recordedAt);
-    }
     if (replayParts.length > 1) {
         const partsNav = document.createElement('div');
         partsNav.className = 'course-player-actions course-replay-parts';
@@ -787,7 +787,7 @@ function openReplayPlayer(replayUrl, title, resources = [], sessionId = '', { pa
         previous: replayLink(replays[replayIndex - 1]),
         next: replayIndex >= 0 ? replayLink(replays[replayIndex + 1]) : null,
         detailsLabel: 'Détails du replay',
-        description: session?.description || 'Enregistrement de la séance en direct.',
+        description: null,
         overviewNodes,
         resources,
         resourcesHeading: 'Fichiers utilisés pendant la séance',
@@ -1350,6 +1350,7 @@ function renderPlayerView(courseMain, {
     const esc = escapeQuizHtml;
     const hasFrame = frameHtml !== null;
     const pdfs = resources.filter(isReadablePdf);
+    const hasOverview = description !== null; // description: null → no Aperçu tab (replays)
     const navButton = (side, item) => `<button type="button" class="lesson-nav-btn lesson-icon-btn is-${side}" data-lesson-nav="${side}"
                     title="${esc(item ? (side === 'prev' ? 'Précédent : ' : 'Suivant : ') + item.title : (side === 'prev' ? 'Précédent' : 'Suivant'))}"
                     ${item ? '' : 'disabled aria-disabled="true"'}>
@@ -1387,15 +1388,15 @@ function renderPlayerView(courseMain, {
 
             <section class="lesson-details-content lesson-details-card" aria-label="${esc(detailsLabel)}">
                 <div class="lesson-tabs" role="tablist" aria-label="${esc(detailsLabel)}">
-                    <button type="button" class="lesson-tab is-active" role="tab" id="lesson-tab-overview" aria-selected="true" aria-controls="lesson-panel-overview" data-lesson-tab="overview">Aperçu</button>
-                    <button type="button" class="lesson-tab" role="tab" id="lesson-tab-resources" aria-selected="false" tabindex="-1" aria-controls="lesson-panel-resources" data-lesson-tab="resources">Ressources (${resources.length})</button>
+                    ${hasOverview ? '<button type="button" class="lesson-tab is-active" role="tab" id="lesson-tab-overview" aria-selected="true" aria-controls="lesson-panel-overview" data-lesson-tab="overview">Aperçu</button>' : ''}
+                    <button type="button" class="lesson-tab${hasOverview ? '' : ' is-active'}" role="tab" id="lesson-tab-resources" aria-selected="${!hasOverview}" ${hasOverview ? 'tabindex="-1"' : ''} aria-controls="lesson-panel-resources" data-lesson-tab="resources">Ressources (${resources.length})</button>
                     <button type="button" class="lesson-tab lesson-tab-code lesson-tab-tool" role="tab" id="lesson-tab-code" aria-selected="false" tabindex="-1" aria-controls="lesson-panel-code" data-lesson-tab="code" title="${esc(LESSON_CODE_RUNTIME.label)}"><i class="fas fa-code" aria-hidden="true"></i><span class="lesson-tab-label">${esc(LESSON_CODE_RUNTIME.label)}</span></button>
                     ${pdfs.length ? `<button type="button" class="lesson-tab lesson-tab-pdf lesson-tab-tool" role="tab" id="lesson-tab-pdf" aria-selected="false" tabindex="-1" aria-controls="lesson-panel-pdf" data-lesson-tab="pdf" title="Lecteur PDF"><i class="fas fa-file-pdf" aria-hidden="true"></i><span class="lesson-tab-label">PDF</span></button>` : ''}
                 </div>
-                <div class="lesson-tab-panel" role="tabpanel" id="lesson-panel-overview" aria-labelledby="lesson-tab-overview">
+                ${hasOverview ? `<div class="lesson-tab-panel" role="tabpanel" id="lesson-panel-overview" aria-labelledby="lesson-tab-overview">
                     <p class="lesson-description" dir="auto">${esc(description)}</p>
-                </div>
-                <div class="lesson-tab-panel" role="tabpanel" id="lesson-panel-resources" aria-labelledby="lesson-tab-resources" hidden>
+                </div>` : ''}
+                <div class="lesson-tab-panel" role="tabpanel" id="lesson-panel-resources" aria-labelledby="lesson-tab-resources"${hasOverview ? ' hidden' : ''}>
                     ${resources.length ? '' : `<p class="lesson-resources-empty">${esc(resourcesEmpty)}</p>`}
                 </div>
                 <div class="lesson-tab-panel lesson-code-panel" role="tabpanel" id="lesson-panel-code" aria-labelledby="lesson-tab-code" data-lesson-code-panel hidden></div>
@@ -1405,7 +1406,9 @@ function renderPlayerView(courseMain, {
     `;
     const view = courseMain.querySelector('.lesson-player-view');
     courseMain.lessonPdfs = pdfs;
-    courseMain.querySelector('#lesson-panel-overview').append(...overviewNodes);
+    // Without an Aperçu tab (replays), its extra content (parts of the replay) goes at the top of Ressources.
+    courseMain.querySelector(hasOverview ? '#lesson-panel-overview' : '#lesson-panel-resources').prepend(...overviewNodes);
+    courseMain.lessonDefaultTab = hasOverview ? 'overview' : 'resources';
     if (resources.length) courseMain.querySelector('#lesson-panel-resources').appendChild(createResourceSection(resources, resourcesHeading));
     courseMain.querySelector('[data-lesson-nav="prev"]')?.addEventListener('click', () => previous?.open());
     courseMain.querySelector('[data-lesson-nav="next"]')?.addEventListener('click', () => next?.open());
@@ -1531,7 +1534,7 @@ function setupTheaterToggle(root) {
         // Desktop: Code Pratique and PDF only exist in cinema mode (their tabs are hidden in normal mode by CSS),
         // so leaving cinema mode while one is open goes back to Aperçu.
         if (!on && root.querySelector('.lesson-player-view.is-tool') && matchMedia('(min-width: 1024px)').matches) {
-            root.lessonTabSelect?.('overview');
+            root.lessonTabSelect?.(root.lessonDefaultTab || 'overview');
         }
     };
     // Marks a page that can switch to cinema mode (lessons without video keep the Code Pratique tab).
@@ -1593,13 +1596,14 @@ function fitLessonLayout(courseMain) {
         const colW = view.clientWidth;
         const videoColW = sideArrows ? colW - 2 * LESSON_SIDE_ARROW_SPACE : colW;
         const gaps = sideArrows ? 2 * gap : 3 * gap;
-        // Normal mode keeps room for up to two rows of resource files (5 files = 2 rows on most screens).
+        // Normal mode keeps room for up to three rows of resource files, so up to 5 files show without scrolling.
         const detailsMinFor = videoW => {
             if (theater) return LESSON_DETAILS_MIN_THEATER;
             const count = Number(view.dataset.resourceCount) || 0;
             const perRow = Math.max(1, Math.floor((videoW - 32 + 8) / (LESSON_RESOURCE_TILE_MIN + 8)));
-            const rows = Math.min(2, Math.ceil(count / perRow));
-            return Math.max(LESSON_DETAILS_MIN, LESSON_DETAILS_CHROME + rows * LESSON_RESOURCE_ROW);
+            const rows = Math.min(3, Math.ceil(count / perRow)); // 5 files = 2 rows (3 per row) or 3 rows (2 per row)
+            const partsRow = view.querySelector('.course-replay-parts') ? 50 : 0; // replay « Partie 1 / 2 » buttons
+            return Math.max(LESSON_DETAILS_MIN, LESSON_DETAILS_CHROME + partsRow + rows * LESSON_RESOURCE_ROW);
         };
         const stackedFor = detailsMin => Math.min(videoColW, Math.max(220, avail - fixed - detailsMin - gaps) * 16 / 9);
         const stackedVideoW = stackedFor(detailsMinFor(stackedFor(detailsMinFor(videoColW))));

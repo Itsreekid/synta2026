@@ -832,7 +832,7 @@ button.lesson-icon.quiz:focus-visible { outline: 2px solid #6d28d9; outline-offs
 .btn-complete-next:focus-visible { outline: 3px solid #6ee7b7; outline-offset: 2px; }
 
 .course-replay-date { color: var(--cd-muted); font-size: 0.85rem; }
-.course-replay-parts { padding-top: 0.15rem; }
+.course-replay-parts { padding-top: 0.15rem; margin-bottom: 0.6rem; }
 
 /* Files attached to a lesson or a replay */
 .replay-resource-section {
