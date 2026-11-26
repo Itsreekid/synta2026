@@ -16,7 +16,7 @@ There is no class/section uniqueness constraint or campaign-count cap. Campaigns
 
 ## Owner-approved held migration
 
-`database/pending-migrations/202611260002_free_session_slug_aliases.sql` remains **held**. Owner approved local implementation/disposable-database testing only.
+`database/migrations/202611260002_free_session_slug_aliases.sql` is **promoted**: the owner confirmed on 2026-11-26 that it belongs in the release; the next deployment applies it. (Was held earlier the same day.)
 
 One table reserves canonical and historical slugs in a shared unique namespace: `free_session_slug_aliases(slug TEXT PRIMARY KEY, free_session_id UUID FK, created_at TIMESTAMPTZ)`. Existing canonical slugs are backfilled. Triggers atomically reserve new names and prevent alias deletion/reassignment. An old slug remains unavailable to another campaign even when its original campaign is inactive. No user/payment/enrollment/quiz/Zoom/reservation rows are rewritten.
 

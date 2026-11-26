@@ -4,7 +4,7 @@
 import express from "express";
 import { GetObjectCommand } from "@aws-sdk/client-s3";
 import pool from "../config/db.js";
-import { authApiMiddleware, verifyToken } from "../middleware/requireAuth.js";
+import { accountAllowed, authApiMiddleware, verifyToken } from "../middleware/requireAuth.js";
 import { loginUrlFor } from "../utils/returnPath.js";
 import { requireAdmin } from "../middleware/requireAdmin.js";
 import { rescheduleZoomMeeting, createZoomMeeting, deleteZoomMeeting, getZoomOccurrenceRecordings, getZoomPastInstances } from "../utils/zoomClient.js";
@@ -432,10 +432,19 @@ function joinNotice(res, status, message) {
  * Students open the join link as a page, so a missing/expired session sends them to the
  * login page (then back to this session in the calendar) instead of showing a JSON 401.
  */
-function requireJoinSession(req, res, next) {
+async function requireJoinSession(req, res, next) {
   const accessToken = req.cookies?.synta_access;
   const payload = accessToken ? verifyToken(accessToken) : null;
   if (payload) {
+    try {
+      if (!(await accountAllowed(payload.id))) {
+        res.clearCookie("synta_access", { path: "/" });
+        res.clearCookie("synta_refresh", { path: "/" });
+        return joinNotice(res, 403, "Ce compte est désactivé. Contacte l’équipe Synta.");
+      }
+    } catch {
+      return joinNotice(res, 503, "Impossible d’ouvrir la séance. Réessayez.");
+    }
     req.user = payload;
     return next();
   }

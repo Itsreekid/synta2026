@@ -3,7 +3,7 @@
 -- A failed answer deletes its reservation, so failures never consume the quota.
 -- Stale reservations (crash mid-request) stop counting after a short window in code.
 -- Additive only: a new table; no existing row is modified.
--- HELD: move into database/migrations/ only with the owner's explicit approval.
+-- Owner approved promotion on 2026-11-26 (local testing first; production only after deployment approval).
 CREATE TABLE IF NOT EXISTS bugi_question_usage (
   id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
   user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,

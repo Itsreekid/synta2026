@@ -2,6 +2,7 @@
 // USER API ROUTES
 // =====================================================
 import express from "express";
+import { randomUUID } from "node:crypto";
 import { liveSessionAccess } from "../utils/offerAccess.js";
 import { normalizeTunisianPhone, validateLearnerProfile } from "../utils/learnerProfile.js";
 import pool from "../config/db.js";
@@ -9,8 +10,15 @@ import { authApiMiddleware } from "../middleware/requireAuth.js";
 import { createOfferQuote } from "../services/timed-offers.js";
 import { decodeReceiptDataUrl } from "../utils/courseImages.js";
 import { saveLearnerProfile } from '../services/learner-onboarding.js';
+import { insertDepositRequest, precheckDepositLimits, validateDepositInput } from "../services/deposit-requests.js";
+import { requireActiveAccount } from "../services/account-status.js";
+import { authRateLimit } from "../middleware/authRateLimit.js";
+import { deleteFromR2 } from "../utils/r2Utils.js";
 
 const router = express.Router();
+const activeAccount = requireActiveAccount(pool);
+// Burst guard on top of the pending-request cap (10 attempts per 15 minutes per student).
+const depositRateLimit = authRateLimit(10, 15 * 60 * 1000, req => req.user.id);
 
 /**
  * The Postgres `transactions` table (schema_postgres.sql) was created without
@@ -298,7 +306,8 @@ router.get("/api/user/transactions", authApiMiddleware, async (req, res) => {
       [userId]
     ).catch(() => ({ rows: [] }));
 
-    return res.json(txResult.rows);
+    // Receipt locations stay server-side; the student only learns that a receipt exists.
+    return res.json(txResult.rows.map(({ receipt_url, ...row }) => ({ ...row, has_receipt: Boolean(receipt_url) })));
   } catch (err) {
     console.error("[user/transactions GET] Error:", err.message);
     return res.status(500).json({ error: "Failed to load transactions" });
@@ -309,11 +318,12 @@ router.get("/api/user/transactions", authApiMiddleware, async (req, res) => {
  * POST /api/user/transactions
  * Create a new pending deposit transaction
  */
-router.post("/api/user/transactions", authApiMiddleware, async (req, res) => {
+router.post("/api/user/transactions", authApiMiddleware, activeAccount, depositRateLimit, async (req, res) => {
+  let uploadedKey = null;
   try {
     const userId = req.user.id;
-    const { payment_method, transaction_code, description, receipt_url, renewalOfferId } = req.body;
-    let { amount } = req.body;
+    const { receipt_url, renewalOfferId } = req.body || {};
+    let { amount } = req.body || {};
     if (renewalOfferId) {
       const quote = await createOfferQuote(pool, userId, renewalOfferId);
       if (quote.access_mode !== 'monthly' || !receipt_url) return res.status(400).json({ error: 'Renouvellement mensuel ou reçu invalide.' });
@@ -321,9 +331,8 @@ router.post("/api/user/transactions", authApiMiddleware, async (req, res) => {
       amount = quote.price;
     }
 
-    if (!amount || isNaN(amount) || amount <= 0) {
-      return res.status(400).json({ error: "Invalid amount" });
-    }
+    // Amount, method, reference and description are validated and normalized server-side.
+    const input = validateDepositInput({ ...req.body, amount });
 
     let finalReceiptUrl = null;
     let receiptImage = null;
@@ -331,23 +340,28 @@ router.post("/api/user/transactions", authApiMiddleware, async (req, res) => {
       receiptImage = decodeReceiptDataUrl(receipt_url);
       if (!receiptImage) return res.status(400).json({ error: "Le reçu doit être une image PNG, JPEG, WebP ou GIF." });
     }
+    await ensureTransactionsSchema();
+    // Reject over-limit requests before storing any receipt (re-checked under lock below).
+    await precheckDepositLimits(pool, userId);
     if (receiptImage) {
       try {
         const { PutObjectCommand } = await import("@aws-sdk/client-s3");
         const { r2Client, R2_BUCKET } = await import("../config/r2.js");
 
         const { contentType, bytes, extension } = receiptImage;
-        const fileName = `receipts/${userId}-${Date.now()}.${extension}`;
+        // Random, unguessable key; only the private key is stored (never a public URL).
+        // Admins open it through GET /api/admin/payments/:id/receipt.
+        const fileName = `receipts/${userId}-${Date.now()}-${randomUUID()}.${extension}`;
 
         await r2Client.send(new PutObjectCommand({
           Bucket: R2_BUCKET,
           Key: fileName,
           Body: bytes,
-          ContentType: contentType
+          ContentType: contentType,
+          CacheControl: "private, no-store",
         }));
-
-        const domain = process.env.R2_PUBLIC_DOMAIN || `pub-${process.env.CLOUDFLARE_ACCOUNT_ID}.r2.dev`;
-        finalReceiptUrl = `https://${domain}/${fileName}`;
+        uploadedKey = fileName;
+        finalReceiptUrl = fileName;
       } catch (err) {
         console.error("Failed to upload receipt to R2:", err);
         // Fallback to storing base64 if R2 fails
@@ -355,25 +369,15 @@ router.post("/api/user/transactions", authApiMiddleware, async (req, res) => {
       }
     }
 
-    await ensureTransactionsSchema();
-
-    const result = await pool.query(
-      `INSERT INTO transactions
-         (user_id, amount, type, status, payment_method, transaction_code, description, created_at, receipt_url)
-       VALUES ($1, $2, 'deposit', 'pending', $3, $4, $5, NOW(), $6)
-       RETURNING *`,
-      [
-        userId,
-        parseFloat(amount),
-        payment_method || "En attente de confirmation",
-        transaction_code || ("TXN-" + Date.now()),
-        description || "Demande de dépôt",
-        finalReceiptUrl
-      ]
-    );
-
-    return res.json({ success: true, transaction: result.rows[0] });
+    // Pending only: the wallet is credited exclusively when an admin confirms this request.
+    const transaction = await insertDepositRequest(pool, userId, input, finalReceiptUrl);
+    uploadedKey = null;
+    return res.json({ success: true, transaction });
   } catch (err) {
+    if (uploadedKey) {
+      // The request was refused after the receipt upload: do not keep an orphan file.
+      deleteFromR2(uploadedKey).catch(() => console.error("[user/transactions POST] Orphan receipt not deleted"));
+    }
     if (err.status >= 400 && err.status < 600) return res.status(err.status).json({ error: err.message });
     console.error("[user/transactions POST] Error:", err.code, err.message, err.detail || "");
     return res.status(500).json({ error: "Failed to create transaction" });

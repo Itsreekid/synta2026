@@ -321,7 +321,7 @@ Request → CORS → Helmet → cookieParser → express.json → Logger
 | Middleware | Purpose |
 |-----------|---------|
 | `requireAuth` | Redirects unauthenticated page requests to `/login?next=<page>` (`utils/returnPath.js` validates destinations; `&reason=expired` when a session existed) |
-| `authApiMiddleware` | Returns 401 JSON for unauthenticated API requests |
+| `authApiMiddleware` | Returns 401 JSON for unauthenticated API requests; 403 when the account is deactivated (checked on every request once `server.js` calls `configureAccountChecks(pool)`; `requireAuth`, `auth.js` and the live join guard use the same `accountAllowed`) |
 | `authMiddleware` | Optional auth — sets `req.user` or null |
 | `requireAdmin` | Checks JWT role=admin or ADMIN_EMAILS list |
 | `attachUserProfile` | Fetches DB user profile, attaches to `req.userProfile` |

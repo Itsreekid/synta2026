@@ -1156,8 +1156,9 @@ router.get("/api/admin/payments/:id/receipt", requireAdmin, async (req, res) => 
       return res.end(image.bytes);
     }
 
-    // Stored as: https://pub-db0...r2.dev/receipts/user-timestamp.png
-    const keyPart = receipt_url.split("/receipts/")[1];
+    // New receipts store the private key ("receipts/<file>"); older rows stored a public URL
+    // such as https://pub-…r2.dev/receipts/<file>. Both resolve to the same private key.
+    const keyPart = receipt_url.startsWith("receipts/") ? receipt_url.slice("receipts/".length) : receipt_url.split("/receipts/")[1];
     const key = keyPart ? "receipts/" + keyPart.split(/[?#]/)[0] : null;
     if (!key || key.split("/").some(part => !part || part === "..")) {
       return res.status(404).send("Receipt not found");

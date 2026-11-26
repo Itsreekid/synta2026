@@ -577,6 +577,29 @@ Discarded imports retain their `object_key` as a deletion tombstone. They are ex
 
 ---
 
+### 2.23 `users.deactivated_at` / `users.deactivated_by`
+
+| Column | Type | Constraints | Notes |
+|--------|------|-------------|-------|
+| `deactivated_at` | TIMESTAMPTZ | NULLABLE, partial index | Set by an admin. Blocks password/Google/admin-impersonation sign-in, session renewal, page access, purchases and deposit requests. NULL = active |
+| `deactivated_by` | UUID | NULLABLE FK → users(id) ON DELETE SET NULL | Admin who deactivated |
+
+**Promoted (owner approval 2026-11-26), not yet in production:** `database/migrations/202611260003_user_account_deactivation.sql` (additive), applied by the next deploy. Code reads the column through `to_jsonb(users)->>'deactivated_at'`, so it runs unchanged before the migration; until then the admin "Désactiver" button stays hidden and the API answers 503. Hard deletion of a student is refused whenever balance, debt or any row in `transactions`, `payments`, `purchases`, `offer_access_grants`, `offer_installment_arrangements`, `offer_upgrade_confirmations` or a paid `enrollments` row exists (`services/account-status.js`).
+
+### 2.24 `bugi_question_usage`
+
+| Column | Type | Constraints | Notes |
+|--------|------|-------------|-------|
+| `id` | BIGINT | PK GENERATED ALWAYS AS IDENTITY | |
+| `user_id` | UUID | NOT NULL FK → users(id) ON DELETE CASCADE | |
+| `usage_day` | DATE | NOT NULL | Africa/Tunis calendar day; index (`user_id`, `usage_day`) |
+| `status` | TEXT | NOT NULL CHECK in `reserved`, `used` | `reserved` while Gemini answers (counts for 120 s), then `used`; deleted on failure |
+| `created_at` | TIMESTAMPTZ | NOT NULL DEFAULT NOW() | |
+
+**Promoted (owner approval 2026-11-26), not yet in production:** `database/migrations/202611260004_bugi_daily_usage.sql` (additive), applied by the next deploy. Also provides the platform-wide daily count for the shared Gemini budget. Until applied, the same quota is enforced in process memory (resets on restart). Separate from `bugi_messages`, so clearing chat history never resets the quota.
+
+---
+
 ## 3. Migration Files Reference
 
 | File | Purpose | Status |
@@ -588,19 +611,9 @@ Discarded imports retain their `object_key` as a deletion tombstone. They are ex
 | `add_admin_role.sql` | Adds `role` column (references old `"Users"` table) | ⚠️ May target wrong table |
 | `add_email_verification.sql` | Adds `email_verified`, `verification_token`, `token_expires_at` | ✅ Required |
 | `add_google_auth.sql` | Adds `google_id`, makes `password_hash` nullable | Legacy script. The versioned migration below applies these changes automatically. |
-| `202611100002_ensure_google_auth_schema.sql` | Reconciles the documented Google account and email verification fields | Applied by the Docker migration runner |
-| `202611100002_ensure_offer_payment_status.sql` | Adds the documented status column on legacy payments tables before the active-offer index | Pending recovery deployment |
-| `202611100003_unique_active_offer_payments.sql` | Adds uniqueness for active wallet/admin offer grants | Pending authorized deployment |
 | `add_feedback_table.sql` | Creates `lesson_feedback` | ✅ Required |
 | `add_lesson_content.sql` | UNKNOWN | NEEDS CLARIFICATION |
 | `add_offers_features.sql` | Adds `features` JSONB to offers | ✅ Required |
-| `202611050001_create_notifications.sql` | Creates notifications table for deployment-managed schema setup | ✅ Applied by deployment runner |
-| `202611050002_create_course_modules.sql` | Adds reusable course/module mapping and backfills placements | ✅ Applied by deployment runner |
-| `202611050003_add_lesson_quiz_content.sql` | Adds JSONB `lessons.content` for interactive quiz payloads | ⏳ Runs automatically on the next deployment; not applied yet |
-| `202611050004_create_learning_resources.sql` | Adds multiple file attachments for lessons and live sessions | ⏳ Runs automatically on the next deployment; not applied yet |
-| `202611200001_create_refresh_tokens.sql` | Creates `refresh_tokens` for rotating session renewal (Batch 2B) | ⏳ Owner approved 2026-11-26; promoted to `migrations/`, runs on the next deployment |
-| `pending-migrations/202611200002_extend_live_session_access.sql` | Adds `live_sessions.additional_offer_ids` and `granted_student_ids` | ⏸️ Held for owner approval; verified on disposable PostgreSQL 17.6 only |
-| `pending-migrations/202611200003_create_zoom_recording_imports.sql` | Creates `zoom_recording_imports` for automatic Zoom → R2 replays | ⏸️ Held for owner approval; verified on disposable PostgreSQL 17.6 only |
 | `add_offers_targeting.sql` | Adds `target_classes`, `target_branches` arrays to offers | ✅ Required |
 | `add_transaction_automation.sql` | UNKNOWN trigger/automation | NEEDS CLARIFICATION |
 | `create_live_sessions.sql` | Earlier version of live_sessions table | ⚠️ Superseded by schema_postgres.sql |
@@ -610,6 +623,41 @@ Discarded imports retain their `object_key` as a deletion tombstone. They are ex
 | `transactions-table.sql` | Detailed transactions table | May be superseded by schema_postgres.sql |
 
 ---
+
+### Versioned migrations — status on 2026-11-26
+
+The Docker runner applies every file in `database/migrations/` in name order and records it in `schema_migrations` (checksums must never change). `database/pending-migrations/` is never copied or run. Production status comes from the owner-supplied ledger (`backend/tests/fixtures/production-migration-ledger-20261126.json`, 20 files, checksums verified).
+
+| File | Status |
+|------|--------|
+| `202611050001_create_notifications.sql` | ✅ Applied in production (ledger) |
+| `202611050002_create_course_modules.sql` | ✅ Applied in production (ledger) |
+| `202611050003_add_lesson_quiz_content.sql` | ✅ Applied in production (ledger) |
+| `202611050004_create_learning_resources.sql` | ✅ Applied in production (ledger) |
+| `202611100001_add_live_session_audience.sql` | ✅ Applied in production (ledger) |
+| `202611100002_ensure_google_auth_schema.sql` | ✅ Applied in production (ledger) |
+| `202611100002_ensure_offer_payment_status.sql` | ✅ Applied in production (ledger) |
+| `202611100003_unique_active_offer_payments.sql` | ✅ Applied in production (ledger) |
+| `202611110001_create_bugi_messages.sql` | ✅ Applied in production (ledger) |
+| `202611110002_create_bugi_learning_evidence.sql` | ✅ Applied in production (ledger) |
+| `202611110003_add_bugi_history_revision.sql` | ✅ Applied in production (ledger) |
+| `202611110004_add_timed_offer_access.sql` | ✅ Applied in production (ledger) |
+| `202611120001_reconcile_timed_offer_terms.sql` | ✅ Applied in production (ledger) |
+| `202611120002_offer_upgrade_credit.sql` | ✅ Applied in production (ledger) |
+| `202611200001_create_refresh_tokens.sql` | ⏳ Owner approved; applied by the next deployment (not yet in production) |
+| `202611200003_create_zoom_recording_imports.sql` | ✅ Applied in production (ledger) |
+| `202611240001_zoom_recording_reliability.sql` | ✅ Applied in production (ledger) |
+| `202611240002_recording_trash_retention.sql` | ✅ Applied in production (ledger) |
+| `202611250001_notification_popup_acknowledgment.sql` | ✅ Applied in production (ledger) |
+| `202611250002_free_session_campaigns.sql` | ✅ Applied in production (ledger) |
+| `202611250003_custom_installment_amounts.sql` | ✅ Applied in production (ledger) |
+| `202611260001_live_session_shape_compatibility.sql` | ⏳ Owner approved; applied by the next deployment (not yet in production) |
+| `202611260002_free_session_slug_aliases.sql` | ⏳ Owner approved; applied by the next deployment (not yet in production) |
+| `202611260003_user_account_deactivation.sql` | ⏳ Owner approved; applied by the next deployment (not yet in production) |
+| `202611260004_bugi_daily_usage.sql` | ⏳ Owner approved; applied by the next deployment (not yet in production) |
+| `pending-migrations/202611200002_extend_live_session_access.sql` | ⏸️ Held — not part of this release |
+| `pending-migrations/202611200004_live_session_multi_audience.sql` | ⏸️ Held — not part of this release |
+| `pending-migrations/202611250004_free_session_funnel.sql` | ⏸️ Held — not part of this release |
 
 ## 4. Identified Schema Problems
 
@@ -766,6 +814,6 @@ Exact draft: database/pending-migrations/202611250004_free_session_funnel.sql. A
 ### Approved focused session-shape compatibility correction — local validation 2026-11-26
 
 202611260001_live_session_shape_compatibility.sql replaces the restrictive live_sessions_course_or_free_session CHECK: direct course, free campaign, or explicitly any_selected with no free campaign. Optional policy is read through the whole-row JSON projection so held audience migration may run before or after it without adding columns early. Existing policy-shape and deferred audience-link triggers continue enforcing OR audiences. The combined CHECK additionally rejects mixed free/OR policy; the original free-session shape CHECK and all audience-link triggers remain unchanged. No new tables/columns, financial changes or row backfills beyond the approved original campaign migration. Original SQL/checksum retained. Runner executes an explicitly pinned replacement at the original dependency position for unapplied originals; existing applied originals keep their ledger rows and receive constraint-only repair. Ledger records the actual replacement file; no fake original entry or checksum rewrite. Owner-supplied production ledger: all 20 hashes match, including the original; production takes the constraint-only branch. Physical schema/staging validation remains pending; production NO-GO.
-### Approved locally / held — campaign slug aliases (2026-11-26)
+### Approved for release — campaign slug aliases (2026-11-26)
 
-`database/pending-migrations/202611260002_free_session_slug_aliases.sql`: proposed `free_session_slug_aliases(slug TEXT PK, free_session_id UUID FK free_sessions ON DELETE RESTRICT, created_at TIMESTAMPTZ)`. Reserves canonical and historical links in one namespace, backfills existing slugs, and enforces atomic ownership and immutable aliases with triggers. No new user, payment or enrollment fields. Owner approved local implementation/testing; applied only in disposable PostgreSQL and still held. See FREE_CAMPAIGN_FLEXIBILITY_IMPLEMENTATION.md.
+`database/migrations/202611260002_free_session_slug_aliases.sql` (owner confirmed for the release on 2026-11-26; applied by the next deployment): `free_session_slug_aliases(slug TEXT PK, free_session_id UUID FK free_sessions ON DELETE RESTRICT, created_at TIMESTAMPTZ)`. Reserves canonical and historical links in one namespace, backfills existing slugs, and enforces atomic ownership and immutable aliases with triggers. No new user, payment or enrollment fields. Applied only in disposable PostgreSQL so far. See FREE_CAMPAIGN_FLEXIBILITY_IMPLEMENTATION.md.

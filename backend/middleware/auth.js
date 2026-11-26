@@ -5,7 +5,7 @@ import { enrollmentAccess } from "../utils/offerAccess.js";
 // =====================================================
 import jwt from "jsonwebtoken";
 import pool from "../config/db.js";
-import { isAccessPayload } from "./requireAuth.js";
+import { accountAllowed, isAccessPayload } from "./requireAuth.js";
 
 const JWT_SECRET = process.env.JWT_SECRET;
 
@@ -31,6 +31,8 @@ export async function authMiddleware(req, res, next) {
     } catch {
       req.user = null;
     }
+    // A deactivated account is treated as anonymous, even with a still-valid token.
+    if (req.user && !(await accountAllowed(req.user.id))) req.user = null;
 
     return next();
   } catch (error) {

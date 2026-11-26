@@ -20,6 +20,7 @@ import * as features from '../services/live-features.js';
 import * as learnerProfile from '../utils/learnerProfile.js';
 import * as courseImages from '../utils/courseImages.js';
 import * as onboarding from '../services/learner-onboarding.js';
+import * as depositRequests from '../services/deposit-requests.js';
 import { loginUrlFor } from '../utils/returnPath.js';
 import { withTimedOfferBrowser } from './timed-offer-browser.js';
 
@@ -92,7 +93,7 @@ test('OR session migration, API access and admin browser on disposable PostgreSQ
       assert.equal(await allowed(legacy,guest),false);
       assert.equal(features.liveFeatures.multiAudience,true);
     });
-    const {authApiMiddleware,isAccessPayload,verifyToken}=await import('../middleware/requireAuth.js');
+    const {accountAllowed,authApiMiddleware,isAccessPayload,verifyToken}=await import('../middleware/requireAuth.js');
     const {requireAdmin}=await import('../middleware/requireAdmin.js');
     let zoomCalls=0, zoomDeletes=0,failReschedule=false;
     const storageDeletes=[];
@@ -105,9 +106,9 @@ test('OR session migration, API access and admin browser on disposable PostgreSQ
     const dependencies={
       '../services/recording-discovery.js':{createRecordingDiscovery},'../services/recording-jobs.js':recordingJobs,'../services/zoom-recordings.js':recordingHelpers,
       express:{default:express}, jsonwebtoken:{default:jwt}, '../config/db.js':{default:db}, '../utils/offerAccess.js':access,
-      '../middleware/requireAuth.js':{authApiMiddleware,isAccessPayload,verifyToken}, '../middleware/requireAdmin.js':{requireAdmin},
+      '../middleware/requireAuth.js':{accountAllowed,authApiMiddleware,isAccessPayload,verifyToken}, '../middleware/requireAdmin.js':{requireAdmin},
       '../utils/returnPath.js':{loginUrlFor},
-      './requireAuth.js':{isAccessPayload},
+      './requireAuth.js':{accountAllowed,isAccessPayload},
       '../services/live-features.js':features, '../services/recording-worker.js':{recordingStorage:{
         delete:async key=>{if(failStorageDelete)throw new Error('Synthetic storage outage');storageDeletes.push(key);},
         abortMultipart:async()=>{},head:async()=>({ContentLength:100}),
@@ -119,7 +120,13 @@ test('OR session migration, API access and admin browser on disposable PostgreSQ
       '../utils/learnerProfile.js':learnerProfile,'../utils/courseImages.js':courseImages,
       '../services/learner-onboarding.js':onboarding,
       '../services/timed-offers.js':{createOfferQuote:async()=>{}},
+      // Added with the deposit/deactivation batch (user-api.js); not exercised by this suite.
+      'node:crypto':{randomUUID},
+      '../services/deposit-requests.js':depositRequests,
+      '../services/account-status.js':{requireActiveAccount:()=>(req,res,next)=>next()},
+      '../middleware/authRateLimit.js':{authRateLimit:()=>(req,res,next)=>next()},
     };
+    dependencies['../utils/r2Utils.js'].deleteFromR2=async()=>{};
     const load=async (file,directory='routes')=>{
       const context=vm.createContext({process:{env},console,Buffer,URL,Date:RouteDate,setTimeout,clearTimeout});
       const source=new vm.SourceTextModule(await readFile(new URL('../'+directory+'/'+file+'.js',import.meta.url),'utf8'),{context});

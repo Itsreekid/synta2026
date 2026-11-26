@@ -30,7 +30,10 @@ test('session compatibility: historical ledgers, strict shapes, atomic failure a
   }
   // Promoted 2026-11-26 after the production ledger snapshot, so production has not applied it yet.
   const refreshFile = '202611200001_create_refresh_tokens.sql';
-  const before = new Map([...files].filter(([file]) => ![originalFile, repairFile, customFile, refreshFile, aliasFile].includes(file)));
+  // Promoted 2026-11-26 (owner approval) after the ledger snapshot as well.
+  const deactivationFile = '202611260003_user_account_deactivation.sql';
+  const bugiUsageFile = '202611260004_bugi_daily_usage.sql';
+  const before = new Map([...files].filter(([file]) => ![originalFile, repairFile, customFile, refreshFile, aliasFile, deactivationFile, bugiUsageFile].includes(file)));
   const withoutAliases = new Map([...files].filter(([file]) => file !== aliasFile));
   const full = new Map([...files, ...held]);
   async function isolated(run) {
@@ -83,8 +86,8 @@ test('session compatibility: historical ledgers, strict shapes, atomic failure a
       const history = (await db.query('SELECT to_jsonb(ls) row FROM live_sessions ls ORDER BY id')).rows;
       const result = await runMigrations(db, files);
       assert.equal(result.code, 0, result.logs.join('\n'));
-      assert.deepEqual(result.logs.filter(line => line.startsWith('[migrate] applied:')), ['[migrate] applied: ' + refreshFile, '[migrate] applied: ' + repairFile, '[migrate] applied: ' + aliasFile]);
-      assert.deepEqual((await db.query('SELECT * FROM schema_migrations WHERE filename<>ALL($1) ORDER BY filename', [[repairFile, refreshFile, aliasFile]])).rows, ledger);
+      assert.deepEqual(result.logs.filter(line => line.startsWith('[migrate] applied:')), [refreshFile, repairFile, aliasFile, deactivationFile, bugiUsageFile].map(file => '[migrate] applied: ' + file));
+      assert.deepEqual((await db.query('SELECT * FROM schema_migrations WHERE filename<>ALL($1) ORDER BY filename', [[repairFile, refreshFile, aliasFile, deactivationFile, bugiUsageFile]])).rows, ledger);
       assert.deepEqual((await db.query('SELECT to_jsonb(ls) row FROM live_sessions ls ORDER BY id')).rows, history);
       assert.equal((await db.query('SELECT zoom_meeting_id FROM live_sessions WHERE id=$1', [free])).rows[0].zoom_meeting_id, '444555666');
       assert.equal((await db.query('SELECT replay_url FROM live_sessions WHERE id=$1', [session])).rows[0].replay_url, 'private-existing-replay');

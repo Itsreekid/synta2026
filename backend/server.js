@@ -15,7 +15,7 @@ import cookieParser from "cookie-parser";
 import path from "path";
 import { fileURLToPath } from "url";
 import { createHomepageDelivery, setPublicAssetCache } from "./utils/homepageDelivery.js";
-import { sessionRenewal } from "./middleware/requireAuth.js";
+import { configureAccountChecks, sessionRenewal } from "./middleware/requireAuth.js";
 
 // Import routes
 import contentRoutes from "./routes/content.js";
@@ -148,6 +148,8 @@ app.use((req, res, next) => {
 
 // Renew expired access tokens from the rotating refresh token before any route checks auth.
 app.use(sessionRenewal(pool));
+// Every protected route also rejects deactivated accounts immediately, even with a valid token.
+configureAccountChecks(pool);
 
 // =====================================================
 // ROUTES

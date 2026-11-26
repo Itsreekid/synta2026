@@ -7,6 +7,7 @@ import { buildBugiLearningContext, extractBugiEvidence, getBugiLearningProfile, 
 import { authRateLimit } from "../middleware/authRateLimit.js";
 import { requireAdmin } from "../middleware/requireAdmin.js";
 import { authApiMiddleware } from "../middleware/requireAuth.js";
+import { createBugiQuota } from "../services/bugi-quota.js";
 
 const router = express.Router();
 
@@ -25,6 +26,27 @@ const answers = new Map();
 let quotaPauseUntil = 0;
 
 const limitBugi = authRateLimit(15, 5 * 60 * 1000, req => req.user.id);
+const bugiQuota = createBugiQuota(pool);
+
+export const BUGI_LIMIT_MESSAGES = Object.freeze({
+    free: "Vous avez atteint votre limite quotidienne. Profitez de plus de questions avec une offre incluant le tutorat Bugi.",
+    bugi: "Vous avez atteint votre limite quotidienne. Revenez demain pour continuer avec Bugi !",
+});
+
+const BUGI_GLOBAL_MESSAGES = Object.freeze({
+    minute: "Bugi reçoit beaucoup de questions en ce moment. Réessayez dans une minute.",
+    daily: "Bugi a atteint sa capacité pour aujourd’hui. Revenez demain !",
+});
+
+function sendGlobalLimit(res, error) {
+    res.set("Retry-After", String(error.retryAfter || 60));
+    return res.status(429).json({ success: false, code: "BUGI_GLOBAL_LIMIT", scope: error.scope, message: BUGI_GLOBAL_MESSAGES[error.scope] });
+}
+
+function sendDailyLimit(res, quota) {
+    res.set("Retry-After", String(Math.max(60, Math.ceil((Date.parse(quota.resetsAt) - Date.now()) / 1000))));
+    return res.status(429).json({ success: false, code: "BUGI_DAILY_LIMIT", quota, message: BUGI_LIMIT_MESSAGES[quota.plan] });
+}
 
 // ── Core Gemini request ──────────────────────────────────────────
 async function callGemini(model, context, apiKey) {
@@ -162,7 +184,19 @@ async function loadRecentExchange(userId) {
     return rows.reverse();
 }
 
+/** Remaining daily questions for the signed-in student (plan, limit, used, remaining, resetsAt). */
+router.get("/quota", authApiMiddleware, async (req, res) => {
+    res.set("Cache-Control", "no-store");
+    try {
+        return res.json({ success: true, quota: await bugiQuota.status(req.user.id) });
+    } catch (error) {
+        console.warn("[AI] Bugi quota unavailable.", error.code ?? error.name);
+        return res.status(503).json({ success: false });
+    }
+});
+
 router.post("/debug", authApiMiddleware, limitBugi, async (req, res) => {
+    let reservation = null;
     try {
         const { code = "", error = "", question = "" } = req.body ?? {};
         const valid = [[code, 12000], [error, 3000], [question, 500]]
@@ -181,6 +215,22 @@ router.post("/debug", authApiMiddleware, limitBugi, async (req, res) => {
         const account = await loadBugiAccount(userId);
         if (!account) return res.status(401).json({ success: false, message: BUGI_MESSAGES.session });
         const { revision, ...academic } = account;
+
+        // Gemini told us its free-tier quota is exhausted: answer kindly, reserve nothing.
+        if (Date.now() < quotaPauseUntil) {
+            res.set("Retry-After", String(Math.max(1, Math.ceil((quotaPauseUntil - Date.now()) / 1000))));
+            return res.status(429).json({ success: false, message: BUGI_MESSAGES.quota });
+        }
+
+        // Daily quota is checked and a slot reserved BEFORE Gemini is called.
+        try {
+            reservation = await bugiQuota.reserve(userId);
+        } catch (quotaError) {
+            if (quotaError.code === "BUGI_DAILY_LIMIT") return sendDailyLimit(res, quotaError.quota);
+            if (quotaError.code === "BUGI_GLOBAL_LIMIT") return sendGlobalLimit(res, quotaError);
+            throw quotaError;
+        }
+
         const student = { code, consoleOutput: error, question };
         const [recent, profile] = await Promise.allSettled([
             question.trim() ? loadRecentExchange(userId) : [],
@@ -219,8 +269,13 @@ router.post("/debug", authApiMiddleware, limitBugi, async (req, res) => {
             }
             return messages;
         });
-        return res.json({ success: true, explanation, saved });
+        // The answer is about to be delivered: count the question now (not before, so failures are free).
+        await reservation.commit().catch(commitError =>
+            console.error("[AI] Bugi usage not recorded:", commitError.code ?? commitError.name));
+        return res.json({ success: true, explanation, saved, quota: reservation.quota });
     } catch (error) {
+        // Failed answers never consume the student's daily quota.
+        await reservation?.release();
         if (error.status === 429) {
             const retryAfter = Math.max(1, Math.ceil((quotaPauseUntil - Date.now()) / 1000));
             res.set("Retry-After", String(retryAfter));

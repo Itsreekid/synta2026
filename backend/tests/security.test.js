@@ -18,6 +18,8 @@ import * as freeCampaigns from "../services/free-campaigns.js";
 import * as onboarding from "../services/learner-onboarding.js";
 import * as passwordReset from "../services/password-reset.js";
 import * as emailService from "../services/email.js";
+import * as accountStatus from "../services/account-status.js";
+import * as depositRequests from "../services/deposit-requests.js";
 
 const SECRET = "local-test-secret";
 const USER = "10000000-0000-0000-0000-000000000001";
@@ -55,7 +57,7 @@ async function loadRoute(name, doubles, env = {}) {
     "../utils/zoomClient.js": {createZoomMeeting:async()=>({}),deleteZoomMeeting:async()=>{},rescheduleZoomMeeting:async()=>{}},
     "../services/offer-upgrades.js": offerUpgrades,
     "../middleware/requireAdmin.js": { requireAdmin: admin },
-    "../middleware/requireAuth.js": { authApiMiddleware: guard, verifyToken: () => null },
+    "../middleware/requireAuth.js": { authApiMiddleware: guard, verifyToken: () => null, accountAllowed: async () => true },
     "../utils/returnPath.js": returnPath,
     "../services/sessions.js": {
       startSession: async (pool, res, user) => res.cookie("synta_access", jwt.sign({ id: user.id }, SECRET)),
@@ -64,6 +66,13 @@ async function loadRoute(name, doubles, env = {}) {
       revokeAllUserSessions: async () => true,
     },
     "../services/password-reset.js": passwordReset,
+    // Active by default; deactivation has dedicated tests in account-deposit-bugi.test.js.
+    "../services/account-status.js": {
+      ...accountStatus, isAccountActive: async () => true,
+      requireActiveAccount: () => (req, res, next) => next(), accountDeactivationReady: async () => false,
+    },
+    "../services/deposit-requests.js": depositRequests,
+    "../utils/r2Utils.js": { deleteFromR2: async () => {} },
     "../middleware/authRateLimit.js": { authRateLimit },
     "../services/recording-discovery.js": {createRecordingDiscovery:()=>({search:async()=>({files:[]}),invalidate:()=>{}})},
     "../services/recording-jobs.js": {restoreRecording:async()=>{},lockOccurrence:async()=>{},queueRecordingEvent:async()=>{},resolveOccurrence:async()=>{},requestRecordingDeletion:async()=>{},recordingLog:()=>{}},
@@ -252,11 +261,12 @@ test("legacy enrollment rejects all paid payment references and still permits fr
 
 test("user deposit requests cannot fabricate completed purchases or refund ledger entries", async () => {
   const queries = [];
+  const query = async (sql, args) => {
+    queries.push({ sql, args });
+    return { rows: [{ id: "deposit", pending: 0, same_reference: 0, recent_same_amount: 0 }], rowCount: 1 };
+  };
   const call = await loadRoute("user-api", {
-    "../config/db.js": { default: { query: async (sql, args) => {
-      queries.push({ sql, args });
-      return { rows: [{ id: "deposit" }] };
-    } } },
+    "../config/db.js": { default: { query, connect: async () => ({ query, release() {} }) } },
   });
   const result = await call("post /api/user/transactions", {
     user: { id: USER },
@@ -1054,7 +1064,9 @@ function refreshTokenDb(users = [SESSION_USER]) {
   const query = async (sql, params = []) => {
     const statement = sql.replace(/\s+/g, " ").trim();
     if (/^(BEGIN|COMMIT|ROLLBACK)$/.test(statement)) return { rows: [] };
-    if (statement.startsWith("SELECT id, email, name, role FROM users")) return { rows: users.filter(user => user.id === params[0]) };
+    if (statement.startsWith("SELECT id, email, name, role")) {
+      return { rows: users.filter(user => user.id === params[0]).map(user => ({ deactivated_at: null, ...user })) };
+    }
     if (statement.startsWith("DELETE FROM refresh_tokens")) return { rows: [] };
     if (statement.startsWith("INSERT INTO refresh_tokens")) {
       const [userId, familyId, tokenHash, expiresAt, familyExpiresAt] = params;

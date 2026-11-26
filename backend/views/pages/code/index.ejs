@@ -473,6 +473,9 @@
             overflow-wrap: anywhere;
         }
         .ai-attachment[hidden] { display: none; }
+        .ai-quota { flex-basis: 100%; margin: 0; padding: 0 6px; color: #395569; font-size: 12px; line-height: 1.5; text-align: center; }
+        .ai-quota[hidden] { display: none; }
+        .ai-quota.is-empty { color: #9a3412; }
         .ai-code-actions { display: flex; gap: 6px; justify-content: flex-end; margin: 0 0 6px; }
         .ai-code-actions .ai-run { background: #17664e; color: #fff; }
         .ai-code-actions .ai-run:hover { background: #11533f; }
@@ -1412,6 +1415,7 @@
             <button type="button" class="ai-tool" id="ai-attach-editor" aria-label="Joindre le code de l’éditeur" title="Joindre le code de l’éditeur"><i class="fas fa-code" aria-hidden="true"></i></button>
             <input type="text" id="ai-user-input" dir="auto" aria-label="Message à Bugi" placeholder="Écris à Bugi…" maxlength="500" autocomplete="off">
             <button type="submit" class="ai-send-btn" id="ai-send-btn" aria-label="Envoyer" title="Envoyer"><i class="fas fa-paper-plane" aria-hidden="true"></i></button>
+            <p class="ai-quota" id="ai-quota" role="status" aria-live="polite" hidden></p>
         </form>
     </section>
 </div>
@@ -2423,6 +2427,7 @@ function toggleAiDrawer(forceOpen = null) {
         document.getElementById('ai-close').focus();
         const history = document.getElementById('ai-chat-history');
         history.scrollTop = history.scrollHeight;
+        loadBugiQuota();
         if (!bugiHistoryLoaded) return loadBugiHistory();
     } else {
         launcher.setAttribute('aria-label', 'Ouvrir la conversation avec Bugi');
@@ -2495,6 +2500,39 @@ bugiFileInput.addEventListener('change', async () => {
     }
 });
 
+// ----------------------------------------------------------------
+// DAILY QUESTION QUOTA (enforced by the server; this only displays it)
+// ----------------------------------------------------------------
+const BUGI_LIMIT_COPY = {
+    free: 'Vous avez atteint votre limite quotidienne. Profitez de plus de questions avec une offre incluant le tutorat Bugi.',
+    bugi: 'Vous avez atteint votre limite quotidienne. Revenez demain pour continuer avec Bugi !',
+};
+let bugiQuota = null;
+
+function renderBugiQuota(quota) {
+    const line = document.getElementById('ai-quota');
+    if (!line || !quota || !Number.isFinite(quota.remaining)) return;
+    bugiQuota = quota;
+    const empty = quota.remaining <= 0;
+    line.textContent = empty
+        ? (BUGI_LIMIT_COPY[quota.plan] || BUGI_LIMIT_COPY.free)
+        : quota.remaining + (quota.remaining === 1 ? ' question restante' : ' questions restantes') + ' aujourd’hui';
+    line.classList.toggle('is-empty', empty);
+    line.hidden = false;
+    const input = document.getElementById('ai-user-input');
+    input.disabled = empty;
+    input.placeholder = empty ? 'Limite quotidienne atteinte' : 'Écris à Bugi…';
+    if (!bugiRequest) document.getElementById('ai-send-btn').disabled = empty;
+}
+
+async function loadBugiQuota() {
+    try {
+        const response = await fetch('/api/ai/quota', { cache: 'no-store' });
+        if (!response.ok) return;
+        renderBugiQuota((await response.json())?.quota);
+    } catch { /* The quota line is optional; the server still enforces the limit. */ }
+}
+
 function sendBugiMessage() {
     const input = document.getElementById('ai-user-input');
     const question = input.value.trim();
@@ -2537,8 +2575,9 @@ async function requestBugi(message, payload, onAnswer) {
             body: JSON.stringify(payload),
             signal: controller.signal
         });
-        const data = response.ok ? await response.json().catch(() => null) : null;
+        const data = response.ok || response.status === 429 ? await response.json().catch(() => null) : null;
         if (bugiRequest !== controller) return;
+        if (data?.quota) renderBugiQuota(data.quota);
 
         if (typeof data?.explanation === 'string' && data.explanation.trim()) {
             showBugiAnswer(reply, data.explanation);
@@ -2549,6 +2588,10 @@ async function requestBugi(message, payload, onAnswer) {
             onAnswer?.();
         } else if (response.status === 401) {
             reply.textContent = bugiCopy.session;
+        } else if (response.status === 429 && data?.code === 'BUGI_DAILY_LIMIT') {
+            reply.textContent = BUGI_LIMIT_COPY[data.quota?.plan] || BUGI_LIMIT_COPY.free;
+        } else if (response.status === 429 && data?.code === 'BUGI_GLOBAL_LIMIT' && typeof data.message === 'string') {
+            reply.textContent = data.message;
         } else if (response.status === 429) {
             reply.textContent = bugiCopy.quota;
         } else {
@@ -2561,7 +2604,7 @@ async function requestBugi(message, payload, onAnswer) {
         typing.remove();
         if (bugiRequest === controller) {
             bugiRequest = null;
-            send.disabled = false;
+            send.disabled = Boolean(bugiQuota && bugiQuota.remaining <= 0);
         }
     }
 

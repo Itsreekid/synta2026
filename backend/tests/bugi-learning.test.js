@@ -109,7 +109,12 @@ async function loadRoutes(db, fetch) {
         "../services/bugi-provider.js": provider,
         "../middleware/authRateLimit.js": { authRateLimit: () => (_req, _res, next) => next() },
         "../middleware/requireAuth.js": { authApiMiddleware: auth },
-        "../middleware/requireAdmin.js": { requireAdmin: auth }
+        "../middleware/requireAdmin.js": { requireAdmin: auth },
+        // Daily quota has its own tests (account-deposit-bugi.test.js); here it always allows.
+        "../services/bugi-quota.js": { createBugiQuota: () => ({
+            status: async () => ({ plan: "free", limit: 3, used: 0, remaining: 3 }),
+            reserve: async () => ({ quota: { plan: "free", limit: 3, used: 1, remaining: 2 }, commit: async () => {}, release: async () => {} }),
+        }) }
     };
     await source.link(specifier => {
         const exports = dependencies[specifier];

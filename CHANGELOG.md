@@ -3,6 +3,20 @@
 Retained unlimited per-class campaigns and existing admin/quiz/Zoom flow. Added authoritative Google onboarding via shared profile saver, read-only targeting, complete open-profile validation, held immutable slug aliases, temporary canonical redirects and rename-safe guest drafts. Focused 68 passed; full regression 150 passed /0 failed /14 skips. No alias/funnel promotion, push or production change. See FREE_CAMPAIGN_FLEXIBILITY_IMPLEMENTATION.md.
 
 
+### 2026-11-26 — Security batch finalization
+
+- Migrations 202611260003 and 202611260004 promoted (owner approval); not run in production.
+- Bugi: 15 questions/day with a Bugi offer (3 free), shared platform budget with priority for Bugi-offer students, graceful Gemini quota handling.
+- Deactivated students lose access to every authenticated page and API immediately.
+- New payment receipts get a random file name and only the storage key is saved (no public link is generated); students no longer receive receipt locations. Not private by itself: if public access is enabled on the R2 bucket, a receipt is still reachable by anyone who obtains its address. Bucket and folders unchanged; stronger receipt privacy is a follow-up.
+
+### 2026-11-26 — Financial-history protection, deposit limits, Bugi daily quota
+
+- Admins can no longer hard-delete a student with a balance, debt or payment history; a « Désactiver le compte » option (held migration 202611260003) blocks sign-in and spending while keeping all records.
+- Deposit requests: max 1500 DT, two decimals, max 5 pending per student, validated method/reference/description, duplicates refused; parallel submissions cannot bypass limits. Admin confirmation shows the amount to credit.
+- Bugi: 3 questions/day, 30 with an active offer including « Tutorat Bugi »; enforced before Gemini, failed answers free, Tunis-midnight reset; remaining count shown in the drawer (persistence: held migration 202611260004).
+- Investigated, unchanged: receipt storage URLs and the disabled Content-Security-Policy (report to owner).
+
 ### 2026-11-26 — Password reset by email (BUG-006)
 
 - Students can reset a forgotten password from « Mot de passe oublié ? »: branded email with a button and link (valid 1 hour, single use), new-password page, and a "password changed" security notice.

@@ -4,9 +4,23 @@
 // =====================================================
 import jwt from "jsonwebtoken";
 import { loginUrlFor } from "../utils/returnPath.js";
-import { applyRotation, rotateRefreshToken } from "../services/sessions.js";
+import { applyRotation, clearSessionCookies, rotateRefreshToken } from "../services/sessions.js";
+import { DEACTIVATED_MESSAGE, isAccountActive } from "../services/account-status.js";
 
 export { clearSessionCookies } from "../services/sessions.js";
+
+// A signed access token stays valid for up to an hour, so every protected request also
+// checks that the account is still active (one primary-key lookup). server.js wires the
+// shared pool in with configureAccountChecks(); without it (unit tests) no check runs.
+let accountDb = null;
+export function configureAccountChecks(db) {
+  accountDb = db;
+}
+
+/** true = active, false = deactivated. Throws when the database cannot answer. */
+export async function accountAllowed(userId) {
+  return accountDb ? isAccountActive(accountDb, userId) : true;
+}
 
 const JWT_SECRET = process.env.JWT_SECRET;
 const RENEWAL_FAILURE_LIMIT = 30;
@@ -91,6 +105,15 @@ export async function requireAuth(req, res, next) {
     return res.redirect(loginUrlFor(returnTo, true));
   }
 
+  try {
+    if (!(await accountAllowed(payload.id))) {
+      clearSessionCookies(res);
+      return res.redirect("/login");
+    }
+  } catch (error) {
+    return next(error);
+  }
+
   req.user = payload;
   req.accessToken = accessToken;
   // Renewable sessions need no client-side expiry warning.
@@ -112,6 +135,16 @@ export async function authApiMiddleware(req, res, next) {
   if (!payload) {
     res.clearCookie("synta_access", { path: "/" });
     return res.status(401).json({ error: "Session expired. Please log in again." });
+  }
+
+  try {
+    if (!(await accountAllowed(payload.id))) {
+      clearSessionCookies(res);
+      return res.status(403).json({ error: DEACTIVATED_MESSAGE, deactivated: true });
+    }
+  } catch (error) {
+    console.error("[auth] Account status check failed:", error.code || error.name);
+    return res.status(503).json({ error: "Service momentanément indisponible. Réessaie." });
   }
 
   req.user = payload;
