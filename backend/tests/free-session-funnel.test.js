@@ -388,6 +388,49 @@ test('free funnel on disposable PostgreSQL: guest proof, ownership, occurrences 
       });
     });
 
+    if(process.env.TIMED_QA_CHROME)await t.test('friendly question editor preserves object/string answers and ordering without JSON at mobile and desktop widths',async()=>{
+      const response=await call('/api/session/admin/campaigns',adminJar,{slug:'question-editor',title:'Éditeur',subject:'Informatique',target_class:'3eme',target_branch:'informatique',scheduled_at:null,duration_minutes:60,is_active:true,is_default:false});
+      assert.equal(response.status,201);const editorCampaign=(await response.json()).campaign;
+      const add=async body=>{const res=await call('/api/session/admin/questions',adminJar,{campaignId:editorCampaign.id,text:'Question test',order_index:0,...body});assert.equal(res.status,201);return(await res.json()).question;};
+      const mcq=await add({type:'multiple_choice',options:[{id:'a',label:'6'},{id:'b',label:'10'}],correct_answer:'b'});
+      const legacy=await add({type:'multiple_choice',options:['Oui','Non'],correct_answer:'Non'});
+      const order=await add({type:'drag_drop',options:[{id:'one',label:'Écrire'},{id:'two',label:'Exécuter'}],correct_answer:['two','one']});
+      await withTimedOfferBrowser(process.env.TIMED_QA_CHROME,origin,async({open,evaluate,until,pressKey,errors})=>{
+        const edit=async id=>{await evaluate('editQuestion('+JSON.stringify(id)+')');await until(()=>evaluate("document.querySelector('#questionModalOverlay').classList.contains('active')"),'question dialog');};
+        const save=async()=>{await evaluate('saveQuestion()');await until(()=>evaluate("!document.querySelector('#questionModalOverlay').classList.contains('active')"),'saved question');await until(()=>evaluate("!document.querySelector('#btnSaveQuestion').disabled"),'save settled');};
+        for(const width of [320,390,1440]){
+          await open('/admin/pages/free-session.html',token(admin),width);await until(()=>evaluate("typeof campaigns!=='undefined'&&campaigns.length>0"),'campaign editor');
+          await evaluate('selectCampaign('+JSON.stringify(editorCampaign.id)+')');await until(()=>evaluate('questions.some(q=>q.id==='+JSON.stringify(mcq.id)+')'),'questions loaded');await edit(mcq.id);
+          assert.equal(await evaluate("document.querySelector('#q-correct')"),null);
+          assert.equal(await evaluate("document.querySelector('#q-options textarea')"),null);
+          assert.deepEqual(await evaluate("[...document.querySelectorAll('#q-options input[type=text]')].map(i=>i.value)"),['6','10']);
+          assert.equal(await evaluate("document.querySelectorAll('#q-options input[type=radio]')[1].checked"),true);
+          assert.equal(await evaluate('document.documentElement.scrollWidth>innerWidth+1'),false);
+          await pressKey('Escape',27);assert.equal(await evaluate("document.querySelector('#questionModalOverlay').classList.contains('active')"),false);
+        }
+        await edit(mcq.id);await save();
+        let stored=(await(await call('/api/session/admin/questions?campaignId='+editorCampaign.id,adminJar)).json()).questions.find(q=>q.id===mcq.id);
+        assert.deepEqual(stored.options,mcq.options);assert.equal(stored.correct_answer,'b','no-op preserves existing IDs and correct answer');
+        await edit(mcq.id);await evaluate("document.querySelector('#q-options input[type=text]').value='ستة';document.querySelector('#q-options input[type=text]').dispatchEvent(new Event('input'));document.querySelector('#q-options input[type=radio]').click()");await save();
+        stored=(await(await call('/api/session/admin/questions?campaignId='+editorCampaign.id,adminJar)).json()).questions.find(q=>q.id===mcq.id);
+        assert.deepEqual(stored.options,[{id:'a',label:'ستة'},{id:'b',label:'10'}]);assert.equal(stored.correct_answer,'a');
+        await edit(legacy.id);await save();
+        stored=(await(await call('/api/session/admin/questions?campaignId='+editorCampaign.id,adminJar)).json()).questions.find(q=>q.id===legacy.id);
+        assert.deepEqual(stored.options,['Oui','Non']);assert.equal(stored.correct_answer,'Non');
+        await edit(order.id);assert.deepEqual(await evaluate("[...document.querySelectorAll('#q-options input[type=text]')].map(i=>i.value)"),['Exécuter','Écrire']);
+        await evaluate("document.querySelector('#q-options button[aria-label=\"Descendre l’étape 1\"]').click()");await save();
+        stored=(await(await call('/api/session/admin/questions?campaignId='+editorCampaign.id,adminJar)).json()).questions.find(q=>q.id===order.id);
+        assert.deepEqual(stored.options,order.options);assert.deepEqual(stored.correct_answer,['one','two']);
+        await evaluate('openModal()');await evaluate("document.querySelector('#q-text').value='Nouvelle question';saveQuestion()");
+        assert.match(await evaluate("document.querySelector('#q-editor-error').textContent"),/Complète/);
+        await evaluate("document.querySelectorAll('#q-options input[type=text]').forEach((input,i)=>{input.value='Choix '+i;input.dispatchEvent(new Event('input'))});saveQuestion()");
+        assert.match(await evaluate("document.querySelector('#q-editor-error').textContent"),/Coche/);
+        await evaluate("document.querySelector('#q-options input[type=radio]').click();addQuestionOption()");
+        await evaluate("document.querySelectorAll('#q-options input[type=text]')[2].value='Troisième';document.querySelectorAll('#q-options input[type=text]')[2].dispatchEvent(new Event('input'))");await save();
+        assert.deepEqual(errors,[]);
+      });
+    });
+
     if (process.env.TIMED_QA_CHROME) await t.test('empty campaign shows preparation instead of an endless loading cursor', async () => {
       const response=await call('/api/session/admin/campaigns',adminJar,{slug:'empty-challenge',title:'Défi en préparation',subject:'Informatique',target_class:'3eme',target_branch:'informatique',scheduled_at:null,duration_minutes:90,is_active:true,is_default:false});
       assert.equal(response.status,201,await response.clone().text());

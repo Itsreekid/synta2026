@@ -75,6 +75,18 @@
         .students-table th { padding: 0.75rem 0.5rem; color: #475569; border-bottom: 2px solid #e2e8f0; font-size: 0.85rem; }
         .students-table td { padding: 0.75rem 0.5rem; border-bottom: 1px solid #f1f5f9; font-size: 0.9rem; vertical-align: top; }
         .muted { color: #64748b; font-size: 0.8rem; }
+        #questionModalOverlay { padding: 12px; box-sizing: border-box; }
+        #questionModalOverlay .modal { width: 100%; max-width: 640px; box-sizing: border-box; padding: clamp(18px, 4vw, 30px); }
+        .question-choice { display: grid; grid-template-columns: minmax(0,1fr) auto; gap: 10px; padding: 12px; margin: 10px 0; border: 1px solid #dbe5ed; border-radius: 12px; background: #f8fafc; }
+        .question-choice.is-correct { border-color: #10b981; background: #f0fdf7; }
+        .question-choice label { display: block; font-weight: 600; font-size: .85rem; }
+        .question-choice input[type=text] { width: 100%; min-width: 0; padding: 10px; box-sizing: border-box; border: 1px solid #cbd5e1; border-radius: 8px; font: inherit; }
+        .question-choice .correct-choice { display: flex; gap: 8px; align-items: center; margin-top: 9px; color: #173d54; }
+        .correct-choice input { width: 18px; height: 18px; accent-color: #10b981; }
+        .choice-tools { display: flex; flex-direction: column; gap: 5px; }
+        .choice-tools button { width: 36px; min-height: 36px; padding: 4px; border: 1px solid #dbe5ed; border-radius: 8px; background: white; cursor: pointer; color: #173d54; }
+        .choice-tools button:disabled { opacity: .35; cursor: default; }
+        .choice-tools .remove-choice { color: #dc2626; }
     </style>
 </head>
 <body class="admin-page admin-free-session">
@@ -222,7 +234,7 @@
 
     <!-- Question Modal -->
     <div class="modal-overlay" id="questionModalOverlay">
-        <div class="modal">
+        <div class="modal" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
             <h2 class="card-title mb-4" id="modalTitle">Nouvelle Question</h2>
             <input type="hidden" id="q-id">
             <div class="input-group">
@@ -237,12 +249,11 @@
                 <textarea id="q-text" rows="3" placeholder="Ex: Quel est le résultat de..."></textarea>
             </div>
             <div class="input-group">
-                <label>Options (Format JSON: [{"id":"a", "label":"Option 1"}, ...])</label>
-                <textarea id="q-options" rows="4"></textarea>
-            </div>
-            <div class="input-group">
-                <label>Réponse Correcte <span id="q-help" style="font-weight:normal; color:#64748b;">(ex: "b")</span></label>
-                <input type="text" id="q-correct">
+                <label id="q-options-label">Choix de réponse</label>
+                <p id="q-help" class="section-hint">Écris les choix, puis coche la bonne réponse.</p>
+                <div id="q-options" role="group" aria-labelledby="q-options-label" aria-describedby="q-help"></div>
+                <button class="btn btn-outline" type="button" id="q-add-option" onclick="addQuestionOption()">+ Ajouter un choix</button>
+                <p id="q-editor-error" role="alert" class="form-error"></p>
             </div>
             <div class="input-group">
                 <label>Ordre (Position)</label>
@@ -265,6 +276,63 @@
         let selectedId = null;
         let questions = [];
         let studentsData = { participants: [], pending: [] };
+        let questionOptionDraft = [], questionCorrectChoice = null;
+        let questionReturnFocus = null;
+
+        function loadQuestionOptions(q) {
+            questionOptionDraft = (q.options || []).map((value, position) => ({ value, position,
+                label: String(value && typeof value === 'object' ? value.label : value) }));
+            const id = item => item.value && typeof item.value === 'object' ? item.value.id : item.value;
+            questionCorrectChoice = questionOptionDraft.find(item => String(id(item)) === String(q.correct_answer)) || null;
+            if (q.type === 'drag_drop' && Array.isArray(q.correct_answer)) {
+                const order = q.correct_answer.map(String);
+                questionOptionDraft.sort((a,b) => {
+                    const rank = item => { const index = order.indexOf(String(id(item))); return index < 0 ? order.length + item.position : index; };
+                    return rank(a) - rank(b);
+                });
+            }
+            renderQuestionOptions();
+        }
+
+        function addQuestionOption() {
+            if (questionOptionDraft.length >= 20) return;
+            questionOptionDraft.push({ value: { id: 'choice-' + crypto.randomUUID(), label: '' }, label: '',
+                position: Math.max(-1,...questionOptionDraft.map(item=>item.position)) + 1 });
+            renderQuestionOptions();
+            document.querySelector('#q-options .question-choice:last-child input[type=text]')?.focus();
+        }
+
+        function renderQuestionOptions() {
+            const ordering = document.getElementById('q-type').value === 'drag_drop';
+            const mount = document.getElementById('q-options'); mount.replaceChildren();
+            document.getElementById('q-options-label').textContent = ordering ? 'Éléments à ordonner' : 'Choix de réponse';
+            document.getElementById('q-help').textContent = ordering ? 'Écris les éléments dans le bon ordre. Utilise les flèches pour les déplacer : cet ordre sera la correction.' : 'Écris les choix, puis coche la bonne réponse.';
+            document.getElementById('q-add-option').disabled = questionOptionDraft.length >= 20;
+            questionOptionDraft.forEach((item,index) => {
+                const row = document.createElement('div'); row.className = 'question-choice' + (!ordering && item === questionCorrectChoice ? ' is-correct' : '');
+                const content = document.createElement('div'), label = document.createElement('label'), input = document.createElement('input');
+                label.textContent = (ordering ? 'Étape ' : 'Choix ') + (index + 1); input.type = 'text'; input.dir = 'auto';
+                input.id = 'question-option-' + index; label.htmlFor = input.id; input.value = item.label; input.placeholder = 'Écris ta réponse…';
+                input.oninput = () => { item.label = input.value; };
+                content.append(label,input);
+                if (!ordering) {
+                    const correct = document.createElement('label'), radio = document.createElement('input'); correct.className = 'correct-choice';
+                    radio.type = 'radio'; radio.name = 'question-correct'; radio.checked = item === questionCorrectChoice;
+                    radio.onchange = () => { questionCorrectChoice = item; mount.querySelectorAll('.question-choice').forEach((node,i)=>node.classList.toggle('is-correct',questionOptionDraft[i]===item)); };
+                    correct.append(radio,document.createTextNode('Bonne réponse')); content.append(correct);
+                }
+                const tools = document.createElement('div'); tools.className = 'choice-tools';
+                if (ordering) for (const [delta,symbol,name] of [[-1,'↑','Monter'],[1,'↓','Descendre']]) {
+                    const move = document.createElement('button'); move.type = 'button'; move.textContent = symbol;
+                    move.setAttribute('aria-label',name + ' l’étape ' + (index+1)); move.disabled = index+delta<0 || index+delta>=questionOptionDraft.length;
+                    move.onclick = () => { questionOptionDraft.splice(index,1); questionOptionDraft.splice(index+delta,0,item); renderQuestionOptions(); document.getElementById('question-option-'+(index+delta)).focus(); }; tools.append(move);
+                }
+                const remove = document.createElement('button'); remove.type = 'button'; remove.className = 'remove-choice'; remove.textContent = '×';
+                remove.setAttribute('aria-label','Supprimer le choix '+(index+1)); remove.disabled = questionOptionDraft.length <= 1;
+                remove.onclick = () => { questionOptionDraft.splice(index,1); if (questionCorrectChoice===item) questionCorrectChoice=null; renderQuestionOptions(); document.getElementById('q-add-option').focus(); }; tools.append(remove);
+                row.append(content,tools); mount.append(row);
+            });
+        }
 
         function showToast(message, isError = false) {
             const toast = document.getElementById('toast');
@@ -491,7 +559,7 @@
                     <div style="flex: 1; padding-right: 1rem;">
                         <span class="question-type ${q.type === 'drag_drop' ? 'drag_drop' : 'multiple_choice'}">${q.type === 'multiple_choice' ? 'QCM' : 'Drag & Drop'} (Ordre: ${adminText(q.order_index)})</span>
                         <h3 style="margin: 0.25rem 0; font-size: 1rem;">${adminText(q.text)}</h3>
-                        <p style="margin:0; font-size: 0.8rem; color:#64748b;">Réponse: ${adminText(JSON.stringify(q.correct_answer))}</p>
+                        <p style="margin:0; font-size: 0.8rem; color:#64748b;">Réponse: ${adminText(questionAnswerText(q))}</p>
                     </div>
                     <div class="question-actions">
                         <button class="btn ${q.is_active ? 'btn-outline' : 'btn-success'}" data-toggle-question title="${q.is_active ? 'Masquer' : 'Afficher'}"><i class="fas fa-eye${q.is_active ? '-slash' : ''}"></i></button>
@@ -507,17 +575,26 @@
             });
         }
 
+        function questionAnswerText(q) {
+            const label=id=>{
+                const option=(q.options||[]).find(value=>String(value&&typeof value==='object'?value.id:value)===String(id));
+                return option&&typeof option==='object'?option.label:option??id;
+            };
+            return Array.isArray(q.correct_answer)?q.correct_answer.map(label).join(' → '):label(q.correct_answer);
+        }
+
         function openModal() {
             if (!selectedId) return;
             document.getElementById('q-id').value = '';
             document.getElementById('q-text').value = '';
-            document.getElementById('q-options').value = '[\n  {"id": "a", "label": "Option 1"},\n  {"id": "b", "label": "Option 2"}\n]';
-            document.getElementById('q-correct').value = '"a"';
             document.getElementById('q-order').value = String(questions.length + 1);
             document.getElementById('q-type').value = 'multiple_choice';
             document.getElementById('modalTitle').textContent = 'Nouvelle Question';
-            toggleTypeHelp();
+            loadQuestionOptions({options:[{id:'a',label:''},{id:'b',label:''}],correct_answer:null,type:'multiple_choice'});
+            document.getElementById('q-editor-error').style.display='none';
+            questionReturnFocus=document.activeElement;
             document.getElementById('questionModalOverlay').classList.add('active');
+            document.getElementById('q-text').focus();
         }
 
         function editQuestion(id) {
@@ -525,35 +602,50 @@
             if (!q) return;
             document.getElementById('q-id').value = q.id;
             document.getElementById('q-text').value = q.text;
-            document.getElementById('q-options').value = JSON.stringify(q.options, null, 2);
-            document.getElementById('q-correct').value = JSON.stringify(q.correct_answer);
             document.getElementById('q-order').value = q.order_index;
             document.getElementById('q-type').value = q.type;
             document.getElementById('modalTitle').textContent = 'Modifier Question';
-            toggleTypeHelp();
+            loadQuestionOptions(q);
+            document.getElementById('q-editor-error').style.display='none';
+            questionReturnFocus=document.activeElement;
             document.getElementById('questionModalOverlay').classList.add('active');
+            document.getElementById('q-text').focus();
         }
 
         function closeModal() {
             document.getElementById('questionModalOverlay').classList.remove('active');
+            questionReturnFocus?.focus();
         }
 
+        document.getElementById('questionModalOverlay').addEventListener('keydown',event=>{
+            if(event.key==='Escape'){event.preventDefault();closeModal();}
+            if(event.key==='Tab'){
+                const fields=[...event.currentTarget.querySelectorAll('input:not([type=hidden]),textarea,select,button')].filter(node=>!node.disabled);
+                const first=fields[0],last=fields.at(-1);
+                if(event.shiftKey&&document.activeElement===first){event.preventDefault();last?.focus();}
+                else if(!event.shiftKey&&document.activeElement===last){event.preventDefault();first?.focus();}
+            }
+        });
+
         function toggleTypeHelp() {
-            const type = document.getElementById('q-type').value;
-            document.getElementById('q-help').textContent = type === 'multiple_choice' ? '(ex: "a")' : '(ex: ["2", "1", "3"])';
+            renderQuestionOptions();
         }
 
         async function saveQuestion() {
             const btn = document.getElementById('btnSaveQuestion');
             const id = document.getElementById('q-id').value;
-            let options, correct_answer;
-            try {
-                options = JSON.parse(document.getElementById('q-options').value);
-                correct_answer = JSON.parse(document.getElementById('q-correct').value);
-            } catch {
-                showToast('Format JSON invalide dans Options ou Réponse.', true);
-                return;
-            }
+            if (btn.disabled) return;
+            const ordering=document.getElementById('q-type').value==='drag_drop';
+            const error=document.getElementById('q-editor-error');
+            let message='';
+            if(!document.getElementById('q-text').value.trim())message='Écris le texte de la question.';
+            else if(!questionOptionDraft.length||questionOptionDraft.some(item=>!item.label.trim()))message='Complète tous les choix de réponse.';
+            else if(!ordering&&!questionCorrectChoice)message='Coche la bonne réponse avant d’enregistrer.';
+            error.textContent=message;error.style.display=message?'block':'none';if(message)return;
+            const serialized=new Map(questionOptionDraft.map(item=>[item,item.value&&typeof item.value==='object'?{...item.value,label:item.label}:String(item.value)===item.label?item.value:item.label]));
+            const options=[...questionOptionDraft].sort((a,b)=>a.position-b.position).map(item=>serialized.get(item));
+            const answer=item=>{const value=serialized.get(item);return value&&typeof value==='object'?value.id:value;};
+            const correct_answer=ordering?questionOptionDraft.map(answer):answer(questionCorrectChoice);
             const payload = {
                 text: document.getElementById('q-text').value,
                 type: document.getElementById('q-type').value,
@@ -563,6 +655,7 @@
             };
             if (id) payload.id = id; else payload.campaignId = selectedId;
             btn.textContent = 'Enregistrement...';
+            btn.disabled=true;
             try {
                 await api('/api/session/admin/questions', { method: id ? 'PATCH' : 'POST', body: JSON.stringify(payload) });
                 closeModal();
@@ -570,6 +663,7 @@
                 await refreshCounts();
             } catch (e) { showToast(e.message, true); }
             btn.textContent = 'Enregistrer';
+            btn.disabled=false;
         }
 
         async function deleteQuestion(id) {
