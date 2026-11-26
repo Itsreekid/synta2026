@@ -1372,14 +1372,10 @@ function setupLessonDetailsTabs(root) {
         const wasCoding = Boolean(view?.classList.contains('is-coding'));
         if (coding) ensureLessonCodeFrame(root);
         // Desktop: opening Code Pratique switches to cinema mode (chapters hidden) so video and editor share the
-        // width; leaving it restores the previous mode. This automatic switch is not saved as a preference.
+        // width. It stays on (also for the next lessons) until the student clicks "Quitter le mode cinéma".
         const theater = root.lessonTheater;
-        if (theater && coding && !wasCoding && matchMedia('(min-width: 1024px)').matches) {
-            root.lessonTheaterBefore = theater.isOn();
-            theater.set(true);
-        } else if (theater && !coding && wasCoding && root.lessonTheaterBefore !== null) {
-            theater.set(root.lessonTheaterBefore);
-            root.lessonTheaterBefore = null;
+        if (theater && coding && !wasCoding && !theater.isOn() && matchMedia('(min-width: 1024px)').matches) {
+            theater.choose(true);
         }
         view?.classList.toggle('is-coding', coding);
         view?.dispatchEvent(new CustomEvent('lesson-layout-change'));
@@ -1407,7 +1403,6 @@ function setupTheaterToggle(root) {
     const button = root.querySelector('[data-theater-toggle]');
     const layout = document.querySelector('.course-layout');
     root.lessonTheater = null;
-    root.lessonTheaterBefore = null;
     if (!button || !layout) return;
     const apply = on => {
         layout.classList.toggle('is-theater', on);
@@ -1421,15 +1416,13 @@ function setupTheaterToggle(root) {
     let stored = false;
     try { stored = localStorage.getItem(THEATER_KEY) === '1'; } catch { /* storage optional */ }
     apply(stored);
-    // Used by the Code Pratique tab to switch cinema mode on for coding without saving it as a preference.
-    root.lessonTheater = { isOn: () => layout.classList.contains('is-theater'), set: apply };
-    root.lessonTheaterBefore = null;
-    button.addEventListener('click', () => {
-        const on = !layout.classList.contains('is-theater');
+    const choose = on => {
         apply(on);
-        root.lessonTheaterBefore = null; // the student chose: leaving Code Pratique keeps this choice
         try { localStorage.setItem(THEATER_KEY, on ? '1' : '0'); } catch { /* storage optional */ }
-    });
+    };
+    // Used by the Code Pratique tab to turn cinema mode on; it is saved like a click, so only the button turns it off.
+    root.lessonTheater = { isOn: () => layout.classList.contains('is-theater'), choose };
+    button.addEventListener('click', () => choose(!layout.classList.contains('is-theater')));
 }
 
 /*
@@ -1466,13 +1459,16 @@ function fitLessonLayout(courseMain) {
         const statusH = status && !status.hidden && status.offsetHeight ? status.offsetHeight + gap : 0;
         const fixed = header.offsetHeight + nav.offsetHeight + statusH;
         const colW = view.clientWidth;
-        const detailsMin = layout.classList.contains('is-theater') ? LESSON_DETAILS_MIN_THEATER : LESSON_DETAILS_MIN;
+        const theater = layout.classList.contains('is-theater');
+        const detailsMin = theater ? LESSON_DETAILS_MIN_THEATER : LESSON_DETAILS_MIN;
 
         const stackedH = Math.max(220, avail - fixed - detailsMin - 3 * gap);
         const stackedVideoW = Math.min(colW, stackedH * 16 / 9);
         // Code Pratique uses the same card as Aperçu and Ressources: switching tabs never resizes the video.
         const sideW = Math.floor(Math.min(colW - LESSON_SIDE_DETAILS_MIN - gap, (avail - fixed - 2 * gap) * 16 / 9));
-        const side = sideW >= 560 && sideW > stackedVideoW * 1.1;
+        // Normal mode already shares the width with the chapters, so the details sit under the video there;
+        // only cinema mode has room for them beside it.
+        const side = theater && sideW >= 560 && sideW > stackedVideoW * 1.1;
 
         // The frame stays a true 16:9 box; its size is set through its width only.
         view.classList.toggle('is-side-details', side);

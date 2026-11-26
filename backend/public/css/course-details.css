@@ -1671,7 +1671,8 @@ button.lesson-icon.quiz:focus-visible { outline: 2px solid #6d28d9; outline-offs
     .course-details-page.is-lesson-player .lesson-player-view { height: 100%; gap: .75rem; }
     .lesson-player-view .course-player-frame { flex: none; width: var(--frame-w, min(100%, calc((100dvh - 330px) * 16 / 9))); }
     /* Précédent / Suivant line up with the edges of the video. */
-    .lesson-player-view:not(.is-side-details) > .lesson-nav { width: var(--frame-w, 100%); max-width: 100%; margin-inline: auto; box-sizing: border-box; }
+    .lesson-player-view:not(.is-side-details) > .lesson-nav,
+    .lesson-player-view:not(.is-side-details) > .lesson-details-card { width: var(--frame-w, 100%); max-width: 100%; margin-inline: auto; box-sizing: border-box; }
     .lesson-player-view .lesson-details-card {
         flex: 1 1 auto; min-height: 140px; display: flex; flex-direction: column; gap: .6rem; overflow: hidden;
         padding-top: .35rem; padding-bottom: .9rem;
