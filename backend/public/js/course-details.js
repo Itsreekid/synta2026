@@ -126,23 +126,49 @@ function openInLessonPdfPanel(resource) {
     return true;
 }
 
-/** Course page URL for the current course, with or without the open lesson. */
-function courseDetailsUrl(lessonId = null) {
+/** Course page URL for the current course, with the open lesson (?lesson=) or replay (?replay=&part=), or neither. */
+function courseDetailsUrl(lessonId = null, replay = null) {
     const params = new URLSearchParams(window.location.search);
     if (currentCourse?.id) params.set('id', currentCourse.id);
     if (lessonId) params.set('lesson', lessonId);
     else params.delete('lesson');
+    if (replay?.id) params.set('replay', replay.id);
+    else params.delete('replay');
+    if (replay?.id && replay.part > 0) params.set('part', String(replay.part));
+    else params.delete('part');
     return window.location.pathname + '?' + params.toString();
 }
 
-/** Writes the open lesson into the current history entry, keeping Turbo's state. */
+/** Writes the open lesson (or nothing) into the current history entry, keeping Turbo's state. */
 function syncLessonUrl(lessonId = null) {
-    const url = courseDetailsUrl(lessonId);
-    const state = { ...(history.state || {}) };
+    syncPlayerUrl(lessonId, null);
+}
+
+/** Writes the open replay into the current history entry, so a refresh reopens it. */
+function syncReplayUrl(replayId, part = 0) {
+    syncPlayerUrl(null, replayId ? { id: replayId, part } : null);
+}
+
+function syncPlayerUrl(lessonId, replay) {
+    const url = courseDetailsUrl(lessonId, replay);
+    const { lessonId: _lesson, replayId: _replay, replayPart: _part, ...state } = history.state || {};
     if (lessonId) state.lessonId = lessonId;
-    else delete state.lessonId;
-    if (url === window.location.pathname + window.location.search && state.lessonId === history.state?.lessonId) return;
-    history.replaceState(state, '', url);
+    if (replay?.id) Object.assign(state, { replayId: replay.id, replayPart: replay.part || 0 });
+    const same = url === window.location.pathname + window.location.search
+        && state.lessonId === history.state?.lessonId && state.replayId === history.state?.replayId
+        && state.replayPart === history.state?.replayPart;
+    if (!same) history.replaceState(state, '', url);
+}
+
+/** Replay of the current course that has a recording, or null. */
+function findCourseReplay(replayId) {
+    return (currentLiveSessions || []).find(session => String(session.id) === String(replayId) && session.replay_url) || null;
+}
+
+function openCourseReplay(session, partIndex = 0) {
+    const parts = session.replay_parts || [];
+    const part = Number.isInteger(partIndex) && partIndex > 0 && partIndex < parts.length ? partIndex : 0;
+    openReplayPlayer(session.replay_url, session.title, session.resources || [], session.id, { partIndex: part });
 }
 
 function rememberLastCourse(courseId) {
@@ -153,8 +179,10 @@ window.addEventListener('popstate', event => {
     if (courseOverview && !event.state?.coursePlayer) {
         switchCoursePlayerTo(playerReturnTab, false);
     } else if (!courseOverview && event.state?.coursePlayer && currentCourse) {
-        // Forward into a lesson entry: reopen it (paused, so the resume prompt can show).
-        if (event.state.lessonId && findCourseLesson(event.state.lessonId)) playLesson(event.state.lessonId, { autoplay: false });
+        // Forward into a lesson or replay entry: reopen it (lessons paused, so the resume prompt can show).
+        const replay = event.state.replayId && findCourseReplay(event.state.replayId);
+        if (replay) openCourseReplay(replay, Number(event.state.replayPart) || 0);
+        else if (event.state.lessonId && findCourseLesson(event.state.lessonId)) playLesson(event.state.lessonId, { autoplay: false });
         else syncLessonUrl(null);
     }
 });
@@ -206,7 +234,7 @@ async function initCourseDetailsPage() {
         try { courseId = localStorage.getItem(LAST_COURSE_KEY); } catch { courseId = null; }
         if (courseId) {
             urlParams.set('id', courseId);
-            urlParams.delete('lesson');
+            ['lesson', 'replay', 'part'].forEach(name => urlParams.delete(name));
             history.replaceState(history.state, '', window.location.pathname + '?' + urlParams.toString());
         }
     }
@@ -229,13 +257,27 @@ async function initCourseDetailsPage() {
     if (lessonId && !urlParams.get('replay')) await openLessonFromUrl(lessonId);
     else if (lessonId) syncLessonUrl(null);
     const replayId = urlParams.get('replay');
-    if (replayId) {
-        urlParams.delete('replay');
-        history.replaceState(history.state, '', window.location.pathname + '?' + urlParams.toString());
-        setCourseContentTab('live');
-        const replay = currentLiveSessions.find(session => session.id === replayId && session.replay_url);
-        if (replay) openReplayPlayer(replay.replay_url, replay.title, replay.resources || [], replay.id);
+    if (replayId) openReplayFromUrl(replayId, Number(urlParams.get('part')) || 0);
+}
+
+/** Opens the replay named in ?replay= (refresh, back/forward, calendar or shared link); otherwise shows the replay list. */
+function openReplayFromUrl(replayId, partIndex = 0) {
+    setCourseContentTab('live');
+    const replay = findCourseReplay(replayId);
+    if (!replay) {
+        syncLessonUrl(null);
+        return;
     }
+    // Refresh or back/forward: this entry already is the replay. New link: this entry becomes the replay list
+    // and the replay gets its own entry, so Back returns to the list (same rule as ?lesson=).
+    const navigationType = performance.getEntriesByType?.('navigation')?.[0]?.type;
+    if (navigationType === 'reload' || navigationType === 'back_forward') {
+        history.replaceState({ ...(history.state || {}), coursePlayer: true }, '', window.location.href);
+    } else if (!history.state?.coursePlayer) {
+        syncLessonUrl(null);
+    }
+    openCourseReplay(replay, partIndex);
+    if (!courseOverview) syncLessonUrl(null); // the replay could not open (invalid link)
 }
 
 /** The app menu is open by default; cinema mode collapses it to an icon rail (setCourseRail). */
@@ -746,7 +788,7 @@ function openReplayPlayer(replayUrl, title, resources = [], sessionId = '', { pa
     const courseSidebar = document.querySelector('.course-sidebar');
     if (!courseMain || !courseSidebar) return;
     enterCoursePlayer(courseMain, courseSidebar, 'live');
-    syncLessonUrl(null);
+    syncReplayUrl(sessionId, partIndex);
     document.querySelector('.course-details-page')?.classList.add('is-lesson-player');
 
     // Same video page as the chapter lessons (renderPlayerView); only the data differs.
