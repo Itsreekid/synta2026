@@ -339,6 +339,7 @@
                             <span class="pill pill-target">${adminText(c.subject)}</span>
                             ${c.target_class ? `<span class="pill pill-target">${adminText(CLASS_LABELS[c.target_class] || c.target_class)}</span>` : ''}
                             ${c.target_branch ? `<span class="pill pill-target">${adminText(BRANCH_LABELS[c.target_branch] || c.target_branch)}</span>` : ''}
+                            ${(c.target_branches||[]).map(branch=>`<span class="pill pill-target">${adminText(BRANCH_LABELS[branch]||branch)}</span>`).join('')}
                             ${zoomStatus(c)}
                         </div>
                         <div class="campaign-actions">
@@ -688,6 +689,6 @@
 
         document.addEventListener('DOMContentLoaded', fetchCampaigns);
     </script>
-<script src="/admin/js/free-session-funnel.js?v=1" defer></script>
+<script src="/admin/js/free-session-funnel.js?v=2" defer></script>
 </body>
 </html>

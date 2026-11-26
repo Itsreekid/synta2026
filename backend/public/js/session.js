@@ -24,9 +24,6 @@ document.addEventListener('DOMContentLoaded',()=>{
     }
     ;
     const show=id=>{
-        const label=$('occurrence-select').closest('label');
-        if(id==='result-panel')$('result-panel').insertBefore(label,$('reservation-confirmation'));
-        else if(id==='identity-panel')$('identity-panel').insertBefore(label,$('identity-form'));
         document.querySelector('.campaign-shell').classList.toggle('is-playing',id!=='start-panel');
         panels.forEach(name=>$(name).hidden=name!==id);
         $('experience').scrollIntoView({
@@ -87,10 +84,16 @@ document.addEventListener('DOMContentLoaded',()=>{
         }
     }
     function currentOccurrence(){
-        return $('occurrence-select').value||null;
+        return meta?.session?.id||null;
+    }
+    function sessionSummary(session){
+        return session?session.title+' · '+date(session.scheduled_at)+' · '+session.duration_minutes+' min':'La prochaine séance sera annoncée bientôt.';
     }
     function prepareIdentity(){
+        if(config.member)return;
         show('identity-panel');
+        $('identity-title').textContent=meta.session?'Dernière étape : réserve ta place gratuite !':'Dernière étape : enregistre ton résultat';
+        $('identity-description').textContent=meta.session?'Ton défi est terminé. Crée ton compte pour enregistrer ton résultat et rejoindre ta séance gratuite.':'Ton défi est terminé. Crée ton compte pour garder ton résultat. La prochaine séance sera annoncée bientôt.';
         const c=meta.campaign;
         const fixed=[];
         for(const [id,value]of [['profile-class',c.target_class],['profile-branch',c.target_branch]]){
@@ -103,6 +106,10 @@ document.addEventListener('DOMContentLoaded',()=>{
         }
         $('campaign-profile-info').textContent='Parcours de la séance : '+fixed.join(' · ');
         $('campaign-profile-info').hidden=!fixed.length;
+        if(c.target_branches?.length){
+            [...$('profile-branch').options].forEach(option=>{option.hidden=Boolean(option.value&&!c.target_branches.includes(option.value));option.disabled=option.hidden;});
+        }
+        $('identity-summary').textContent=(attempt?.submitted?attempt.score+' / '+attempt.total+' · '+$('success-tier-name').textContent+' — ':'')+c.title+' · '+(meta.session?date(meta.session.scheduled_at):'La prochaine séance sera annoncée bientôt.');
         $('full_name').focus();
     }
     function present(result){
@@ -123,7 +130,9 @@ document.addEventListener('DOMContentLoaded',()=>{
         $('result-percent').textContent=total?(result.percentage??Math.round(score*1000/total)/10)+' %':'';
         $('result-message').textContent=info[1];
         $('result-recommendation').textContent=info[2];
+        $('result-session-summary').textContent=sessionSummary(meta.session);
         $('save-result').textContent=config.member?'Enregistrer et réserver ma séance gratuite':verified?'Créer mon compte et réserver':'Enregistrer mon résultat et réserver ma séance gratuite';
+        if(!meta.session)$('save-result').textContent=verified?'Créer mon compte':'Enregistrer mon résultat';
         $('save-result').hidden=config.preview;
         $('retry-challenge').hidden=verified;
         notice('reservation-confirmation','');
@@ -145,6 +154,7 @@ document.addEventListener('DOMContentLoaded',()=>{
                 questions=data.questions;
                 if(attempt.submitted){
                     present(attempt);
+                    if(config.member)await confirmMemberReservation();
                     return;
                 }
             }
@@ -157,7 +167,7 @@ document.addEventListener('DOMContentLoaded',()=>{
                 questions=(await request('/questions?slug='+encodeURIComponent(slug))).questions;
             }
             else{
-                prepareIdentity();
+                throw new Error('Le défi invité sera disponible prochainement.');
                 return;
             }
             if(!questions.length)throw new Error('Le défi est en préparation. Reviens bientôt.');
@@ -340,6 +350,7 @@ document.addEventListener('DOMContentLoaded',()=>{
                 }
                 );
                 present(data.attempt);
+                if(config.member)await confirmMemberReservation();
             }
             else{
                 data=await request(mode==='member'?'/member/submit':'/submit',{
@@ -383,7 +394,9 @@ document.addEventListener('DOMContentLoaded',()=>{
             prepareIdentity();
             return;
         }
-        if(busy)return;
+        return confirmMemberReservation();
+    };
+    async function confirmMemberReservation(){
         busy=true;
         $('save-result').disabled=true;
         try{
@@ -398,7 +411,14 @@ document.addEventListener('DOMContentLoaded',()=>{
             ;
             notice('reservation-confirmation',data.reserved?'Ta séance est réservée : '+date(data.session.scheduled_at)+'. Retrouve-la dans ton calendrier.':data.message||'Ton résultat est enregistré. La prochaine date sera annoncée dans ton espace.');
             $('member-session-link').hidden=false;
+            $('confirmed-calendar').hidden=!data.reserved;
+            if(data.reserved){
+                $('result-session-summary').textContent=sessionSummary(data.session);
+                $('reservation-confirmation').textContent='Ta place est réservée ! 🎉 '+data.session.title+' · '+date(data.session.scheduled_at);
+                $('public-session-note').textContent='Ta place est réservée pour cette séance.';
+            }
             $('save-result').hidden=true;
+            setTimeout(()=>window.location.assign('/dashboard'),6000);
         }
         catch(error){
             notice('experience-error',error.message);
@@ -408,7 +428,6 @@ document.addEventListener('DOMContentLoaded',()=>{
             $('save-result').disabled=false;
         }
     }
-    ;
     $('identity-form').onsubmit=async event=>{
         event.preventDefault();
         if(verified){
@@ -418,6 +437,7 @@ document.addEventListener('DOMContentLoaded',()=>{
             render();
             return;
         }
+        if(!attempt?.submitted){notice('identity-error','Termine le défi avant de créer ton compte.');return;}
         const button=$('identity-submit');
         if(button.disabled)return;
         button.disabled=true;
@@ -450,9 +470,11 @@ document.addEventListener('DOMContentLoaded',()=>{
         try{
             const saved=await request('/set-password',{password:$('modal-password').value});
             $('password-modal').close();
-            notice('reservation-confirmation',saved.reserved?'Ton compte est prêt. Ta séance est réservée : '+date(saved.session.scheduled_at)+'.':'Ton compte et ton résultat sont enregistrés. Retrouve la suite dans ton tableau de bord.');
+            notice('reservation-confirmation',saved.reserved?'Ta place est réservée ! 🎉 '+saved.session.title+' · '+date(saved.session.scheduled_at):'Ton compte et ton résultat sont enregistrés. La prochaine séance sera annoncée bientôt.');
             $('save-result').hidden=true;$('member-session-link').hidden=false;
-            setTimeout(()=>window.location.assign('/dashboard'),1800);
+            $('confirmed-calendar').hidden=!saved.reserved;
+            if(saved.reserved)$('result-session-summary').textContent=sessionSummary(saved.session);
+            setTimeout(()=>window.location.assign('/dashboard'),6000);
         }
         catch(error){
             notice('modal-error',error.message);
@@ -465,36 +487,20 @@ document.addEventListener('DOMContentLoaded',()=>{
     async function boot(){
         try{
             meta=await request('/campaign?slug='+encodeURIComponent(slug));
-            $('challenge-count').textContent=meta.count+' questions';
+            $('challenge-count').textContent=meta.count?meta.count+' questions':'Défi en préparation';
             $('challenge-duration').textContent='Environ '+meta.minutes+' minutes';
             $('campaign-target').textContent=[meta.campaign.subject,classNames[meta.campaign.target_class],meta.campaign.target_branch].filter(Boolean).join(' · ');
-            $('challenge-start').textContent='Commencer le défi gratuit';
+            $('challenge-start').textContent=meta.count?'Commencer le défi gratuit':'Défi bientôt disponible';
             $('challenge-start').disabled=config.preview||meta.count===0;
-            $('guest-note').textContent=meta.funnel?'Essaie le défi, puis crée ton compte pour garder ton résultat.':'Confirme ton e-mail avant de commencer : le mode invité est en cours de préparation.';
-            const select=$('occurrence-select');
-            select.replaceChildren();
-            for(const occurrence of meta.occurrences)select.add(new Option(date(occurrence.scheduled_at),occurrence.id));
-            if(!select.options.length)select.add(new Option('Date bientôt annoncée',''));
-            try{
-                const saved=sessionStorage.getItem('synta-free-selection:'+meta.campaign.id)||sessionStorage.getItem('synta-free-selection:'+slug);
-                if([...select.options].some(option=>option.value===saved))select.value=saved;
-            }
-            catch{
-            }
-            select.disabled=meta.occurrences.length<2;
-            $('upcoming-date').textContent=meta.occurrences[0]?date(meta.occurrences[0].scheduled_at):'Date bientôt annoncée';
-            select.onchange=()=>{
-                $('upcoming-date').textContent=select.selectedOptions[0].textContent;
-                try{
-                    sessionStorage.setItem('synta-free-selection:'+meta.campaign.id,select.value);
-                }
-                catch{
-                }
-            }
-            ;
+            $('guest-note').textContent=meta.funnel?'Essaie le défi, puis crée ton compte pour garder ton résultat.':'Le défi invité sera disponible prochainement.';
+            if(!meta.count)$('guest-note').textContent='Les questions de ce défi sont en préparation. Reviens bientôt pour participer à la séance gratuite.';
+            $('upcoming-date').textContent=meta.session?date(meta.session.scheduled_at):'La prochaine séance sera annoncée bientôt.';
+            $('public-session-title').textContent=meta.session?.title||meta.campaign.title;
+            $('public-session-duration').textContent=meta.session?'Durée : '+meta.session.duration_minutes+' min':'';
+            $('public-session-note').textContent=meta.session?'Ta place sera réservée automatiquement après ton inscription.':'Tu peux découvrir ton niveau et enregistrer ton résultat. Aucune date n’est confirmée pour le moment.';
             const params=new URLSearchParams(location.hash.slice(1)),proof=params.get('placement');
             if(proof)history.replaceState(null,'',location.pathname+location.search);
-            if(proof||(!config.member&&config.hasPlacement)){
+            if(proof||(!config.member&&meta.hasPlacement)){
                 try{
                     const data=await request(proof?'/verify':'/status',proof?{
                         token:proof
@@ -533,14 +539,16 @@ document.addEventListener('DOMContentLoaded',()=>{
             }
             if(meta.funnel){
                 try{
+                    // The API sees the HttpOnly cookie at /api/session; page
+                    // requests cannot, because its narrow path is intentional.
+                    if(!meta.hasGuestAttempt)throw Object.assign(new Error('Aucune tentative à reprendre.'),{status:401});
                     const data=await request('/guest/status?slug='+encodeURIComponent(slug));
                     attempt=data.attempt;
                     questions=data.questions;
                     if(attempt.submitted){
                         present(attempt);
-                        if(config.member&&!attempt.claimed){
+                        if(config.member){
                             await $('save-result').onclick();
-                            if($('save-result').hidden)setTimeout(()=>location.assign('/dashboard'),1800);
                         }
                     }
                     else{
@@ -558,6 +566,7 @@ document.addEventListener('DOMContentLoaded',()=>{
                         if(saved.attempt){
                             attempt=saved.attempt;
                             present(attempt);
+                            await confirmMemberReservation();
                         }
                     }
                 }
@@ -570,6 +579,9 @@ document.addEventListener('DOMContentLoaded',()=>{
             $('challenge-start').onclick=boot;
         }
     }
+    window.addEventListener('hashchange',()=>{
+        if(new URLSearchParams(location.hash.slice(1)).has('placement'))void boot();
+    });
     boot();
 }
 );

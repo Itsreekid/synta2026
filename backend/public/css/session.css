@@ -34,7 +34,7 @@ button{
 }
 button:disabled{
     opacity:.6;
-    cursor:wait
+    cursor:not-allowed
 }
 [hidden]{
     display:none!important
@@ -51,6 +51,11 @@ button:disabled{
     padding:12px;
     z-index:10
 }
+.session-free-badge{display:inline-flex;align-items:center;padding:5px 12px;border-radius:50px;background:#fff1e6;color:#9a3b00;font-weight:700;font-size:.8rem}
+#public-session-title{font-weight:700;font-size:1.05rem}
+#public-session-duration{font-variant-numeric:tabular-nums}
+#public-session-note{font-size:.85rem;line-height:1.6}
+#identity-summary{padding:14px;border:1px solid var(--line);border-radius:14px}
 .skip-link:focus{
     top:8px
 }

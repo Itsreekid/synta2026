@@ -16,6 +16,9 @@
         campaignProfileReady=Promise.all(['/campaign','/guest/status'].map(path=>fetch('/api/session'+path+'?slug='+encodeURIComponent(slug),{credentials:'include',cache:'no-store'}).then(response=>response.ok?response.json():null))).then(([data,guest])=>{
             if(!data?.funnel || !guest?.attempt?.submitted)return;
             campaignOnboardingSlug=data.campaign.slug;
+            if(data.campaign.target_branches?.length){
+                [...document.getElementById('userBranch').options].forEach(option=>{option.hidden=Boolean(option.value&&!data.campaign.target_branches.includes(option.value));option.disabled=option.hidden;});
+            }
             const fixed=[];
             for(const [id,value]of [['userClass',data.campaign.target_class],['userBranch',data.campaign.target_branch]]){
                 const field=document.getElementById(id);

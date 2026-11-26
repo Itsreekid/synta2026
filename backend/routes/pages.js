@@ -1,4 +1,4 @@
-import {campaignOccurrences} from '../services/free-session-funnel.js';
+import {publishedCampaignOccurrence} from '../services/free-campaigns.js';
 // =====================================================
 // PAGE ROUTES
 // Serves all HTML pages via EJS views.
@@ -105,7 +105,7 @@ async function renderCampaignPage(req, res, next, slug) {
       return res.redirect(302, '/session/' + campaign.slug + query);
     }
     const viewer = verifyToken(req.cookies?.synta_access);
-    const nextOccurrence=campaign?(await campaignOccurrences(pool,campaign.id))[0]:null;
+    const nextOccurrence=campaign?await publishedCampaignOccurrence(pool,campaign.id):null;
     res.set("Cache-Control", "private, no-store");
     if (!campaign) res.status(404);
     return renderPage(res, "pages/session/index", {

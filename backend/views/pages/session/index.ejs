@@ -6,7 +6,7 @@
 <title>
 <%= campaign ? campaign.title : 'Défi gratuit' %> · Synta Academy</title>
 <meta name="description" content="Un défi gratuit pour découvrir ton niveau en informatique et participer à une séance Synta Academy.">
-<link rel="stylesheet" href="/css/session.css?v=4">
+<link rel="stylesheet" href="/css/session.css?v=6">
 </head>
 <body class="campaign-page">
 <a class="skip-link" href="#campaign-main">Aller au défi</a>
@@ -57,13 +57,12 @@
 <span class="calendar-symbol" aria-hidden="true">▦</span>
 <p class="eyebrow">TA PROCHAINE SÉANCE GRATUITE</p>
 <h2 id="upcoming-date">
-<%= campaign.date || 'Date bientôt annoncée' %>
+<%= campaign.date || 'La prochaine séance sera annoncée bientôt.' %>
 </h2>
-<p>Un cours pour poser tes questions et découvrir la plateforme.</p>
-<label for="occurrence-select">Choisir une date<select id="occurrence-select">
-<option value="">Prochaine séance disponible</option>
-</select>
-</label>
+<p id="public-session-title"></p>
+<p id="public-session-duration"></p>
+<span class="session-free-badge">Séance gratuite</span>
+<p id="public-session-note">Ta place sera réservée automatiquement après ton inscription.</p>
 <p class="hint">Le bouton Rejoindre s’ouvre 5 minutes avant le début.</p>
 </aside>
 </section>
@@ -82,8 +81,9 @@
 </div>
 <div id="identity-panel" hidden>
 <span class="step-label">Enregistre ton résultat</span>
-<h2>Un compte, toutes tes découvertes.</h2>
-<p id="identity-description">Confirme ton e-mail pour retrouver ton résultat et réserver ta séance.</p>
+<h2 id="identity-title">Dernière étape : réserve ta place gratuite !</h2>
+<p id="identity-description">Ton défi est terminé. Crée ton compte pour enregistrer ton résultat et rejoindre ta séance gratuite.</p>
+<p id="identity-summary" class="recommendation"></p>
 <form id="identity-form">
 <p id="campaign-profile-info" class="notice" hidden></p>
 <div class="form-grid">
@@ -158,11 +158,13 @@
 </p>
 <p id="result-recommendation" class="recommendation">
 </p>
+<p id="result-session-summary" class="recommendation"></p>
 <p class="hint">Un court diagnostic, pas une certification. Il ne mesure pas toutes tes compétences.</p>
 <p id="reservation-confirmation" class="notice" hidden>
 </p>
 <button class="button primary" id="save-result">Enregistrer mon résultat et réserver ma séance gratuite</button>
-<a class="button secondary" id="member-session-link" href="/dashboard" hidden>Découvrir mon tableau de bord</a>
+<a class="button secondary" id="member-session-link" href="/dashboard" hidden>Accéder à mon espace</a>
+<a class="button secondary" id="confirmed-calendar" href="/app/calendar" hidden>Voir mon calendrier</a>
 <button class="text-button" id="retry-challenge">Refaire le défi</button>
 <div class="explore-links">
 <a href="/app/courses">Explorer les aperçus de cours</a>
@@ -191,7 +193,7 @@
 </dialog>
 <script>window.__SESSION__=<%- JSON.stringify(campaign ? {slug:campaign.slug,member:Boolean(viewer&&viewer.isStudent),preview:Boolean(viewer&&!viewer.isStudent),hasPlacement:Boolean(locals.hasPlacement)}:null).replace(/</g,'\\u003c') %>;</script>
 <% if(campaign) { %>
-<script src="/js/session.js?v=6" defer>
+<script src="/js/session.js?v=8" defer>
 </script>
 <% } %>
 </body>

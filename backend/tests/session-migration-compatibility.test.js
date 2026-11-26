@@ -36,6 +36,8 @@ test('session compatibility: historical ledgers, strict shapes, atomic failure a
   const before = new Map([...files].filter(([file]) => ![originalFile, repairFile, customFile, refreshFile, aliasFile, deactivationFile, bugiUsageFile].includes(file)));
   const withoutAliases = new Map([...files].filter(([file]) => file !== aliasFile));
   const full = new Map([...files, ...held]);
+  const publicationFile='202611260005_free_campaign_public_occurrence.sql';
+  full.set(publicationFile,await readFile(new URL('pending-migrations/'+publicationFile,root),'utf8'));
   async function isolated(run) {
     const name = 'session_compat_' + randomUUID().replaceAll('-', '');
     await maintenance.query(`CREATE DATABASE "${name}"`);

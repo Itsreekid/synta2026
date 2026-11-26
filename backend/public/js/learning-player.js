@@ -44,13 +44,26 @@
             });
             // Narrow overrides for the pinned stock skin; all behavior remains Video.js-owned.
             const mobileStyle=document.createElement('style');
-            mobileStyle.textContent=`@media(max-width:600px){
+            // Controls shade only the bottom ~24% so slide content stays readable; no top shade.
+            mobileStyle.textContent=`.media-skin.media-skin{--media-controls-bottom-gradient-height:24%;--media-controls-gradient:linear-gradient(to top,#000000b3,#00000059 55%,transparent);--media-controls-top-gradient:none}
+            media-tooltip.synta-hidden-tooltip{display:none!important}
+            @media(max-width:600px){
                 media-volume-popover,media-mute-button,media-pip-button,media-cast-button,media-airplay-button{display:none!important}
                 [data-controls-visible] .video-controls-center{opacity:1!important;visibility:visible!important}
                 [data-controls-visible] .video-controls-center-play{opacity:1!important;min-width:56px!important;min-height:56px!important}
                 .video-controls-compact-primary>media-play-button{display:none!important}
             }`;
             skin.shadowRoot.append(mobileStyle);
+            // The play button's floating "Lecture K" chip covered the slide; the same hint now lives
+            // in the button's native tooltip. Other buttons keep their tooltips.
+            const movePlayHint=()=>{
+                for(const button of skin.shadowRoot.querySelectorAll('media-play-button')){
+                    button.title='Lecture / Pause (K ou Espace)';
+                    const id=button.id||button.getAttribute('aria-describedby');
+                    if(id)for(const tip of skin.shadowRoot.querySelectorAll('media-tooltip'))if(tip.getAttribute('trigger')===id)tip.classList.add('synta-hidden-tooltip');
+                }
+            };
+            movePlayHint();requestAnimationFrame(movePlayHint);
             const lock=createScreenOrientationLock(), controller=new AbortController();
             function syncFullscreen(){
                 const fullscreen=document.fullscreenElement || document.webkitFullscreenElement;

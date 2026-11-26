@@ -1,6 +1,7 @@
 import { createHash, randomBytes, randomUUID } from 'node:crypto';
 import { UUID, fail, transaction } from './timed-offers.js';
 import { saveLearnerProfile } from './learner-onboarding.js';
+import { campaignPublicPolicy, publishedCampaignOccurrence } from './free-campaigns.js';
 
 const digest = value => createHash('sha256').update(value).digest('hex');
 const tokenName = campaignId => 'synta_free_' + campaignId.replaceAll('-', '');
@@ -16,6 +17,22 @@ export async function campaignOccurrences(db, campaignId) {
   return (await db.query(`SELECT id,title,scheduled_at,duration_minutes,status FROM live_sessions
     WHERE free_session_id=$1 AND status IN ('scheduled','live')
       AND scheduled_at+make_interval(mins=>duration_minutes)>now() ORDER BY scheduled_at,id`, [campaignId])).rows;
+}
+
+export async function publishOccurrence(db, campaignId, occurrenceId) {
+  if (occurrenceId !== null && !UUID.test(occurrenceId || '')) fail(400, 'Séance invalide.');
+  return transaction(db, async client => {
+    const campaign=(await client.query('SELECT id FROM free_sessions WHERE id=$1 FOR UPDATE',[campaignId])).rows[0];
+    if(!campaign)fail(404,'Campagne introuvable.');
+    if(!(await campaignPublicPolicy(client,campaignId)).ready)fail(503,'La publication sera disponible après activation de sa migration.');
+    if(occurrenceId){
+      const live=(await client.query(`SELECT id FROM live_sessions WHERE id=$1 AND free_session_id=$2
+        AND status='scheduled' AND scheduled_at>now() FOR SHARE`,[occurrenceId,campaignId])).rows[0];
+      if(!live)fail(409,'Choisis une séance à venir de cette campagne.');
+    }
+    await client.query('UPDATE free_sessions SET published_occurrence_id=$2,updated_at=now() WHERE id=$1',[campaignId,occurrenceId]);
+    return {success:true,session:await publishedCampaignOccurrence(client,campaignId)};
+  });
 }
 
 function publicQuestions(rows) {
@@ -102,6 +119,8 @@ export async function completeCampaignProfile(db, userId, campaign, cookies, inp
       if (!registration || registration.email.toLowerCase() !== user.email.toLowerCase()) fail(403, 'Utilise le compte de cette inscription vérifiée.');
     }
     if (user.phone && user.class && user.branch) return { success: true, preserved: true };
+    const policy=await campaignPublicPolicy(client,campaign.id);
+    if(!user.branch&&policy.target_branches&&!policy.target_branches.includes(input.user_branch))fail(400,'Choisis une section autorisée pour cette séance.');
     await saveLearnerProfile(client, userId, {
       phone: user.phone || input.phone,
       userClass: user.class || (user.campaign_signup && campaign.target_class) || input.user_class,
@@ -131,13 +150,23 @@ async function reserve(client, userId, campaign, attempt, occurrenceId) {
   const current=(await client.query('SELECT is_active,allow_result_reuse FROM free_sessions WHERE id=$1 FOR SHARE',[campaign.id])).rows[0];
   if(!current?.is_active)fail(409,'Cette campagne n’est plus disponible.');
   campaign={...campaign,...current};
-  const occurrences = await campaignOccurrences(client, campaign.id);
-  const selected = occurrenceId ? occurrences.find(row => row.id === occurrenceId) : occurrences[0];
-  if (occurrenceId && !selected) fail(409,'Cette séance n’est plus disponible.');
+  const policy=await campaignPublicPolicy(client,campaign.id);
+  if(policy.ready){
+    const previous=(await client.query(`SELECT l.id,l.title,l.scheduled_at,l.duration_minutes,l.status
+      FROM free_session_reservations r JOIN live_sessions l ON l.id=r.live_session_id
+      WHERE r.user_id=$1 AND r.attempt_id=$2 AND r.status='reserved' AND l.status IN ('scheduled','live')
+        AND l.scheduled_at+make_interval(mins=>l.duration_minutes)>now() ORDER BY r.reserved_at LIMIT 1`,[userId,attempt.id])).rows[0];
+    if(previous)return {reserved:true,session:previous};
+  }
+  // Retain legacy API compatibility until the approved pending migration is applied.
+  const occurrences = policy.ready ? [] : await campaignOccurrences(client, campaign.id);
+  const selected = policy.ready ? await publishedCampaignOccurrence(client,campaign.id) : occurrenceId ? occurrences.find(row => row.id === occurrenceId) : occurrences[0];
+  if (!policy.ready && occurrenceId && !selected) fail(409,'Cette séance n’est plus disponible.');
   if (!selected) return { reserved: false, message: 'Ton résultat est enregistré. La prochaine séance sera annoncée ici.' };
   await client.query('SELECT id FROM live_sessions WHERE id=$1 FOR SHARE', [selected.id]);
   const { rows: [live] } = await client.query(`SELECT id FROM live_sessions WHERE id=$1 AND free_session_id=$2
-    AND status IN ('scheduled','live') AND scheduled_at+make_interval(mins=>duration_minutes)>now()`, [selected.id, campaign.id]);
+    AND status IN ('scheduled','live') AND scheduled_at+make_interval(mins=>duration_minutes)>now()
+    AND ($3=false OR (status='scheduled' AND scheduled_at>now()))`, [selected.id, campaign.id,policy.ready]);
   if (!live) fail(409, 'Cette séance a changé. Actualise les dates.');
   if (!campaign.allow_result_reuse) {
     const used = await client.query('SELECT 1 FROM free_session_reservations WHERE attempt_id=$1 AND live_session_id<>$2', [attempt.id, selected.id]);
@@ -153,9 +182,9 @@ async function reserve(client, userId, campaign, attempt, occurrenceId) {
 async function claim(client, userId, campaign, attempt, occurrenceId) {
   if (!attempt?.submitted_at || new Date(attempt.claim_expires_at) <= new Date()) fail(409, 'Le délai pour enregistrer ce résultat a expiré.');
   if (attempt.user_id && String(attempt.user_id) !== String(userId)) fail(403, 'Ce résultat appartient à un autre compte.');
-  const user = (await client.query("SELECT id,email,email_verified,created_at,signup_source,phone,class,branch FROM users WHERE id=$1 AND role='user' FOR UPDATE", [userId])).rows[0];
+  const user = (await client.query("SELECT id,email,email_verified,created_at,signup_source,phone,class,branch,created_at >= (SELECT created_at FROM free_session_attempts WHERE id=$2) AS campaign_signup FROM users WHERE id=$1 AND role='user' FOR UPDATE", [userId,attempt.id])).rows[0];
   if (!user || !user.email_verified) fail(403, 'Confirme ton adresse e-mail pour enregistrer le résultat.');
-  if(!user.phone||!user.class||!user.branch)fail(409,'Complète ton profil avant de réserver ta séance.');
+  if(user.campaign_signup&&(!user.phone||!user.class||!user.branch))fail(409,'Complète ton profil avant de réserver ta séance.');
   if (attempt.registration_id) {
     const registration = (await client.query('SELECT email FROM session_registrations WHERE id=$1', [attempt.registration_id])).rows[0];
     if (!registration || registration.email.toLowerCase() !== user.email.toLowerCase()) fail(403, 'Utilise le compte de cette inscription vérifiée.');
@@ -192,7 +221,7 @@ export async function claimRegistration(client, userId, registrationId, campaign
 }
 
 export async function reservePrevious(db, userId, campaign, occurrenceId) {
-  if (!UUID.test(occurrenceId || '')) fail(400, 'Choisis une séance.');
+  if (occurrenceId && !UUID.test(occurrenceId)) fail(400, 'Séance invalide.');
   return transaction(db, async client => {
     const attempt = (await client.query(`SELECT * FROM free_session_attempts WHERE user_id=$1 AND campaign_id=$2
       AND claimed_at IS NOT NULL ORDER BY submitted_at DESC LIMIT 1 FOR UPDATE`, [userId, campaign.id])).rows[0];
@@ -238,6 +267,7 @@ export async function createOccurrence(db, campaignId, actorId, input, zoom) {
 export async function changeOccurrence(db, campaignId, sessionId, actorId, input, zoom, accessPredicate) {
   if (!UUID.test(sessionId) || !['rescheduled', 'cancelled'].includes(input.action)) fail(400, 'Modification invalide.');
   return transaction(db, async client => {
+    await client.query('SELECT id FROM free_sessions WHERE id=$1 FOR UPDATE',[campaignId]);
     const prior = (await client.query('SELECT * FROM live_sessions WHERE id=$1 AND free_session_id=$2 FOR UPDATE', [sessionId, campaignId])).rows[0];
     if (!prior) fail(404, 'Séance introuvable.');
     if (prior.status === 'cancelled' && input.action === 'cancelled') return { success: true };

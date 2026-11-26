@@ -40,6 +40,7 @@
             const data=await api(endpoint(id)+'/occurrences');
             if(version!==generation)return;
             panel.replaceChildren();
+            panel.dataset.campaignId=id;
             panel.hidden=false;
             const heading=document.createElement('h2');
             heading.id='campaign-funnel-title';
@@ -51,6 +52,22 @@
             const status=document.createElement('p');
             status.setAttribute('role','status');
             panel.append(status);
+            if(data.policy.ready){
+                const sections=document.createElement('form');
+                sections.className='campaign-sections-form';
+                sections.style.cssText='display:flex;flex-wrap:wrap;gap:12px;padding:16px;margin:16px 0;border:1px solid #dbe5ed;border-radius:12px';
+                const heading=document.createElement('strong');heading.textContent='Sections autorisées';sections.append(heading);
+                const selectedSections=data.policy.target_branches||(data.policy.target_branch?[data.policy.target_branch]:[]);
+                for(const [value,label]of [['informatique','Informatique'],['sciences','Sciences expérimentales'],['mathematiques','Mathématiques'],['technique','Sciences techniques'],['economie','Économie et gestion'],['lettres','Lettres'],['other','Autre']]){
+                    const row=document.createElement('label'),input=document.createElement('input');row.style.cssText='display:flex;align-items:center;gap:8px';input.style.cssText='width:auto;margin:0;accent-color:#f97316';input.type='checkbox';input.name='section';input.value=value;input.checked=selectedSections.includes(value);row.append(input,document.createTextNode(label));sections.append(row);
+                }
+                const save=document.createElement('button');save.type='submit';save.className='btn';save.textContent='Enregistrer les sections';sections.append(save);
+                const hint=document.createElement('small');hint.textContent='Aucune sélection : toutes les sections. La classe reste celle de la campagne.';sections.append(hint);
+                sections.onsubmit=async event=>{event.preventDefault();save.disabled=true;try{await api(endpoint(id)+'/target-sections','PUT',{sections:[...sections.querySelectorAll('input:checked')].map(input=>input.value)});await window.loadCampaignFunnel(id);}catch(error){status.textContent=error.message;}finally{save.disabled=false;}};
+                panel.append(sections);
+                const unpublish=document.createElement('button');unpublish.type='button';unpublish.className='btn';unpublish.textContent='Ne publier aucune date';unpublish.disabled=!data.policy.published_occurrence_id;
+                unpublish.onclick=async()=>{unpublish.disabled=true;try{await api(endpoint(id)+'/public-occurrence','PUT',{occurrenceId:null});await window.loadCampaignFunnel(id);}catch(error){status.textContent=error.message;unpublish.disabled=false;}};panel.append(unpublish);
+            }
             const policy=document.createElement('form');
             policy.style.cssText='display:flex;gap:14px;align-items:end;flex-wrap:wrap;margin:18px 0';
             policy.innerHTML='<label><input type="checkbox" name="reuse" style="width:auto"> Autoriser la réutilisation d’un résultat pour une autre date</label><label>Intermédiaire à partir de (%)<input type="number" name="intermediate" min="1" max="99" required style="max-width:100px"></label><label>Avancé à partir de (%)<input type="number" name="advanced" min="2" max="100" required style="max-width:100px"></label><button class="btn" type="submit">Enregistrer les règles</button>';
@@ -128,6 +145,10 @@
                 const participants=data.participants.filter(row=>row.live_session_id===occurrence.id);
                 detail.textContent=(statusLabel[occurrence.status]||occurrence.status)+' · '+participants.length+' réservations'+(occurrence.free_reservation_required?'':' · accès historique conservé');
                 card.append(title,detail);
+                if(data.policy.ready&&occurrence.status==='scheduled'&&Date.parse(occurrence.scheduled_at)>Date.now()){
+                    const publish=document.createElement('button');publish.type='button';publish.className='btn';publish.disabled=data.policy.published_occurrence_id===occurrence.id;publish.textContent=publish.disabled?'Date publiée sur le lien public':'Publier cette date';
+                    publish.onclick=async()=>{if(!confirm('Publier cette date pour les nouveaux participants ? Les réservations existantes restent inchangées.'))return;publish.disabled=true;try{await api(endpoint(id)+'/public-occurrence','PUT',{occurrenceId:occurrence.id});await window.loadCampaignFunnel(id);}catch(error){status.textContent=error.message;publish.disabled=false;}};card.append(publish);
+                }
                 if(participants.length){
                     const names=document.createElement('details'),summary=document.createElement('summary');
                     summary.textContent='Voir les réservations';

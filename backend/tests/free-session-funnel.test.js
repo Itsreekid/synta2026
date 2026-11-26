@@ -61,6 +61,10 @@ test('free funnel on disposable PostgreSQL: guest proof, ownership, occurrences 
     await db.query("INSERT INTO free_session_participants(free_session_id,user_id,source,score,total) VALUES($1,$2,'existing_student',1,2)",[oldCampaign,oldUser]);
     const beforeLegacy=(await db.query('SELECT to_jsonb(p) AS row FROM free_session_participants p WHERE user_id=$1',[oldUser])).rows;
     const files=new Map();for(const file of await readdir(new URL('../../database/migrations/',import.meta.url)))if(file.endsWith('.sql'))files.set(file,await readFile(new URL('../../database/migrations/'+file,import.meta.url),'utf8'));
+    const missingDependency=new Map(files);
+    missingDependency.set('202611260005_free_campaign_public_occurrence.sql',await readFile(new URL('../../database/pending-migrations/202611260005_free_campaign_public_occurrence.sql',import.meta.url),'utf8'));
+    assert.notEqual((await runMigrations(db,missingDependency)).code,0,'publication migration refuses missing guest/reservation dependency');
+    assert.equal((await db.query("SELECT count(*)::int n FROM information_schema.columns WHERE table_schema='public' AND table_name='free_sessions' AND column_name='published_occurrence_id'")).rows[0].n,0);
     const funnelFile='202611250004_free_session_funnel.sql';files.set(funnelFile,await readFile(new URL('../../database/pending-migrations/'+funnelFile,import.meta.url),'utf8'));
     const aliasFile='202611260002_free_session_slug_aliases.sql';files.set(aliasFile,await readFile(new URL('../../database/migrations/'+aliasFile,import.meta.url),'utf8'));
     const applied=await runMigrations(db,files);assert.equal(applied.code,0,applied.logs.join('\n'));
@@ -101,7 +105,7 @@ test('free funnel on disposable PostgreSQL: guest proof, ownership, occurrences 
       });
       await source.evaluate(); return source.namespace.default;
     }
-    const app = express(); app.set('views',fileURLToPath(new URL('../views',import.meta.url)));app.set('view engine','ejs');app.locals.googleClientId='synthetic-client'; app.use(express.json({ limit: '128kb' }), cookieParser());
+    const app = express(); app.set('trust proxy','loopback'); app.set('views',fileURLToPath(new URL('../views',import.meta.url)));app.set('view engine','ejs');app.locals.googleClientId='synthetic-client'; app.use(express.json({ limit: '128kb' }), cookieParser());
     app.use('/api/session', await loadRoute('session')); app.use(await loadRoute('google-auth'));
     routePool = (await import('../config/db.js')).default;
     await (await import('../services/live-features.js')).detectLiveFeatures(db);
@@ -115,8 +119,12 @@ test('free funnel on disposable PostgreSQL: guest proof, ownership, occurrences 
     const origin = 'http://127.0.0.1:' + server.address().port;
     const token = user => jwt.sign({ id: user.id, role: user.role }, process.env.JWT_SECRET);
     const jar = user => new Map(user ? [['synta_access', token(user)]] : []);
+    const visitorIps=new WeakMap();let visitorNumber=0;
     async function call(path, cookies = new Map(), body, method = body ? 'POST' : 'GET') {
-      const response = await fetch(origin + path, { method, redirect: 'manual', headers: { Cookie: [...cookies].map(([key, value]) => key + '=' + value).join('; '), 'Content-Type': 'application/json' }, body: body && JSON.stringify(body) });
+      // Separate synthetic visitors keep the real rate limiter enabled without
+      // treating every independent test student as one loopback attacker.
+      if(!visitorIps.has(cookies))visitorIps.set(cookies,'192.0.2.'+(++visitorNumber));
+      const response = await fetch(origin + path, { method, redirect: 'manual', headers: { 'X-Forwarded-For':visitorIps.get(cookies), Cookie: [...cookies].map(([key, value]) => key + '=' + value).join('; '), 'Content-Type': 'application/json' }, body: body && JSON.stringify(body) });
       for (const value of response.headers.getSetCookie()) { const pair = value.split(';')[0], index = pair.indexOf('='); cookies.set(pair.slice(0, index), pair.slice(index + 1)); }
       return response;
     }
@@ -381,6 +389,23 @@ test('free funnel on disposable PostgreSQL: guest proof, ownership, occurrences 
       });
     });
 
+    if (process.env.TIMED_QA_CHROME) await t.test('empty campaign shows preparation instead of an endless loading cursor', async () => {
+      const response=await call('/api/session/admin/campaigns',adminJar,{slug:'empty-challenge',title:'Défi en préparation',subject:'Informatique',target_class:'3eme',target_branch:'informatique',scheduled_at:null,duration_minutes:90,is_active:true,is_default:false});
+      assert.equal(response.status,201,await response.clone().text());
+      assert.equal((await(await call('/api/session/campaign?slug=empty-challenge')).json()).count,0);
+      await withTimedOfferBrowser(process.env.TIMED_QA_CHROME,origin,async({open,evaluate,until,errors})=>{
+        for(const width of [320,390,1440]){
+          await open('/session/empty-challenge','',width);
+          await until(()=>evaluate("document.querySelector('#challenge-start').textContent==='Défi bientôt disponible'"),'empty campaign ready');
+          assert.equal(await evaluate("document.querySelector('#challenge-start').disabled"),true);
+          assert.equal(await evaluate("getComputedStyle(document.querySelector('#challenge-start')).cursor"),'not-allowed');
+          assert.match(await evaluate("document.querySelector('#guest-note').textContent"),/questions.*préparation/);
+          assert.equal(await evaluate('document.documentElement.scrollWidth>innerWidth+1'),false);
+        }
+        assert.deepEqual(errors,[]);
+      });
+    });
+
     if (process.env.TIMED_QA_CHROME) await t.test('public quiz at 320/375/390/430/768/1440px with keyboard ordering and resume', async () => {
       await withTimedOfferBrowser(process.env.TIMED_QA_CHROME, origin, async ({ open, evaluate, until, errors, screenshot,pressKey,command }) => {
         await open('/session/' + campaign.slug, '', 390);
@@ -421,6 +446,163 @@ test('free funnel on disposable PostgreSQL: guest proof, ownership, occurrences 
         assert.equal(await evaluate('document.documentElement.scrollWidth>innerWidth+1'),false);
         assert.deepEqual(errors, []);
       });
+    });
+    await t.test('published occurrence migration, server-owned reservations and final registration journey',async()=>{
+      const publicationFile='202611260005_free_campaign_public_occurrence.sql';
+      const beforeHistory=(await db.query('SELECT to_jsonb(r) AS row FROM free_session_reservations r ORDER BY live_session_id,user_id')).rows;
+      files.set(publicationFile,await readFile(new URL('../../database/pending-migrations/'+publicationFile,import.meta.url),'utf8'));
+      const runs=await Promise.all([runMigrations(db,files),runMigrations(db,files)]);
+      runs.forEach(result=>assert.equal(result.code,0,result.logs.join('\n')));
+      assert.equal((await db.query('SELECT count(*)::int n FROM schema_migrations WHERE filename=$1',[publicationFile])).rows[0].n,1);
+      assert.deepEqual((await db.query('SELECT to_jsonb(r) AS row FROM free_session_reservations r ORDER BY live_session_id,user_id')).rows,beforeHistory);
+      const response=await call('/api/session/admin/campaigns',adminJar,{slug:'published-flow',title:'Algorithmique — 3ème',subject:'Informatique',target_class:'3eme',target_branch:'informatique',scheduled_at:null,duration_minutes:90,is_active:true,is_default:false});
+      assert.equal(response.status,201);const c=(await response.json()).campaign;
+      const question=(await db.query(`INSERT INTO session_questions(text,type,options,correct_answer,free_session_id) VALUES('Quelle réponse ?','multiple_choice','["a","b"]','"a"',$1) RETURNING id`,[c.id])).rows[0].id;
+      const occurrence=async days=>{const res=await call('/api/session/admin/campaigns/'+c.id+'/occurrences',adminJar,{id:randomUUID(),startTime:new Date(Date.now()+days*86400000).toISOString(),duration:90});assert.equal(res.status,201);return(await res.json()).session;};
+      const first=await occurrence(7),second=await occurrence(14),third=await occurrence(21);
+      const publication='/api/session/admin/campaigns/'+c.id+'/public-occurrence';
+      const metadata=async()=> (await(await call('/api/session/campaign?slug='+c.slug)).json());
+      assert.equal((await metadata()).session,null,'no implicit earliest date');
+      assert.equal((await call(publication,jar(existing),{occurrenceId:first.id},'PUT')).status,403);
+      assert.equal((await call(publication,adminJar,{occurrenceId:one.id},'PUT')).status,409,'other campaign rejected');
+      await assert.rejects(db.query('UPDATE free_sessions SET published_occurrence_id=$2 WHERE id=$1',[c.id,one.id]),error=>error.code==='23503');
+      assert.equal((await call(publication,adminJar,{occurrenceId:first.id},'PUT')).status,200);
+      assert.equal((await metadata()).session.id,first.id);
+      assert.equal((await call('/api/session/register',jar(),{slug:c.slug,full_name:'Too early',email:'before-quiz@example.invalid',phone:'22112236'})).status,401,'registration requires submitted owned result');
+      const submit=async visitor=>{assert.equal((await call(startPath,visitor,{slug:c.slug})).status,200);assert.equal((await call(submitPath,visitor,{slug:c.slug,answers:{[question]:'a'}})).status,200);};
+      const member=jar(existing),profile=(await db.query('SELECT to_jsonb(u) AS row FROM users u WHERE id=$1',[existing.id])).rows;
+      await submit(member);
+      const confirmations=await Promise.all([1,2].map(()=>call('/api/session/guest/claim',member,{slug:c.slug,occurrenceId:third.id})));
+      for(const res of confirmations){assert.equal(res.status,200);assert.equal((await res.json()).session.id,first.id,'client cannot choose a date');}
+      assert.deepEqual((await db.query('SELECT to_jsonb(u) AS row FROM users u WHERE id=$1',[existing.id])).rows,profile);
+      assert.equal((await db.query('SELECT count(*)::int n FROM free_session_reservations WHERE live_session_id=$1 AND user_id=$2',[first.id,existing.id])).rows[0].n,1);
+      await call(publication,adminJar,{occurrenceId:second.id},'PUT');
+      assert.equal((await(await call('/api/session/guest/claim',member,{slug:c.slug})).json()).session.id,first.id,'confirmed reservation never moved');
+      const newcomer=jar();await submit(newcomer);
+      await call(publication,adminJar,{occurrenceId:third.id},'PUT');
+      const mailBefore=emails.length;
+      const registration=await call('/api/session/register',newcomer,{slug:c.slug,full_name:'Final student',email:'final-flow@example.invalid',phone:'22112233',occurrenceId:first.id,track:'1ere',branch:'lettres'});
+      assert.equal(registration.status,202,await registration.clone().text());assert.equal(emails.length,mailBefore+1);
+      const verifiedJar=jar();assert.equal((await call('/api/session/verify',verifiedJar,{token:emails.at(-1).token})).status,200);
+      await call(publication,adminJar,{occurrenceId:second.id},'PUT');
+      const activations=await Promise.all([1,2].map(()=>call('/api/session/set-password',verifiedJar,{password:'final-test-password'})));
+      assert.deepEqual(activations.map(res=>res.status).sort(),[200,409],'concurrent registration creates one account');
+      const activated=activations.find(res=>res.status===200);
+      const confirmation=await activated.json();assert.equal(confirmation.reserved,true);assert.equal(confirmation.session.id,second.id,'finalization uses latest publication');
+      const finalUser=(await db.query("SELECT * FROM users WHERE email='final-flow@example.invalid'")).rows[0];assert.equal(finalUser.class,'3eme');assert.equal(finalUser.branch,'informatique');
+      assert.equal((await call('/api/live/session/'+second.id,jar(finalUser))).status,200);
+      assert.equal((await call('/api/live/session/'+third.id,jar(finalUser))).status,404);
+      assert.equal((await db.query('SELECT count(*)::int n FROM enrollments WHERE user_id=$1',[finalUser.id])).rows[0].n,0);
+      const loggedOut=jar();await submit(loggedOut);
+      const signed=await call('/api/auth/login',loggedOut,{email:'final-flow@example.invalid',password:'final-test-password'});assert.equal(signed.status,200,await signed.clone().text());
+      assert.equal((await call('/api/session/guest/claim',loggedOut,{slug:c.slug})).status,200,'guest result survives existing-account login');
+      assert.equal((await db.query("SELECT count(*)::int n FROM users WHERE email='final-flow@example.invalid'")).rows[0].n,1);
+      const sections='/api/session/admin/campaigns/'+c.id+'/target-sections';
+      assert.equal((await call(sections,adminJar,{sections:['informatique','sciences']},'PUT')).status,200);
+      assert.deepEqual((await metadata()).campaign.target_branches,['informatique','sciences']);
+      const branchGuest=jar();await submit(branchGuest);
+      const payload={slug:c.slug,full_name:'Section student',email:'section-flow@example.invalid',phone:'22112234',track:'1ere'};
+      assert.equal((await call('/api/session/register',branchGuest,{...payload,branch:'lettres'})).status,400);
+      assert.equal((await call('/api/session/register',branchGuest,{...payload,branch:'sciences'})).status,202);
+      const branchVerified=jar();await call('/api/session/verify',branchVerified,{token:emails.at(-1).token});
+      assert.equal((await call('/api/session/set-password',branchVerified,{password:'section-test-password'})).status,200);
+      assert.deepEqual((await db.query("SELECT class,branch FROM users WHERE email='section-flow@example.invalid'")).rows[0],{class:'3eme',branch:'sciences'});
+      const googleSections=jar();await submit(googleSections);
+      googlePayload={sub:'google-subset-final',email:'google-subset-final@gmail.com',email_verified:true,name:'Google section student'};
+      assert.equal((await call('/api/auth/google',googleSections,{credential:'mock-google-token'})).status,200);
+      assert.equal((await call('/api/session/member/profile',googleSections,{slug:c.slug,phone:'22112235',user_class:'1ere',user_branch:'lettres'})).status,400);
+      assert.equal((await call('/api/session/member/profile',googleSections,{slug:c.slug,phone:'22112235',user_class:'1ere',user_branch:'sciences'})).status,200);
+      assert.equal((await call('/api/session/guest/claim',googleSections,{slug:c.slug})).status,200);
+      assert.deepEqual((await db.query('SELECT class,branch FROM users WHERE email=$1',[googlePayload.email])).rows[0],{class:'3eme',branch:'sciences'});
+      await assert.rejects(db.query("UPDATE free_sessions SET target_branches=ARRAY['forged'] WHERE id=$1",[c.id]),error=>error.code==='23514');
+      if(process.env.TIMED_QA_CHROME)await withTimedOfferBrowser(process.env.TIMED_QA_CHROME,origin,async({open,evaluate,until,errors,command})=>{
+        for(const width of [320,375,390,430,768,1440]){
+          await open('/session/'+c.slug,'',width);await until(()=>evaluate("document.querySelector('#challenge-start').disabled===false"),'published card');
+          assert.equal(await evaluate("document.querySelector('#occurrence-select')"),null);
+          assert.match(await evaluate("document.querySelector('#public-session-duration').textContent"),/90 min/);
+          assert.equal(await evaluate('document.documentElement.scrollWidth>innerWidth+1'),false);
+        }
+        await evaluate("document.querySelector('#challenge-start').click()");await until(()=>evaluate("!!document.querySelector('.option-card input')"),'anonymous first quiz');
+        assert.equal(await evaluate("document.querySelector('#identity-panel').hidden"),true);
+        await evaluate("document.querySelector('.option-card input').click();document.querySelector('#btn-submit').click()");await until(()=>evaluate("!document.querySelector('#result-panel').hidden"),'result before identity');
+        assert.equal(await evaluate("document.querySelector('#identity-panel').hidden"),true);
+        await evaluate("document.querySelector('#save-result').click()");
+        assert.equal(await evaluate("document.querySelector('#profile-class').closest('label').hidden"),true);
+        assert.equal(await evaluate("[...document.querySelector('#profile-branch').options].filter(o=>o.value&&!o.disabled).map(o=>o.value).join(',')"),'informatique,sciences');
+        await command('Network.deleteCookies',{name:'synta_free_'+c.id.replaceAll('-',''),url:origin+'/api/session'});
+        await open('/session/'+c.slug,token(stranger),390);await until(()=>evaluate("document.querySelector('#challenge-start').disabled===false"),'member landing');
+        await evaluate("document.querySelector('#challenge-start').click()");await until(()=>evaluate("!!document.querySelector('.option-card input')"),'member quiz');
+        await evaluate("document.querySelector('.option-card input').click();document.querySelector('#btn-submit').click()");await until(()=>evaluate("document.querySelector('#reservation-confirmation').textContent.includes('Ta place est réservée')"),'automatic member reservation');
+        assert.equal(await evaluate("document.querySelector('#identity-panel').hidden"),true);
+        assert.equal(await evaluate("document.querySelector('#save-result').hidden"),true);
+        assert.deepEqual(errors,[]);
+      });
+      if(process.env.TIMED_QA_CHROME)await withTimedOfferBrowser(process.env.TIMED_QA_CHROME,origin,async({open,evaluate,until,command,errors})=>{
+        await open('/session/'+c.slug,'',390);await until(()=>evaluate("!document.querySelector('#challenge-start').disabled"),'new student landing');
+        await evaluate("document.querySelector('#challenge-start').click()");await until(()=>evaluate("!!document.querySelector('.option-card input')"),'new student quiz');
+        await evaluate("document.querySelector('.option-card input').click();document.querySelector('#btn-submit').click()");await until(()=>evaluate("!document.querySelector('#result-panel').hidden"),'new student result');
+        await evaluate("document.querySelector('#save-result').click();document.querySelector('#full_name').value='Browser student';document.querySelector('#email').value='browser-final@example.invalid';document.querySelector('#phone').value='22112236';document.querySelector('#profile-branch').value='sciences';document.querySelector('#identity-form').requestSubmit()");
+        await until(()=>evaluate("document.querySelector('#identity-notice').textContent.includes('confirmation')"),'verification email sent');
+        assert.equal(emails.at(-1).email,'browser-final@example.invalid');
+        await command('Page.navigate',{url:origin+'/session/'+c.slug+'#placement='+encodeURIComponent(emails.at(-1).token)});
+        await until(()=>evaluate("!document.querySelector('#result-panel').hidden || document.querySelector('#experience-error').textContent"),'email preserves result');
+        assert.equal(await evaluate("document.querySelector('#result-panel').hidden"),false,await evaluate("JSON.stringify({error:document.querySelector('#experience-error').textContent,identity:document.querySelector('#identity-panel').hidden,url:location.pathname,errors:document.querySelector('#identity-error').textContent})"));
+        await command('Page.reload');
+        await until(()=>evaluate("!document.querySelector('#result-panel').hidden && document.querySelector('#save-result').textContent.includes('Créer mon compte')"),'verified recovery after refresh');
+        await evaluate("document.querySelector('#save-result').click();document.querySelector('#modal-password').value='browser-final-password';document.querySelector('#modal-password-confirm').value='browser-final-password';document.querySelector('#password-form').requestSubmit()");
+        await until(()=>evaluate("document.querySelector('#reservation-confirmation').textContent.includes('réservée')"),'email account automatically reserved');
+        assert.equal(await evaluate("document.querySelector('#identity-panel').hidden"),true);
+        assert.deepEqual(errors,[]);
+      });
+      if(process.env.TIMED_QA_CHROME)await withTimedOfferBrowser(process.env.TIMED_QA_CHROME,origin,async({open,evaluate,until,command,errors})=>{
+        await open('/session/'+c.slug,'',390);await until(()=>evaluate("!document.querySelector('#challenge-start').disabled"),'logged-out landing');
+        await evaluate("document.querySelector('#challenge-start').click()");await until(()=>evaluate("!!document.querySelector('.option-card input')"),'logged-out quiz');
+        await evaluate("document.querySelector('.option-card input').click();document.querySelector('#btn-submit').click()");await until(()=>evaluate("!document.querySelector('#result-panel').hidden"),'logged-out result');
+        await command('Page.navigate',{url:origin+'/login?next='+encodeURIComponent('/session/'+c.slug)});
+        await until(()=>evaluate("!!document.querySelector('#loginForm')"),'normal login');
+        await evaluate("document.querySelector('#email').value='final-flow@example.invalid';document.querySelector('#password').value='final-test-password';document.querySelector('#loginForm').requestSubmit()");
+        await until(()=>evaluate("location.pathname==='/session/published-flow' && document.querySelector('#reservation-confirmation')?.textContent.includes('Ta place est réservée')"),'login claims guest result without registration');
+        assert.equal(await evaluate("document.querySelector('#identity-panel').hidden"),true);
+        assert.deepEqual(errors,[]);
+      });
+      if(process.env.TIMED_QA_CHROME)await withTimedOfferBrowser(process.env.TIMED_QA_CHROME,origin,async({open,evaluate,until,errors})=>{
+        for(const width of [360,390,1440]){
+          await open('/admin/pages/free-session.html',token(admin),width);
+          await until(()=>evaluate("typeof loadCampaignFunnel==='function' && typeof campaigns!=='undefined' && campaigns.length>0"),'admin publication loaded');
+          await evaluate('selectCampaign('+JSON.stringify(c.id)+')');
+          await until(()=>evaluate("document.querySelector('#campaign-funnel-manager').dataset.campaignId==="+JSON.stringify(c.id)+" && !!document.querySelector('.campaign-sections-form')"),'allowed section controls');
+          assert.equal(await evaluate("document.querySelectorAll('.campaign-sections-form input:checked').length"),2);
+          assert.equal(await evaluate("[...document.querySelectorAll('#campaign-funnel-manager button')].some(b=>b.textContent==='Date publiée sur le lien public')"),true);
+          assert.equal(await evaluate("document.querySelector('#campaign-funnel-manager').scrollWidth>document.querySelector('#campaign-funnel-manager').clientWidth+1"),false);
+        }
+        await evaluate("[...document.querySelectorAll('#campaign-funnel-manager button')].find(b=>b.textContent==='Ne publier aucune date').click()");
+        await until(()=>evaluate("[...document.querySelectorAll('#campaign-funnel-manager button')].some(b=>b.textContent==='Ne publier aucune date'&&b.disabled)"),'unpublish works');
+        await evaluate("[...document.querySelectorAll('#campaign-funnel-manager button')].find(b=>b.textContent==='Publier cette date').click()");
+        await until(()=>evaluate("[...document.querySelectorAll('#campaign-funnel-manager button')].some(b=>b.textContent==='Date publiée sur le lien public')"),'publish works');
+        assert.deepEqual(errors,[]);
+      });
+      await call(publication,adminJar,{occurrenceId:second.id},'PUT');
+      const raceGuest=jar();await submit(raceGuest);raceGuest.set('synta_access',token(created));
+      const raced=await Promise.all([call(publication,adminJar,{occurrenceId:first.id},'PUT'),call('/api/session/guest/claim',raceGuest,{slug:c.slug,occurrenceId:third.id})]);
+      raced.forEach(res=>assert.equal(res.status,200));const racedResult=await raced[1].json();assert.ok([first.id,second.id].includes(racedResult.session.id));
+      const cancel='/api/session/admin/campaigns/'+c.id+'/occurrences/'+first.id;
+      const cancellationStudent=await createUser('cancel-race@example.invalid'),cancellationGuest=jar(cancellationStudent);await submit(cancellationGuest);
+      const cancelled=await Promise.all([call(publication,adminJar,{occurrenceId:first.id},'PUT'),call(cancel,adminJar,{action:'cancelled',expectedStartTime:new Date(first.scheduled_at).toISOString()},'PATCH'),call('/api/session/guest/claim',cancellationGuest,{slug:c.slug})]);
+      assert.equal(cancelled[1].status,200);assert.ok([200,409].includes(cancelled[0].status));assert.equal((await metadata()).session,null);
+      assert.equal(cancelled[2].status,200);
+      assert.equal((await db.query("SELECT count(*)::int n FROM free_session_reservations WHERE live_session_id=$1 AND status='reserved'",[first.id])).rows[0].n,0,'cancellation leaves no active reservations regardless of claim order');
+      assert.equal((await call(publication,adminJar,{occurrenceId:first.id},'PUT')).status,409);
+      await db.query("UPDATE live_sessions SET scheduled_at=now()-interval '1 day' WHERE id=$1",[third.id]);
+      assert.equal((await call(publication,adminJar,{occurrenceId:third.id},'PUT')).status,409);
+      assert.equal((await call(publication,adminJar,{occurrenceId:null},'PUT')).status,200);
+      const noDate=jar();await submit(noDate);noDate.set('synta_access',token(admin));assert.equal((await call('/api/session/guest/claim',noDate,{slug:c.slug})).status,403);
+      noDate.set('synta_access',token(finalUser));const absent=await call('/api/session/guest/claim',noDate,{slug:c.slug});assert.equal(absent.status,200);assert.equal((await absent.json()).reserved,false);
+      const undatedGuest=jar();await submit(undatedGuest);
+      assert.equal((await call('/api/session/register',undatedGuest,{slug:c.slug,full_name:'No date student',email:'no-date-final@example.invalid',phone:'22112237',branch:'sciences'})).status,202);
+      const undatedVerified=jar();await call('/api/session/verify',undatedVerified,{token:emails.at(-1).token});
+      const undatedActivation=await call('/api/session/set-password',undatedVerified,{password:'no-date-final-password'});assert.equal(undatedActivation.status,200);
+      const undatedResult=await undatedActivation.json();assert.equal(undatedResult.reserved,false);assert.equal(undatedResult.session,null,'unpublished dates never leak through activation response');
+      if(process.env.TIMED_QA_CHROME)await withTimedOfferBrowser(process.env.TIMED_QA_CHROME,origin,async({open,evaluate,until})=>{await open('/session/'+c.slug,'',390);await until(()=>evaluate("document.querySelector('#upcoming-date').textContent.includes('annoncée bientôt')"),'no published date');assert.equal(await evaluate("document.querySelector('#occurrence-select')"),null);});
     });
     assert.equal((await db.query('SELECT balance FROM users WHERE id=$1', [existing.id])).rows[0].balance, '300.00');
     assert.equal((await db.query('SELECT signup_source FROM users WHERE id=$1', [existing.id])).rows[0].signup_source, null);

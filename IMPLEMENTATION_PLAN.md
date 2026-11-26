@@ -1,3 +1,7 @@
+### TASK-FREE-FUNNEL — final student journey implemented locally, 2026-11-26
+
+Admin publication/section controls, read-only date card, quiz-first final registration, automatic member reservations and secure email/login/Google recovery implemented. Pending250004 and260005 remain held; no production activation. Validation/results and remaining gates: FREE_SESSION_FINAL_FLOW_IMPLEMENTATION.md and latest CURRENT_STATE.md.
+
 ### TASK-FREE-FUNNEL — readiness review, 2026-11-26
 
 Alias promotion completed locally with exact approved checksum; supplied production metadata verified. Hosted staging explicitly waived. Final combined regressions and operational runbook: PRODUCTION_RELEASE_READINESS_20261126.md. Deployment still requires final owner approval and verified backup; do not promote held funnel or unrelated migrations.

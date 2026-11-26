@@ -42,6 +42,7 @@ async function initCourseDetailsPage() {
         return;
     }
 
+    setupCourseRail();
     window.matchMedia(COURSE_WIDE_LAYOUT).addEventListener('change', positionCourseHero);
     positionCourseHero();
     await loadCourseDetails(courseId);
@@ -53,6 +54,28 @@ async function initCourseDetailsPage() {
         const replay = currentLiveSessions.find(session => session.id === replayId && session.replay_url);
         if (replay) openReplayPlayer(replay.replay_url, replay.title, replay.resources || [], replay.id);
     }
+}
+
+/** Focus mode: collapse/expand the app menu to an icon rail on this page (remembered). */
+function setupCourseRail() {
+    const button = document.getElementById('course-rail-toggle');
+    if (!button || button.dataset.ready) return;
+    button.dataset.ready = 'true';
+    const sync = () => {
+        const expanded = !document.body.classList.contains('course-rail');
+        const label = expanded ? 'Réduire le menu' : 'Agrandir le menu';
+        button.setAttribute('aria-expanded', String(expanded));
+        button.setAttribute('aria-label', label);
+        button.title = label;
+        button.querySelector('.course-rail-toggle-label').textContent = label;
+        button.querySelector('i').className = 'fas fa-angles-' + (expanded ? 'left' : 'right');
+    };
+    button.addEventListener('click', () => {
+        const expanded = document.body.classList.toggle('course-rail') === false;
+        try { localStorage.setItem('synta:course-menu-expanded', expanded ? '1' : '0'); } catch { /* storage optional */ }
+        sync();
+    });
+    sync();
 }
 
 function positionCourseHero() {
@@ -71,7 +94,7 @@ if (document.readyState === 'loading') {
 }
 
 document.addEventListener('click', (event) => {
-    if (courseOverview && event.target.closest('.course-details-container > .back-link')) {
+    if (courseOverview && event.target.closest('.course-details-container > .back-link, [data-lesson-back]')) {
         event.preventDefault();
         switchCoursePlayerTo(playerReturnTab);
         return;
@@ -637,12 +660,14 @@ function renderModulesAndLessons(modules, hasAccess, courseProgress) {
         const quizCount = (module.lessons || []).length - videoLessons.length;
         const doneCount = videoLessons.filter(lesson => completedIds.includes(lesson.id)).length;
         const isComplete = videoLessons.length > 0 && doneCount === videoLessons.length;
+        // One format for every chapter: "{done}/{total} leçons" (+ "Terminé" badge when complete).
+        const lessonWord = `leçon${videoLessons.length > 1 ? 's' : ''}`;
         const meta = [
-            `${videoLessons.length} leçon${videoLessons.length > 1 ? 's' : ''}`,
+            hasAccess && videoLessons.length ? `<strong>${doneCount}/${videoLessons.length}</strong> ${lessonWord}` : `${videoLessons.length} ${lessonWord}`,
             quizCount ? `${quizCount} mini-défi${quizCount > 1 ? 's' : ''}` : '',
         ].filter(Boolean).join(' · ');
         const progressText = hasAccess && videoLessons.length
-            ? ` · <strong>${isComplete ? 'Terminé' : `${doneCount}/${videoLessons.length}`}</strong>` : '';
+            ? `<span class="module-done-badge"${isComplete ? '' : ' hidden'}><i class="fas fa-check" aria-hidden="true"></i> Terminé</span>` : '';
         const lessons = [];
         const leadingQuizzes = [];
         for (const lesson of module.lessons || []) {
@@ -669,7 +694,7 @@ function renderModulesAndLessons(modules, hasAccess, courseProgress) {
                     <span class="module-number" aria-hidden="true">${isComplete ? '<i class="fas fa-check"></i>' : String(moduleIndex + 1).padStart(2, '0')}</span>
                     <span class="module-heading">
                         <h3>${escapeHtml(module.title)}</h3>
-                        <span class="module-meta">${meta}${progressText}</span>
+                        <span class="module-meta">${meta}</span>${progressText}
                     </span>
                     <span class="module-toggle" id="toggle-${moduleIndex}" aria-hidden="true"><i class="fas fa-chevron-down"></i></span>
                 </button>
@@ -845,6 +870,11 @@ function refreshSavedLessonProgress() {
     select('#progress-percentage-text').forEach(el => el.textContent = percentage + '%');
     select('#progress-bar-fill').forEach(el => el.style.width = percentage + '%');
     select('#progress-completed-text').forEach(el => el.textContent = count + ' / ' + lessons.length + ' leçons');
+    // Outline CourseProgress block in the lesson player.
+    select('[data-outline-percent]').forEach(el => el.textContent = percentage + '%');
+    select('[data-outline-bar]').forEach(el => el.style.width = percentage + '%');
+    select('.course-outline-track').forEach(el => el.setAttribute('aria-valuenow', String(percentage)));
+    select('[data-outline-count]').forEach(el => el.textContent = `${count} / ${lessons.length} leçons · ${percentage}%`);
     select('.lesson-item[data-lesson-id]').forEach(row => {
         if (!completed.has(row.dataset.lessonId) || row.classList.contains('locked')) return;
         const icon = row.querySelector('.lesson-info .lesson-icon');
@@ -854,7 +884,9 @@ function refreshSavedLessonProgress() {
         const rows = [...card.querySelectorAll('.lesson-item[data-lesson-id]')];
         const done = rows.filter(row => completed.has(row.dataset.lessonId)).length;
         const counter = card.querySelector('.module-meta strong');
-        if (counter) counter.textContent = done === rows.length ? 'Terminé' : done + '/' + rows.length;
+        if (counter) counter.textContent = done + '/' + rows.length;
+        const doneBadge = card.querySelector('.module-done-badge');
+        if (doneBadge) doneBadge.hidden = !(rows.length && done === rows.length);
         if (rows.length && done === rows.length) {
             card.classList.add('is-complete');
             const number = card.querySelector('.module-number');
@@ -1010,6 +1042,18 @@ async function showLessonInMainArea(lesson, videoUrl, pdfUrl, practiceFiles = []
     courseMain.querySelector('[data-lesson-nav="next"]')?.addEventListener('click', () => position.next && playLesson(position.next.id));
     setupLessonDetailsTabs(courseMain);
     setupTheaterToggle(courseMain);
+    // Align the top of the outline with the top of the video (below the lesson header).
+    {
+        const header = courseMain.querySelector('.lesson-header');
+        const layout = document.querySelector('.course-layout');
+        if (header && layout && 'ResizeObserver' in window) {
+            const observer = new ResizeObserver(() => {
+                if (!header.isConnected) { observer.disconnect(); layout.style.removeProperty('--lesson-header-h'); return; }
+                layout.style.setProperty('--lesson-header-h', header.offsetHeight + 'px');
+            });
+            observer.observe(header);
+        }
+    }
     courseMain.querySelector('[data-outline-jump]')?.addEventListener('click', () => {
         const outline = document.querySelector('.course-sidebar .course-outline');
         outline?.scrollIntoView({ behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth', block: 'start' });
@@ -1392,6 +1436,12 @@ function enterCoursePlayer(courseMain, courseSidebar, returnTab) {
 
 function restoreCourseContent() {
     if (!courseOverview) return;
+    hideNextLessonOverlay();
+    lessonShortcutVideo = null;
+    document.querySelector('.course-details-page')?.classList.remove('is-lesson-player');
+    document.querySelector('.course-layout')?.classList.remove('is-theater');
+    document.querySelector('.course-layout')?.style.removeProperty('--lesson-header-h');
+    document.querySelector('.course-sidebar')?.classList.remove('is-outline');
     const courseMain = document.querySelector('.course-main');
     const courseSidebar = document.querySelector('.course-sidebar');
     courseMain.replaceChildren(...courseOverview.main);
@@ -1917,6 +1967,8 @@ function createResourceSection(resources, headingText) {
         downloadIcon.className = 'fas fa-download';
         downloadIcon.setAttribute('aria-hidden', 'true');
         downloadButton.appendChild(downloadIcon);
+        downloadButton.append(resourceActionLabel('Télécharger'));
+        downloadButton.classList.add('has-label');
         downloadButton.addEventListener('click', () => downloadPracticeResource(resource, downloadButton));
         actions.appendChild(downloadButton);
         const fileName = String(resource.file_name || resource.title || '');
@@ -1944,6 +1996,8 @@ function createResourceSection(resources, headingText) {
             codeIcon.className = 'fas fa-code';
             codeIcon.setAttribute('aria-hidden', 'true');
             openButton.appendChild(codeIcon);
+            openButton.append(resourceActionLabel('Ouvrir dans Code Pratique'));
+            openButton.classList.add('has-label');
             openButton.addEventListener('click', () => openPracticeResource(resource, openButton));
             actions.appendChild(openButton);
         }
@@ -1952,6 +2006,15 @@ function createResourceSection(resources, headingText) {
     });
     section.appendChild(list);
     return section;
+}
+
+/** Visible text next to a resource action icon (the button keeps its full aria-label). */
+function resourceActionLabel(text) {
+    const label = document.createElement('span');
+    label.className = 'lesson-resource-action-label';
+    label.setAttribute('aria-hidden', 'true');
+    label.textContent = text;
+    return label;
 }
 
 async function openPracticeResource(resource, button) {

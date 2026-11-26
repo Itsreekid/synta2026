@@ -1,3 +1,7 @@
+### APPROVED LOCAL / HELD — public occurrence and section subsets, 2026-11-26
+
+Exact file: database/pending-migrations/202611260005_free_campaign_public_occurrence.sql. Local/disposable approval received; not promoted or production-applied. Depends on held250004 guest-attempt/reservation schema (explicit fail-closed guard), campaign schema and reviewed compatibility repair. Adds free_sessions.published_occurrence_id UUID NULL, target_branches TEXT[] NULL, unique live_sessions(free_session_id,id), composite FK (campaign id,published occurrence) to that key. CHECK validates one-dimensional nonempty allowed-vocabulary subset, no null entries and no conflicting scalar target_branch. Existing scalar/Toutes behavior retained. NULL publishes nothing; no historical row backfill/reservation movement. Local runner concurrency/repeat/failure tests preserve the supplied20 hashes. Earlier PROPOSED notes below are historical.
+
 # DATABASE_SCHEMA.md — Synta Academy
 
 > **Last audited:** 2026-11-05  
@@ -821,3 +825,7 @@ Exact draft: database/pending-migrations/202611250004_free_session_funnel.sql. A
 ### Production alias metadata verification — 2026-11-26
 
 Owner-supplied metadata confirms UUID free_sessions key and unique non-null text slug. Alias SQL is promoted unchanged; no reservation-table dependency. Production legacy free_session_registrations (id/user_id UUID, academic_level/assigned_group TEXT, quiz_score INT4, quiz_details JSONB, registered_at TIMESTAMPTZ) is separate from session_registrations and preserved verbatim. target_branch remains scalar TEXT with its existing CHECK: one section or NULL/Toutes; arrays/comma lists are rejected. See final readiness runbook for exact combined migration inventory.
+
+### PROPOSED ONLY — current public occurrence and allowed section subsets
+
+Pending202611260005_free_campaign_public_occurrence.sql is NOT approved/applied/promoted. Adds free_sessions.published_occurrence_id UUID NULL and target_branches TEXT[] NULL. Campaign-owned composite FK references live_sessions(free_session_id,id) through an additive unique index. NULL publishes nothing; no backfill/reservation movement. Array CHECK retains scalar target_branch rules and existing profile vocabulary. Exact plan: FREE_SESSION_FINAL_FLOW_PLAN.md. AGENTS.md approval required before implementation/application.

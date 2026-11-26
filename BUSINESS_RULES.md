@@ -1,3 +1,7 @@
+### Final free-session journey — approved locally 2026-11-26
+
+Admin publication is authoritative. Students never choose dates. Quiz/result precede new-account registration; existing authenticated students claim automatically without profile changes. New single-section profiles inherit campaign targeting; subsets require an allowed section. Publication changes never move existing reservations; finalization re-reads the current eligible publication, with no fabricated seat when absent/canceled/expired. Historical legacy entitlements remain intact and paid access is never granted. No implicit publication/backfill. The two held funnel/publication migrations require separate promotion/production approval. See FREE_SESSION_FINAL_FLOW_IMPLEMENTATION.md.
+
 ### Independent campaigns and permanent links — locally approved 2026-11-26
 
 No one-campaign-per-class limit. Targeted new registrations use campaign class/section; configured fields are read-only, unconfigured fields require normal valid choices. Existing saved profiles remain unchanged by campaign participation. Single-section and Toutes campaigns retain existing semantics. Canonical/historical slugs stay permanently owned by one campaign, even inactive; rename-back is allowed only by that owner. Redirects use current same-site canonical path and no-store temporary responses. No paid enrollment is granted. Held migration and verification: FREE_CAMPAIGN_FLEXIBILITY_IMPLEMENTATION.md.

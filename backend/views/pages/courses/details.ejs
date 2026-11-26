@@ -8,13 +8,20 @@
 <link rel="stylesheet" href="/css/learning-player.css?v=2">
 <link rel="stylesheet" href="/vendor/videojs/10.6.0/global.css">
 </head>
-<body>
+<body class="course-rail">
+    <script>
+        // Focus mode: on this page the app menu starts as an icon rail; the choice is remembered.
+        try { if (localStorage.getItem('synta:course-menu-expanded') === '1') document.body.classList.remove('course-rail'); } catch (e) {}
+    </script>
     <%- include('../../partials/header') %>
 
     <div class="content-wrapper">
         <%- include('../../partials/sidebar', { active: 'courses' }) %>
 
         <section id="main-section" class="main-section course-details-page">
+            <button type="button" class="course-rail-toggle" id="course-rail-toggle" aria-controls="app-sidebar" aria-expanded="false">
+                <i class="fas fa-angles-right" aria-hidden="true"></i><span class="course-rail-toggle-label">Agrandir le menu</span>
+            </button>
             <div class="course-details-container">
                 <a href="/app/courses" class="back-link">
                     <i class="fas fa-arrow-left" aria-hidden="true"></i> <span>Retour aux cours</span>
@@ -113,9 +120,9 @@
     <script src="/js/user.js?v=20261125-emphasis"></script>
     <script src="/js/api-client.js"></script>
     <script src="/js/course-image.js"></script>
-    <script src="/js/learning-player.js?v=2"></script>
+    <script src="/js/learning-player.js?v=3"></script>
     <script src="/js/replay-player.js"></script>
     <script src="/js/course-markdown.js?v=2"></script>
-    <script src="/js/course-details.js?v=9"></script>
+    <script src="/js/course-details.js?v=10"></script>
 </body>
 </html>

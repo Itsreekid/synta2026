@@ -1,3 +1,7 @@
+### Admin-owned public occurrence — local implementation 2026-11-26
+
+Existing free-campaigns/funnel services, session routes, auth and vanilla UI are reused. Published occurrence lookup is campaign-owned; publication and reservation lock the campaign before the live row. Composite FK enforces ownership. API metadata uses to_jsonb for safe pending-schema detection and HttpOnly capability-presence hints at the existing narrow cookie path; private/no-store caching. No new providers, packages or environment variables. No polling or parallel reservation system. See FREE_SESSION_FINAL_FLOW_IMPLEMENTATION.md.
+
 ### Readiness clarification — 2026-11-26
 
 Alias migration is promoted, not held. Existing runner/ESM/vanilla architecture retained. Public campaign bootstrap sends only placement-cookie presence to avoid an anonymous protected-status probe; capability validation remains server-side. Player navigation stores the existing API-derived access result in client state; backend authorization remains authoritative. No new runtime variable. See final release runbook.

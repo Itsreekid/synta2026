@@ -7,6 +7,21 @@ export async function slugAliasesReady(db) {
   return (await db.query("SELECT to_regclass('free_session_slug_aliases') IS NOT NULL AS ready")).rows[0].ready;
 }
 
+export async function campaignPublicPolicy(db, campaignId) {
+  const row = (await db.query(`SELECT to_jsonb(f) ? 'published_occurrence_id' AS ready,
+    to_jsonb(f)->>'published_occurrence_id' AS published_occurrence_id,
+    to_jsonb(f)->'target_branches' AS target_branches FROM free_sessions f WHERE id=$1`, [campaignId])).rows[0];
+  return row || { ready: false, published_occurrence_id: null, target_branches: null };
+}
+
+export async function publishedCampaignOccurrence(db, campaignId) {
+  const policy = await campaignPublicPolicy(db, campaignId);
+  if (!policy.published_occurrence_id) return null;
+  return (await db.query(`SELECT id,title,scheduled_at,duration_minutes,status FROM live_sessions
+    WHERE id=$1 AND free_session_id=$2 AND status='scheduled' AND scheduled_at>now()`,
+  [policy.published_occurrence_id, campaignId])).rows[0] || null;
+}
+
 /** Resolve canonical and historical links to the same active campaign, never another URL. */
 export async function findActiveCampaign(db, slug) {
   if (slug == null || slug === '') {

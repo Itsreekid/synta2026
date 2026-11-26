@@ -10,7 +10,7 @@
 //  - Participants see the campaign's Zoom session through the normal live-session system.
 // =====================================================
 import express from "express";
-import {findActiveCampaign, slugAliasesReady, SLUG_PATTERN, RESERVED_SLUGS, CAMPAIGN_COLUMNS} from "../services/free-campaigns.js";
+import {findActiveCampaign, slugAliasesReady, campaignPublicPolicy, publishedCampaignOccurrence, SLUG_PATTERN, RESERVED_SLUGS, CAMPAIGN_COLUMNS} from "../services/free-campaigns.js";
 export {findActiveCampaign, SLUG_PATTERN, RESERVED_SLUGS};
 import { normalizeTunisianPhone, validateLearnerProfile } from "../utils/learnerProfile.js";
 import * as funnel from '../services/free-session-funnel.js';
@@ -172,6 +172,14 @@ router.post("/register", authRateLimit(10), async (req, res) => {
   try {
     const campaign = await findActiveCampaign(pool, slug);
     if (!campaign) return res.status(404).json({ error: "Cette séance gratuite n’est plus disponible." });
+    const policy=await campaignPublicPolicy(pool,campaign.id);
+    if(policy.target_branches && !policy.target_branches.includes(req.body.branch))return res.status(400).json({error:'Choisis une section autorisée pour cette séance.'});
+    if(policy.ready && await funnel.funnelReady(pool)){
+      try{
+        const guest=await funnel.guestStatus(pool,campaign.id,req.cookies);
+        if(!guest.attempt.submitted)return res.status(409).json({error:'Termine le défi avant de créer ton compte.'});
+      }catch(error){return res.status(error.status||500).json({error:error.status?error.message:'Impossible de retrouver ton résultat.'});}
+    }
     if (req.body.track || req.body.branch) {
       if (!SCHOOL_YEARS.includes(campaign.target_class || req.body.track) || !SCHOOL_SECTIONS.includes(campaign.target_branch || req.body.branch)) {
         return res.status(400).json({ error: 'Choisis ta classe et ta section.' });
@@ -202,8 +210,8 @@ router.post("/register", authRateLimit(10), async (req, res) => {
     const registration = result.rows[0];
     if (registration) {
       if (await funnel.funnelReady(pool)) await funnel.bindGuestRegistration(pool, campaign.id, registration.id, req.cookies);
-      const occurrenceId = req.body.occurrenceId;
-      if (occurrenceId && !(await funnel.campaignOccurrences(pool, campaign.id)).some(row => row.id === occurrenceId)) {
+      const occurrenceId = policy.ready ? null : req.body.occurrenceId;
+      if (!policy.ready && occurrenceId && !(await funnel.campaignOccurrences(pool, campaign.id)).some(row => row.id === occurrenceId)) {
         return res.status(409).json({ error: 'Choisis une séance disponible.' });
       }
       const token = jwt.sign({ revision: registration.revision, ...(occurrenceId && { occurrenceId }) }, placementKey(), {
@@ -347,6 +355,10 @@ router.post("/set-password", authRateLimit(10), requirePlacement, async (req, re
       return res.status(409).json({ error: "Termine le quiz ou connecte-toi à ton compte." });
     }
     const reg = registration.rows[0];
+    const registrationPolicy=await campaignPublicPolicy(client,reg.free_session_id);
+    if(registrationPolicy.target_branches&&!registrationPolicy.target_branches.includes(reg.target_branch||reg.filier)){
+      await client.query('ROLLBACK');return res.status(409).json({error:'Les sections de cette campagne ont changé. Contacte Synta Academy avant de terminer ton inscription.'});
+    }
     const result = await client.query(
       `INSERT INTO users (email, password_hash, name, phone, role, email_verified, class, branch,
                           signup_source, signup_free_session_id)
@@ -378,7 +390,7 @@ router.post("/set-password", authRateLimit(10), requirePlacement, async (req, re
     res.clearCookie("synta_placement", placementCookie);
     await startSession(pool, res, user);
     // Open the campaign session in the student calendar (its popup has the Join button).
-    const session = await upcomingCampaignSession(pool, reg.free_session_id).catch(() => null);
+    const session = savedFree ? (savedFree.reserved ? savedFree.session : null) : await upcomingCampaignSession(pool, reg.free_session_id).catch(() => null);
     return res.json({ success: true, redirectUrl: "/dashboard", session: savedFree?.session || session, reserved: savedFree?.reserved === true });
   } catch (err) {
     if (client) await client.query("ROLLBACK").catch(() => {});
@@ -633,6 +645,7 @@ export async function syncCampaignZoom(db, campaignId, zoom = { createZoomMeetin
 async function campaignList(db, id = null) {
   const result = await db.query(
     `SELECT f.id, f.slug, f.title, f.description, f.subject, f.target_class, f.target_branch,
+            to_jsonb(f)->'target_branches' AS target_branches,
             f.scheduled_at, f.duration_minutes, f.is_active, f.is_default, f.created_at, f.updated_at,
             ls.id AS live_session_id, ls.scheduled_at AS live_scheduled_at, ls.duration_minutes AS live_duration_minutes,
             ls.status AS live_status, ls.zoom_meeting_id IS NOT NULL AS has_zoom,
@@ -640,7 +653,10 @@ async function campaignList(db, id = null) {
             (SELECT COUNT(*)::int FROM free_session_participants p WHERE p.free_session_id = f.id) AS participant_count,
             (SELECT COUNT(*)::int FROM session_questions q WHERE q.free_session_id = f.id AND q.is_active) AS question_count
      FROM free_sessions f
-     LEFT JOIN live_sessions ls ON ls.free_session_id = f.id AND ls.status IN ('scheduled', 'live')
+     LEFT JOIN LATERAL (
+       SELECT l.* FROM live_sessions l WHERE l.free_session_id=f.id AND l.status IN ('scheduled','live')
+       ORDER BY (l.id::text=COALESCE(to_jsonb(f)->>'published_occurrence_id','')) DESC,l.scheduled_at DESC,l.id LIMIT 1
+     ) ls ON true
      WHERE ($1::uuid IS NULL OR f.id = $1)
      ORDER BY f.is_default DESC, f.created_at DESC`,
     [id]
@@ -677,6 +693,9 @@ async function saveCampaign(req, res, id) {
     }
     if (value.is_default) {
       await client.query("UPDATE free_sessions SET is_default = false, updated_at = NOW() WHERE is_default AND id IS DISTINCT FROM $1", [id || null]);
+    }
+    if(id && value.target_branch && (await campaignPublicPolicy(client,id)).ready){
+      await client.query('UPDATE free_sessions SET target_branches=NULL WHERE id=$1',[id]);
     }
     const params = [value.slug, value.title, value.description, value.subject, value.target_class, value.target_branch,
       value.scheduled_at, value.duration_minutes, value.is_active, value.is_default];
@@ -853,9 +872,13 @@ const funnelHandler=work=>async(req,res)=>{
 const campaignFor=async req=>{const campaign=await findActiveCampaign(pool,req.body?.slug??req.query.slug);if(!campaign)throw Object.assign(new Error('Campagne indisponible.'),{status:404});return (await pool.query('SELECT * FROM free_sessions WHERE id=$1',[campaign.id])).rows[0];};
 router.get('/campaign',async(req,res)=>{
  try{const campaign=await findActiveCampaign(pool,req.query.slug);if(!campaign)return res.status(404).json({error:'Campagne indisponible.'});
- const questions=await activeQuestions(pool,campaign.id);res.set('Cache-Control','no-store');
- res.json({campaign:publicCampaign(campaign),count:questions.length,minutes:Math.max(2,Math.ceil(questions.length*.75)),
-   funnel:await funnel.funnelReady(pool),occurrences:await funnel.campaignOccurrences(pool,campaign.id)});
+ const questions=await activeQuestions(pool,campaign.id);res.set('Cache-Control','private, no-store');
+ const policy=await campaignPublicPolicy(pool,campaign.id);
+ const session=await publishedCampaignOccurrence(pool,campaign.id);
+ res.json({campaign:{...publicCampaign(campaign),target_branches:policy.target_branches},count:questions.length,minutes:Math.max(2,Math.ceil(questions.length*.75)),
+   funnel:await funnel.funnelReady(pool),session,occurrences:session?[session]:[],
+   hasPlacement:Boolean(readPlacementToken(req.cookies?.synta_placement,'placement-verified')),
+   hasGuestAttempt:Boolean(req.cookies?.['synta_free_'+campaign.id.replaceAll('-','')])});
  }catch{res.status(503).json({error:'Le défi est momentanément indisponible.'});}
 });
 router.post('/guest/start',authRateLimit(12,60*60*1000),requireJson,funnelHandler(async(req,res)=>{
@@ -880,10 +903,23 @@ router.post('/member/reserve',authApiMiddleware,authRateLimit(30,900000,req=>req
 router.get('/admin/campaigns/:id/occurrences',requireAdmin,funnelHandler(async(req,res)=>{
  if(!uuidPattern.test(req.params.id))return res.status(400).json({error:'Campagne invalide.'});
  const occurrences=(await pool.query('SELECT id,title,scheduled_at,duration_minutes,status,free_reservation_required,zoom_meeting_id IS NOT NULL AS has_zoom FROM live_sessions WHERE free_session_id=$1 ORDER BY scheduled_at DESC',[req.params.id])).rows;
- const policy=(await pool.query('SELECT allow_result_reuse,diagnostic_rules FROM free_sessions WHERE id=$1',[req.params.id])).rows[0];
+ const policy=(await pool.query('SELECT allow_result_reuse,diagnostic_rules,target_class,target_branch FROM free_sessions WHERE id=$1',[req.params.id])).rows[0];
  const participants=(await pool.query('SELECT r.live_session_id,r.user_id,r.reserved_at,r.status,u.name,a.score,a.total,a.level FROM free_session_reservations r LEFT JOIN free_session_attempts a ON a.id=r.attempt_id JOIN users u ON u.id=r.user_id JOIN live_sessions ls ON ls.id=r.live_session_id WHERE ls.free_session_id=$1 ORDER BY r.reserved_at DESC',[req.params.id])).rows;
  const attempts=(await pool.query('SELECT a.id,a.user_id,a.score,a.total,a.level,a.created_at,a.submitted_at,u.name FROM free_session_attempts a LEFT JOIN users u ON u.id=a.user_id WHERE a.campaign_id=$1 ORDER BY a.created_at DESC LIMIT 100',[req.params.id])).rows;
- res.json({occurrences,policy,participants,attempts});
+ res.json({occurrences,policy:{...policy,...await campaignPublicPolicy(pool,req.params.id)},participants,attempts});
+}));
+router.put('/admin/campaigns/:id/public-occurrence',requireAdmin,requireJson,funnelHandler(async(req,res)=>{
+ if(!uuidPattern.test(req.params.id))return res.status(400).json({error:'Campagne invalide.'});
+ res.json(await funnel.publishOccurrence(pool,req.params.id,req.body.occurrenceId));
+}));
+router.put('/admin/campaigns/:id/target-sections',requireAdmin,requireJson,funnelHandler(async(req,res)=>{
+ const sections=req.body.sections;
+ if(!uuidPattern.test(req.params.id)||!Array.isArray(sections)||sections.length>7||sections.some(value=>!SCHOOL_SECTIONS.includes(value)))return res.status(400).json({error:'Sections invalides.'});
+ if(!(await campaignPublicPolicy(pool,req.params.id)).ready)return res.status(503).json({error:'La sélection multiple attend sa migration.'});
+ const unique=[...new Set(sections)];
+ const result=await pool.query('UPDATE free_sessions SET target_branch=$2,target_branches=$3,updated_at=now() WHERE id=$1 RETURNING id',[req.params.id,unique.length===1?unique[0]:null,unique.length>1?unique:null]);
+ if(!result.rowCount)return res.status(404).json({error:'Campagne introuvable.'});
+ res.json({success:true});
 }));
 router.post('/admin/campaigns/:id/occurrences',requireAdmin,requireJson,funnelHandler(async(req,res)=>{
  if(!uuidPattern.test(req.params.id))return res.status(400).json({error:'Campagne invalide.'});
