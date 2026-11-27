@@ -31,7 +31,7 @@ async function initOffers() {
         updateBalanceInUI(userBalance || 0);
 
         if (!offers || offers.length === 0) {
-            offersList.innerHTML = '<div class="no-courses">Aucune offre disponible pour le moment</div>';
+            offersList.innerHTML = '<div class="no-courses sa-empty"><span class="sa-empty__icon" aria-hidden="true"><i class="fas fa-tags"></i></span><p class="sa-empty__title">Aucune offre disponible pour le moment</p></div>';
             return;
         }
 

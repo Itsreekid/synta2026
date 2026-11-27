@@ -38,10 +38,13 @@
 <% } %>
 <!-- Per-page CSS (loaded when a css variable is passed from the view) -->
 <% if (typeof css !== 'undefined' && css) { %>
-<link rel="stylesheet" href="/css/<%= css %>.css<%= css === 'calendar' ? '?v=20261125-premium' : css === 'course-details' ? '?v=20261127-noapercu' : css === 'dashboard' ? '?v=20261127-icons2' : '' %>" data-turbo-track="reload">
+<link rel="stylesheet" href="/css/<%= css %>.css<%= css === 'calendar' ? '?v=20261125-premium' : css === 'course-details' ? '?v=20261127-noapercu' : css === 'dashboard' ? '?v=20261127-brand1' : css === 'courses' ? '?v=20261127-brand1' : css === 'paiement' ? '?v=20261127-brand1' : '' %>" data-turbo-track="reload">
 <% } %>
 <!-- Extra head content -->
 <%- (typeof extraHead !== 'undefined' && extraHead) ? extraHead : '' %>
+<!-- Student design system (Tailwind + Preline, built by `npm run build:css`). Loaded last so its
+     equal-specificity rules win over legacy CSS without !important. -->
+<link rel="stylesheet" href="/css/student-ui.css?v=20261127-ui1" data-turbo-track="reload">
 
 <!-- =====================================================
      SERVER-INJECTED USER PROFILE

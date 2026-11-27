@@ -633,3 +633,7 @@ Existing offer-upgrades service owns exact amount validation and Tunis civil-dat
 ### Shared-course live authorization — 2026-11-25
 
 The existing liveSessionAccess SQL helper is reused across live lists, calendar events, join, replay/resources and notification eligibility. Legacy course sessions now accept active same-course paid rights via other linked offers or an independently valid timed course snapshot, inside the original audience/status guards. No new route or schema.
+
+## Student CSS build (added 2026-11-27)
+
+Student pages (every view that includes `views/partials/head.ejs`) load `public/css/student-ui.css` last. It is compiled from `backend/styles/student-ui.css` with Tailwind CSS 3.4 + the Preline 2.7 plugin (`backend/tailwind.config.cjs`, `npm run build:css`; both are devDependencies). Utilities use the `tw-` prefix, Preflight is disabled, shared primitives are `sa-*` classes. The Docker image builds it in an `assets` stage and copies only the CSS into the runtime image. No client bundler and no Preline JavaScript. Admin, auth, landing and free-session pages do not load it. Details: `STUDENT_UI_MIGRATION.md`.

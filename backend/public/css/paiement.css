@@ -8,24 +8,25 @@
 .wallet-container,
 .wallet-modal-backdrop,
 .wallet-toast {
-    --wallet-navy: #062c40;
-    --wallet-text: #0f172a;
-    --wallet-body: #334155;
-    --wallet-muted: #64748b;
-    --wallet-line: #e2e8f0;
-    --wallet-line-soft: #f1f5f9;
+    /* Brand palette (student design system, styles/student-ui.css). */
+    --wallet-navy: #013047;
+    --wallet-text: #0f2b3d;
+    --wallet-body: #334e60;
+    --wallet-muted: #64798a;
+    --wallet-line: #e3e9ef;
+    --wallet-line-soft: #f1f5f8;
     --wallet-card: #ffffff;
-    --wallet-orange: #f97316;
-    --wallet-orange-dark: #c2410c;
-    --wallet-orange-soft: #fff7ed;
-    --wallet-orange-line: #fed7aa;
+    --wallet-orange: #f6851f;
+    --wallet-orange-dark: #b9520c;
+    --wallet-orange-soft: #fff6ed;
+    --wallet-orange-line: #fdd1aa;
     --wallet-green: #059669;
     --wallet-green-soft: #ecfdf5;
     --wallet-red: #dc2626;
     --wallet-red-soft: #fef2f2;
     --wallet-amber: #92400e;
     --wallet-amber-soft: #fffbeb;
-    --wallet-shadow: 0 1px 2px rgba(15, 23, 42, 0.04), 0 4px 16px rgba(15, 23, 42, 0.05);
+    --wallet-shadow: 0 1px 2px rgba(1, 48, 71, 0.04), 0 2px 8px rgba(1, 48, 71, 0.05);
 }
 
 /* --- Page layout --- */

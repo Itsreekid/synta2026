@@ -5,17 +5,18 @@
 
 /* ── Design tokens (scoped) ── */
 .offers-container {
-    --oc-blue:        #0a2e6b;
-    --oc-blue-grad:   linear-gradient(135deg, #0a2e6b 0%, #1e5ddb 100%);
-    --oc-orange:      #ff7b1a;
-    --oc-orange-grad: linear-gradient(135deg, #ff9900 0%, #ff5500 100%);
+    /* Brand palette (student design system, styles/student-ui.css). */
+    --oc-blue:        #013047;
+    --oc-blue-grad:   linear-gradient(135deg, #013047 0%, #0d4f70 100%);
+    --oc-orange:      #f6851f;
+    --oc-orange-grad: linear-gradient(135deg, #f8953f 0%, #e06a0c 100%);
     --oc-green:       #10b981;
     --oc-red:         #ef4444;
     --oc-border:      #e2e8f0;
     --oc-bg:          #f8fafc;
     --oc-dark:        #0f172a;
     --oc-muted:       #64748b;
-    --oc-radius:      24px;
+    --oc-radius:      18px;
 }
 
 .offer-card {
@@ -264,7 +265,7 @@
     font-weight: 800;
     cursor: pointer;
     box-shadow: 0 5px 16px rgba(10,46,107,0.2);
-    transition: all 0.28s cubic-bezier(0.165,0.84,0.44,1);
+    transition: background 0.2s ease, box-shadow 0.2s ease, transform 0.2s cubic-bezier(0.165,0.84,0.44,1), opacity 0.2s ease;
     font-family: Tajawal, sans-serif;
 }
 

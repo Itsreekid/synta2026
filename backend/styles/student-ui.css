@@ -1,0 +1,270 @@
+/*
+ * Synta Academy — student interface design system (Tailwind 3.4 + Preline 2.7 source).
+ * Built to public/css/student-ui.css by `npm run build:css`; never edit the built file.
+ *
+ * Loaded by views/partials/head.ejs after every legacy stylesheet, so at equal specificity the
+ * rules here win without !important. Utilities are prefixed `tw-`; Preflight is disabled
+ * (tailwind.config.cjs). `@tailwind base` therefore only emits the --tw-* variable defaults that
+ * shadow, ring and transform utilities need.
+ */
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ── Tokens ───────────────────────────────────────────────────────────────────────────── */
+:root {
+  --sa-navy: #013047;
+  --sa-navy-700: #013f5c;
+  --sa-navy-50: #eef5f9;
+  --sa-orange: #f6851f;
+  --sa-orange-600: #e06a0c;
+  --sa-orange-50: #fff6ed;
+  --sa-teal: #219ebc;
+  --sa-teal-50: #ecf8fb;
+  --sa-ink: #0f2b3d;
+  --sa-text: #334e60;
+  --sa-muted: #64798a;
+  --sa-line: #e3e9ef;
+  --sa-line-strong: #cfd9e2;
+  --sa-surface: #ffffff;
+  --sa-canvas: #f5f8fb;
+  --sa-radius-sm: 8px;
+  --sa-radius: 10px;
+  --sa-radius-lg: 16px;
+  --sa-shadow-card: 0 1px 2px rgba(1, 48, 71, 0.04), 0 2px 8px rgba(1, 48, 71, 0.05);
+  --sa-shadow-raised: 0 2px 4px rgba(1, 48, 71, 0.05), 0 10px 24px rgba(1, 48, 71, 0.08);
+  --sa-shadow-pop: 0 12px 32px rgba(1, 48, 71, 0.14);
+  --sa-ring: 0 0 0 3px rgba(246, 133, 31, 0.28);
+  --sa-ease: cubic-bezier(0.22, 1, 0.36, 1);
+  --sa-fast: 120ms;
+  --sa-base: 180ms;
+}
+
+/* ── Primitives ───────────────────────────────────────────────────────────────────────── */
+@layer components {
+  /* Buttons */
+  .sa-btn {
+    @apply tw-inline-flex tw-items-center tw-justify-center tw-gap-2 tw-rounded-control tw-border tw-border-solid tw-border-transparent tw-px-4 tw-font-sans tw-text-[0.95rem] tw-font-bold tw-leading-none tw-no-underline tw-cursor-pointer tw-select-none;
+    min-height: 42px;
+    transition: background-color var(--sa-fast) ease, border-color var(--sa-fast) ease,
+      color var(--sa-fast) ease, box-shadow var(--sa-fast) ease, transform var(--sa-fast) ease;
+  }
+  .sa-btn:active:not(:disabled) { transform: translateY(1px); }
+  .sa-btn:disabled,
+  .sa-btn[aria-disabled='true'] { @apply tw-cursor-not-allowed tw-opacity-60; }
+  .sa-btn--primary { @apply tw-bg-brand-500 tw-text-white; box-shadow: 0 1px 2px rgba(224, 106, 12, 0.25); }
+  .sa-btn--primary:hover:not(:disabled) { @apply tw-bg-brand-600; }
+  .sa-btn--secondary { @apply tw-border-slate-200 tw-bg-white tw-text-navy-800; }
+  .sa-btn--secondary:hover:not(:disabled) { @apply tw-border-navy-200 tw-bg-navy-50; }
+  .sa-btn--ghost { @apply tw-bg-transparent tw-text-navy-700; }
+  .sa-btn--ghost:hover:not(:disabled) { @apply tw-bg-navy-50; }
+  .sa-btn--sm { @apply tw-px-3 tw-text-sm; min-height: 34px; }
+  .sa-btn--block { @apply tw-w-full; }
+
+  .sa-icon-btn {
+    @apply tw-relative tw-inline-flex tw-h-10 tw-w-10 tw-shrink-0 tw-items-center tw-justify-center tw-rounded-full tw-border tw-border-solid tw-border-slate-200 tw-bg-white tw-text-navy-800 tw-cursor-pointer;
+    transition: background-color var(--sa-fast) ease, border-color var(--sa-fast) ease, color var(--sa-fast) ease;
+  }
+  .sa-icon-btn:hover { @apply tw-border-navy-200 tw-bg-navy-50; }
+
+  /* Cards */
+  .sa-card {
+    @apply tw-rounded-card tw-border tw-border-solid tw-bg-white;
+    border-color: var(--sa-line);
+    box-shadow: var(--sa-shadow-card);
+  }
+  .sa-card--pad { @apply tw-p-5 md:tw-p-6; }
+  .sa-card--interactive { transition: box-shadow var(--sa-base) ease, border-color var(--sa-base) ease, transform var(--sa-base) var(--sa-ease); }
+  .sa-card--interactive:hover { border-color: var(--sa-line-strong); box-shadow: var(--sa-shadow-raised); transform: translateY(-2px); }
+  .sa-card__title { @apply tw-m-0 tw-flex tw-items-center tw-gap-2 tw-text-lg tw-font-bold tw-text-navy-800; }
+  .sa-card__title > i { @apply tw-text-brand-500; }
+
+  /* Page heading */
+  .sa-page-title { @apply tw-m-0 tw-flex tw-items-center tw-gap-3 tw-text-2xl tw-font-bold tw-text-navy-800 md:tw-text-[1.75rem]; }
+  .sa-page-subtitle { @apply tw-m-0 tw-mt-1 tw-text-base tw-text-slate-500; }
+
+  /* Badges */
+  .sa-badge { @apply tw-inline-flex tw-items-center tw-gap-1 tw-rounded-full tw-px-2.5 tw-py-0.5 tw-text-xs tw-font-bold tw-leading-5; }
+  .sa-badge--navy { @apply tw-bg-navy-50 tw-text-navy-700; }
+  .sa-badge--orange { @apply tw-bg-brand-50 tw-text-brand-700; }
+  .sa-badge--teal { @apply tw-bg-teal-50 tw-text-teal-700; }
+  .sa-badge--success { @apply tw-bg-emerald-50 tw-text-emerald-700; }
+  .sa-badge--warning { @apply tw-bg-amber-50 tw-text-amber-700; }
+  .sa-badge--danger { @apply tw-bg-red-50 tw-text-red-700; }
+  .sa-badge--neutral { @apply tw-bg-slate-100 tw-text-slate-600; }
+
+  /* Form controls */
+  .sa-field { @apply tw-mb-4 tw-flex tw-flex-col tw-gap-1.5; }
+  .sa-label { @apply tw-text-sm tw-font-bold tw-text-navy-800; }
+  .sa-hint { @apply tw-m-0 tw-text-sm tw-text-slate-500; }
+  .sa-input,
+  .sa-select {
+    @apply tw-block tw-w-full tw-rounded-control tw-border tw-border-solid tw-border-slate-200 tw-bg-white tw-px-3.5 tw-font-sans tw-text-base tw-text-navy-900;
+    min-height: 44px; /* 16px text + 44px target: no iOS zoom, comfortable touch */
+    transition: border-color var(--sa-fast) ease, box-shadow var(--sa-fast) ease, background-color var(--sa-fast) ease;
+  }
+  .sa-input::placeholder { @apply tw-text-slate-400; }
+  .sa-input:hover:not(:disabled):not([readonly]),
+  .sa-select:hover:not(:disabled) { @apply tw-border-slate-300; }
+  .sa-input:focus,
+  .sa-select:focus { @apply tw-border-brand-400 tw-outline-none; box-shadow: var(--sa-ring); }
+  .sa-input[readonly],
+  .sa-input:disabled,
+  .sa-select:disabled { @apply tw-cursor-not-allowed tw-bg-slate-50 tw-text-slate-500; opacity: 1; }
+  .sa-search { @apply tw-relative; }
+  .sa-search > i { @apply tw-pointer-events-none tw-absolute tw-left-3.5 tw-top-1/2 -tw-translate-y-1/2 tw-text-slate-400; }
+  .sa-search > .sa-input { @apply tw-pl-10; }
+
+  /* Tabs (pills on a quiet track) */
+  .sa-tabs { @apply tw-inline-flex tw-flex-wrap tw-gap-1 tw-rounded-xl tw-bg-slate-100 tw-p-1; }
+  .sa-tab {
+    @apply tw-inline-flex tw-items-center tw-gap-2 tw-rounded-lg tw-border-0 tw-bg-transparent tw-px-3.5 tw-py-2 tw-font-sans tw-text-sm tw-font-bold tw-text-slate-600 tw-cursor-pointer;
+    transition: background-color var(--sa-fast) ease, color var(--sa-fast) ease, box-shadow var(--sa-fast) ease;
+  }
+  .sa-tab:hover { @apply tw-text-navy-800; }
+  .sa-tab[aria-selected='true'],
+  .sa-tab.is-active { @apply tw-bg-white tw-text-navy-800; box-shadow: var(--sa-shadow-card); }
+
+  /* Progress */
+  .sa-progress { @apply tw-h-2 tw-w-full tw-overflow-hidden tw-rounded-full tw-bg-slate-100; }
+  .sa-progress__bar { @apply tw-h-full tw-rounded-full tw-bg-brand-500; transition: width 300ms var(--sa-ease); }
+
+  /* Alerts */
+  .sa-alert { @apply tw-flex tw-items-start tw-gap-3 tw-rounded-xl tw-border tw-border-solid tw-px-4 tw-py-3 tw-text-sm tw-leading-relaxed; }
+  .sa-alert--navy { @apply tw-border-navy-100 tw-bg-navy-50 tw-text-navy-800; }
+  .sa-alert--teal { @apply tw-border-teal-100 tw-bg-teal-50 tw-text-teal-800; }
+  .sa-alert--orange { @apply tw-border-brand-100 tw-bg-brand-50 tw-text-brand-800; }
+  .sa-alert--success { @apply tw-border-emerald-100 tw-bg-emerald-50 tw-text-emerald-800; }
+  .sa-alert--warning { @apply tw-border-amber-100 tw-bg-amber-50 tw-text-amber-800; }
+  .sa-alert--danger { @apply tw-border-red-100 tw-bg-red-50 tw-text-red-800; }
+  .sa-alert--neutral { @apply tw-border-slate-200 tw-bg-slate-50 tw-text-slate-700; }
+
+  /* Empty state + skeleton */
+  .sa-empty { @apply tw-flex tw-flex-col tw-items-center tw-gap-2 tw-rounded-card tw-border tw-border-dashed tw-border-slate-200 tw-bg-slate-50 tw-px-6 tw-py-8 tw-text-center tw-text-slate-500; }
+  .sa-empty__icon { @apply tw-flex tw-h-11 tw-w-11 tw-items-center tw-justify-center tw-rounded-full tw-bg-white tw-text-lg tw-text-brand-500; box-shadow: var(--sa-shadow-card); }
+  .sa-empty__title { @apply tw-m-0 tw-text-base tw-font-bold tw-text-navy-800; }
+  .sa-skeleton { @apply tw-rounded-lg tw-bg-slate-100; animation: sa-pulse 1.4s ease-in-out infinite; }
+
+  /* Dropdown / popover surface */
+  .sa-popover { @apply tw-rounded-card tw-border tw-border-solid tw-border-slate-200 tw-bg-white; box-shadow: var(--sa-shadow-pop); }
+
+  /* Modal */
+  .sa-modal-backdrop { @apply tw-fixed tw-inset-0 tw-z-[5000] tw-flex tw-items-center tw-justify-center tw-p-4; background: rgba(1, 24, 42, 0.5); }
+  .sa-modal { @apply tw-w-full tw-max-w-md tw-rounded-card tw-bg-white tw-p-6; box-shadow: var(--sa-shadow-pop); }
+
+  /* Pagination */
+  .sa-pagination { @apply tw-flex tw-flex-wrap tw-items-center tw-justify-center tw-gap-1; }
+  .sa-pagination > a,
+  .sa-pagination > button { @apply sa-btn sa-btn--ghost sa-btn--sm tw-min-w-[34px]; }
+  .sa-pagination > [aria-current='page'] { @apply tw-bg-navy-800 tw-text-white; }
+}
+
+@keyframes sa-pulse { 50% { opacity: 0.55; } }
+
+/* ── Shared shell (header, sidebar, dropdowns). Same markup, IDs and JS hooks as before. ── */
+body { background: var(--sa-canvas); color: var(--sa-text); }
+
+#app-header-top { background: rgba(245, 248, 251, 0.92); border-bottom: 1px solid transparent; }
+#app-header-top .currency-balance {
+  border: 1px solid var(--sa-line);
+  box-shadow: none;
+  border-radius: 999px;
+  min-height: 40px;
+}
+#app-header-top .balance-amount { color: var(--sa-navy); font-variant-numeric: tabular-nums; }
+#app-header-top .notification-icon {
+  border: 1px solid var(--sa-line);
+  box-shadow: none;
+  width: 42px;
+  height: 42px;
+  transition: background-color var(--sa-fast) ease, border-color var(--sa-fast) ease;
+}
+#app-header-top .notification-icon:hover { transform: none; box-shadow: none; background: var(--sa-navy-50); border-color: #c9dbe6; }
+#app-header-top .notification-icon i { color: var(--sa-navy); font-size: 1.05rem; }
+#app-header-top .notification-badge { background: #e5483b; border-color: var(--sa-canvas); }
+#app-header-top .profile-picture {
+  width: 42px;
+  height: 42px;
+  background: var(--sa-orange);
+  box-shadow: 0 0 0 2px #fff, 0 0 0 3px rgba(246, 133, 31, 0.35);
+  transition: background-color var(--sa-fast) ease, box-shadow var(--sa-fast) ease;
+}
+#app-header-top .profile-picture:hover { transform: none; background: var(--sa-orange-600); box-shadow: 0 0 0 2px #fff, 0 0 0 4px rgba(246, 133, 31, 0.45); }
+#app-header-top .profile-picture i { font-size: 1.05rem; }
+
+#app-header-top .dropdown-menu {
+  border: 1px solid var(--sa-line);
+  border-radius: var(--sa-radius-lg);
+  box-shadow: var(--sa-shadow-pop);
+  padding: 6px;
+  transform: translateY(-6px);
+  transition: opacity var(--sa-base) ease, transform var(--sa-base) var(--sa-ease), visibility var(--sa-base);
+}
+#app-header-top .dropdown-menu.active { transform: translateY(0); }
+#app-header-top #notificationDropdown { padding: 0; }
+#app-header-top #profileDropdown .dropdown-item {
+  gap: 0.75rem;
+  padding: 0.7rem 0.85rem;
+  border-bottom: 0;
+  border-radius: var(--sa-radius-sm);
+  font-size: 0.95rem;
+  color: var(--sa-navy);
+  transition: background-color var(--sa-fast) ease, color var(--sa-fast) ease;
+}
+#app-header-top #profileDropdown .dropdown-item:hover { background: var(--sa-orange-50); color: var(--sa-orange-600); }
+#app-header-top #profileDropdown .dropdown-item i { font-size: 0.95rem; color: inherit; opacity: 0.85; }
+
+#app-sidebar {
+  background: #fff;
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+  border-right: 1px solid var(--sa-line);
+  box-shadow: none;
+}
+#app-sidebar .logo { border-bottom-color: var(--sa-line); }
+#app-sidebar .logo-text { color: var(--sa-navy); font-weight: 800; letter-spacing: -0.01em; }
+#app-sidebar .nav-links a {
+  color: var(--sa-text);
+  border-radius: var(--sa-radius);
+  padding-top: 0.8rem;
+  padding-bottom: 0.8rem;
+  font-weight: 500;
+  transition: background-color var(--sa-fast) ease, color var(--sa-fast) ease;
+}
+#app-sidebar .nav-links a .nav-icon { font-size: 1.1rem; color: #7d93a3; transition: color var(--sa-fast) ease; }
+#app-sidebar .nav-links a:hover { background: var(--sa-navy-50); color: var(--sa-navy); transform: none; }
+#app-sidebar .nav-links a:hover .nav-icon { color: var(--sa-navy); }
+#app-sidebar .nav-links a.active {
+  background: var(--sa-orange);
+  color: #fff;
+  font-weight: 700;
+  box-shadow: 0 1px 2px rgba(224, 106, 12, 0.3), 0 4px 12px rgba(246, 133, 31, 0.22);
+}
+#app-sidebar .nav-links a.active .nav-icon { color: #fff; }
+.mobile-menu-toggle span { background: var(--sa-navy); }
+
+@media (max-width: 1024px) and (min-width: 769px) {
+  #app-sidebar .nav-links a .nav-icon { font-size: 1.3rem; }
+}
+@media (max-width: 768px) {
+  #app-header-top .notification-icon,
+  #app-header-top .profile-picture { width: 38px; height: 38px; }
+  #app-sidebar { box-shadow: var(--sa-shadow-pop); }
+  .sidebar-overlay { background: rgba(1, 24, 42, 0.45); }
+}
+
+/* Keyboard focus: one visible ring everywhere in the student shell (not inside the player or editor). */
+/* Video.js and CodeMirror keep their own focus styles (:not() with a complex selector simply
+   drops this rule on very old engines, which then show the browser's default ring). */
+:where(#app-header-top, #app-sidebar, .main-section) :where(a, button, [role='button'], [role='tab'], input, select, textarea, summary, [tabindex]):not(.video-js *):not(.CodeMirror *):not(.sa-input):not(.sa-select):focus-visible {
+  outline: 2px solid var(--sa-orange);
+  outline-offset: 2px;
+}
+#app-header-top .notification-icon:focus-visible,
+#app-header-top .profile-picture:focus-visible { outline: 2px solid var(--sa-orange); outline-offset: 2px; }
+
+@media (prefers-reduced-motion: reduce) {
+  .sa-btn, .sa-card--interactive, .sa-tab, .sa-progress__bar, .sa-skeleton,
+  #app-header-top .dropdown-menu, #app-sidebar .nav-links a { transition: none; animation: none; }
+  .sa-card--interactive:hover, .sa-btn:active:not(:disabled) { transform: none; }
+}

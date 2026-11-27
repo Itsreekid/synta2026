@@ -10,122 +10,126 @@
         <%- include('../../partials/sidebar', { active: 'dashboard' }) %>
 
         <section id="main-section" class="main-section">
+            <!--
+                One grid that uses the whole width. Wide screens (3 columns):
+                  greeting  greeting  progress
+                  learn     learn     calendar
+                  replays   quick     upcoming
+                  others    others    others
+                Tablets use 2 columns, phones 1 (see dashboard.css).
+            -->
             <div class="dashboard-container ltr-design" dir="ltr">
 
-                <!-- Wide screens: two independent columns. Smaller screens: the columns dissolve into one ordered grid. -->
-                <div class="dash-col dash-col-main">
-
-                    <!-- ══ GREETING CARD ══ -->
-                    <div class="dash-card greeting-card" id="greeting-section">
-                        <div class="greeting-content">
-                            <span class="greeting-track" id="greeting-track" hidden></span>
-                            <h1 class="greeting-title">Salut <span id="user-name">...</span> !</h1>
-                            <p class="greeting-subtitle" id="greeting-message">Prêt à continuer ton parcours scolaire ? Chaque petit pas compte.</p>
-                            <!-- Filled by dashboard.js with the course to resume (progress + Continuer). -->
-                            <div class="greeting-resume" id="greeting-resume" hidden></div>
-                        </div>
-                        <div class="greeting-illustration" aria-hidden="true"><img src="/source/study-bugi.webp" alt="" width="1254" height="1254" fetchpriority="high" decoding="async"></div>
+                <!-- ══ GREETING: the course to resume (only place with its % and Continuer) ══ -->
+                <div class="dash-card greeting-card" id="greeting-section">
+                    <div class="greeting-content">
+                        <span class="greeting-track" id="greeting-track" hidden></span>
+                        <h1 class="greeting-title">Salut <span id="user-name">...</span> !</h1>
+                        <p class="greeting-subtitle" id="greeting-message">Prêt à continuer ton parcours scolaire ? Chaque petit pas compte.</p>
+                        <div class="greeting-resume" id="greeting-resume" hidden></div>
                     </div>
+                    <div class="greeting-illustration" aria-hidden="true"><img src="/source/study-bugi.webp" alt="" width="1254" height="1254" fetchpriority="high" decoding="async"></div>
+                </div>
 
-                    <!-- ══ CONTINUE LEARNING ══ -->
-                    <div class="dash-card continue-card" id="continue-section">
-                        <div class="card-header">
-                            <h3><span class="card-icon ci-orange" aria-hidden="true"><i class="fas fa-book-open"></i></span> Mes formations</h3>
-                        </div>
-                        <div class="continue-content" id="continue-content-container">
-                            <div class="loading-state">Chargement...</div>
-                        </div>
+                <!-- ══ PROGRESS TOTALS ══ -->
+                <div class="dash-card stats-card" id="stats-section">
+                    <div class="card-header">
+                        <h3><span class="card-icon ci-orange" aria-hidden="true"><i class="fas fa-chart-line"></i></span> Ta progression</h3>
                     </div>
-
-                    <!-- ══ TON PARCOURS ══ -->
-                    <div class="dash-card path-card" id="path-section">
-                        <div class="card-header flex-between">
-                            <h3><span class="card-icon ci-navy" aria-hidden="true"><i class="fas fa-route"></i></span> Ton parcours</h3>
-                            <span class="path-progress-text"></span>
+                    <div class="stats-grid">
+                        <div class="stat-item">
+                            <span class="stat-icon ci-orange" aria-hidden="true"><i class="fas fa-circle-check"></i></span>
+                            <div class="stat-info"><strong id="completed-courses">—</strong><span>Leçons terminées</span></div>
                         </div>
-                        <div class="path-stepper">
-                            <div class="path-title"></div>
-                            <div class="stepper-track">
-                                <div class="loading-state">Chargement...</div>
-                            </div>
+                        <div class="stat-item">
+                            <span class="stat-icon ci-blue" aria-hidden="true"><i class="fas fa-book-open"></i></span>
+                            <div class="stat-info"><strong id="active-courses">—</strong><span>Formations en cours</span></div>
+                        </div>
+                        <div class="stat-item">
+                            <span class="stat-icon ci-green" aria-hidden="true"><i class="fas fa-trophy"></i></span>
+                            <div class="stat-info"><strong id="finished-courses">—</strong><span>Formations terminées</span></div>
                         </div>
                     </div>
                 </div>
 
-                <div class="dash-col dash-col-side">
+                <!-- ══ CONTINUE LEARNING: the next lessons of the course, with the chapter strip ══ -->
+                <div class="dash-card learn-card" id="learn-section">
+                    <div class="card-header flex-between">
+                        <h3><span class="card-icon ci-orange" aria-hidden="true"><i class="fas fa-play"></i></span> Continuer l’apprentissage</h3>
+                        <a href="/app/courses" class="link-view-all" id="learn-view-all">Voir le cours &rarr;</a>
+                    </div>
+                    <div class="chapter-strip" id="chapter-strip" hidden></div>
+                    <div class="learn-grid" id="learn-grid">
+                        <div class="learn-skeleton"></div><div class="learn-skeleton"></div><div class="learn-skeleton"></div>
+                    </div>
+                </div>
 
-                    <!-- ══ STAT PILLS ══ -->
-                    <div class="dash-card stats-card" id="stats-section">
-                        <div class="card-header">
-                            <h3><span class="card-icon ci-orange" aria-hidden="true"><i class="fas fa-chart-line"></i></span> Ta progression</h3>
-                            <p>Continue comme ça !</p>
-                        </div>
-                        <div class="stats-grid">
-                            <div class="stat-item">
-                                <span class="stat-icon ci-orange" aria-hidden="true"><i class="fas fa-circle-check"></i></span>
-                                <div class="stat-info">
-                                    <strong id="completed-courses">—</strong>
-                                    <span>Leçons terminées</span>
-                                </div>
-                            </div>
-                            <div class="stat-item">
-                                <span class="stat-icon ci-navy" aria-hidden="true"><i class="fas fa-bullseye"></i></span>
-                                <div class="stat-info">
-                                    <strong id="overall-progress">—</strong>
-                                    <span>Progression globale</span>
-                                </div>
-                            </div>
+                <!-- ══ CALENDAR: live sessions and replays of the month ══ -->
+                <div class="dash-card calendar-card" id="calendar-section">
+                    <div class="card-header flex-between">
+                        <h3><span class="card-icon ci-blue" aria-hidden="true"><i class="fas fa-calendar-days"></i></span> Calendrier</h3>
+                        <div class="mini-cal-nav">
+                            <span class="mini-cal-month" id="mini-cal-month" aria-live="polite"></span>
+                            <button type="button" class="mini-cal-arrow" data-cal-step="-1" aria-label="Mois précédent"><i class="fas fa-chevron-left" aria-hidden="true"></i></button>
+                            <button type="button" class="mini-cal-arrow" data-cal-step="1" aria-label="Mois suivant"><i class="fas fa-chevron-right" aria-hidden="true"></i></button>
                         </div>
                     </div>
-
-                    <!-- ══ NEXT SESSION ══ -->
-                    <div class="dash-card session-card" id="session-section">
-                        <div class="card-header flex-between">
-                            <h3><span class="card-icon ci-blue" aria-hidden="true"><i class="fas fa-calendar-days"></i></span> Prochaine session</h3>
-                            <a href="/app/calendar" class="link-view-all">Voir toutes &rarr;</a>
-                        </div>
-                        <div id="events-list">
-                            <div class="loading-state">Chargement...</div>
-                        </div>
+                    <div class="mini-cal" id="mini-cal" role="grid" aria-labelledby="mini-cal-month"></div>
+                    <div class="mini-cal-legend" aria-hidden="true">
+                        <span><i class="dot dot-live"></i> Séance live</span>
+                        <span><i class="dot dot-replay"></i> Replay</span>
+                        <span><i class="dot dot-today"></i> Aujourd’hui</span>
                     </div>
+                </div>
 
-                    <!-- ══ REPLAYS ══ -->
-                    <div class="dash-card session-card replay-card" id="replay-section">
-                        <div class="card-header flex-between">
-                            <h3><span class="card-icon ci-blue" aria-hidden="true"><i class="fas fa-video"></i></span> Replays disponibles</h3>
-                            <a href="/app/courses" class="link-view-all">Mes cours &rarr;</a>
-                        </div>
-                        <div id="replay-list"><div class="loading-state">Chargement...</div></div>
+                <!-- ══ UPCOMING SESSIONS ══ -->
+                <div class="dash-card upcoming-card" id="session-section">
+                    <div class="card-header flex-between">
+                        <h3><span class="card-icon ci-blue" aria-hidden="true"><i class="fas fa-clock"></i></span> À venir</h3>
+                        <a href="/app/calendar" class="link-view-all">Voir tout &rarr;</a>
                     </div>
+                    <div id="events-list"><div class="loading-state">Chargement...</div></div>
+                </div>
 
-                    <!-- ══ QUICK ACTIONS ══ -->
-                    <div class="dash-card quick-card" id="quick-section">
-                        <div class="card-header">
-                            <h3><span class="card-icon ci-navy" aria-hidden="true"><i class="fas fa-bolt"></i></span> Accès rapide</h3>
-                        </div>
-                        <nav class="quick-grid" aria-label="Accès rapide">
-                            <a href="/app/courses" class="quick-btn" data-turbo="true">
-                                <span class="quick-icon ci-orange" aria-hidden="true"><i class="fas fa-book-open"></i></span>
-                                <span>Cours</span>
-                            </a>
-                            <a href="/app/code-pratique" class="quick-btn" data-turbo="true">
-                                <span class="quick-icon ci-navy" aria-hidden="true"><i class="fas fa-code"></i></span>
-                                <span>Code</span>
-                            </a>
-                            <a href="/app/calendar" class="quick-btn" data-turbo="true">
-                                <span class="quick-icon ci-blue" aria-hidden="true"><i class="fas fa-calendar-days"></i></span>
-                                <span>Calendrier</span>
-                            </a>
-                            <a href="/app/paiement" class="quick-btn" data-turbo="true">
-                                <span class="quick-icon ci-green" aria-hidden="true"><i class="fas fa-wallet"></i></span>
-                                <span>Mon solde</span>
-                            </a>
-                            <a href="/app/profile" class="quick-btn" data-turbo="true">
-                                <span class="quick-icon ci-navy" aria-hidden="true"><i class="fas fa-user"></i></span>
-                                <span>Profil</span>
-                            </a>
-                        </nav>
+                <!-- ══ REPLAYS ══ -->
+                <div class="dash-card replay-card" id="replay-section">
+                    <div class="card-header flex-between">
+                        <h3><span class="card-icon ci-blue" aria-hidden="true"><i class="fas fa-video"></i></span> Replays récents</h3>
+                        <a href="/app/courses" class="link-view-all">Mes cours &rarr;</a>
                     </div>
+                    <div id="replay-list"><div class="loading-state">Chargement...</div></div>
+                </div>
+
+                <!-- ══ QUICK ACTIONS ══ -->
+                <div class="dash-card quick-card" id="quick-section">
+                    <div class="card-header">
+                        <h3><span class="card-icon ci-navy" aria-hidden="true"><i class="fas fa-bolt"></i></span> Accès rapide</h3>
+                    </div>
+                    <nav class="quick-grid" aria-label="Accès rapide">
+                        <a href="/app/courses" class="quick-btn" data-turbo="true">
+                            <span class="quick-icon ci-orange" aria-hidden="true"><i class="fas fa-book-open"></i></span><span>Cours</span>
+                        </a>
+                        <a href="/app/code-pratique" class="quick-btn" data-turbo="true">
+                            <span class="quick-icon ci-navy" aria-hidden="true"><i class="fas fa-code"></i></span><span>Code</span>
+                        </a>
+                        <a href="/app/calendar" class="quick-btn" data-turbo="true">
+                            <span class="quick-icon ci-blue" aria-hidden="true"><i class="fas fa-calendar-days"></i></span><span>Calendrier</span>
+                        </a>
+                        <a href="/app/paiement" class="quick-btn" data-turbo="true">
+                            <span class="quick-icon ci-green" aria-hidden="true"><i class="fas fa-wallet"></i></span><span>Mon solde</span>
+                        </a>
+                        <a href="/app/profile" class="quick-btn" data-turbo="true">
+                            <span class="quick-icon ci-navy" aria-hidden="true"><i class="fas fa-user"></i></span><span>Profil</span>
+                        </a>
+                    </nav>
+                </div>
+
+                <!-- ══ OTHER COURSES (only when there is more than the one in the greeting) / first steps ══ -->
+                <div class="dash-card continue-card" id="continue-section" hidden>
+                    <div class="card-header">
+                        <h3><span class="card-icon ci-orange" aria-hidden="true"><i class="fas fa-book-open"></i></span> <span id="continue-heading">Autres formations</span></h3>
+                    </div>
+                    <div class="continue-content" id="continue-content-container"></div>
                 </div>
 
             </div>
@@ -134,6 +138,7 @@
 
     <script src="/js/authentication.js?v=2"></script>
     <script src="/js/user.js?v=20261125-emphasis"></script>
-    <script src="/js/dashboard.js?v=11"></script>
+    <script src="/js/course-image.js"></script>
+    <script src="/js/dashboard.js?v=14"></script>
 </body>
 </html>
