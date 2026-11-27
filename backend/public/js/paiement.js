@@ -16,15 +16,15 @@ document.addEventListener('DOMContentLoaded', async function () {
     document.getElementById('add-transaction-button')?.addEventListener('click', event => showAddTransactionPopup(event.currentTarget));
     document.querySelectorAll('[data-copy-account]').forEach(button => {
         button.addEventListener('click', async () => {
-            const value = document.getElementById(button.dataset.copyAccount)?.textContent.trim();
-            if (!value || button.disabled) return;
+            const message = getAccountPaymentMessage(button.dataset.copyAccount);
+            if (!message || button.disabled) return;
             button.disabled = true;
             try {
-                await navigator.clipboard.writeText(value.replace(/\s+/g, ''));
+                await navigator.clipboard.writeText(message);
                 button.classList.add('is-copied');
                 button.querySelector('i').className = 'fas fa-check';
                 button.title = 'Copié';
-                showMessage('Copié dans le presse-papiers.', 'success');
+                showMessage('Coordonnées et instructions de paiement copiées.', 'success');
                 setTimeout(() => {
                     button.classList.remove('is-copied');
                     button.querySelector('i').className = 'far fa-copy';
@@ -53,6 +53,29 @@ document.addEventListener('DOMContentLoaded', async function () {
     await loadUserData();
     await loadTransactions();
 });
+
+/** Build shareable instructions from the account details currently displayed. */
+function getAccountPaymentMessage(accountId) {
+    const read = id => document.getElementById(id)?.textContent.trim() || '';
+    const number = read(accountId);
+    if (!number) return '';
+    const receipt = 'Après le paiement, conservez votre reçu et ajoutez-le dans « Mon portefeuille » pour vérification.';
+    if (accountId === 'bank-rib') {
+        const holder = read('bank-name');
+        const bank = read('bank-institution');
+        if (!holder || !bank) return '';
+        return `Paiement par virement bancaire — Synta Academy\n\nNom du titulaire du compte : ${holder}\nNom de la banque : ${bank}\n\nRIB :\n${number}\n\nEffectuez le virement du montant à régler vers ce compte.\n${receipt}`;
+    }
+    if (accountId === 'edinar-number') {
+        const holder = read('edinar-account');
+        if (!holder) return '';
+        return `Paiement sur le compte E-dinar — Synta Academy\n\nNom du titulaire du compte : ${holder}\n\nRIB E-dinar :\n${number}\n\nEffectuez le versement ou le transfert du montant à régler vers ce compte.\n${receipt}`;
+    }
+    if (accountId === 'd17-number') {
+        return `Paiement via l’application D17 — Synta Academy\n\nNuméro de téléphone du bénéficiaire :\n${number.replace(/\s+/g, '')}\n\n1. Ouvrez l’application D17 et connectez-vous à votre compte.\n2. Choisissez l’option de transfert d’argent.\n3. Saisissez le numéro du bénéficiaire indiqué ci-dessus et le montant à régler.\n4. Vérifiez les informations du bénéficiaire et le montant avant de confirmer.\n5. Conservez le reçu et ajoutez-le dans « Mon portefeuille » pour vérification.`;
+    }
+    return '';
+}
 
 /**
  * Load user wallet data

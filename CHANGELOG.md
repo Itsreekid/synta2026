@@ -1,3 +1,7 @@
+### 2026-11-27 — Complete wallet payment instructions (local)
+
+Copy buttons now copy clear French payment messages: bank holder/bank/RIB, E-dinar holder/RIB, and five D17 transfer steps. Numbers are isolated on their own lines; messages use displayed account details and never invent a payment amount. Plain text works across messaging apps. Clipboard feedback/error handling preserved. JS syntax and message checks passed for all three methods, changed account values and missing details. No financial/backend/schema changes; not deployed.
+
 ### 2026-11-27 — Wallet account copy buttons (local)
 
 Added compact accessible copy icons before E-dinar, bank RIB and D17 numbers. Copies digits without display spaces, confirms with a checkmark and existing wallet toast, and reports denied clipboard access. No payment, API or database changes. JS syntax and isolated interaction checks passed for all three targets, success and denied clipboard paths; real browser/mobile visual validation remains outstanding. CSS/JS asset versions updated.
