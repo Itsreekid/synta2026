@@ -1,3 +1,7 @@
+### 2026-11-27 — Clear payment steps in copied messages (local)
+
+Applied owner-provided E-Dinar card/post-office instructions with five steps; bank and D17 use three concise steps. Each message separates the account number and explains receipt upload and verification. Plain-text clipboard format preserved. Syntax and all three message checks passed; no financial/schema changes or deployment.
+
 ### 2026-11-27 — Complete wallet payment instructions (local)
 
 Copy buttons now copy clear French payment messages: bank holder/bank/RIB, E-dinar holder/RIB, and five D17 transfer steps. Numbers are isolated on their own lines; messages use displayed account details and never invent a payment amount. Plain text works across messaging apps. Clipboard feedback/error handling preserved. JS syntax and message checks passed for all three methods, changed account values and missing details. No financial/backend/schema changes; not deployed.

@@ -59,20 +59,20 @@ function getAccountPaymentMessage(accountId) {
     const read = id => document.getElementById(id)?.textContent.trim() || '';
     const number = read(accountId);
     if (!number) return '';
-    const receipt = 'Après le paiement, conservez votre reçu et ajoutez-le dans « Mon portefeuille » pour vérification.';
+    const verification = '✅ Votre paiement sera vérifié après réception du justificatif.';
     if (accountId === 'bank-rib') {
         const holder = read('bank-name');
         const bank = read('bank-institution');
         if (!holder || !bank) return '';
-        return `Paiement par virement bancaire — Synta Academy\n\nNom du titulaire du compte : ${holder}\nNom de la banque : ${bank}\n\nRIB :\n${number}\n\nEffectuez le virement du montant à régler vers ce compte.\n${receipt}`;
+        return `Paiement par virement bancaire — Synta Academy\n\nNom du titulaire : ${holder}\nBanque : ${bank}\n\nRIB :\n${number}\n\nComment effectuer votre paiement ?\n1. Depuis votre application bancaire ou en agence, effectuez un virement vers ce compte.\n2. Vérifiez le bénéficiaire, le RIB et le montant correspondant à votre offre avant de confirmer.\n3. Conservez le justificatif et déposez-en une photo claire dans « Mon portefeuille » sur Synta Academy.\n\n${verification}`;
     }
     if (accountId === 'edinar-number') {
         const holder = read('edinar-account');
         if (!holder) return '';
-        return `Paiement sur le compte E-dinar — Synta Academy\n\nNom du titulaire du compte : ${holder}\n\nRIB E-dinar :\n${number}\n\nEffectuez le versement ou le transfert du montant à régler vers ce compte.\n${receipt}`;
+        return `Paiement par carte E-Dinar — Synta Academy\n\nNom du titulaire : ${holder}\n\nNuméro de carte E-Dinar :\n${number}\n\nComment effectuer votre paiement ?\n1. Rendez-vous dans un bureau de poste tunisien.\n2. Demandez un versement sur la carte E-Dinar indiquée ci-dessus et communiquez le numéro de carte à l’agent.\n3. Réglez le montant correspondant à votre offre Synta Academy.\n4. Récupérez et conservez votre reçu de paiement délivré par la Poste.\n5. Connectez-vous à Synta Academy, puis accédez à « Mon portefeuille » pour déposer une photo claire de votre reçu.\n\n${verification}`;
     }
     if (accountId === 'd17-number') {
-        return `Paiement via l’application D17 — Synta Academy\n\nNuméro de téléphone du bénéficiaire :\n${number.replace(/\s+/g, '')}\n\n1. Ouvrez l’application D17 et connectez-vous à votre compte.\n2. Choisissez l’option de transfert d’argent.\n3. Saisissez le numéro du bénéficiaire indiqué ci-dessus et le montant à régler.\n4. Vérifiez les informations du bénéficiaire et le montant avant de confirmer.\n5. Conservez le reçu et ajoutez-le dans « Mon portefeuille » pour vérification.`;
+        return `Paiement via l’application D17 — Synta Academy\n\nNuméro de téléphone du bénéficiaire :\n${number.replace(/\s+/g, '')}\n\nComment effectuer votre paiement ?\n1. Ouvrez D17, connectez-vous à votre compte et choisissez le transfert d’argent.\n2. Saisissez le numéro ci-dessus et le montant correspondant à votre offre. Vérifiez le bénéficiaire avant de confirmer.\n3. Conservez le justificatif et déposez-en une capture claire dans « Mon portefeuille » sur Synta Academy.\n\n${verification}`;
     }
     return '';
 }
