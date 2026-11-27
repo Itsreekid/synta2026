@@ -116,6 +116,20 @@
     gap: 0.5rem;
     line-height: 1.3;
 }
+/* One icon style for the whole dashboard (Font Awesome in a soft tinted tile) — no emoji next to the 3D mascot. */
+.card-icon, .stat-icon, .quick-icon {
+    display: inline-flex;
+    flex: none;
+    align-items: center;
+    justify-content: center;
+    border-radius: 9px;
+    line-height: 1;
+}
+.card-icon { width: 30px; height: 30px; font-size: 0.85rem; }
+.ci-orange { background: #fff1e6; color: #ea580c; }
+.ci-navy { background: #e8eef5; color: #0f3550; }
+.ci-blue { background: #e7f0ff; color: #2563eb; }
+.ci-green { background: #e7f6ee; color: #15803d; }
 .card-header p {
     margin: 0.2rem 0 0;
     font-size: 0.85rem;
@@ -176,11 +190,39 @@
     min-height: 190px;
     padding: var(--greet-pad);
     padding-right: 0;
-    background:
-        radial-gradient(circle at 88% 55%, rgba(255, 140, 50, 0.16), transparent 42%),
-        linear-gradient(100deg, #ffffff 48%, #fff7ed 100%);
+    background: var(--card-bg); /* plain white: the only warm accent is the glow right behind Bugi */
 }
-.greeting-content { flex: 1; min-width: 0; z-index: 1; }
+.greeting-content { flex: 1; min-width: 0; z-index: 1; display: flex; flex-direction: column; align-items: flex-start; gap: 0.35rem; }
+.greeting-track[hidden], .greeting-resume[hidden] { display: none; }
+.greeting-track {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    padding: 0.22rem 0.6rem;
+    border-radius: 999px;
+    background: #e8eef5;
+    color: #0f3550;
+    font-size: 0.75rem;
+    font-weight: 700;
+}
+.greeting-resume {
+    display: flex;
+    align-items: center;
+    gap: 0.9rem;
+    width: 100%;
+    max-width: 440px;
+    margin-top: 0.55rem;
+}
+.greeting-progress {
+    flex: 1 1 auto;
+    height: 8px;
+    overflow: hidden;
+    border-radius: 999px;
+    background: #edf1f5;
+}
+.greeting-progress span { display: block; height: 100%; border-radius: inherit; background: var(--orange-gradient); }
+.greeting-cta { flex: none; gap: 0.5rem; min-height: 42px; padding: 0.55rem 1.2rem; }
+.greeting-cta i { font-size: 0.75rem; }
 .greeting-title {
     font-size: clamp(1.35rem, 1.05rem + 1vw, 1.9rem);
     line-height: 1.2;
@@ -189,22 +231,19 @@
     color: #1e293b;
     overflow-wrap: anywhere;
 }
-.greeting-wave { white-space: nowrap; }
 .greeting-subtitle {
-    font-size: clamp(0.9rem, 0.85rem + 0.25vw, 1rem);
-    color: var(--text-dark);
+    font-size: clamp(0.92rem, 0.86rem + 0.25vw, 1.02rem);
+    color: #334155;
     font-weight: 500;
     margin: 0;
-    line-height: 1.5;
+    line-height: 1.55;
+    max-width: 46ch;
 }
-.greeting-subtitle span {
-    font-size: 0.88em;
-    font-weight: 400;
-    color: var(--text-muted);
-}
+.greeting-subtitle strong { color: var(--text-dark); font-weight: 700; }
 /* Bugi studying (public/source/study-bugi.webp): fills the right side of the card from top to bottom,
    the desk resting on the card's bottom edge. */
 .greeting-illustration {
+    position: relative;
     flex: 0 0 clamp(170px, 30%, 250px);
     align-self: stretch;
     display: flex;
@@ -213,6 +252,19 @@
     margin-block: calc(-1 * var(--greet-pad));
     line-height: 0;
 }
+/* Soft round glow right behind Bugi (not a coloured block across the card). */
+.greeting-illustration::before {
+    content: "";
+    position: absolute;
+    left: 50%;
+    bottom: 6%; /* anchored to the bottom, where Bugi sits, whatever the card height */
+    width: 82%;
+    aspect-ratio: 1;
+    transform: translateX(-50%);
+    border-radius: 50%;
+    background: radial-gradient(circle, rgba(249, 115, 22, 0.16) 0%, rgba(249, 115, 22, 0.06) 45%, transparent 70%);
+}
+.greeting-illustration img { position: relative; }
 .greeting-illustration img {
     display: block;
     width: 100%;
@@ -226,10 +278,7 @@
 }
 
 /* ── Stats ── */
-.stats-card {
-    background: #fff9f0;
-    border-color: #ffedd5;
-}
+.stats-card { background: var(--card-bg); } /* neutral: the greeting is the one warm accent */
 .stats-grid {
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -243,9 +292,9 @@
     gap: 0.35rem;
     padding: 0.6rem 0.4rem;
     border-radius: var(--radius-md);
-    background: rgba(255, 255, 255, 0.65);
+    background: #f8fafc;
 }
-.stat-icon { font-size: 1.6rem; line-height: 1; }
+.stat-icon { width: 38px; height: 38px; border-radius: 11px; font-size: 1rem; }
 .stat-info strong {
     display: block;
     font-size: 1.4rem;
@@ -290,8 +339,10 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 1.6rem;
-    box-shadow: 0 2px 8px rgba(15, 23, 42, 0.07);
+    font-size: 1.25rem;
+    color: #ea580c;
+    background: #fff1e6;
+    box-shadow: none;
 }
 .course-details h4 {
     margin: 0 0 0.15rem;
@@ -585,18 +636,19 @@ a.event-item:hover .event-action,
 .bg-orange { background: var(--orange-gradient); }
 .bg-dark { background: #1e293b; }
 
-/* ── Phones: Bugi stays beside the greeting, smaller, still resting on the card's bottom edge ── */
+/* ── Phones: Bugi stays beside the greeting, smaller, still resting on the card's bottom edge;
+      the progress bar and Continuer stack so the button keeps a full-width tap target. ── */
 @media (max-width: 640px) {
     .greeting-card { min-height: 150px; gap: 0.5rem; }
     .greeting-illustration { flex-basis: clamp(112px, 34vw, 150px); }
     .greeting-illustration img { max-height: 170px; }
+    .greeting-resume { flex-direction: column; align-items: stretch; gap: 0.65rem; }
+    .greeting-cta { width: 100%; }
 }
 
 /* ── Small phones ── */
 @media (max-width: 420px) {
     .dashboard-container { gap: 0.7rem; }
-    .greeting-subtitle br { display: none; }
-    .greeting-subtitle span { display: block; margin-top: 0.2rem; }
     .continue-course-card { padding: 0.8rem; }
     .event-item { padding: 0.75rem; }
     .event-action { padding: 0 0.75rem; }

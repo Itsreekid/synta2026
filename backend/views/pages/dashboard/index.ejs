@@ -18,8 +18,11 @@
                     <!-- ══ GREETING CARD ══ -->
                     <div class="dash-card greeting-card" id="greeting-section">
                         <div class="greeting-content">
-                            <h1 class="greeting-title">Salut <span id="user-name">...</span><span class="greeting-wave"> ! 👋</span></h1>
-                            <p class="greeting-subtitle">Prêt à continuer ton parcours scolaire ?<br><span>Chaque petit pas compte ! 💪</span></p>
+                            <span class="greeting-track" id="greeting-track" hidden></span>
+                            <h1 class="greeting-title">Salut <span id="user-name">...</span> !</h1>
+                            <p class="greeting-subtitle" id="greeting-message">Prêt à continuer ton parcours scolaire ? Chaque petit pas compte.</p>
+                            <!-- Filled by dashboard.js with the course to resume (progress + Continuer). -->
+                            <div class="greeting-resume" id="greeting-resume" hidden></div>
                         </div>
                         <div class="greeting-illustration" aria-hidden="true"><img src="/source/study-bugi.webp" alt="" width="1254" height="1254" fetchpriority="high" decoding="async"></div>
                     </div>
@@ -27,7 +30,7 @@
                     <!-- ══ CONTINUE LEARNING ══ -->
                     <div class="dash-card continue-card" id="continue-section">
                         <div class="card-header">
-                            <h3>🚀 Continuer ton apprentissage</h3>
+                            <h3><span class="card-icon ci-orange" aria-hidden="true"><i class="fas fa-book-open"></i></span> Mes formations</h3>
                         </div>
                         <div class="continue-content" id="continue-content-container">
                             <div class="loading-state">Chargement...</div>
@@ -37,7 +40,7 @@
                     <!-- ══ TON PARCOURS ══ -->
                     <div class="dash-card path-card" id="path-section">
                         <div class="card-header flex-between">
-                            <h3>🧭 Ton parcours</h3>
+                            <h3><span class="card-icon ci-navy" aria-hidden="true"><i class="fas fa-route"></i></span> Ton parcours</h3>
                             <span class="path-progress-text"></span>
                         </div>
                         <div class="path-stepper">
@@ -54,19 +57,19 @@
                     <!-- ══ STAT PILLS ══ -->
                     <div class="dash-card stats-card" id="stats-section">
                         <div class="card-header">
-                            <h3>🔥 Ta progression</h3>
+                            <h3><span class="card-icon ci-orange" aria-hidden="true"><i class="fas fa-chart-line"></i></span> Ta progression</h3>
                             <p>Continue comme ça !</p>
                         </div>
                         <div class="stats-grid">
                             <div class="stat-item">
-                                <span class="stat-icon" aria-hidden="true">📖</span>
+                                <span class="stat-icon ci-orange" aria-hidden="true"><i class="fas fa-circle-check"></i></span>
                                 <div class="stat-info">
                                     <strong id="completed-courses">—</strong>
                                     <span>Leçons terminées</span>
                                 </div>
                             </div>
                             <div class="stat-item">
-                                <span class="stat-icon" aria-hidden="true">🎯</span>
+                                <span class="stat-icon ci-navy" aria-hidden="true"><i class="fas fa-bullseye"></i></span>
                                 <div class="stat-info">
                                     <strong id="overall-progress">—</strong>
                                     <span>Progression globale</span>
@@ -78,7 +81,7 @@
                     <!-- ══ NEXT SESSION ══ -->
                     <div class="dash-card session-card" id="session-section">
                         <div class="card-header flex-between">
-                            <h3>📅 Prochaine session</h3>
+                            <h3><span class="card-icon ci-blue" aria-hidden="true"><i class="fas fa-calendar-days"></i></span> Prochaine session</h3>
                             <a href="/app/calendar" class="link-view-all">Voir toutes &rarr;</a>
                         </div>
                         <div id="events-list">
@@ -89,7 +92,7 @@
                     <!-- ══ REPLAYS ══ -->
                     <div class="dash-card session-card replay-card" id="replay-section">
                         <div class="card-header flex-between">
-                            <h3>▶️ Replays disponibles</h3>
+                            <h3><span class="card-icon ci-blue" aria-hidden="true"><i class="fas fa-video"></i></span> Replays disponibles</h3>
                             <a href="/app/courses" class="link-view-all">Mes cours &rarr;</a>
                         </div>
                         <div id="replay-list"><div class="loading-state">Chargement...</div></div>
@@ -98,27 +101,27 @@
                     <!-- ══ QUICK ACTIONS ══ -->
                     <div class="dash-card quick-card" id="quick-section">
                         <div class="card-header">
-                            <h3>⚡ Accès rapide</h3>
+                            <h3><span class="card-icon ci-navy" aria-hidden="true"><i class="fas fa-bolt"></i></span> Accès rapide</h3>
                         </div>
                         <nav class="quick-grid" aria-label="Accès rapide">
                             <a href="/app/courses" class="quick-btn" data-turbo="true">
-                                <span class="quick-icon bg-orange" aria-hidden="true">📖</span>
+                                <span class="quick-icon ci-orange" aria-hidden="true"><i class="fas fa-book-open"></i></span>
                                 <span>Cours</span>
                             </a>
                             <a href="/app/code-pratique" class="quick-btn" data-turbo="true">
-                                <span class="quick-icon bg-dark" aria-hidden="true">💻</span>
+                                <span class="quick-icon ci-navy" aria-hidden="true"><i class="fas fa-code"></i></span>
                                 <span>Code</span>
                             </a>
                             <a href="/app/calendar" class="quick-btn" data-turbo="true">
-                                <span class="quick-icon bg-dark" aria-hidden="true">📅</span>
+                                <span class="quick-icon ci-blue" aria-hidden="true"><i class="fas fa-calendar-days"></i></span>
                                 <span>Calendrier</span>
                             </a>
                             <a href="/app/paiement" class="quick-btn" data-turbo="true">
-                                <span class="quick-icon bg-dark" aria-hidden="true">💳</span>
+                                <span class="quick-icon ci-green" aria-hidden="true"><i class="fas fa-wallet"></i></span>
                                 <span>Mon solde</span>
                             </a>
                             <a href="/app/profile" class="quick-btn" data-turbo="true">
-                                <span class="quick-icon bg-dark" aria-hidden="true">👤</span>
+                                <span class="quick-icon ci-navy" aria-hidden="true"><i class="fas fa-user"></i></span>
                                 <span>Profil</span>
                             </a>
                         </nav>
@@ -131,6 +134,6 @@
 
     <script src="/js/authentication.js?v=2"></script>
     <script src="/js/user.js?v=20261125-emphasis"></script>
-    <script src="/js/dashboard.js?v=10"></script>
+    <script src="/js/dashboard.js?v=11"></script>
 </body>
 </html>

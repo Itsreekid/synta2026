@@ -38,7 +38,7 @@
 <% } %>
 <!-- Per-page CSS (loaded when a css variable is passed from the view) -->
 <% if (typeof css !== 'undefined' && css) { %>
-<link rel="stylesheet" href="/css/<%= css %>.css<%= css === 'calendar' ? '?v=20261125-premium' : css === 'course-details' ? '?v=20261127-noapercu' : css === 'dashboard' ? '?v=20261127-bugi2' : '' %>" data-turbo-track="reload">
+<link rel="stylesheet" href="/css/<%= css %>.css<%= css === 'calendar' ? '?v=20261125-premium' : css === 'course-details' ? '?v=20261127-noapercu' : css === 'dashboard' ? '?v=20261127-icons2' : '' %>" data-turbo-track="reload">
 <% } %>
 <!-- Extra head content -->
 <%- (typeof extraHead !== 'undefined' && extraHead) ? extraHead : '' %>

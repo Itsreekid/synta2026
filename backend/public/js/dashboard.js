@@ -53,8 +53,13 @@ function loadUserData() {
         const classNames = { '1ere':'1ère', '2eme':'2ème', '3eme':'3ème', bac:'Bac' };
         const branchNames = { informatique:'Informatique', sciences:'Sciences', mathematiques:'Mathématiques', technique:'Technique', lettres:'Lettres', economie:'Économie' };
         const academicLabel = [classNames[user.user_metadata?.user_class], branchNames[user.user_metadata?.user_branch]].filter(Boolean).join(' · ');
-        const subtitle = document.querySelector('.greeting-subtitle span');
-        if (subtitle && academicLabel) subtitle.textContent = `Ton parcours : ${academicLabel} · Chaque petit pas compte ! 💪`;
+        // Small label above the greeting: "Bac · Sciences".
+        const track = document.getElementById('greeting-track');
+        if (track && academicLabel) {
+            track.innerHTML = '<i class="fas fa-graduation-cap" aria-hidden="true"></i> ';
+            track.append(academicLabel);
+            track.hidden = false;
+        }
     });
 }
 
@@ -103,13 +108,53 @@ function pickActiveCourse(courses) {
     })[0];
 }
 
+/** Course icon (Font Awesome, same style as the rest of the dashboard) from its category or title. */
 function courseIconFor(course) {
-    const emojiMap = { informatique: '💻', algorithmique: '🧭', python: '🐍', math: '📐', programmation: '💻' };
+    const iconMap = {
+        python: 'fa-brands fa-python', algorithmique: 'fas fa-diagram-project', informatique: 'fas fa-laptop-code',
+        programmation: 'fas fa-code', math: 'fas fa-square-root-variable',
+    };
     const haystack = `${course?.category || ''} ${course?.title || ''}`.toLowerCase();
-    for (const key in emojiMap) {
-        if (haystack.includes(key)) return emojiMap[key];
+    const icon = Object.keys(iconMap).find(key => haystack.includes(key));
+    return `<i class="${icon ? iconMap[icon] : 'fas fa-book'}" aria-hidden="true"></i>`;
+}
+
+/** Greeting card: where the student stands in the course to resume, with its progress and Continuer. */
+function renderGreetingResume(course) {
+    const message = document.getElementById('greeting-message');
+    const resume = document.getElementById('greeting-resume');
+    if (!message || !resume) return;
+    const progress = Math.round(Math.max(0, Math.min(100, Number(course.progress) || 0)));
+    const started = courseActivityDate(course) > 0 || progress > 0 || (Number(course.completed_lessons) || 0) > 0;
+    const title = course.title || 'ta formation';
+    message.textContent = '';
+    if (!started) {
+        message.append('Ta formation ', Object.assign(document.createElement('strong'), { textContent: title }), ' t’attend. Lance ta première leçon !');
+    } else if (progress >= 100) {
+        message.append('Bravo, tu as terminé ', Object.assign(document.createElement('strong'), { textContent: title }), ' ! Tu peux revoir les leçons quand tu veux.');
+    } else {
+        message.append('Tu en es à ', Object.assign(document.createElement('strong'), { textContent: progress + ' %' }),
+            ' de ', Object.assign(document.createElement('strong'), { textContent: title }), '. Continue là où tu t’es arrêté.');
     }
-    return '📚';
+    const cta = !started ? 'Commencer' : progress >= 100 ? 'Revoir' : 'Continuer';
+    resume.innerHTML = `
+        <div class="greeting-progress" role="progressbar" aria-label="Progression de la formation" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${progress}">
+            <span style="width:${progress}%"></span>
+        </div>
+        <a class="btn-primary dashboard-course-link greeting-cta" href="/app/course-details?id=${encodeURIComponent(course.course_id)}">
+            <i class="fas fa-play" aria-hidden="true"></i> ${cta}
+        </a>`;
+    resume.hidden = false;
+}
+
+/** Greeting card for a student without a course yet. */
+function renderGreetingStart() {
+    const message = document.getElementById('greeting-message');
+    const resume = document.getElementById('greeting-resume');
+    if (message) message.textContent = 'Commence ton parcours en informatique avec la séance gratuite.';
+    if (!resume) return;
+    resume.innerHTML = '<a class="btn-primary dashboard-course-link greeting-cta" href="/session"><i class="fas fa-play" aria-hidden="true"></i> Séance gratuite</a>';
+    resume.hidden = false;
 }
 
 function renderLockedContinueState(continueSection) {
@@ -197,10 +242,10 @@ function renderPathStepper(pathSection, activeCourse, modules, completedIds) {
         let iconHtml = index + 1;
         if (chapterProgress[index] === 1) {
             statusClass = 'completed';
-            iconHtml = '✓';
+            iconHtml = '<i class="fas fa-check" aria-hidden="true"></i>';
         } else if (index === current) {
             statusClass = 'current';
-            iconHtml = '📍';
+            iconHtml = '<i class="fas fa-location-dot" aria-hidden="true"></i>';
         }
 
         const name = mod.title || `Chapitre ${index + 1}`;
@@ -235,6 +280,7 @@ function loadCoursePath() {
 
         if (courses.length === 0) {
             if (levelSpan) levelSpan.textContent = 'Débutant';
+            renderGreetingStart();
             if (continueSection) renderLockedContinueState(continueSection);
             if (pathSection) pathSection.style.display = 'none';
             return;
@@ -245,12 +291,14 @@ function loadCoursePath() {
         const activeCourse = pickActiveCourse(courses);
         if (!activeCourse?.course_id) {
             if (levelSpan) levelSpan.textContent = 'Débutant';
+            renderGreetingStart();
             if (continueSection) renderLockedContinueState(continueSection);
             if (pathSection) pathSection.style.display = 'none';
             return;
         }
 
         if (levelSpan) levelSpan.textContent = activeCourse.title || 'Apprenti';
+        renderGreetingResume(activeCourse);
 
         const otherCourses = courses.filter(course => String(course.course_id) !== String(activeCourse.course_id));
         if (continueSection) {
@@ -366,9 +414,9 @@ function loadEvents() {
             return `
                 <a class="event-item dashboard-event-link" href="/app/calendar">
                     <div class="event-item-info">
-                        <span class="event-tag">📅 ${escapeDashboardHtml(event.course?.title || event.course_title || 'Session')}</span>
+                        <span class="event-tag"><i class="fas fa-book-open" aria-hidden="true"></i> ${escapeDashboardHtml(event.course?.title || event.course_title || 'Session')}</span>
                         <h4 class="event-title">${escapeDashboardHtml(event.title)}</h4>
-                        <div class="event-time">🗓 ${dateString} - ${timeString}</div>
+                        <div class="event-time"><i class="far fa-clock" aria-hidden="true"></i> ${dateString} - ${timeString}</div>
                         ${isLive ? '<div class="event-live">Session live</div>' : ''}
                     </div>
                     <span class="event-action">Voir &rarr;</span>
