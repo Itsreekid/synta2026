@@ -8,7 +8,7 @@
      data-user-balance="<%= (typeof profile !== 'undefined' && profile) ? profile.balance : '0.00' %>">
 
     <!-- Mobile Menu Button -->
-    <button class="mobile-menu-toggle" onclick="toggleMobileMenu()" aria-label="Toggle menu">
+    <button type="button" class="mobile-menu-toggle" onclick="toggleMobileMenu()" aria-label="Ouvrir le menu" aria-controls="app-sidebar" aria-expanded="false">
         <span></span>
         <span></span>
         <span></span>
@@ -23,10 +23,10 @@
     </div>
 
     <!-- Notification Icon -->
-    <div class="notification-icon" onclick="toggleNotifications()">
-        <i class="fas fa-bell"></i>
+    <button type="button" class="notification-icon" onclick="toggleNotifications()" aria-label="Notifications" aria-haspopup="true" aria-controls="notificationDropdown" aria-expanded="false">
+        <i class="fas fa-bell" aria-hidden="true"></i>
         <span class="notification-badge" id="notificationCount" style="display:none">0</span>
-    </div>
+    </button>
 
     <!-- Notification Dropdown -->
     <div class="dropdown-menu" id="notificationDropdown">
@@ -38,18 +38,18 @@
 
     <!-- Profile Dropdown -->
     <div class="profile-dropdown">
-        <div class="profile-picture" onclick="toggleProfileDropdown()">
-            <i class="fas fa-user"></i>
-        </div>
+        <button type="button" class="profile-picture" onclick="toggleProfileDropdown()" aria-label="Mon compte" aria-haspopup="true" aria-controls="profileDropdown" aria-expanded="false">
+            <i class="fas fa-user" aria-hidden="true"></i>
+        </button>
         <div class="dropdown-menu" id="profileDropdown">
-            <div class="dropdown-item" onclick="window.location.href='/app/profile'">
-                <i class="fas fa-user"></i>
+            <a class="dropdown-item" href="/app/profile">
+                <i class="fas fa-user" aria-hidden="true"></i>
                 <span>Mon Profil</span>
-            </div>
-            <div class="dropdown-item" onclick="logout()">
-                <i class="fas fa-sign-out-alt"></i>
+            </a>
+            <button type="button" class="dropdown-item" onclick="logout()">
+                <i class="fas fa-sign-out-alt" aria-hidden="true"></i>
                 <span>Déconnexion</span>
-            </div>
+            </button>
         </div>
     </div>
 </div>

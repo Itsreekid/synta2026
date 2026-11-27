@@ -42,8 +42,45 @@ document.addEventListener('DOMContentLoaded', function () {
             notificationDropdown.classList.contains('active')) {
             notificationDropdown.classList.remove('active');
         }
+        syncHeaderMenuState();
+    });
+
+    // Escape closes whichever header menu or the mobile navigation is open, and returns focus to its button.
+    document.addEventListener('keydown', function (event) {
+        if (event.key !== 'Escape') return;
+        const openMenu = document.querySelector('#profileDropdown.active, #notificationDropdown.active');
+        const sidebar = document.getElementById('app-sidebar');
+        if (openMenu) {
+            openMenu.classList.remove('active');
+            syncHeaderMenuState();
+            document.querySelector(openMenu.id === 'profileDropdown' ? '.header-top .profile-picture' : '.header-top .notification-icon')?.focus();
+        } else if (sidebar && sidebar.classList.contains('active')) {
+            closeMobileMenu();
+            document.querySelector('.mobile-menu-toggle')?.focus();
+        }
     });
 });
+
+// Presentation only: mirror the open state of the header menus on their buttons (aria-expanded).
+function syncHeaderMenuState() {
+    const pairs = [['.header-top .profile-picture', 'profileDropdown'], ['.header-top .notification-icon', 'notificationDropdown']];
+    for (const [buttonSelector, menuId] of pairs) {
+        const button = document.querySelector(buttonSelector);
+        const menu = document.getElementById(menuId);
+        if (button && menu) button.setAttribute('aria-expanded', String(menu.classList.contains('active')));
+    }
+}
+
+// Presentation only: the menu button stays visible above the drawer and doubles as its close button.
+function syncMobileMenuState() {
+    const sidebar = document.getElementById('app-sidebar');
+    const open = !!(sidebar && sidebar.classList.contains('active'));
+    const menuToggle = document.querySelector('.mobile-menu-toggle');
+    if (menuToggle) {
+        menuToggle.setAttribute('aria-expanded', String(open));
+        menuToggle.setAttribute('aria-label', open ? 'Fermer le menu' : 'Ouvrir le menu');
+    }
+}
 
 
 
@@ -53,6 +90,7 @@ function toggleProfileDropdown() {
     if (dropdown) {
         dropdown.classList.toggle('active');
     }
+    syncHeaderMenuState();
 }
 
 // Toggle notifications
@@ -66,6 +104,7 @@ function toggleNotifications() {
             loadUserNotifications();
         }
     }
+    syncHeaderMenuState();
 }
 
 // Fetch and update unread notification badge
@@ -103,7 +142,7 @@ async function loadUserNotifications() {
     const eventsList = document.getElementById('notificationEventsList');
     if (!eventsList) return;
 
-    eventsList.innerHTML = '<div class="loading" style="padding: 1rem; text-align: center;">Chargement...</div>';
+    eventsList.innerHTML = '<div class="notification-state is-loading" role="status"><span class="sa-skeleton"></span><span class="sa-skeleton"></span><span class="sa-skeleton"></span><span class="tw-sr-only">Chargement...</span></div>';
 
     try {
         const res = await fetch('/api/user/notifications', { credentials: 'include' });
@@ -112,7 +151,7 @@ async function loadUserNotifications() {
         const notifications = data.notifications;
 
         if (notifications.length === 0) {
-            eventsList.innerHTML = '<div style="padding: 1rem; text-align: center; color: #64748b;">Aucune notification</div>';
+            eventsList.innerHTML = '<div class="notification-state"><span class="notification-state-icon" aria-hidden="true"><i class="fas fa-bell-slash"></i></span>Aucune notification</div>';
             return;
         }
 
@@ -132,7 +171,7 @@ async function loadUserNotifications() {
             element.addEventListener('click', () => markNotificationRead(notification.id, notification.link));
         }
     } catch (error) {
-        eventsList.innerHTML = '<div style="padding: 1rem; text-align: center; color: #ef4444;">Erreur de chargement</div>';
+        eventsList.innerHTML = '<div class="notification-state is-error" role="alert"><span class="notification-state-icon" aria-hidden="true"><i class="fas fa-triangle-exclamation"></i></span>Erreur de chargement</div>';
     }
 }
 
@@ -161,6 +200,7 @@ function toggleMobileMenu() {
     if(sidebar) sidebar.classList.toggle('active');
     if(menuToggle) menuToggle.classList.toggle('active');
     if(overlay) overlay.classList.toggle('active');
+    syncMobileMenuState();
 }
 
 // Close mobile menu
@@ -174,6 +214,7 @@ function closeMobileMenu() {
         if(menuToggle) menuToggle.classList.remove('active');
         if(overlay) overlay.classList.remove('active');
     }
+    syncMobileMenuState();
 }
 
 // Load page and close sidebar on mobile

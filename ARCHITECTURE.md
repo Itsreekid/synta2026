@@ -446,6 +446,8 @@ Both mechanisms work in `requireAdmin.js`. This can lead to situations where a u
 /api/user/*          User profile, stats, balance, activity, transactions, notifications
 /api/courses/*       Course catalog, enrollment status, progress
 /api/content/*       Lesson content (signed URLs), progress updates, thumbnails
+                     (/lesson-thumbnails?ids= → signed URLs of lesson video frames stored at
+                      R2 lesson-thumbnails/<lessonId>.jpg, captured in the admin browser)
 /api/enrollment/*    Enroll in course/offer, list enrollments
 /api/purchase/*      Balance-based course/offer purchase
 /api/offers/*        Offer catalog with per-user targeting

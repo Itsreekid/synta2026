@@ -13,6 +13,7 @@ function escapeOfferHtml(value) {
 async function initOffers() {
     const offersList = document.getElementById('offers-list');
     if (!offersList) return;
+    offersList._mobileNavCleanup?.(); // a retry starts from the plain list again
 
     try {
         // Show loading state
@@ -404,38 +405,178 @@ style.textContent = `
 `;
 document.head.appendChild(style);
 
+// Phones (≤600px): the offer list becomes a horizontal scroll-snap carousel, one full card at a time.
+// Swiping is native scrolling; the arrows animate the same scroll position (≈300 ms). Presentation
+// only: cards, their buttons and every purchase handler stay exactly as rendered above.
 function initMobileOfferNav(list) {
+    const carousel = document.getElementById('offers-carousel');
     const nav = document.getElementById('mobile-offer-nav');
     const previous = document.getElementById('nav-prev-btn');
     const next = document.getElementById('nav-next-btn');
     const indicator = document.getElementById('offer-indicator');
+    const pagination = document.getElementById('offer-pagination');
+    const dots = document.getElementById('offer-dots');
     const cards = [...list.querySelectorAll('.offer-card')];
-    if (!nav || !previous || !next || !indicator) return;
+    if (!carousel || !nav || !previous || !next || !indicator) return;
     list._mobileNavCleanup?.();
-    nav.hidden = cards.length < 2;
-    if (nav.hidden) return;
+    const enabled = cards.length > 1;
+    nav.hidden = !enabled;
+    if (pagination) pagination.hidden = !enabled;
+    carousel.classList.toggle('is-carousel', enabled);
+    if (!enabled) return;
+
+    const phone = window.matchMedia('(max-width: 600px)');
+    const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
+    const scroller = document.getElementById('main-section');
     let index = 0;
+    let animation = 0;
+    let programmatic = false;
+    let settleTimer = 0;
+
+    if (dots) dots.innerHTML = cards.map(() => '<span class="offer-dot"></span>').join('');
+    const dotItems = dots ? [...dots.children] : [];
+    const nearest = () => {
+        let best = 0;
+        cards.forEach((card, i) => {
+            if (Math.abs(card.offsetLeft - list.scrollLeft) < Math.abs(cards[best].offsetLeft - list.scrollLeft)) best = i;
+        });
+        return best;
+    };
+    // Conversion rule: the whole active offer, purchase button included, fits the visible screen.
+    // --offer-max-h = the part of the page actually visible below the header (visualViewport when
+    // the browser bar shrinks it), minus the space above the carousel, the counter below it and
+    // the bottom padding (which carries the safe area). CSS caps every card at that height and
+    // only the benefits list scrolls when an offer has too many to fit.
+    const container = carousel.parentElement;
+    const measure = () => {
+        if (!phone.matches || !scroller) { carousel.style.removeProperty('--offer-max-h'); return; }
+        const box = scroller.getBoundingClientRect();
+        const viewport = window.visualViewport;
+        const visibleBottom = Math.min(box.bottom, window.innerHeight,
+            viewport ? viewport.offsetTop + viewport.height : Infinity);
+        const listOffset = list.getBoundingClientRect().top - box.top + scroller.scrollTop;
+        const below = (pagination && !pagination.hidden
+            ? pagination.offsetHeight + parseFloat(getComputedStyle(pagination).marginTop || 0) : 0)
+            + parseFloat(getComputedStyle(container).paddingBottom || 0)
+            + parseFloat(getComputedStyle(scroller).paddingBottom || 0);
+        const available = Math.floor(visibleBottom - box.top - listOffset - below);
+        carousel.style.setProperty('--offer-max-h', Math.max(280, available) + 'px');
+    };
+    // Benefits that scroll get a soft fade at the bottom until the end of the list is reached.
+    const hintScroll = () => cards.forEach(card => {
+        const features = card.querySelector('.features-section');
+        if (!features) return;
+        const more = phone.matches && features.scrollHeight - features.clientHeight - features.scrollTop > 2;
+        features.classList.toggle('has-more', more);
+    });
+    // The track is as tall as the visible card only, so shorter offers leave no blank space below.
+    const fitHeight = () => {
+        list.style.height = phone.matches ? cards[index].offsetHeight + 'px' : '';
+        hintScroll();
+    };
     const sync = () => {
         previous.disabled = index === 0;
         next.disabled = index === cards.length - 1;
         indicator.textContent = (index + 1) + ' / ' + cards.length;
+        dotItems.forEach((dot, i) => dot.classList.toggle('is-active', i === index));
+        cards.forEach((card, i) => card.toggleAttribute('data-carousel-active', i === index));
+        fitHeight();
+    };
+    // Reading the bottom of a long offer: bring the carousel top back into view before switching.
+    const revealTop = () => {
+        if (!scroller) return;
+        const offset = carousel.getBoundingClientRect().top - scroller.getBoundingClientRect().top;
+        if (offset < 0) scroller.scrollTo({ top: scroller.scrollTop + offset - 8, behavior: reducedMotion.matches ? 'auto' : 'smooth' });
+    };
+    let finishTimer = 0;
+    const finish = to => {
+        cancelAnimationFrame(animation);
+        clearTimeout(finishTimer);
+        list.scrollLeft = to;
+        list.classList.remove('is-sliding');
+        programmatic = false;
+    };
+    const slideTo = target => {
+        cancelAnimationFrame(animation);
+        clearTimeout(finishTimer);
+        const from = list.scrollLeft;
+        const to = cards[target].offsetLeft;
+        if (reducedMotion.matches || from === to) { finish(to); return; }
+        programmatic = true;
+        list.classList.add('is-sliding'); // pauses scroll-snap while the position is animated
+        const start = performance.now();
+        const ease = t => 1 - Math.pow(1 - t, 3);
+        const step = now => {
+            const progress = Math.min(1, (now - start) / 300);
+            list.scrollLeft = from + (to - from) * ease(progress);
+            if (progress < 1) animation = requestAnimationFrame(step);
+            else finish(to);
+        };
+        animation = requestAnimationFrame(step);
+        finishTimer = setTimeout(() => finish(to), 420); // lands on the card even if frames are throttled
     };
     const go = offset => {
-        index = Math.max(0, Math.min(cards.length - 1, index + offset));
-        cards[index].scrollIntoView({ block: 'start' });
+        if (!phone.matches) return;
+        const target = Math.max(0, Math.min(cards.length - 1, index + offset));
+        if (target === index) return;
+        index = target; // state first: rapid clicks always move one card from the last target
+        revealTop();
         sync();
+        slideTo(index);
     };
-    const scroller = document.getElementById('main-section');
-    const track = () => {
-        if (!window.matchMedia('(max-width: 600px)').matches) return;
-        const top = nav.getBoundingClientRect().bottom;
-        const visible = cards.findLastIndex(card => card.getBoundingClientRect().top <= top + 28);
-        index = Math.max(0, visible);
-        sync();
+    const onScroll = () => {
+        if (programmatic) return;
+        clearTimeout(settleTimer);
+        settleTimer = setTimeout(() => {
+            const current = nearest();
+            if (current !== index) { index = current; revealTop(); sync(); }
+        }, 90);
     };
+    const onMedia = () => {
+        measure();
+        finish(phone.matches ? cards[index].offsetLeft : 0);
+        fitHeight();
+    };
+    let viewportFrame = 0;
+    const onViewport = () => {
+        cancelAnimationFrame(viewportFrame);
+        viewportFrame = requestAnimationFrame(() => {
+            measure();
+            if (phone.matches) list.scrollLeft = cards[index].offsetLeft; // stay on the same offer
+            fitHeight();
+        });
+    };
+    const resize = typeof ResizeObserver === 'function' ? new ResizeObserver(() => fitHeight()) : null;
+    cards.forEach(card => resize?.observe(card));
+    const onFeaturesScroll = event => {
+        if (event.target.classList?.contains('features-section')) hintScroll();
+    };
+
     previous.onclick = () => go(-1);
     next.onclick = () => go(1);
-    scroller?.addEventListener('scroll', track, { passive: true });
-    list._mobileNavCleanup = () => scroller?.removeEventListener('scroll', track);
+    list.addEventListener('scroll', onScroll, { passive: true });
+    list.addEventListener('scroll', onFeaturesScroll, { passive: true, capture: true });
+    phone.addEventListener?.('change', onMedia);
+    window.addEventListener('resize', onViewport);
+    window.addEventListener('orientationchange', onViewport);
+    window.visualViewport?.addEventListener('resize', onViewport);
+    list._mobileNavCleanup = () => {
+        cancelAnimationFrame(animation);
+        cancelAnimationFrame(viewportFrame);
+        clearTimeout(settleTimer);
+        clearTimeout(finishTimer);
+        list.removeEventListener('scroll', onScroll);
+        list.removeEventListener('scroll', onFeaturesScroll, { capture: true });
+        phone.removeEventListener?.('change', onMedia);
+        window.removeEventListener('resize', onViewport);
+        window.removeEventListener('orientationchange', onViewport);
+        window.visualViewport?.removeEventListener('resize', onViewport);
+        resize?.disconnect();
+        list.style.height = '';
+        carousel.style.removeProperty('--offer-max-h');
+        carousel.classList.remove('is-carousel');
+    };
+    list.scrollLeft = 0;
+    measure();
     sync();
 }

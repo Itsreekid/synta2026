@@ -685,6 +685,7 @@
             <div style="display:flex;gap:.6rem;align-items:center;margin-bottom:.8rem">
                 <select id="chapterLibrarySelect" style="flex:1;padding:.65rem;border:1px solid var(--border);border-radius:8px"><option value="">Ou réutiliser un chapitre existant…</option></select>
                 <button class="btn" type="button" onclick="attachExistingChapter()">Ajouter au cours</button>
+                <button class="btn" type="button" onclick="createMissingLessonThumbnails(this)" title="Capture une image au hasard dans chaque vidéo qui n’a pas encore de miniature (cartes du tableau de bord élève)"><i class="fas fa-image" aria-hidden="true"></i> Créer les miniatures manquantes</button>
             </div>
             <div id="chapterManagerList"><div class="empty-state">Chargement du programme…</div></div>
             <div style="display:flex;justify-content:flex-end;margin-top:1rem"><button class="btn" type="button" onclick="closeChapterManager()">Fermer</button></div>
@@ -987,6 +988,7 @@
                                 <div class="lesson-preview-control"><label class="toggle"><input type="checkbox" role="switch" aria-label="Aperçu gratuit de la leçon" ${lesson.is_preview ? 'checked' : ''} onchange="toggleLessonPreview('${lesson.id}',this)"><span class="toggle-slider" aria-hidden="true"></span></label><span>${lesson.is_preview ? 'Gratuit' : 'Payant'}</span></div>
                                 ${lesson.type !== 'quiz' ? `<button class="btn" type="button" onclick="uploadLessonPracticeFiles('${lesson.id}')"><i class="fas fa-paperclip"></i> Ressources (${(lesson.resources || []).length + (lesson.has_document ? 1 : 0)})</button>` : `<button class="btn" type="button" onclick="editInteractiveQuiz('${lesson.id}')"><i class="fas fa-sliders-h"></i> Modifier le quiz</button>`}
                                 ${lesson.type === 'video' ? `<button class="btn" type="button" onclick="uploadLessonVideo('${lesson.id}',this)"><i class="fas fa-video" aria-hidden="true"></i> ${lesson.has_video ? 'Remplacer la vidéo' : 'Ajouter une vidéo'}</button>
+                                ${lesson.has_video ? `<button class="btn-icon" type="button" aria-label="Nouvelle miniature" title="Nouvelle miniature (image au hasard dans la vidéo)" onclick="regenerateLessonThumbnail('${lesson.id}',this)"><i class="fas fa-image" aria-hidden="true"></i></button>` : ''}
                                 ${lesson.has_video ? `<button class="btn-icon danger" type="button" aria-label="Retirer la vidéo" title="Retirer la vidéo" onclick="removeLessonVideo('${lesson.id}',this)"><i class="fas fa-video-slash" aria-hidden="true"></i></button>` : ''}` : ''}
                                 <button class="btn-icon" title="Modifier le titre" onclick="editLesson('${lesson.id}')"><i class="fas fa-pen"></i></button>
                                 <button class="btn-icon danger" title="Supprimer la leçon" onclick="deleteLesson('${lesson.id}')"><i class="fas fa-trash"></i></button>
@@ -1309,6 +1311,12 @@
                     if (!upload.ok) throw new Error('Le téléversement a échoué. Réessayez.');
                     try { await chapterRequest(url + '/video', 'PATCH', { key:data.key }); }
                     catch { return; }
+                    // Thumbnail for the student dashboard: a random frame of the local file (no download needed).
+                    button.textContent = 'Miniature…';
+                    const localVideo = URL.createObjectURL(file);
+                    try { await saveLessonThumbnail(lessonId, await captureVideoFrame(localVideo)); }
+                    catch (error) { showToast('Vidéo enregistrée, mais la miniature n’a pas pu être créée : ' + error.message, 'error'); }
+                    finally { URL.revokeObjectURL(localVideo); }
                     await loadChapterManager();
                 } catch (error) {
                     showToast(error.message, 'error');
@@ -1318,6 +1326,135 @@
                 }
             };
             input.click();
+        }
+
+        // ── Lesson thumbnails (student dashboard cards) ──────────────────────────
+        // A random, non-black frame of the lesson video, saved as a small JPEG in R2
+        // (lesson-thumbnails/<lessonId>.jpg). Captured in this browser: no server-side video processing.
+
+        /** Resolves when the video fires `eventName`; rejects on error or after 30 s. */
+        function videoEvent(video, eventName) {
+            return new Promise((resolve, reject) => {
+                const done = callback => () => { clearTimeout(timer); video.removeEventListener(eventName, ok); video.removeEventListener('error', fail); callback(); };
+                const ok = done(resolve);
+                const fail = done(() => reject(new Error('lecture de la vidéo impossible')));
+                const timer = setTimeout(done(() => reject(new Error('la vidéo met trop de temps à charger'))), 30000);
+                video.addEventListener(eventName, ok);
+                video.addEventListener('error', fail);
+            });
+        }
+
+        async function captureVideoFrame(source, { crossOrigin = false } = {}) {
+            const video = document.createElement('video');
+            video.muted = true; video.playsInline = true; video.preload = 'auto';
+            if (crossOrigin) video.crossOrigin = 'anonymous';
+            const metadata = videoEvent(video, 'loadeddata');
+            video.src = source;
+            try {
+                try { await metadata; }
+                catch (error) {
+                    if (crossOrigin) throw new Error('vidéo bloquée : autorisez GET depuis cette page admin dans le CORS du bucket R2');
+                    throw error;
+                }
+                // Some WebM recordings report no duration until the end is reached: seek far ahead once to learn it.
+                if (!Number.isFinite(video.duration)) {
+                    const known = videoEvent(video, 'durationchange').catch(() => {});
+                    video.currentTime = 1e101;
+                    await known;
+                    if (!Number.isFinite(video.duration)) await new Promise(resolve => setTimeout(resolve, 300));
+                }
+                const duration = Number.isFinite(video.duration) && video.duration > 1 ? video.duration : 0;
+                const canvas = document.createElement('canvas');
+                const width = Math.min(640, video.videoWidth || 640);
+                canvas.width = width;
+                canvas.height = Math.round(width * (video.videoHeight || 9) / (video.videoWidth || 16));
+                const context = canvas.getContext('2d', { willReadFrequently: true });
+                let best = -1;
+                for (let attempt = 0; attempt < 4; attempt++) {
+                    if (duration) {
+                        const seeked = videoEvent(video, 'seeked');
+                        video.currentTime = duration * (0.15 + Math.random() * 0.6); // skip intro and ending
+                        await seeked;
+                    }
+                    context.drawImage(video, 0, 0, canvas.width, canvas.height);
+                    let pixels;
+                    try { pixels = context.getImageData(0, 0, canvas.width, canvas.height).data; }
+                    catch { throw new Error('image bloquée par le CORS R2 : autorisez GET depuis cette page admin'); }
+                    let light = 0;
+                    for (let index = 0; index < pixels.length; index += 64) light += (pixels[index] + pixels[index + 1] + pixels[index + 2]) / 3;
+                    best = light / (pixels.length / 64);
+                    if (best > 35 || !duration) break; // not a black transition frame
+                }
+                return await new Promise((resolve, reject) => canvas.toBlob(blob => blob ? resolve(blob) : reject(new Error('image impossible à créer')), 'image/jpeg', 0.82));
+            } finally {
+                video.removeAttribute('src');
+                video.load();
+            }
+        }
+
+        async function saveLessonThumbnail(lessonId, blob) {
+            const response = await fetch('/api/admin/lessons/' + encodeURIComponent(lessonId) + '/thumbnail-upload-url', {
+                method:'POST', credentials:'include', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ size:blob.size })
+            });
+            const data = await response.json();
+            if (!response.ok) throw new Error(data.error || 'préparation impossible');
+            let upload;
+            try { upload = await fetch(data.uploadUrl, { method:'PUT', headers:{'Content-Type':data.contentType}, body:blob }); }
+            catch { throw new Error('transfert vers R2 bloqué (CORS du bucket)'); }
+            if (!upload.ok) throw new Error('le transfert a échoué');
+        }
+
+        /** Frame from the video already stored for the lesson (needs the bucket CORS to allow GET from this page). */
+        async function captureStoredLessonFrame(lessonId) {
+            const response = await fetch('/api/admin/lessons/' + encodeURIComponent(lessonId) + '/video-url', { credentials:'include' });
+            const data = await response.json();
+            if (!response.ok) throw new Error(data.error || 'vidéo indisponible');
+            const crossOrigin = new URL(data.url, location.href).origin !== location.origin;
+            return captureVideoFrame(data.url, { crossOrigin });
+        }
+
+        async function regenerateLessonThumbnail(lessonId, button) {
+            button.disabled = true;
+            const icon = button.querySelector('i');
+            if (icon) icon.className = 'fas fa-spinner fa-spin';
+            try {
+                await saveLessonThumbnail(lessonId, await captureStoredLessonFrame(lessonId));
+                showToast('Nouvelle miniature enregistrée.', 'success');
+            } catch (error) {
+                showToast('Miniature impossible : ' + error.message, 'error');
+            } finally {
+                button.disabled = false;
+                if (icon) icon.className = 'fas fa-image';
+            }
+        }
+
+        async function createMissingLessonThumbnails(button) {
+            const ids = activeCourseChapters.flatMap(chapter => chapter.lessons || [])
+                .filter(lesson => lesson.type === 'video' && lesson.has_video).map(lesson => lesson.id);
+            if (!ids.length) return showToast('Aucune vidéo dans ce cours.', 'error');
+            const label = button.innerHTML;
+            button.disabled = true;
+            try {
+                const response = await fetch('/api/admin/lessons/thumbnail-status', {
+                    method:'POST', credentials:'include', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ ids })
+                });
+                const data = await response.json();
+                if (!response.ok) throw new Error(data.error || 'vérification impossible');
+                if (!data.missing.length) return showToast('Toutes les vidéos ont déjà une miniature.', 'success');
+                let done = 0; const failures = [];
+                for (const lessonId of data.missing) {
+                    button.textContent = `Miniatures ${done + failures.length + 1}/${data.missing.length}…`;
+                    try { await saveLessonThumbnail(lessonId, await captureStoredLessonFrame(lessonId)); done++; }
+                    catch (error) { failures.push(error.message); }
+                }
+                if (failures.length) showToast(`${done}/${data.missing.length} miniatures créées. Erreur : ${failures[0]}`, 'error');
+                else showToast(`${done} miniature(s) créée(s).`, 'success');
+            } catch (error) {
+                showToast('Miniatures impossibles : ' + error.message, 'error');
+            } finally {
+                button.disabled = false;
+                button.innerHTML = label;
+            }
         }
 
         async function removeLessonVideo(lessonId, button) {

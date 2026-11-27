@@ -243,15 +243,122 @@ body { background: var(--sa-canvas); color: var(--sa-text); }
 #app-sidebar .nav-links a.active .nav-icon { color: #fff; }
 .mobile-menu-toggle span { background: var(--sa-navy); }
 
+/* Header controls are real buttons now (keyboard + screen readers): neutralise UA button styles. */
+#app-header-top button.notification-icon,
+#app-header-top button.profile-picture {
+  -webkit-appearance: none;
+  appearance: none;
+  padding: 0;
+  font: inherit;
+  line-height: 1;
+}
+#app-header-top button.profile-picture { border: 0; }
+#app-header-top .notification-icon[aria-expanded='true'] { background: var(--sa-navy-50); border-color: #c9dbe6; }
+#app-header-top .notification-icon:active,
+#app-header-top .profile-picture:active { transform: scale(0.96); }
+#app-header-top .currency-balance { background: #fff; padding-inline: 0.85rem 1rem; }
+#app-header-top .currency-icon { width: 15px; height: 15px; }
+
+/* Profile menu: link + button, same look as before. */
+#app-header-top #profileDropdown { min-width: 210px; }
+#app-header-top #profileDropdown .dropdown-item {
+  box-sizing: border-box;
+  width: 100%;
+  border: 0;
+  background: none;
+  font: inherit;
+  font-weight: 600;
+  text-align: left;
+  text-decoration: none;
+  cursor: pointer;
+}
+#app-header-top #profileDropdown .dropdown-item + .dropdown-item { margin-top: 2px; }
+#app-header-top #profileDropdown .dropdown-item:last-child:hover { background: #fef2f2; color: #b42318; }
+
+/* Notifications panel: header, rows and the loading / empty / error states. */
+#app-header-top #notificationDropdown .dropdown-header {
+  border-bottom: 1px solid var(--sa-line);
+  border-radius: var(--sa-radius-lg) var(--sa-radius-lg) 0 0;
+  font-weight: 800;
+  color: var(--sa-navy);
+}
+#app-header-top #notificationDropdown .notification-event-item { transition: background-color var(--sa-fast) ease; }
+#app-header-top #notificationDropdown .notification-event-item:last-child { border-bottom: 0; }
+#app-header-top .notification-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 1.75rem 1rem;
+  color: var(--sa-muted);
+  font-size: 0.9rem;
+  font-weight: 600;
+  text-align: center;
+}
+#app-header-top .notification-state-icon {
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: var(--sa-navy-50);
+  color: #4a88a8;
+}
+#app-header-top .notification-state.is-error { color: #b42318; }
+#app-header-top .notification-state.is-error .notification-state-icon { background: #fef2f2; color: #d92d20; }
+#app-header-top .notification-state.is-loading { align-items: stretch; gap: 0.6rem; padding: 1rem; }
+#app-header-top .notification-state.is-loading .sa-skeleton { display: block; height: 44px; }
+
+/* Sidebar */
+#app-sidebar .nav-links li { margin-bottom: 0.25rem; }
+#app-sidebar .nav-links a:active:not(.active) { background: #e3eef4; }
+#app-sidebar .logo-icon { background: transparent; }
+.mobile-menu-toggle { transition: background-color var(--sa-fast) ease; }
+.mobile-menu-toggle span { transition: transform var(--sa-base) var(--sa-ease), opacity var(--sa-fast) ease; }
+
+/* Tablet icon rail: labels stay available to screen readers instead of display:none. */
 @media (max-width: 1024px) and (min-width: 769px) {
   #app-sidebar .nav-links a .nav-icon { font-size: 1.3rem; }
+  #app-sidebar .nav-text {
+    display: block;
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
+  }
+  #app-sidebar .nav-links a { position: relative; }
 }
+
+/* Phones: the drawer opens under the header bar, so the menu button stays visible as its close
+   button (it used to be covered: the header is a sticky stacking context below the drawer), and
+   the drawer shows the full logo with « Synta Academy ». */
 @media (max-width: 768px) {
   #app-header-top .notification-icon,
   #app-header-top .profile-picture { width: 38px; height: 38px; }
-  #app-sidebar { box-shadow: var(--sa-shadow-pop); }
-  .sidebar-overlay { background: rgba(1, 24, 42, 0.45); }
+  #app-sidebar {
+    top: 60px;
+    height: calc(100vh - 60px);
+    height: calc(100dvh - 60px);
+    padding: 1.25rem 0;
+    border-top: 1px solid var(--sa-line);
+    box-shadow: var(--sa-shadow-pop);
+    transition: transform 240ms var(--sa-ease);
+  }
+  #app-sidebar .logo { justify-content: flex-start; gap: 0.75rem; padding: 0 1.5rem 1.25rem; margin-bottom: 1.25rem; }
+  #app-sidebar .logo-icon { width: 44px; height: 44px; margin: 0; }
+  #app-sidebar .logo-text { display: inline; font-size: 1.15rem; }
+  .sidebar-overlay { top: 60px; background: rgba(1, 24, 42, 0.45); }
+  .sidebar-overlay.active { animation: sa-fade-in var(--sa-base) ease; }
+  .mobile-menu-toggle { width: 44px; height: 44px; top: 8px; border-radius: var(--sa-radius); }
+  .mobile-menu-toggle:hover { background: var(--sa-navy-50); }
+  .mobile-menu-toggle.active { background: var(--sa-navy-50); }
+  .mobile-menu-toggle.active span:nth-child(1) { transform: translateY(9px) rotate(45deg); }
+  .mobile-menu-toggle.active span:nth-child(3) { transform: translateY(-9px) rotate(-45deg); }
 }
+@keyframes sa-fade-in { from { opacity: 0; } }
+@keyframes sa-pop-in { from { opacity: 0; transform: translateY(8px) scale(0.98); } }
 
 /* Keyboard focus: one visible ring everywhere in the student shell (not inside the player or editor). */
 /* Video.js and CodeMirror keep their own focus styles (:not() with a complex selector simply
@@ -263,8 +370,116 @@ body { background: var(--sa-canvas); color: var(--sa-text); }
 #app-header-top .notification-icon:focus-visible,
 #app-header-top .profile-picture:focus-visible { outline: 2px solid var(--sa-orange); outline-offset: 2px; }
 
+/* ── Page polish (Phase 2). Visual only: every selector below already exists in the page markup or
+      its scripts; nothing is moved or hidden. Scoped to each page's container. ───────────────── */
+
+/* Popups shared by calendar and live reminders (popups.css). Same selector weight as popups.css
+   (#event-modal inside :is), loaded later: less rounding, real hover/press feedback. */
+:is(.important-notification, #event-modal) { border-radius: 18px; border-color: var(--sa-line); box-shadow: 0 2px 6px rgba(1, 48, 71, 0.06), 0 24px 56px rgba(1, 48, 71, 0.18); }
+:is(.important-notification, #event-modal)::backdrop { background: rgba(1, 24, 42, 0.45); }
+:is(.important-notification .important-close, #event-modal .close) { transition: background-color var(--sa-fast) ease, color var(--sa-fast) ease; }
+:is(.important-notification .important-close, #event-modal .close):hover { background: #eef3f6; color: var(--sa-navy); }
+:is(.important-actions button, #event-modal .modal-btn) { transition: background-color var(--sa-fast) ease, border-color var(--sa-fast) ease, transform var(--sa-fast) ease; }
+:is(.important-actions .important-calendar, #event-modal .modal-btn-primary):hover:not(:disabled) { background: var(--sa-navy); border-color: var(--sa-navy); }
+:is(.important-actions .important-understood, #event-modal .modal-btn-secondary):hover:not(:disabled) { background: #edf2f6; border-color: var(--sa-line-strong); }
+:is(.important-actions button, #event-modal .modal-btn):active:not(:disabled) { transform: translateY(1px); }
+:is(.important-actions button, #event-modal button):focus-visible { outline-color: var(--sa-orange); }
+
+/* Dashboard (dashboard.css stays the source of its layout). */
+.dashboard-container .card-header h3 { color: var(--sa-navy); letter-spacing: -0.01em; }
+.dashboard-container .stat-item { background: #fff; border: 1px solid var(--sa-line); }
+.dashboard-container .stat-info strong { color: var(--sa-navy); font-variant-numeric: tabular-nums; letter-spacing: -0.02em; }
+.dashboard-container .greeting-track { letter-spacing: 0.01em; }
+.dashboard-container .link-view-all { transition: background-color var(--sa-fast) ease, color var(--sa-fast) ease; }
+.dashboard-container .link-view-all:hover { color: #b9520c; background: var(--sa-orange-50); }
+.dashboard-container :is(.progress-bar-fill, .greeting-progress span, .learn-progress span) { transition: width 300ms var(--sa-ease); }
+.dashboard-container .quick-btn { transition: border-color var(--sa-fast) ease, background-color var(--sa-fast) ease, transform var(--sa-fast) ease; }
+.dashboard-container .quick-btn:active { transform: translateY(1px); }
+.dashboard-container .mini-cal-arrow { transition: border-color var(--sa-fast) ease, color var(--sa-fast) ease, background-color var(--sa-fast) ease; }
+.dashboard-container .mini-cal-arrow:hover { background: var(--sa-orange-50); }
+.dashboard-container .dash-empty { border: 1px dashed var(--sa-line-strong); background: #fafcfd; }
+.dashboard-container .dash-retry { transition: background-color var(--sa-fast) ease; }
+.dashboard-container .dash-retry:hover { background: var(--sa-orange-50); }
+
+/* Courses catalogue */
+.courses-container .courses-group-title span {
+  display: inline-flex;
+  align-items: center;
+  min-width: 1.5rem;
+  justify-content: center;
+  padding: 0.05rem 0.5rem;
+  font-variant-numeric: tabular-nums;
+}
+.courses-container .search-bar i { transition: color var(--sa-fast) ease; }
+.courses-container .search-bar:focus-within i { color: var(--sa-orange); }
+.courses-container :is(.no-courses, .error-message) { border-color: var(--sa-line-strong); background: #fafcfd; gap: 0.6rem; }
+.courses-container :is(.no-courses, .error-message) > i {
+  display: grid;
+  place-items: center;
+  width: 46px;
+  height: 46px;
+  border-radius: 50%;
+  background: #fff;
+  color: var(--sa-orange);
+  font-size: 1.1rem;
+  box-shadow: var(--sa-shadow-card);
+}
+.courses-container .no-courses strong { color: var(--sa-navy); }
+.courses-container .course-card-progress-track span { transition: width 300ms var(--sa-ease); }
+
+/* Wallet */
+.wallet-container .wallet-header h1,
+.wallet-container .account-card h3,
+.wallet-container .payment-methods-section h2,
+.wallet-container .history-header h2 { color: var(--sa-navy); }
+.wallet-container .account-card h3 { font-size: 0.98rem; }
+.wallet-container .detail-row { padding-bottom: 0.55rem; border-bottom: 1px dashed var(--sa-line); }
+.wallet-container .detail-row:last-child { padding-bottom: 0; border-bottom: 0; }
+.wallet-container .payment-method { background: #fafcfd; border-color: var(--sa-line); }
+.wallet-container .payment-method img { border-radius: 10px; }
+.wallet-container .wallet-add-button { min-height: 42px; box-shadow: 0 1px 2px rgba(224, 106, 12, 0.25); }
+.wallet-container .history-table table { border-collapse: separate; border-spacing: 0; }
+.wallet-container .history-table th {
+  background: #f5f8fb;
+  border-bottom: 0;
+  color: #4f6676;
+  font-size: 0.72rem;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+.wallet-container .history-table th:first-child { border-radius: 10px 0 0 10px; }
+.wallet-container .history-table th:last-child { border-radius: 0 10px 10px 0; }
+.wallet-container .history-table tbody tr { transition: background-color var(--sa-fast) ease; }
+.wallet-container .history-table tbody tr:hover td:not(.wallet-table-state) { background: #fafcfd; }
+.wallet-container #offer-purchases-status:not(:empty) { margin: 0; padding: 1rem; border: 1px dashed var(--sa-line-strong); border-radius: 12px; background: #fafcfd; color: var(--sa-muted); font-size: 0.9rem; text-align: center; }
+.wallet-modal-backdrop { background: rgba(1, 24, 42, 0.5); animation: sa-fade-in var(--sa-base) ease; }
+.wallet-modal { border-radius: 18px; box-shadow: 0 2px 6px rgba(1, 48, 71, 0.06), 0 24px 56px rgba(1, 48, 71, 0.2); animation: sa-pop-in 220ms var(--sa-ease); }
+.wallet-modal-actions button { transition: background-color var(--sa-fast) ease, transform var(--sa-fast) ease; }
+.wallet-modal-actions button:active:not(:disabled) { transform: translateY(1px); }
+.wallet-modal :is(.wallet-amount-input input, .wallet-receipt-input) { border-width: 1px; border-radius: 10px; transition: border-color var(--sa-fast) ease, box-shadow var(--sa-fast) ease; }
+.wallet-modal :is(.wallet-amount-input input, .wallet-receipt-input):focus { box-shadow: var(--sa-ring); }
+.wallet-modal button:focus-visible,
+.wallet-modal input:focus-visible,
+.wallet-add-button:focus-visible,
+.offer-pay-button:focus-visible,
+#offer-purchases-more:focus-visible { outline-color: var(--sa-orange); }
+.wallet-toast { border-radius: 12px; box-shadow: var(--sa-shadow-pop); }
+@media (max-width: 599px) {
+  /* Phones keep the bottom sheet; it slides up instead of popping. */
+  .wallet-modal { border-radius: 18px 18px 0 0; animation-name: sa-sheet-in; }
+}
+@keyframes sa-sheet-in { from { transform: translateY(24px); opacity: 0.6; } }
+
+/* Profile */
+.page-profile-wrapper .sa-card__title { font-size: 1.05rem; }
+
 @media (prefers-reduced-motion: reduce) {
   .sa-btn, .sa-card--interactive, .sa-tab, .sa-progress__bar, .sa-skeleton,
-  #app-header-top .dropdown-menu, #app-sidebar .nav-links a { transition: none; animation: none; }
+  #app-header-top .dropdown-menu, #app-sidebar, #app-sidebar .nav-links a, .sidebar-overlay.active,
+  .mobile-menu-toggle span, .wallet-modal, .wallet-modal-backdrop,
+  .dashboard-container :is(.progress-bar-fill, .greeting-progress span, .learn-progress span),
+  .courses-container .course-card-progress-track span { transition: none; animation: none; }
+  #app-header-top .notification-icon:active, #app-header-top .profile-picture:active,
+  .dashboard-container .quick-btn:active { transform: none; }
   .sa-card--interactive:hover, .sa-btn:active:not(:disabled) { transform: none; }
 }

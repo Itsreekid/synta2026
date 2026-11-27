@@ -65,7 +65,7 @@ async function loadCourses(filters = {}, { keepCards = false } = {}) {
 
         if (!courses || courses.length === 0) {
             coursesList.innerHTML = filters.search || filters.category
-                ? '<div class="no-courses"><i class="fas fa-search" aria-hidden="true"></i><strong>Aucun cours ne correspond à ta recherche.</strong><button type="button" class="clear-filters-btn" onclick="clearCourseFilters()">Effacer les filtres</button></div>'
+                ? '<div class="no-courses"><i class="fas fa-search" aria-hidden="true"></i><strong>Aucun cours ne correspond à ta recherche.</strong><button type="button" class="clear-filters-btn sa-btn sa-btn--secondary sa-btn--sm" onclick="clearCourseFilters()">Effacer les filtres</button></div>'
                 : '<div class="no-courses"><i class="fas fa-book-open" aria-hidden="true"></i><strong>Aucun cours disponible pour le moment</strong></div>';
             return;
         }
@@ -144,7 +144,7 @@ async function loadCourses(filters = {}, { keepCards = false } = {}) {
         }
 
         if (!regularCoursesHtml && !activeCourseHtml) {
-            coursesList.innerHTML = '<div class="no-courses"><i class="fas fa-search" aria-hidden="true"></i><strong>Aucun cours trouvé.</strong><button type="button" class="clear-filters-btn" onclick="clearCourseFilters()">Effacer les filtres</button></div>';
+            coursesList.innerHTML = '<div class="no-courses"><i class="fas fa-search" aria-hidden="true"></i><strong>Aucun cours trouvé.</strong><button type="button" class="clear-filters-btn sa-btn sa-btn--secondary sa-btn--sm" onclick="clearCourseFilters()">Effacer les filtres</button></div>';
         } else {
             // Enrolled courses first, under their own heading, then the rest of the catalogue.
             const group = (title, icon, count, html) => `
@@ -164,7 +164,16 @@ async function loadCourses(filters = {}, { keepCards = false } = {}) {
                 const source = resolveCourseImage(course.thumbnail_url);
                 if (!source) { image.remove(); continue; }
                 image.addEventListener('load', () => {
-                    image.closest('.course-thumbnail')?.classList.add('has-image');
+                    const frame = image.closest('.course-thumbnail');
+                    if (!frame) return;
+                    // 16:9 frame: artwork close to 16:9 fills it; any other shape is shown whole
+                    // (contain) over a soft, blurred copy of itself instead of being cropped.
+                    const ratio = image.naturalWidth / Math.max(1, image.naturalHeight);
+                    if (Math.abs(ratio - 16 / 9) > 0.12) {
+                        frame.style.setProperty('--thumb', 'url("' + image.currentSrc.replace(/["\\\n\r]/g, encodeURIComponent) + '")');
+                        frame.classList.add('is-contained');
+                    }
+                    frame.classList.add('has-image');
                 }, { once: true });
                 image.addEventListener('error', () => image.remove(), { once: true });
                 image.src = source;

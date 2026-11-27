@@ -302,14 +302,13 @@ function renderLearn(course, modules, completedIds) {
         renderLearnMessage(`Bravo, toutes les leçons sont terminées. <a href="${lessonCourseUrl(course.course_id)}">Revoir le cours &rarr;</a>`);
         return;
     }
-    const image = typeof resolveCourseImage === 'function' ? resolveCourseImage(course.thumbnail_url) : null;
     grid.innerHTML = upNext.map((lesson, index) => {
         const chapterPercent = Math.round((chapterProgress[lesson.chapterIndex] || 0) * 100);
         const duration = formatLessonDuration(lesson.duration);
         const isPdf = lesson.type === 'pdf';
         return `
         <a class="learn-item" href="${lessonCourseUrl(course.course_id, lesson.id)}">
-            <div class="learn-thumb tone-${lesson.chapterIndex % 4}"${image ? ` style="--thumb:url('${encodeURI(image)}')"` : ''}>
+            <div class="learn-thumb tone-${lesson.chapterIndex % 4}" data-thumb-lesson="${escapeDashboardHtml(lesson.id)}">
                 <span class="learn-badge${index === 0 ? ' is-next' : ''}">${index === 0 ? 'Prochaine leçon' : 'Ensuite'}</span>
                 <span class="learn-thumb-icon" aria-hidden="true"><i class="fas ${isPdf ? 'fa-file-lines' : 'fa-play'}"></i></span>
                 ${duration ? `<span class="learn-duration"><i class="far fa-clock" aria-hidden="true"></i> ${duration}</span>` : ''}
@@ -322,6 +321,38 @@ function renderLearn(course, modules, completedIds) {
             </div>
         </a>`;
     }).join('');
+    applyLessonThumbnails(grid, course, upNext.map(lesson => lesson.id));
+}
+
+/** Shows an image on a card only once it has really loaded (a broken image never leaves a grey box). */
+function setCardImage(thumb, url) {
+    return new Promise(resolve => {
+        if (!url || !thumb.isConnected) return resolve(false);
+        const image = new Image();
+        image.decoding = 'async';
+        image.onload = () => {
+            if (thumb.isConnected) {
+                thumb.style.setProperty('--thumb', `url("${url.replace(/["\\\n]/g, encodeURIComponent)}")`);
+                thumb.classList.add('has-image');
+            }
+            resolve(true);
+        };
+        image.onerror = () => resolve(false);
+        image.src = url;
+    });
+}
+
+/** Lesson cards: the frame saved from each lesson video, else the course image, else the illustrated placeholder. */
+function applyLessonThumbnails(grid, course, lessonIds) {
+    const courseImage = typeof resolveCourseImage === 'function' ? resolveCourseImage(course.thumbnail_url) : null;
+    const fallBack = thumbs => thumbs.forEach(thumb => setCardImage(thumb, courseImage));
+    const thumbs = () => [...grid.querySelectorAll('[data-thumb-lesson]')];
+    fetchDashboardData('/api/content/lesson-thumbnails?' + new URLSearchParams({ ids: lessonIds.join(',') }), data => {
+        const urls = data?.thumbnails || {};
+        thumbs().forEach(async thumb => {
+            if (!await setCardImage(thumb, urls[thumb.dataset.thumbLesson])) setCardImage(thumb, courseImage);
+        });
+    }, () => fallBack(thumbs()));
 }
 
 let dashboardPathRequest = 0;

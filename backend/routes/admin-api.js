@@ -7,6 +7,7 @@ import { requireAdmin } from "../middleware/requireAdmin.js";
 import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
 import { createR2UploadUrl, deleteFromR2, listRecentR2Objects, readR2ObjectMetadata, uploadToR2 } from "../utils/r2Utils.js";
+import { LESSON_THUMBNAIL_MAX_BYTES, LESSON_THUMBNAIL_TYPE, isLessonId, lessonThumbnailExists, lessonThumbnailKey, lessonVideoReadUrl } from "../services/lesson-thumbnails.js";
 import { offerEntitlement, legacyOfferEntitlement, matchesOfferTarget } from "../utils/offerAccess.js";
 import { liveFeatures } from "../services/live-features.js";
 import { revokeAllUserSessions } from "../services/sessions.js";
@@ -914,6 +915,8 @@ router.patch("/api/admin/lessons/:lessonId/video", requireAdmin, async (req, res
     }
     const result = await pool.query("UPDATE lessons SET video_key=$1 WHERE id=$2 AND type='video' RETURNING id", [key, lessonId]);
     if (!result.rowCount) return res.status(404).json({ error: "Leçon vidéo introuvable." });
+    // Removing the video keeps every stored object (project rule); its frame is simply no longer
+    // requested, because /api/content/lesson-thumbnails only answers lessons that have a video.
     res.json({ success: true, has_video: key !== null });
   } catch (error) {
     if (error.$metadata?.httpStatusCode === 404) {
@@ -921,6 +924,55 @@ router.patch("/api/admin/lessons/:lessonId/video", requireAdmin, async (req, res
     }
     console.error("Lesson video update failed:", error.code ?? error.name);
     res.status(500).json({ error: "Impossible de modifier la vidéo." });
+  }
+});
+
+// ── Lesson thumbnails: a JPEG frame captured in the admin browser from the lesson video ──
+
+/** Short-lived URL to read the lesson video for frame capture (admin only; never logs lesson access). */
+router.get("/api/admin/lessons/:lessonId/video-url", requireAdmin, async (req, res) => {
+  res.set("Cache-Control", "private, no-store");
+  try {
+    const { rows: [lesson] } = await pool.query(
+      "SELECT video_key FROM lessons WHERE id=$1 AND type='video'", [req.params.lessonId]);
+    if (!lesson?.video_key?.trim()) return res.status(404).json({ error: "Cette leçon n’a pas de vidéo." });
+    res.json({ success: true, url: await lessonVideoReadUrl(lesson.video_key) });
+  } catch (error) {
+    console.error("Lesson video URL failed:", error.code ?? error.name);
+    res.status(500).json({ error: "Vidéo indisponible." });
+  }
+});
+
+router.post("/api/admin/lessons/:lessonId/thumbnail-upload-url", requireAdmin, async (req, res) => {
+  const { size } = req.body || {};
+  if (!Number.isSafeInteger(size) || size < 1 || size > LESSON_THUMBNAIL_MAX_BYTES) {
+    return res.status(400).json({ error: "Miniature invalide (JPEG de 512 Ko maximum)." });
+  }
+  try {
+    const { rows: [lesson] } = await pool.query("SELECT id FROM lessons WHERE id=$1 AND type='video'", [req.params.lessonId]);
+    if (!lesson) return res.status(404).json({ error: "Leçon vidéo introuvable." });
+    const uploadUrl = await createR2UploadUrl(lessonThumbnailKey(lesson.id), LESSON_THUMBNAIL_TYPE, 300);
+    res.json({ success: true, uploadUrl, contentType: LESSON_THUMBNAIL_TYPE });
+  } catch (error) {
+    console.error("Lesson thumbnail upload preparation failed:", error.code ?? error.name);
+    res.status(500).json({ error: "Impossible de préparer la miniature." });
+  }
+});
+
+/** Which of these video lessons have no saved frame yet (for « Créer les miniatures manquantes »). */
+router.post("/api/admin/lessons/thumbnail-status", requireAdmin, async (req, res) => {
+  const ids = [...new Set(Array.isArray(req.body?.ids) ? req.body.ids : [])].filter(isLessonId).slice(0, 200);
+  try {
+    const missing = [];
+    for (let start = 0; start < ids.length; start += 10) {
+      const batch = ids.slice(start, start + 10);
+      const found = await Promise.all(batch.map(lessonThumbnailExists));
+      batch.forEach((id, index) => { if (!found[index]) missing.push(id); });
+    }
+    res.json({ success: true, missing });
+  } catch (error) {
+    console.error("Lesson thumbnail status failed:", error.code ?? error.name);
+    res.status(500).json({ error: "Impossible de vérifier les miniatures." });
   }
 });
 

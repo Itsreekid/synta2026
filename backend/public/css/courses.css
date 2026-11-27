@@ -1,7 +1,7 @@
 /* =====================================================
    COURSES CATALOGUE — /app/courses
-   Phones: compact header, search, scrollable filters, horizontal
-   cards. 600px and up: card grid that fills the width (2 to 4 columns).
+   Phones: compact header, search, scrollable filters, one full-width
+   vertical card per row. 600px and up: card grid that fills the width (2 to 4 columns).
    ===================================================== */
 :root {
     /* Brand palette (student design system, styles/student-ui.css). */
@@ -213,10 +213,10 @@
     gap: 0.75rem;
 }
 
-/* ── Card (phone: horizontal) ── */
+/* ── Card (base; layout continues in the "vertical at every width" block below) ── */
 .course-card {
     display: grid;
-    grid-template-columns: 112px minmax(0, 1fr);
+    grid-template-columns: minmax(0, 1fr);
     overflow: hidden;
     border: 1px solid var(--c-line);
     border-radius: 16px;
@@ -405,20 +405,64 @@
 
 /* ── Phones: keep the banner text clear of the mascot ── */
 @media (max-width: 599px) {
-    .courses-banner { min-height: 0; padding: 1.05rem 1.1rem; }
-    .courses-banner-text { max-width: calc(100% - 92px); }
-    .courses-banner p { font-size: 0.85rem; }
-    .courses-banner-mascot { right: 0.25rem; }
-    .courses-banner-mascot img { width: 104px; }
+    /* Bugi becomes part of the banner background: large, anchored bottom-right, its left edge
+       (pointer and arm) fading into the navy so the text can sit in front of it. Face stays sharp. */
+    .courses-banner { min-height: 172px; padding: 1.15rem 1.1rem 1.25rem; align-items: flex-start; }
+    .courses-banner::after {
+        content: "";
+        position: absolute;
+        right: -40px;
+        bottom: -70px;
+        width: 240px;
+        height: 240px;
+        border-radius: 50%;
+        background: radial-gradient(circle, rgba(33, 158, 188, 0.38) 0%, rgba(33, 158, 188, 0.12) 45%, transparent 70%);
+        pointer-events: none;
+    }
+    .courses-banner-text { max-width: 64%; }
+    .courses-banner h1 { font-size: clamp(1.2rem, 5.4vw, 1.45rem); text-shadow: 0 1px 14px rgba(1, 24, 42, 0.6); }
+    .courses-banner p { font-size: 0.85rem; text-shadow: 0 1px 10px rgba(1, 24, 42, 0.7); }
+    .courses-banner-mascot { right: -14px; bottom: 0; z-index: 1; line-height: 0; }
+    .courses-banner-mascot img {
+        width: clamp(250px, 78vw, 320px);
+        max-width: none;
+        transform: translateY(14%);
+        -webkit-mask-image: linear-gradient(to right, transparent 0%, rgba(0, 0, 0, 0.18) 26%, rgba(0, 0, 0, 0.75) 42%, #000 52%);
+        mask-image: linear-gradient(to right, transparent 0%, rgba(0, 0, 0, 0.18) 26%, rgba(0, 0, 0, 0.75) 42%, #000 52%);
+    }
     .mascot-bubble { display: none; }
 }
+@media (max-width: 359px) {
+    .courses-banner-text { max-width: 70%; }
+    .courses-banner-mascot { right: -36px; }
+}
 
-/* ── 600px and up: vertical cards in a grid ── */
+/* ── 600px and up: cards in a grid (2 to 4 columns) ── */
 @media (min-width: 600px) {
     .courses-grid {
         grid-template-columns: repeat(auto-fill, minmax(min(100%, 260px), 1fr));
         gap: 1rem;
     }
+}
+
+/* ── Card: vertical at every width. Phones get one full-width card per row with the whole
+      16:9 artwork on top (the old 112px side strip cropped it), then title, description,
+      progress, stats and a full-width action. ── */
+@media all {
+    .courses-grid { gap: 1rem; }
+
+    .course-thumbnail::before {
+        content: "";
+        position: absolute;
+        inset: -16px;
+        background: var(--thumb, none) center / cover;
+        filter: blur(16px) saturate(1.1);
+        opacity: 0;
+    }
+    .course-thumbnail.is-contained::before { opacity: 0.6; }
+    .course-thumbnail.is-contained img { object-fit: contain; }
+
+    .course-info .course-card-description { height: auto; max-height: 4.95em; }
 
     .course-card {
         grid-template-columns: minmax(0, 1fr);
@@ -458,6 +502,13 @@
     .course-card-link:hover .course-card-action.is-enrolled { background: #e06a0c; border-color: #e06a0c; }
 
     .course-card-skeleton .course-thumbnail { min-height: 0; }
+    .course-card-action i { transition: transform 0.15s ease; }
+    .course-card-link:hover .course-card-action i { transform: translateX(2px); }
+    .course-card-link:active { transform: scale(0.99); }
+}
+@media (min-width: 600px) {
+    /* Grid rows stay aligned: every description keeps the same three-line box. */
+    .course-info .course-card-description { height: 4.95em; }
 }
 
 /* ── 1200px and up: search and filters share one row ── */

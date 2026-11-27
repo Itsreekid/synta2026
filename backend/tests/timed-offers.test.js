@@ -493,12 +493,30 @@ test("timed offers on disposable PostgreSQL", { skip: !process.env.BUGI_QA_POSTG
                     const features=cards[1].querySelector('.features-section');
                     const body=document.getElementById('main-section');
                     const action = cards.map(card=>card.querySelector('.acheter-btn').textContent.trim());
+                    // Phones (carousel): the whole active offer and its purchase button must sit inside the
+                    // viewport after every arrow step, without page scroll; only a long benefits list may
+                    // scroll inside the card. Desktop: benefits are never clipped.
+                    const phone = innerWidth <= 600;
+                    const ctaInView = [];
+                    for (let i = 0; i < cards.length; i++) {
+                      if (phone && i > 0) {
+                        document.getElementById('nav-next-btn').click();
+                        await new Promise(resolve => setTimeout(resolve, 480));
+                      }
+                      const button = cards[i].querySelector('.acheter-btn').getBoundingClientRect();
+                      const card = cards[i].getBoundingClientRect();
+                      ctaInView.push(!phone || (button.top >= 0 && button.bottom <= innerHeight && button.height >= 44
+                        && card.top >= 0 && card.bottom <= innerHeight && body.scrollTop === 0
+                        && document.querySelector('[data-carousel-active]') === cards[i]));
+                    }
                     return {
                       count:cards.length, allVisible:cards.every(card=>card.getBoundingClientRect().width>0),
                       horizontalOverflow:body.scrollWidth>body.clientWidth+1,
                       cardOverflow:cards.some(card=>card.scrollWidth>card.clientWidth+1),
-                      featureCount:features.children.length, featureScroll:getComputedStyle(features).overflowY,
-                      featureClipped:features.scrollHeight>features.clientHeight+1,
+                      featureCount:features.children.length,
+                      featureScroll: phone ? getComputedStyle(features).overflowY === 'auto' : getComputedStyle(features).overflowY,
+                      featureClipped: phone ? false : features.scrollHeight>features.clientHeight+1,
+                      ctaInView: ctaInView.every(Boolean),
                       rtl:getComputedStyle(features.querySelector('.feature-text')).direction,
                       featured:cards.filter(card=>card.classList.contains('featured')).length,
                       badges:document.querySelectorAll('.discount-badge').length,
@@ -510,7 +528,7 @@ test("timed offers on disposable PostgreSQL", { skip: !process.env.BUGI_QA_POSTG
                   })()`);
                   assert.deepEqual(layout, {
                     count: 8, allVisible: true, horizontalOverflow: false, cardOverflow: false,
-                    featureCount: 16, featureScroll: "visible", featureClipped: false, rtl: "rtl",
+                    featureCount: 16, featureScroll: width <= 600 ? true : "visible", featureClipped: false, ctaInView: true, rtl: "rtl",
                     featured: 1, badges: 1,
                     labels: ["Déjà possédé", "Passer à cette offre", "Solde insuffisant", "Indisponible", "Acheter", "Renouvellement", "Choisir mon paiement", "Acheter"],
                     disabled: [true, false, true, true, false, false, false, false],

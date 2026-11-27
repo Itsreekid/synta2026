@@ -72,6 +72,14 @@ async function loadRoute(name, doubles, env = {}) {
       requireActiveAccount: () => (req, res, next) => next(), accountDeactivationReady: async () => false,
     },
     "../services/deposit-requests.js": depositRequests,
+    // Lesson thumbnails: real key rules, no R2 access (no thumbnail stored).
+    "../services/lesson-thumbnails.js": {
+      LESSON_THUMBNAIL_TYPE: "image/jpeg", LESSON_THUMBNAIL_MAX_BYTES: 512 * 1024,
+      isLessonId: value => /^[0-9a-f-]{36}$/i.test(String(value)),
+      lessonThumbnailKey: id => `lesson-thumbnails/${id}.jpg`,
+      lessonThumbnailExists: async () => false,
+      lessonVideoReadUrl: async key => key,
+    },
     "../utils/r2Utils.js": { deleteFromR2: async () => {} },
     "../middleware/authRateLimit.js": { authRateLimit },
     "../services/recording-discovery.js": {createRecordingDiscovery:()=>({search:async()=>({files:[]}),invalidate:()=>{}})},

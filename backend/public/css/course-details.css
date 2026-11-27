@@ -1833,6 +1833,44 @@ button.lesson-icon.quiz:focus-visible { outline: 2px solid #6d28d9; outline-offs
     .next-lesson-actions button { flex: 1 1 0; }
 }
 
+/* ── Lesson header, owner-approved (2026-11-27) ──────────────────────────────────────────────
+   1. Lessons no longer show the chapter heading above the title (desktop and mobile). The text
+      stays in the DOM for screen readers; chapter data, outline and navigation are unchanged.
+      Replays keep their « Replay de la séance · date » line.
+   2. Below the desktop layout: back button left and lesson-list button right on one row, then a
+      compact title with the « Leçon x / y » counter right after its last word; less space
+      before the video. */
+.lesson-player-view:not(.course-replay-view) .lesson-header .lesson-chapter-label {
+    position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden;
+    clip: rect(0 0 0 0); white-space: nowrap; border: 0;
+}
+.lesson-player-view:not(.course-replay-view) .lesson-header-sep { display: none; }
+@media (min-width: 1280px) {
+    .lesson-player-view:not(.course-replay-view) .lesson-header { grid-template-areas: "back title counter tools"; }
+    .lesson-player-view:not(.course-replay-view) .lesson-header .course-player-title { align-self: center; }
+}
+@media (min-width: 1024px) and (max-width: 1279px) {
+    .lesson-player-view:not(.course-replay-view) .lesson-header { grid-template-areas: "back . counter tools" "title title title title"; }
+}
+@media (max-width: 1023px) {
+    .lesson-player-view .lesson-header { gap: .4rem; }
+    .lesson-player-view .lesson-header-row { flex-wrap: nowrap; min-width: 0; }
+    .lesson-player-view .lesson-header-tools { flex-wrap: nowrap; margin-left: auto; }
+    .lesson-player-view.course-replay-view .lesson-header .lesson-chapter-label {
+        flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: .8rem;
+    }
+    .lesson-player-view .lesson-header .lesson-title-row { display: block; }
+    .lesson-player-view .lesson-header .course-player-title {
+        display: inline; margin: 0; font-size: clamp(1rem, 4.4vw, 1.2rem); font-weight: 800; line-height: 1.3;
+        letter-spacing: -.01em; overflow-wrap: anywhere;
+    }
+    .lesson-player-view .lesson-header .lesson-counter {
+        /* No margin: the template's whitespace gives the gap after the title and collapses at a line break. */
+        display: inline-block; margin-left: 0; padding: .12rem .5rem; vertical-align: .12em;
+        font-size: .72rem; line-height: 1.4;
+    }
+}
+
 @media (prefers-reduced-motion: reduce) {
     .sidebar, .main-section, .course-rail-toggle, .course-outline-track span, body.course-rail .nav-text { transition: none; }
     .course-video-status.is-overlay::before { animation-duration: 2.4s; }

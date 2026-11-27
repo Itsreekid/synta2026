@@ -2,7 +2,7 @@
 <html lang="fr" dir="ltr">
 <head>
     <%- include('../../partials/head', { turboReload: true, title: 'Plans d\'abonnement' }) %>
-    <link rel="stylesheet" href="/css/offers.css?v=8" data-turbo-track="reload">
+    <link rel="stylesheet" href="/css/offers.css?v=10" data-turbo-track="reload">
     <link rel="stylesheet" href="/css/offer-upgrade-checkout.css">
 </head>
 <body class="page-offers">
@@ -14,17 +14,25 @@
 
         <section id="main-section" class="main-section">
             <div class="offers-container">
-                <nav class="mobile-offer-nav" id="mobile-offer-nav" aria-label="Parcourir les offres" hidden>
-                    <button id="nav-prev-btn" class="mob-nav-btn" aria-label="Offre précédente" disabled>
-                        <span aria-hidden="true">‹</span>
-                    </button>
+                <%# Phones: one offer at a time in a horizontal carousel (offers.js initMobileOfferNav); desktop unchanged. %>
+                <div class="offers-carousel" id="offers-carousel">
+                    <div class="offers-list" id="offers-list">
+                        <div class="loading" role="status">Chargement des offres...</div>
+                    </div>
+                    <nav class="mobile-offer-nav" id="mobile-offer-nav" aria-label="Parcourir les offres" hidden>
+                        <div class="mobile-offer-arrows">
+                            <button type="button" id="nav-prev-btn" class="mob-nav-btn" aria-label="Offre précédente" aria-controls="offers-list" disabled>
+                                <i class="fas fa-chevron-left" aria-hidden="true"></i>
+                            </button>
+                            <button type="button" id="nav-next-btn" class="mob-nav-btn" aria-label="Offre suivante" aria-controls="offers-list">
+                                <i class="fas fa-chevron-right" aria-hidden="true"></i>
+                            </button>
+                        </div>
+                    </nav>
+                </div>
+                <div class="offer-pagination" id="offer-pagination" hidden>
+                    <span class="offer-dots" id="offer-dots" aria-hidden="true"></span>
                     <span class="offer-indicator" id="offer-indicator" aria-live="polite">1 / 1</span>
-                    <button id="nav-next-btn" class="mob-nav-btn" aria-label="Offre suivante">
-                        <span aria-hidden="true">›</span>
-                    </button>
-                </nav>
-                <div class="offers-list" id="offers-list">
-                    <div class="loading" role="status">Chargement des offres...</div>
                 </div>
             </div>
         </section>
@@ -32,10 +40,10 @@
 
     <!-- Scripts -->
     <script src="/js/authentication.js"></script>
-    <script src="/js/user.js?v=20261125-emphasis"></script>
+    <script src="/js/user.js?v=20261127-ui2"></script>
     <script src="/js/api-client.js"></script>
     <script src="/js/offers-config.js"></script>
     <script src="/js/offer-upgrade-checkout.js?v=3"></script>
-    <script src="/js/offers.js?v=22"></script>
+    <script src="/js/offers.js?v=24"></script>
 </body>
 </html>

@@ -922,7 +922,7 @@
         .cp-brand-heading { display:flex; align-items:center; gap:9px; }
         .cp-brand-heading .cp-status-dot { width:9px; height:9px; flex:none; }
         .cp-status-announcement { position:absolute; width:1px; height:1px; padding:0; margin:-1px; overflow:hidden; clip:rect(0,0,0,0); white-space:nowrap; border:0; }
-        .cp-brand-text h2 { color:#172235; font-size:17px; }
+        .cp-brand-text h2 { color:#172235; font-size:18px; }
         .cp-brand-text p { display:none !important; }
         .cp-mode-tabs { display:none !important; }
         .cp-tab { min-height:40px; padding:8px clamp(12px,1.7vw,24px); border-radius:8px; }
@@ -999,15 +999,18 @@
         @media (max-width:700px) {
             .code-pratique-main { height:auto; min-height:0; overflow:hidden; }
             .cp-page { height:100%; min-height:0; box-sizing:border-box; overflow:hidden; padding:10px; gap:10px; }
-            .ide-ribbon { grid-template-columns:minmax(0,1fr) auto; gap:9px 10px; padding:10px; }
-            .cp-brand { gap:9px; }
-            .cp-brand-icon { display:flex; width:38px; height:38px; font-size:15px; }
-            .cp-brand-text h2 { font-size:15px; }
+            /* One compact row: icon · title · status dot … erase + copy (they used to wrap to a second row). */
+            .ide-ribbon { grid-template-columns:minmax(0,1fr) auto; align-items:center; gap:8px; padding:7px 8px 7px 10px; border-radius:12px; }
+            .cp-brand { gap:9px; min-width:0; }
+            .cp-brand-text { min-width:0; }
+            .cp-brand-heading { min-width:0; gap:7px; }
+            .cp-brand-icon { display:flex; flex:none; width:34px; height:34px; border-radius:10px; font-size:13px; }
+            .cp-brand-text h2 { min-width:0; overflow:hidden; font-size:clamp(14px,4.2vw,16px); line-height:1.2; text-overflow:ellipsis; white-space:nowrap; }
             .cp-brand-text p { max-width:220px; font-size:11px; }
-            .cp-toolbar-group { grid-column:1 / -1; justify-content:space-between; flex-wrap:wrap; gap:8px; }
-            .cp-toolbar { flex:1; justify-content:flex-end; gap:6px; }
+            .cp-toolbar-group { grid-column:auto; justify-content:flex-end; flex-wrap:nowrap; gap:6px; }
+            .cp-toolbar { flex:none; justify-content:flex-end; gap:6px; border-left:0 !important; padding-left:0 !important; }
             .cp-select { min-width:0; flex:1; max-width:220px; padding:8px; font-size:12px; }
-            .cp-btn-toolbar { min-width:38px; min-height:38px; padding:6px 9px; }
+            .cp-btn-toolbar { width:40px; min-width:40px; min-height:40px; padding:0; border-radius:10px; }
             .practice-file-notice { align-items:flex-start; padding:9px 11px; font-size:12px; }
             .cp-workspace { display:flex; min-height:0; flex:1; flex-direction:column; gap:10px; }
             .mobile-workspace-tabs { display:grid !important; grid-template-columns:repeat(3,minmax(0,1fr)); flex:none; gap:5px; margin:0 !important; padding:4px; border:1px solid #dce3ed; border-radius:11px; background:#fff; }
@@ -1222,7 +1225,7 @@
                 <div class="cp-brand-icon">&lt;/&gt;</div>
                 <div class="cp-brand-text">
                     <div class="cp-brand-heading">
-                        <h2 id="cp-title" style="margin: 0; font-size: 18px; color: #0f172a;">Code Pratique</h2>
+                        <h2 id="cp-title" style="margin: 0; color: #0f172a;">Code Pratique</h2>
                         <span class="cp-status-dot" aria-hidden="true" title="Éditeur prêt"></span>
                     </div>
                     <span id="cp-status-text" class="cp-status-announcement" aria-live="polite">Éditeur prêt</span>
@@ -1446,7 +1449,7 @@
 
 <!-- Scripts -->
 <script src="/js/authentication.js"></script>
-<script src="/js/user.js?v=20261125-emphasis"></script>
+<script src="/js/user.js?v=20261127-ui2"></script>
 
 <script>
 
@@ -1852,9 +1855,16 @@ function copyCode() {
     else if (currentWebTab === 'css')  code = webCssEditor.getValue();
     else code = webJsEditor.getValue();
     navigator.clipboard.writeText(code).then(() => {
+        // Icon-only feedback so the compact header button keeps its size; the state is in its label.
         const btn = document.querySelector('.cp-btn-toolbar:last-child');
-        btn.innerHTML = '<i class="fas fa-check"></i> Copié !';
-        setTimeout(() => btn.innerHTML = '<i class="fas fa-copy"></i> Copier', 1500);
+        btn.innerHTML = '<i class="fas fa-check" aria-hidden="true"></i>';
+        btn.title = 'Code copié';
+        btn.setAttribute('aria-label', 'Code copié');
+        setTimeout(() => {
+            btn.innerHTML = '<i class="fas fa-copy" aria-hidden="true"></i>';
+            btn.title = 'Copier le code';
+            btn.setAttribute('aria-label', 'Copier le code');
+        }, 1500);
     });
 }
 

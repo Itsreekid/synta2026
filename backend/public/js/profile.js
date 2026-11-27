@@ -266,26 +266,30 @@ function showMessage(message, type = 'info') {
         position: fixed;
         top: 20px;
         right: 20px;
-        padding: 15px 20px;
-        border-radius: 8px;
+        padding: 14px 18px;
+        border-radius: 12px;
         color: white;
         font-family: 'Tajawal', sans-serif;
+        font-weight: 700;
+        line-height: 1.45;
         z-index: 10000;
-        max-width: 300px;
-        animation: slideInRight 0.3s ease-out;
+        max-width: min(320px, calc(100vw - 40px));
+        box-shadow: 0 12px 32px rgba(1, 48, 71, 0.14);
+        animation: slideInRight 0.25s cubic-bezier(0.22, 1, 0.36, 1);
     `;
-    
-    // Set background color based on type
+    messageDiv.setAttribute('role', type === 'error' ? 'alert' : 'status');
+
+    // Set background color based on type (same palette as the wallet toasts)
     switch(type) {
         case 'success':
-            messageDiv.style.background = '#28a745';
+            messageDiv.style.background = '#059669';
             break;
         case 'error':
-            messageDiv.style.background = '#dc3545';
+            messageDiv.style.background = '#dc2626';
             break;
         case 'info':
         default:
-            messageDiv.style.background = '#17a2b8';
+            messageDiv.style.background = '#013047';
             break;
     }
     
@@ -293,10 +297,13 @@ function showMessage(message, type = 'info') {
     const style = document.createElement('style');
     style.textContent = `
         @keyframes slideInRight {
-            from { transform: translateX(100%); opacity: 0; }
+            from { transform: translateX(16px); opacity: 0; }
             to { transform: translateX(0); opacity: 1; }
         }
     `;
+    if (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+        messageDiv.style.animation = 'none';
+    }
     document.head.appendChild(style);
     
     document.body.appendChild(messageDiv);

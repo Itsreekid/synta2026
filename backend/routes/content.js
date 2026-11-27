@@ -10,8 +10,39 @@ import { generateSignedUrl } from "../utils/r2Utils.js";
 import { r2Client, R2_BUCKET } from "../config/r2.js";
 
 import { isCourseImageKey } from "../utils/courseImages.js";
+import { isLessonId, lessonThumbnailExists, lessonThumbnailKey } from "../services/lesson-thumbnails.js";
 
 const router = express.Router();
+
+/**
+ * GET /api/content/lesson-thumbnails?ids=<lessonId>,<lessonId> — PROTECTED
+ * Signed URLs of the video frames saved for these lessons (dashboard lesson cards).
+ * Read-only: unlike GET /lesson/:id it never logs lesson access. Only lessons the
+ * student may open (preview or enrolled) are answered; others are silently skipped.
+ */
+router.get("/lesson-thumbnails", authApiMiddleware, async (req, res) => {
+  res.set("Cache-Control", "private, no-store");
+  const ids = [...new Set(String(req.query.ids || "").split(",").map(id => id.trim().toLowerCase()))]
+    .filter(isLessonId).slice(0, 6);
+  if (!ids.length) return res.json({ thumbnails: {} });
+  try {
+    const { rows } = await pool.query(
+      `SELECT id, is_preview FROM lessons
+       WHERE id = ANY($1::uuid[]) AND type = 'video' AND NULLIF(TRIM(video_key), '') IS NOT NULL`,
+      [ids]
+    );
+    const thumbnails = {};
+    await Promise.all(rows.map(async lesson => {
+      const allowed = lesson.is_preview || await checkLessonAccess(req.user.id, lesson.id);
+      if (!allowed || !await lessonThumbnailExists(lesson.id)) return;
+      thumbnails[lesson.id] = await generateSignedUrl(lessonThumbnailKey(lesson.id), 3600);
+    }));
+    res.json({ thumbnails });
+  } catch (error) {
+    console.error("Lesson thumbnails lookup failed:", error.code ?? error.name);
+    res.json({ thumbnails: {} }); // cards keep their illustrated placeholder
+  }
+});
 
 router.get("/course-image/:key", authApiMiddleware, async (req, res) => {
   const { key } = req.params;
