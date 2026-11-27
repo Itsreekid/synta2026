@@ -1,3 +1,7 @@
+### 2026-11-27 — Wallet account copy buttons (local)
+
+Added compact accessible copy icons before E-dinar, bank RIB and D17 numbers. Copies digits without display spaces, confirms with a checkmark and existing wallet toast, and reports denied clipboard access. No payment, API or database changes. JS syntax and isolated interaction checks passed for all three targets, success and denied clipboard paths; real browser/mobile visual validation remains outstanding. CSS/JS asset versions updated.
+
 ### 2026-11-27 — Learning page header: chapter line removed, compact mobile header (local, uncommitted)
 
 Lessons no longer show the chapter heading above the title (still available to screen readers; replays keep their date line). On phones and tablets, back sits left and the lesson list right on one row, followed by a compact title with « Leçon x / y » inline; the video starts ≈115px higher on a 390×844 phone. CSS only (`course-details.css` `?v=20261127-header1`); no change to course-details.js, chapter data, navigation, Video.js or cinema mode. The offers carousel animation, swipe and rapid taps were verified frame by frame in a real headless Chrome. The known failing `live-multi-audience` test comes from the concurrent lesson-thumbnail import in `routes/content.js` (stub missing in the test), not from UI work.

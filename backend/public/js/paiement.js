@@ -14,6 +14,29 @@ document.addEventListener('DOMContentLoaded', async function () {
     console.log('SyntaAPI available:', !!SyntaAPI);
 
     document.getElementById('add-transaction-button')?.addEventListener('click', event => showAddTransactionPopup(event.currentTarget));
+    document.querySelectorAll('[data-copy-account]').forEach(button => {
+        button.addEventListener('click', async () => {
+            const value = document.getElementById(button.dataset.copyAccount)?.textContent.trim();
+            if (!value || button.disabled) return;
+            button.disabled = true;
+            try {
+                await navigator.clipboard.writeText(value.replace(/\s+/g, ''));
+                button.classList.add('is-copied');
+                button.querySelector('i').className = 'fas fa-check';
+                button.title = 'Copié';
+                showMessage('Copié dans le presse-papiers.', 'success');
+                setTimeout(() => {
+                    button.classList.remove('is-copied');
+                    button.querySelector('i').className = 'far fa-copy';
+                    button.title = 'Copier';
+                }, 1800);
+            } catch {
+                showMessage('Copie impossible. Sélectionnez le numéro pour le copier.', 'error');
+            } finally {
+                button.disabled = false;
+            }
+        });
+    });
 
     // Check if API client is loaded
     if (!SyntaAPI) {
