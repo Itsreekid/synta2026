@@ -197,9 +197,11 @@
 }
 .greeting-illustration {
     flex-shrink: 0;
-    font-size: clamp(2.6rem, 6vw, 5.5rem);
-    line-height: 1;
+    width: clamp(84px, 14vw, 150px);
+    line-height: 0;
 }
+/* Bugi studying (public/source/study-bugi.png, 320px copy of /source/study-bugi.png). */
+.greeting-illustration img { display: block; width: 100%; height: auto; }
 
 /* ── Stats ── */
 .stats-card {
